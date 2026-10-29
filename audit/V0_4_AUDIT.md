@@ -110,7 +110,7 @@ Report/HTML show “lot-vs-within split 75–95 % moves P_f from 0.20 % to 1.20 
 
 ## 5. Final confirmation — hardening commit `60eee8b` (2026-10-29 23:35)
 
-**Status: SHIP WITH ONE FIX (R1 below).** The hardening commit is verified fixed for M1–M3/N1–N3, but the committed qualification report/PDF embed stale validation counts (R1); one regeneration in the right order clears it. Working tree was clean at `60eee8b` apart from this audit file (validation artifacts regenerated during checking were restored to HEAD).
+**Status: SHIP — R1 resolved in `6c2607d`.** The hardening commit is verified fixed for M1–M3/N1–N3. The qualification report/PDF were regenerated in the right order; the report HTML now reads “56 PASS / 2 WARN / 0 FAIL across 58 checks”, and `reports/summary.json` / `validation/results.json` agree (58 checks, 56/2/0, only F4/F5 non-PASS). Working tree clean at `6c2607d`, `main == origin/main`.
 
 ### 5.1 Hardening fixes — verified
 - **M1 FIXED:** README:62 "33 engine tests (~55 s)", README:120 "33 tests", HACKATHON:88 "engine, 33 · test-server 51+1 · node app/tests/run.mjs 37"; app README:34 "37 tests … v0.4 AI helpers".
