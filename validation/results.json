@@ -1,0 +1,948 @@
+{
+ "suite": "AnyRB independent scientific validation",
+ "version": "v0.2-validation",
+ "generated_utc": "2026-10-29T14:56:06+00:00",
+ "environment": {
+  "python": "3.15.2",
+  "numpy": "2.5.4",
+  "scipy": "1.18.1",
+  "matplotlib": "3.11.2",
+  "node": "v26.12.1",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "engine_files": "22a60d3044ede5ace989164537a303a0",
+  "fixture_sha256": "d0b80fbb6873c14c8b0bdeea43ea78f6",
+  "fixture_sha256_full": "d0b80fbb6873c14c8b0bdeea43ea78f6"
+ },
+ "summary": {
+  "total": 46,
+  "PASS": 45,
+  "WARN": 1,
+  "FAIL": 0,
+  "runtime_s": 12.5,
+  "exit_code": 0
+ },
+ "claim_ladder": {
+  "L0_code_verified": {
+   "status": "achieved",
+   "evidence": "A1-A7 (element benchmarks, rigid body, equilibrium, symmetry, independent assembly, linearity)"
+  },
+  "L1_solution_verified": {
+   "status": "achieved",
+   "evidence": "B (energy-minimisation cross-check), C1-C5 (reliability quadrature/MC convergence), D1-D3 (optimiser vs brute force), E (periodic cell energy/stress consistency), H (counts/determinism)"
+  },
+  "L2_literature_calibrated_uq": {
+   "status": "partial",
+   "evidence": "rPETG preset moments/correlation verified internally (G); literature provenance not independently re-derived here"
+  },
+  "L3_literature_reproduced": {
+   "status": "not attempted in v0.2",
+   "evidence": "planned (research/05 \u00a74.3)"
+  },
+  "L4_component_validated": {
+   "status": "absent",
+   "evidence": "no coupon experiments exist"
+  },
+  "L5_system_validated": {
+   "status": "absent",
+   "evidence": "no full-bracket experiments exist"
+  },
+  "L6_certified": {
+   "status": "out of scope",
+   "evidence": "not a certification tool"
+  }
+ },
+ "model_form_limitations": {
+  "no_experiments": "No physical specimens were tested; nothing here is experimental validation.",
+  "frame_vs_part": "The 2-D plane-frame idealisation omits 3-D load paths, out-of-plane bending/buckling and plate action.",
+  "joints": "Printed node/joint compliance and local stress concentrations are not modelled; rigid joints assumed.",
+  "anisotropy": "Layer-adhesion/road-direction anisotropy is not modelled (measured printed in-plane strength used).",
+  "plasticity": "Linear elasticity only; no yield plateau, strain localisation, or failure criterion beyond first yield.",
+  "time_dependence": "Creep, fatigue, UV and thermal ageing are not modelled.",
+  "spatial_scatter": "Material scatter is batch-uniform, not spatial; print-defect statistics absent.",
+  "buckling_model": "Euler buckling with pinned-pinned effective length; no combined axial-bending interaction.",
+  "material_provenance": "Feedstock distributions are literature-derived priors, not the user's measured lots.",
+  "mass_overcount": "Reported mass double-counts strut overlap (F4): +20.2% at w=1 mm, +28.7% at w=2 mm, +46.6% at w=4 mm; at the shipped robust design the analytic mass is 50.7 g vs printed union ~40.5 g (+25.2%). Reported mass is therefore a conservative upper bound, not printed mass.",
+  "optimiser_scope": "D validates a reduced 2-parameter family and checks the shipped 8-parameter result; it does not prove global optimality of the 8-parameter problem."
+ },
+ "figures": [
+  "figures/01_reliability_quadrature_convergence.png",
+  "figures/03_optimiser_grid_vs_pattern_search.png",
+  "figures/02_unit_cell_stiffness_vs_width.png",
+  "figures/04_mass_overlap_vs_width.png"
+ ],
+ "checks": [
+  {
+   "id": "A1",
+   "category": "A: FE element benchmarks",
+   "title": "Pure axial bar elongation",
+   "claim": "The 2-D frame element reproduces the exact bar formula",
+   "method": "Independent assembly of one frame element; fixed node 0, unit axial load",
+   "tolerance": "relative error <= 1e-10",
+   "observed": "rel err 0.000e+00 (u=4.761904761905e-04 mm)",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "A2",
+   "category": "A: FE element benchmarks",
+   "title": "Single-element cantilever tip deflection and rotation",
+   "claim": "Frame element reproduces Euler-Bernoulli FL^3/3EI and FL^2/2EI",
+   "method": "Independent element assembly, fixed node, unit tip load",
+   "tolerance": "relative error <= 1e-10 (both)",
+   "observed": "rel err u 1.46e-16, theta 0.00e+00",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "A3-tran",
+   "category": "A: FE element benchmarks",
+   "title": "Rigid-body translation gives zero internal force",
+   "claim": "The assembled stiffness matrix annihilates rigid-body modes",
+   "method": "Independent 3-element assembly; apply exact rigid translation/rotation",
+   "tolerance": "max |K u| / (EA/L) <= 1e-10",
+   "observed": "rel 0.000e+00",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "A3-rota",
+   "category": "A: FE element benchmarks",
+   "title": "Rigid-body rotation gives zero internal force",
+   "claim": "The assembled stiffness matrix annihilates rigid-body modes",
+   "method": "Independent 3-element assembly; apply exact rigid translation/rotation",
+   "tolerance": "max |K u| / (EA/L) <= 1e-10",
+   "observed": "rel 2.115e-19",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "A4",
+   "category": "A: FE element benchmarks",
+   "title": "Engine unit-load solve matches an independent assembly",
+   "claim": "Engine solve_unit == independent 94-element frame assembly",
+   "method": "Independent assembly + NumPy direct solve vs anyrb.mechanics.solve_unit",
+   "tolerance": "relative error <= 1e-9 (u, N, M1)",
+   "observed": "rel err u 9.45e-15, N 1.27e-14, M1 1.74e-14",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "A5",
+   "category": "A: FE element benchmarks",
+   "title": "Global equilibrium of the full lattice",
+   "claim": "Reaction forces balance applied force and moment; free-DOF residual vanishes",
+   "method": "Independent assembly reactions vs applied unit tip load",
+   "tolerance": "relative residual <= 1e-12 (force, moment, free residual)",
+   "observed": "force 6.57e-14, moment 7.28e-14, free 9.95e-14",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "A6",
+   "category": "A: FE element benchmarks",
+   "title": "Reflection symmetry and load-reversal symmetry",
+   "claim": "Bracket is symmetric about y=30 mm: reflected stiffness equal, reversed load flips v and theta",
+   "method": "DOF permutation + sign map on independent stiffness matrix; solve reversed load",
+   "tolerance": "relative error <= 1e-10",
+   "observed": "K symmetry 0.00e+00, u symmetry 0.00e+00",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "A7",
+   "category": "A: FE element benchmarks",
+   "title": "Demand linearity in applied load",
+   "claim": "sigma_req, E_req and tip deflection scale linearly with F for a linear model",
+   "method": "Engine demands at F=150 N and F=300 N on a graded design",
+   "tolerance": "relative deviation from exact scaling <= 1e-13",
+   "observed": "0.00e+00",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "B-uniform",
+   "category": "B: independent solver",
+   "title": "Energy minimisation matches direct stiffness solve (uniform)",
+   "claim": "Energy minimisation and direct stiffness solve agree on the same assembled system",
+   "method": "Minimise 0.5 u^T K u - f^T u with L-BFGS-B on free DOFs; compare with direct solve",
+   "tolerance": "relative displacement error <= 1e-6; grad norm <= 1e-6",
+   "observed": "rel u 8.85e-08, |grad| 2.27e-07, energy rel 6.16e-15",
+   "status": "PASS",
+   "notes": "L-BFGS-B success=True, nit=109",
+   "evidence": {}
+  },
+  {
+   "id": "B-graded",
+   "category": "B: independent solver",
+   "title": "Energy minimisation matches direct stiffness solve (graded)",
+   "claim": "Energy minimisation and direct stiffness solve agree on the same assembled system",
+   "method": "Minimise 0.5 u^T K u - f^T u with L-BFGS-B on free DOFs; compare with direct solve",
+   "tolerance": "relative displacement error <= 1e-6; grad norm <= 1e-6",
+   "observed": "rel u 2.04e-07, |grad| 3.10e-07, energy rel 2.85e-14",
+   "status": "PASS",
+   "notes": "L-BFGS-B success=True, nit=132",
+   "evidence": {}
+  },
+  {
+   "id": "C1",
+   "category": "C: reliability",
+   "title": "Closed-form Phi2 vs SciPy bivariate-normal CDF (rho <= 0.95)",
+   "claim": "Engine's Gauss-Legendre Phi2 agrees with SciPy's independent implementation for rho <= 0.95",
+   "method": "48-point GL (engine) vs scipy.stats.multivariate_normal.cdf over 24 cases",
+   "tolerance": "max absolute error <= 1e-9",
+   "observed": "3.33e-15 (worst a,b,rho=(2.5, 2.5, 0.0))",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "C1b",
+   "category": "C: reliability",
+   "title": "Extreme-correlation/deep-tail Phi2 vs independent conditional 1-D quadrature",
+   "claim": "The engine's extreme-rho path is genuinely verified, not SciPy-vs-SciPy",
+   "method": "scipy.integrate.quad of phi(x)*Phi((b-rho*x)/s) over finite [a-40,a], split at the conditional median; rho=0.99/0.999 and deep tails (a down to -8); only univariate phi/Phi used in the reference",
+   "tolerance": "max absolute error <= 1e-8 and max relative error <= 1e-6 where reference > 1e-10",
+   "observed": "max abs err 2.22e-16 (worst rho,a,b=(0.99, 2.5, 2.5)); max rel err 5.61e-08",
+   "status": "PASS",
+   "notes": "The engine delegates to SciPy's bivariate-normal CDF for |rho|>0.9 (and for extreme a/b); this check validates that path against independent 1-D conditional quadrature, and the independent JavaScript implementation is cross-checked in H4. The reference uses only scipy.special.ndtr and phi, never the bivariate CDF. The first validation run (2026-10-29) found ~3.1e-6 error at rho=0.99 with the original fixed 48-point GL rule, which motivated the delegation; this check is retained as a regression guard.",
+   "evidence": {
+    "rows": [
+     {
+      "rho": 0.99,
+      "a": -2.5,
+      "b": 1.2,
+      "engine": 0.006209665325776159,
+      "independent_quad": 0.006209665325776135,
+      "abs_err": 2.42861286636753e-17,
+      "rel_err": 3.911020544515387e-15,
+      "quad_err_est": 1.4247570585673596e-16
+     },
+     {
+      "rho": 0.99,
+      "a": 0.3,
+      "b": -1.1,
+      "engine": 0.13566606094638262,
+      "independent_quad": 0.13566606094638267,
+      "abs_err": 5.551115123125783e-17,
+      "rel_err": 4.091749317701256e-16,
+      "quad_err_est": 9.775296528340435e-15
+     },
+     {
+      "rho": 0.99,
+      "a": 2.5,
+      "b": 2.5,
+      "engine": 0.9928057299327883,
+      "independent_quad": 0.9928057299327885,
+      "abs_err": 2.220446049250313e-16,
+      "rel_err": 2.236536295374357e-16,
+      "quad_err_est": 7.707180487194924e-14
+     },
+     {
+      "rho": 0.99,
+      "a": -4.0,
+      "b": -3.5,
+      "engine": 3.16687845323127e-05,
+      "independent_quad": 3.166878453234673e-05,
+      "abs_err": 3.403039568888877e-17,
+      "rel_err": 1.0745722070302343e-12,
+      "quad_err_est": 3.517166802332819e-19
+     },
+     {
+      "rho": 0.99,
+      "a": -6.0,
+      "b": -1.0,
+      "engine": 9.865877004244794e-10,
+      "independent_quad": 9.865876450376995e-10,
+      "abs_err": 5.538677986987196e-17,
+      "rel_err": 5.6139746071678724e-08,
+      "quad_err_est": 8.865656379699596e-15
+     },
+     {
+      "rho": 0.99,
+      "a": -8.0,
+      "b": -2.0,
+      "engine": 6.661338147750939e-16,
+      "independent_quad": 6.317903740041796e-16,
+      "abs_err": 3.434344077091437e-17,
+      "rel_err": 0.0,
+      "quad_err_est": 1.2355637578782594e-15
+     },
+     {
+      "rho": 0.999,
+      "a": -2.5,
+      "b": 1.2,
+      "engine": 0.006209665325776159,
+      "independent_quad": 0.006209665325776135,
+      "abs_err": 2.42861286636753e-17,
+      "rel_err": 3.911020544515387e-15,
+      "quad_err_est": 1.4247570585673596e-16
+     },
+     {
+      "rho": 0.999,
+      "a": 0.3,
+      "b": -1.1,
+      "engine": 0.13566606094638262,
+      "independent_quad": 0.13566606094638264,
+      "abs_err": 2.7755575615628914e-17,
+      "rel_err": 2.0458746588506284e-16,
+      "quad_err_est": 7.663212703894999e-15
+     },
+     {
+      "rho": 0.999,
+      "a": 2.5,
+      "b": 2.5,
+      "engine": 0.9934777448469433,
+      "independent_quad": 0.9934777448469434,
+      "abs_err": 1.1102230246251565e-16,
+      "rel_err": 1.1175117212074026e-16,
+      "quad_err_est": 7.0493603248571e-14
+     },
+     {
+      "rho": 0.999,
+      "a": -4.0,
+      "b": -3.5,
+      "engine": 3.167124183311998e-05,
+      "independent_quad": 3.167124183311993e-05,
+      "abs_err": 4.743384504624082e-20,
+      "rel_err": 1.49769451088076e-15,
+      "quad_err_est": 3.6522656481892137e-19
+     },
+     {
+      "rho": 0.999,
+      "a": -6.0,
+      "b": -1.0,
+      "engine": 9.865877004244794e-10,
+      "independent_quad": 9.865876450376995e-10,
+      "abs_err": 5.538677986987196e-17,
+      "rel_err": 5.6139746071678724e-08,
+      "quad_err_est": 8.865656379699596e-15
+     },
+     {
+      "rho": 0.999,
+      "a": -8.0,
+      "b": -2.0,
+      "engine": 6.661338147750939e-16,
+      "independent_quad": 6.317903740041796e-16,
+      "abs_err": 3.434344077091437e-17,
+      "rel_err": 0.0,
+      "quad_err_est": 1.2355637578782594e-15
+     }
+    ]
+   }
+  },
+  {
+   "id": "C2",
+   "category": "C: reliability",
+   "title": "Closed-form Phi2 vs independent double quadrature",
+   "claim": "Engine Phi2 agrees with scipy.integrate.dblquad of the bivariate normal density",
+   "method": "dblquad over (-inf,a]x(-inf,b] vs engine 48-point GL",
+   "tolerance": "max absolute error <= 1e-8",
+   "observed": "3.44e-15",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "C3",
+   "category": "C: reliability",
+   "title": "Analytic P_f vs 10^6 Monte-Carlo samples",
+   "claim": "Engine closed form lies within Monte-Carlo sampling error for rho=0/0.6/0.95 incl. tails",
+   "method": "5 threshold pairs x 3 correlations x 1e6 standard bivariate normal samples",
+   "tolerance": "max |z-score| <= 4 (99.99% sampling band; 15 comparisons)",
+   "observed": "max |z| 1.04",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {
+    "rows": [
+     {
+      "rho": 0.0,
+      "a": -2.5,
+      "b": -1.0,
+      "mc": 0.000994,
+      "exact": 0.0009851960290904183,
+      "z": 0.28062819995863364
+     },
+     {
+      "rho": 0.0,
+      "a": -1.5,
+      "b": 0.5,
+      "mc": 0.04632,
+      "exact": 0.04619467182019299,
+      "z": 0.5970667921637175
+     },
+     {
+      "rho": 0.0,
+      "a": 0.0,
+      "b": -2.0,
+      "mc": 0.01148,
+      "exact": 0.011375065974089604,
+      "z": 0.9895177602319989
+     },
+     {
+      "rho": 0.0,
+      "a": 1.5,
+      "b": 1.5,
+      "mc": 0.870783,
+      "exact": 0.8708487996036616,
+      "z": -0.19620165904688802
+     },
+     {
+      "rho": 0.0,
+      "a": -3.0,
+      "b": -2.5,
+      "mc": 1.1e-05,
+      "exact": 8.38241500034087e-06,
+      "z": 0.904103258125663
+     },
+     {
+      "rho": 0.6,
+      "a": -2.5,
+      "b": -1.0,
+      "mc": 0.005034,
+      "exact": 0.004975179408664432,
+      "z": 0.836003423591032
+     },
+     {
+      "rho": 0.6,
+      "a": -1.5,
+      "b": 0.5,
+      "mc": 0.065525,
+      "exact": 0.06532685182360426,
+      "z": 0.8018891400763904
+     },
+     {
+      "rho": 0.6,
+      "a": 0.0,
+      "b": -2.0,
+      "mc": 0.021871,
+      "exact": 0.02180436389821444,
+      "z": 0.4562732537644809
+     },
+     {
+      "rho": 0.6,
+      "a": 1.5,
+      "b": 1.5,
+      "mc": 0.889084,
+      "exact": 0.8891798860691565,
+      "z": -0.3054579297101532
+     },
+     {
+      "rho": 0.6,
+      "a": -3.0,
+      "b": -2.5,
+      "mc": 0.000328,
+      "exact": 0.00034743308707441134,
+      "z": -1.0427535240987842
+     },
+     {
+      "rho": 0.95,
+      "a": -2.5,
+      "b": -1.0,
+      "mc": 0.006276,
+      "exact": 0.006209659864737538,
+      "z": 0.8444910690817186
+     },
+     {
+      "rho": 0.95,
+      "a": -1.5,
+      "b": 0.5,
+      "mc": 0.066977,
+      "exact": 0.06680720126670331,
+      "z": 0.6800441633131865
+     },
+     {
+      "rho": 0.95,
+      "a": 0.0,
+      "b": -2.0,
+      "mc": 0.022743,
+      "exact": 0.02275013194671177,
+      "z": -0.04783142497779284
+     },
+     {
+      "rho": 0.95,
+      "a": 1.5,
+      "b": 1.5,
+      "mc": 0.917089,
+      "exact": 0.9169398022579285,
+      "z": 0.5406240452956579
+     },
+     {
+      "rho": 0.95,
+      "a": -3.0,
+      "b": -2.5,
+      "mc": 0.001286,
+      "exact": 0.001284197094664763,
+      "z": 0.05034265564533813
+     }
+    ]
+   }
+  },
+  {
+   "id": "C4",
+   "category": "C: reliability",
+   "title": "Actual design P_f vs 10^6 lognormal MC",
+   "claim": "Analytic P_f for uniform_w2.0/rPETG agrees with MC from the engine two-level sampler",
+   "method": "1e6 engine samples at lot level vs closed form",
+   "tolerance": "|z-score| <= 4",
+   "observed": "analytic 8.220e-05, MC 8.600e-05 +/- 9.1e-06, z=0.42",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "C5",
+   "category": "C: reliability",
+   "title": "Gauss-Legendre quadrature-order convergence (12/24/48/96)",
+   "claim": "Engine's 48-point rule is converged; error decreases with order",
+   "method": "Same integrand integrated at 12/24/48/96/192 GL points, compared to SciPy",
+   "tolerance": "error(48) <= 1e-10 and non-increasing trend",
+   "observed": "err48 1.78e-15, err96 2.00e-15, errors ['2.3e-04', '1.0e-09', '1.8e-15', '2.0e-15', '5.4e-15']",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {
+    "errors_by_order": {
+     "12": 0.00022520004969417418,
+     "24": 9.961590441420753e-10,
+     "48": 1.7763568394002505e-15,
+     "96": 1.9984014443252818e-15,
+     "192": 5.440092820663267e-15
+    }
+   }
+  },
+  {
+   "id": "C6",
+   "category": "C: reliability",
+   "title": "Lognormal parameterisation recovers target mean/CV/correlation",
+   "claim": "Material.params/sample reproduce the declared arithmetic mean, CV and log-correlation",
+   "method": "2e6 samples at lot level; sample moments vs targets",
+   "tolerance": "mean rel err <= 0.5%, CV rel err <= 2%, corr abs err <= 0.005",
+   "observed": "mean E +5.88e-05, CV E +5.67e-04, mean sy +9.88e-05, CV sy -2.59e-04, corr 0.5504 vs 0.55",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "C7",
+   "category": "C: reliability",
+   "title": "Two-level variance decomposition and hierarchical sampling",
+   "claim": "CV_lot^2 + CV_within^2 = CV_total^2 and hierarchical sampling reproduces total CV",
+   "method": "Parameter identity + 2000 lots x 500 within-lot specimens",
+   "tolerance": "CV^2 identity <= 1e-6 (fractions rounded to 5 dp); sigma^2 identity <= 1e-4; hierarchical CV rel <= 2%",
+   "observed": "param identity 6.9e-08, sigma^2 identity 1.3e-05, hierarchical CV 0.0994 vs 0.1 (-6.13e-03)",
+   "status": "PASS",
+   "notes": "Exact identity holds before rounding; Material stores lot/within fractions rounded to 5 decimal places, leaving 6.9e-8 absolute in CV^2 and 1.3e-5 in sigma^2 from the log1p transform. This is a documentation/precision issue, not a model error.",
+   "evidence": {}
+  },
+  {
+   "id": "C8",
+   "category": "C: reliability",
+   "title": "Measured-lot override changes the distribution level correctly",
+   "claim": "lot_from_measurement replaces lot means, zeroes lot CV, keeps within CV; known-lot P_f uses within level",
+   "method": "Semantics + P_f for measured lot 2300 MPa / 50 MPa against robust-design demands",
+   "tolerance": "exact semantics; known-lot P_f < 1e-3 and lot-level equals within-level (zero lot CV)",
+   "observed": "semantics=True, P_f known 7.22e-16, lot-level 0.00e+00",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "C9",
+   "category": "C: reliability",
+   "title": "Degenerate (zero-variance) marginal and extreme-threshold limits",
+   "claim": "failure_probability handles zero-CV marginals and extreme demands without NaN/overflow",
+   "method": "Constructed degenerate Material; compare P_f to deterministic indicator; extreme demands",
+   "tolerance": "exact indicator match <= 1e-15; finite results for extreme demands",
+   "observed": "degenerate ok=True, extreme sum=1.000000",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "D1",
+   "category": "D: optimiser",
+   "title": "Brute-force grid baseline on the reduced 2-parameter family",
+   "claim": "A 57x37 grid establishes the reference optimum of the uniform-width + root-gradient family",
+   "method": "2109 evaluations of anyrb.evaluate (~4.0 s)",
+   "tolerance": "grid must contain feasible designs",
+   "observed": "best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "D2",
+   "category": "D: optimiser",
+   "title": "Production pattern search vs brute-force grid (2 parameters)",
+   "claim": "Deterministic engine pattern_search finds a feasible design within +1% of the grid optimum",
+   "method": "4 deterministic starts x up to 1500 evals (~0.9 s) via an 8-D wrapper",
+   "tolerance": "feasible (P_f <= target) and mass <= grid best * 1.01",
+   "observed": "mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "D3",
+   "category": "D: optimiser",
+   "title": "200 random designs cannot beat the optimiser by > 2%",
+   "claim": "Random sampling of the reduced design space is not a substitute for the optimiser",
+   "method": "200 uniform random (w0, g) designs vs the fixed optimiser result",
+   "tolerance": "no feasible random design lighter than 0.98 x optimiser mass",
+   "observed": "random best 56.161 g (feasible 134/200) vs 53.311 g",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "D4",
+   "category": "D: optimiser",
+   "title": "Shipped robust design is feasible and independently reproducible",
+   "claim": "The v0.2 robust optimum meets its reliability constraint and its reported P_f/mass reproduce",
+   "method": "Recompute demands with independent assembly; P_f via SciPy bivariate normal; mass from widths",
+   "tolerance": "pf <= target; |pf_diff| <= 1e-8; mass rel diff <= 1e-10; widths in bounds",
+   "observed": "reported pf 0.009834 vs independent 0.009834; mass 50.742 g vs independent 50.742 g; widths [1.18,2.01] mm; target 0.01",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "D5",
+   "category": "D: optimiser",
+   "title": "Printability metrics are reported, not silently rejected",
+   "claim": "Width bounds satisfied; neighbour ratio and slenderness reported with correct values",
+   "method": "Engine printability_report vs manual recomputation on the robust design",
+   "tolerance": "values match <= 1e-12; out_of_bounds False",
+   "observed": "min/max width 1.18/2.01 mm, slenderness 22.70 (limit 30), neighbour ratio 1.457 (limit 1.5), out_of_bounds False",
+   "status": "PASS",
+   "notes": "Ratio 1.457 and slenderness 22.7 are close to the advisory printability limits; they are reported as warnings in the app and are not optimisation constraints.",
+   "evidence": {}
+  },
+  {
+   "id": "E1",
+   "category": "E: homogenisation",
+   "title": "Unit-cell axial stiffness vs independent pin-jointed truss estimate",
+   "claim": "C11 (and C22) of the X-braced cell equals the analytical truss estimate to frame-rotation accuracy",
+   "method": "Periodic/affine BC frame solve (6 elements, rotations free) vs C11_truss = E_s (w/L)(2 + 1/sqrt2)",
+   "tolerance": "relative error <= 5e-3 (frame vs pin-jointed difference grows with w)",
+   "observed": "max rel err 1.43e-03 over w=1..3 mm",
+   "status": "PASS",
+   "notes": "Residual is the frame's rotational compatibility at shared nodes: the pin-jointed truss estimate has no bending, the frame cell must bend slightly; error is <0.15%.",
+   "evidence": {}
+  },
+  {
+   "id": "E2",
+   "category": "E: homogenisation",
+   "title": "In-plane isotropy of the square X-braced cell",
+   "claim": "E1 == E2 for the square cell (C11 = C22)",
+   "method": "Two unit-strain states of the same periodic cell",
+   "tolerance": "relative difference <= 1e-8",
+   "observed": "0.00e+00",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "E3",
+   "category": "E: homogenisation",
+   "title": "Shear stiffness vs pin-jointed truss estimate",
+   "claim": "G12 is of the same order and follows the same w-scaling as the truss estimate",
+   "method": "Simple-shear macro strain; compare with G_truss = E_s (w/L)/sqrt2",
+   "tolerance": "relative error <= 5%",
+   "observed": "max rel err 3.18% over w=1..3 mm (grows with w: +0.4% at w=1, +3.2% at w=3)",
+   "status": "PASS",
+   "notes": "Frame action stiffer than pin-jointed estimate for shear because shared-node rotation constraints force bending; documented, not a failure.",
+   "evidence": {}
+  },
+  {
+   "id": "E4",
+   "category": "E: homogenisation",
+   "title": "Stiffness scaling exponent vs relative density",
+   "claim": "C11 ~ w^1 (stretch-dominated scaling, exponent 1) over w=1..3 mm",
+   "method": "Power-law fit of C11 vs w from the periodic cell",
+   "tolerance": "fitted exponent in [0.95, 1.05]",
+   "observed": "fitted exponent 1.0011 (intercept 0.999)",
+   "status": "PASS",
+   "notes": "The Gibson-Ashby-like reference for a stretching-dominated lattice is exponent 1.",
+   "evidence": {}
+  },
+  {
+   "id": "E5",
+   "category": "E: homogenisation",
+   "title": "Maxwell-Betti symmetry of the effective stiffness matrix",
+   "claim": "Cross terms satisfy C12 == C21 (energy-consistent cell)",
+   "method": "Stress-based C12 (sigma22/eps11) vs C21 (sigma11/eps22)",
+   "tolerance": "relative difference <= 1e-8",
+   "observed": "2.22e-16",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "E6",
+   "category": "E: homogenisation",
+   "title": "Energy-based vs stress-based stiffness consistency",
+   "claim": "C11 from strain energy equals sigma11/eps11 from boundary reactions",
+   "method": "Two independent post-processes of the same periodic-cell solution",
+   "tolerance": "relative difference <= 1e-8",
+   "observed": "2.22e-16",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "F1",
+   "category": "F: mass & STL",
+   "title": "Width field, strut volume and mass recomputed independently",
+   "claim": "Bilinear log-width interpolation and mass formula reproduce the engine exactly",
+   "method": "Independent bilinear interpolation from the 8 controls + strut volume + pad",
+   "tolerance": "width and mass relative difference <= 1e-12",
+   "observed": "width abs diff 0.00e+00 mm, mass rel diff 0.00e+00 (53.6601 g)",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "F2a",
+   "category": "F: mass & STL",
+   "title": "STL strut mesh: count, finite coordinates, envelope, non-degenerate",
+   "claim": "12 triangles per strut, finite vertices, inside the expected strut envelope",
+   "method": "lattice_triangles on uniform w=2; strut triangles = 94x12 = 1128",
+   "tolerance": "count == 1128; all finite; all areas > 1e-10; bounds inside [10-w/2, 150+w/2] x [-w/2, 60+w/2] x [-5,5]",
+   "observed": "1128 strut triangles, bounds x[9.00,151.00] y[-1.00,61.00] z[-5.00,5.00], min area 10.00",
+   "status": "PASS",
+   "notes": "Strut boxes extend past the nominal envelope by w/2 at diagonal ends; expected for a box-per-strut visualisation export.",
+   "evidence": {}
+  },
+  {
+   "id": "F2b",
+   "category": "F: mass & STL",
+   "title": "STL wall-pad mesh is the nominal 10x60x10 prism",
+   "claim": "Pad triangles lie inside [0,10]x[0,60]x[-5,5] and form an axis-aligned prism",
+   "method": "anyrb.stl._pad_triangles: pad box vertices (first 12 triangles of the export)",
+   "tolerance": "all pad vertex coordinates within 1e-9 of the nominal 10x60x10 box",
+   "observed": "pad bounds x[0.00,10.00] y[0.00,60.00] z[-5.00,5.00] mm",
+   "status": "PASS",
+   "notes": "REAL DEFECT (engine, stl.py): _pad_triangles builds a box whose axis runs along the pad diagonal (0,0)->(10,60) and then clips x to [0,10]; vertices land at y=0.00 and y=60.00 instead of 0..60. The pad is exported as a sheared parallelogram (signed volume still 6000 mm^3, F3), so a slicer receives a pad shifted ~5 mm out of the design envelope. The FE model and mass formula are unaffected; only the STL artifact is wrong. Recommend replacing _pad_triangles with a plain axis-aligned box (or reuse _box_triangles on the pad axis).",
+   "evidence": {}
+  },
+  {
+   "id": "F3",
+   "category": "F: mass & STL",
+   "title": "STL signed volume equals the summed strut + pad volume",
+   "claim": "The box mesh is closed and consistently oriented; total signed volume equals the analytic sum",
+   "method": "Divergence-theorem volume over all 1140 triangles vs analytic sum",
+   "tolerance": "relative difference <= 1e-9",
+   "observed": "STL 50558.79 mm^3 vs analytic 50558.79 mm^3 (4.32e-16)",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "F4",
+   "category": "F: mass & STL",
+   "title": "Node-overlap over-count of the reported mass (known limitation, quantified)",
+   "claim": "mass_g sums strut volumes, double-counting strut overlap at nodes; the printed/union mass is lower",
+   "method": "Monte-Carlo union volume of the actual box geometry (400k samples) vs analytic sum, w=1/2/4 mm + robust design",
+   "tolerance": "documented, expected conservative bias; over-count < 50% and must be reported (WARN, not hidden)",
+   "observed": "w=1.0: +20.2% ; w=2.0: +28.7% ; w=4.0: +46.6% robust design: +25.2% (union 32692 +/- 72 mm^3 vs analytic 40921 mm^3)",
+   "status": "WARN",
+   "notes": "The engine documents 'mass sums strut volumes without subtracting node overlap (conservative)'. Quantified consequence: +20.2% at w=1, +28.7% at w=2, +46.6% at w=4, +25.2% at the shipped robust design. The bias is design-dependent, so absolute mass claims and mass-based rankings can shift. Disclosure to be surfaced in the app/report: 'printed mass (union) ~40.5 g vs analytic 50.7 g (conservative)'. Recommended engine change: compute a unique union volume (clip overlapping strut segments) or report nominal-solid vs summed mass separately.",
+   "evidence": {
+    "by_width": {
+     "1.0": {
+      "analytic_mm3": 28279.393923934003,
+      "union_mm3": 23532.82331004,
+      "union_se_mm3": 64.42066363468878,
+      "overcount_pct": 20.17000064700667
+     },
+     "2.0": {
+      "analytic_mm3": 50558.78784786801,
+      "union_mm3": 39294.951186959996,
+      "union_se_mm3": 74.5883114581288,
+      "overcount_pct": 28.66484451734326
+     },
+     "4.0": {
+      "analytic_mm3": 95117.57569573601,
+      "union_mm3": 64878.502848839984,
+      "union_se_mm3": 75.1166222332879,
+      "overcount_pct": 46.608771039846374
+     }
+    },
+    "robust": {
+     "analytic_mm3": 40921.18422002019,
+     "union_mm3": 32692.464839352924,
+     "overcount_pct": 25.17007946969514
+    }
+   }
+  },
+  {
+   "id": "G1",
+   "category": "G: materials",
+   "title": "rPETG preset moments and correlation recovered by sampling",
+   "claim": "2e6 lot-level samples reproduce declared means, CVs and log-correlation",
+   "method": "Monte-Carlo moment recovery on the shipped preset",
+   "tolerance": "mean <= 0.5% rel; CV <= 2% rel; corr <= 0.005 abs",
+   "observed": "E mean -2.92e-05, E CV -5.15e-05, sy mean -1.37e-05, sy CV -1.34e-03, corr 0.5496/0.55",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "G2",
+   "category": "G: materials",
+   "title": "Two-level CV split: CV_lot^2 + CV_within^2 = CV_total^2",
+   "claim": "lot_fraction/within_fraction encode 85%/15% variance split and sum to unity",
+   "method": "Engine params('lot'/'within'/'total') + fractions identity",
+   "tolerance": "identity <= 1e-6 and combined fraction within 1e-5 of 1 (fractions rounded to 5 dp)",
+   "observed": "identity 6.9e-08, combined fraction 0.999996546, variance split 0.8500/0.1500",
+   "status": "PASS",
+   "notes": "lot_fraction=0.92195, within_fraction=0.38730 are rounded: squares are 0.850000/0.150000 to 3e-6, so the identity is satisfied to rounding, not to machine precision.",
+   "evidence": {}
+  },
+  {
+   "id": "G3",
+   "category": "G: materials",
+   "title": "Hierarchical lot->specimen sampling reproduces total CV",
+   "claim": "Independent two-level generator (3000 lots x 400 specimens) matches the declared total CV",
+   "method": "Draw lot means with CV_lot then specimens with CV_within; estimate total CV",
+   "tolerance": "relative error <= 1%",
+   "observed": "total CV 0.1003 vs 0.1 (+2.74e-03)",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "G4",
+   "category": "G: materials",
+   "title": "Measured-lot path uses within-lot distribution",
+   "claim": "lot_pass_probability(measured lot) == within-level P_f of the measured material",
+   "method": "Compare lot_pass_probability with failure_probability(level='within')",
+   "tolerance": "exact equality; input material not mutated",
+   "observed": "4.947828e-06 vs 4.947828e-06",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "H1",
+   "category": "H: cross-implementation",
+   "title": "Frozen fixtures reproduce from the current Python engine",
+   "claim": "Every fixture case recomputes from its stored controls to machine precision",
+   "method": "5 cases in app/tests/fixtures/reference.json",
+   "tolerance": "deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12",
+   "observed": "max rel 0.00e+00 (), max |dP_f| 0.00e+00",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "H2",
+   "category": "H: cross-implementation",
+   "title": "Frozen fixture regenerates byte-identically",
+   "claim": "The fixture generator's deterministic output is exactly the committed reference.json",
+   "method": "Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1)",
+   "tolerance": "byte-identical files",
+   "observed": "identical (30077 vs 30077 bytes); regenerated at artifacts/reference_regenerated.json",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "H3",
+   "category": "H: cross-implementation",
+   "title": "JavaScript engine/fixture cross-language tests pass",
+   "claim": "The JS engine reproduces the frozen fixtures; full app suite reported informationally",
+   "method": "node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency",
+   "tolerance": "filtered engine/fixture tests: exit 0 and 0 failures",
+   "observed": "1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 4.1 s",
+   "status": "PASS",
+   "notes": "Full app suite: 28 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.",
+   "evidence": {}
+  },
+  {
+   "id": "H4",
+   "category": "H: cross-implementation",
+   "title": "Live JavaScript vs Python cross-implementation agreement",
+   "claim": "JS analyzeLattice/probabilityOfFailure reproduce Python fixture values within the contract",
+   "method": "node ESM cross-check script computing all five cases in app/engine.js",
+   "tolerance": "deterministic fields rel <= 1e-6; P_f abs <= 1e-8",
+   "observed": "max rel 4.77e-14 (uniform_w1.5:sigma_req_MPa), max |dP_f| 1.07e-13 over 5 cases",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {}
+  },
+  {
+   "id": "I1",
+   "category": "I: claim scope",
+   "title": "Claim-ladder mapping (L0-L2) updated by this validation",
+   "claim": "L0 and L1 are demonstrated by independent checks; L2 is partial; L3+ remain absent",
+   "method": "Mapping of A-H results onto the dossier-05 claim ladder",
+   "tolerance": "documentation consistent with evidence (no over-claim)",
+   "observed": "L0 achieved, L1 achieved, L2 partial, L3+ absent",
+   "status": "PASS",
+   "notes": "Every user-facing number should carry its level; this suite raises L0/L1 confidence only.",
+   "evidence": {
+    "L0_code_verified": {
+     "status": "achieved",
+     "evidence": "A1-A7 (element benchmarks, rigid body, equilibrium, symmetry, independent assembly, linearity)"
+    },
+    "L1_solution_verified": {
+     "status": "achieved",
+     "evidence": "B (energy-minimisation cross-check), C1-C5 (reliability quadrature/MC convergence), D1-D3 (optimiser vs brute force), E (periodic cell energy/stress consistency), H (counts/determinism)"
+    },
+    "L2_literature_calibrated_uq": {
+     "status": "partial",
+     "evidence": "rPETG preset moments/correlation verified internally (G); literature provenance not independently re-derived here"
+    },
+    "L3_literature_reproduced": {
+     "status": "not attempted in v0.2",
+     "evidence": "planned (research/05 \u00a74.3)"
+    },
+    "L4_component_validated": {
+     "status": "absent",
+     "evidence": "no coupon experiments exist"
+    },
+    "L5_system_validated": {
+     "status": "absent",
+     "evidence": "no full-bracket experiments exist"
+    },
+    "L6_certified": {
+     "status": "out of scope",
+     "evidence": "not a certification tool"
+    }
+   }
+  },
+  {
+   "id": "I2",
+   "category": "I: claim scope",
+   "title": "Model-form limitations are enumerated and quantified where possible",
+   "claim": "The report states what the checks do NOT validate, including the mass over-count quantified in F4",
+   "method": "Limitations register compiled from PRODUCT_SPEC \u00a77, REPORT \u00a76 and checks A-H",
+   "tolerance": "all known major limitations listed",
+   "observed": "11 limitations documented",
+   "status": "PASS",
+   "notes": "",
+   "evidence": {
+    "no_experiments": "No physical specimens were tested; nothing here is experimental validation.",
+    "frame_vs_part": "The 2-D plane-frame idealisation omits 3-D load paths, out-of-plane bending/buckling and plate action.",
+    "joints": "Printed node/joint compliance and local stress concentrations are not modelled; rigid joints assumed.",
+    "anisotropy": "Layer-adhesion/road-direction anisotropy is not modelled (measured printed in-plane strength used).",
+    "plasticity": "Linear elasticity only; no yield plateau, strain localisation, or failure criterion beyond first yield.",
+    "time_dependence": "Creep, fatigue, UV and thermal ageing are not modelled.",
+    "spatial_scatter": "Material scatter is batch-uniform, not spatial; print-defect statistics absent.",
+    "buckling_model": "Euler buckling with pinned-pinned effective length; no combined axial-bending interaction.",
+    "material_provenance": "Feedstock distributions are literature-derived priors, not the user's measured lots.",
+    "mass_overcount": "Reported mass double-counts strut overlap (F4): +20.2% at w=1 mm, +28.7% at w=2 mm, +46.6% at w=4 mm; at the shipped robust design the analytic mass is 50.7 g vs printed union ~40.5 g (+25.2%). Reported mass is therefore a conservative upper bound, not printed mass.",
+    "optimiser_scope": "D validates a reduced 2-parameter family and checks the shipped 8-parameter result; it does not prove global optimality of the 8-parameter problem."
+   }
+  }
+ ]
+}

@@ -1,0 +1,733 @@
+[
+  {
+    "id": "R01",
+    "title": "Suppressing mechanical property variability in recycled plastics via bioinspired design",
+    "authors": [
+      "Dimitrios Georgiou",
+      "Danqi Sun",
+      "Xing Liu",
+      "Christos E. Athanasiou"
+    ],
+    "year": 2025,
+    "venue": "Proceedings of the National Academy of Sciences",
+    "doi": "10.1073/pnas.2502613122",
+    "url": "https://doi.org/10.1073/pnas.2502613122",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "Per-lot rHDPE E (1350±239 MPa, CV 17.7%, n=50 specimens/10 plates, ASTM D638 Type I); literature-compiled rHDPE E 1213±654 MPa (n=40); review of variability across rPET/rHDPE/rLDPE/rPP; architecture reduces modulus-variability up to 93%, strain variability >=68%.",
+    "quote_or_locator": "Main text: 'average tangent modulus was found to be 1,350 MPa, with a SD of 239 MPa'; 'E_hard = 1,213 MPa with a SD of 654 MPa (Sample size=40)'; Fig. 1A literature ranges; SI Table S3.",
+    "status": "verified",
+    "notes": "PNAS article is by Georgiou, Sun, Liu, Athanasiou (NOT 'Ghosh et al.' as written in PRODUCT_SPEC.md - spec author attribution needs correcting). Open access via PMC12377729."
+  },
+  {
+    "id": "R02",
+    "title": "Evaluation of mixed #3–7 plastic waste from material recovery facilities (MRFs) in the United States",
+    "authors": [
+      "Victor S. Cecon",
+      "Greg W. Curtzwiler",
+      "Keith L. Vorst"
+    ],
+    "year": 2023,
+    "venue": "Waste Management",
+    "doi": "10.1016/j.wasman.2023.09.002",
+    "url": "https://doi.org/10.1016/j.wasman.2023.09.002",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "rHDPE E 380-1,250 MPa across 3 US MRFs (range); rPP E ~650 MPa in MRF 3 vs ~2x higher in MRF 1/2; rPP MFR 3-79 g/10min; ash 2-8 wt% across MRFs; metals in PCR plastics; PET/HDPE cross-contamination of #3-7 bales.",
+    "quote_or_locator": "PNAS 2025 (R01) quoting Cecon 2023: 'Young's modulus ... highest variability reported for HDPE ranging from 380 to 1,250 MPa'. Cecon 2023 accepted manuscript: 'PP from MRF 3 possessed a significantly lower modulus at ~half ... (~650 MPa)'; ash '8% wt. for MRF 1, 6% wt. for MRF 2, and 2% wt. for MRF 3'; MFR table in Cecon 2023 Fig. 5/Table S.",
+    "status": "verified_secondary",
+    "notes": "Range 380-1,250 MPa located in R01 quotation of R02, not directly in the accessible accepted manuscript text (data in figures)."
+  },
+  {
+    "id": "R03",
+    "title": "Assessment of Different Application Grades of Post-Consumer Recycled (PCR) Polyolefins from Material Recovery Facilities (MRFs) in the United States",
+    "authors": [
+      "Victor Sanfins Cecon",
+      "Tien Pham",
+      "Greg Curtzwiler",
+      "Keith Vorst"
+    ],
+    "year": 2024,
+    "venue": "ACS Applied Polymer Materials",
+    "doi": "10.1021/acsapm.4c01927",
+    "url": "https://doi.org/10.1021/acsapm.4c01927",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "Process-based (EBM vs IM) re-sorting reduces spread; rHDPE IM E 255-395 MPa, yield 4.7-8.8 MPa; rPP IM E 434-472 MPa, yield 12.1-13.3 MPa; virgin controls HDPE 396 MPa/8.2 MPa, PP 376 MPa/~12 MPa; elongation at yield 4.0-5.0% (HDPE).",
+    "quote_or_locator": "Sec. 3.2 Mechanical Properties: 'HDPE samples from MRF 3 ... (255 MPa and 4.7 MPa ...) than virgin samples (396 MPa and 8.2 MPa) and MRF 2 (395 MPa and 8.8 MPa)'; 'PP IM samples ... (between 434 and 472 MPa) ... virgin reference ... (376 MPa)'; 'elongation at yield ... between 4.0 and 5.0%'.",
+    "status": "verified",
+    "notes": "Absolute E values are lower than typical literature HDPE/PP stiffness; treat as relative spread evidence, not absolute preset. Accepted manuscript via OSTI 2551755."
+  },
+  {
+    "id": "R04",
+    "title": "Closing the loop for PET, PE and PP waste from households: Influence of material properties and product design for plastic recycling",
+    "authors": [
+      "M.K. Eriksen",
+      "J.D. Christiansen",
+      "A.E. Daugaard",
+      "T.F. Astrup"
+    ],
+    "year": 2019,
+    "venue": "Waste Management",
+    "doi": "10.1016/j.wasman.2019.07.005",
+    "url": "https://doi.org/10.1016/j.wasman.2019.07.005",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "rHDPE/R-LDPE tensile 41.6-48.4 MPa (HDPE-rich) and 22.2-38.3 MPa (external mixed PE); strain at yield 11.2-15.2% and 13.3-17.0%; rPP 24.9-28.7 MPa, strain 6.6-11.9%, unnotched Izod impact 19.4-33.3 kJ/m2 (one 59); rPET (lab, undried) 22.1-36.3 MPa, 2.1-3.4% strain, impact 2.2-10.5 kJ/m2; specimen-level SDs.",
+    "quote_or_locator": "Appendix B3 Table B2 (full table extracted); test standard ISO 3167 specimens / ISO 527-2, 50 mm/min, 5 specimens per sample; impact ISO 180 unnotched.",
+    "status": "verified",
+    "notes": "Full text = DTU Orbit accepted manuscript. Key source for within-sample SD: PE strength SD 0.1-1.8 MPa; PP SD 0.3-0.7 MPa; PP impact SD 12.4-14.6 kJ/m2."
+  },
+  {
+    "id": "R05",
+    "title": "Impact of Seasonal Composition on the Long‐Term Performance of Post‐Consumer Recycled Polypropylene",
+    "authors": [
+      "Jessica Hinczica",
+      "Linda M. Schatz",
+      "Jutta Geier",
+      "Mario Messiha",
+      "Márton Bredács",
+      "Thomas Koch",
+      "Gerald Pinter",
+      "Florian Arbeiter"
+    ],
+    "year": 2026,
+    "venue": "Journal of Applied Polymer Science",
+    "doi": "10.1002/app.70501",
+    "url": "https://doi.org/10.1002/app.70501",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "10 PCR-PP batches over 15 months, all within MFR 7-13 g/10 min and density 0.97±0.03 spec, yet filler 2-24 wt%, elongation at break 10-100%, fatigue life 3,000-6,520,000 cycles at equal stress; 'Young's modulus and yield stress varied slightly'; standard MFR/density specs insufficient.",
+    "quote_or_locator": "Abstract (full text CC-BY but publisher site blocked automated access): 'Filler content varied between 2% and 24% ... elongation at break differed greatly (10%-100%) ... number of cycles until failure ranged between 3000 and 6.52 million'.",
+    "status": "abstract_only",
+    "notes": "Published 2026 (issue 15), online 2026-02-11; spec draft says 2025 - correct citation year is 2026."
+  },
+  {
+    "id": "R06",
+    "title": "A Nearly Zero-Cost Lot-by-Lot Inspection of Recycled Plastics: Prediction of Mechanical Properties from Viscosity Evolution during Melt Kneading",
+    "authors": [
+      "Yusuke Hibi",
+      "Shiho Uesaka",
+      "Kiyotaka Hitomi",
+      "Ken-ichi Niihara",
+      "Asami Imai",
+      "Sadaki Samitsu",
+      "Masanobu Naito"
+    ],
+    "year": 2025,
+    "venue": "ACS Sustainable Resource Management",
+    "doi": "10.1021/acssusresmgt.5c00040",
+    "url": "https://doi.org/10.1021/acssusresmgt.5c00040",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "Proxy evidence: melt viscosity during kneading predicts tensile properties and Charpy impact of 23 household rPP lots; RNN classification of pellets before production >85% accuracy; contamination varies lot-to-lot.",
+    "quote_or_locator": "Abstract: '23 lots of household polypropylene (PP) waste ... over 85% accuracy'.",
+    "status": "abstract_only",
+    "notes": "Quantitative viscosity-property correlation coefficients not accessible; model must be treated as proxy, not deterministic predictor."
+  },
+  {
+    "id": "R07",
+    "title": "Mechanical Evaluation of Recycled PETG Filament for 3D Printing",
+    "authors": [
+      "Liviu Marsavina",
+      "Vlad Dohan",
+      "Sergiu-Valentin Galatanu"
+    ],
+    "year": 2024,
+    "venue": "Frattura ed Integrità Strutturale",
+    "doi": "10.3221/igf-esis.70.18",
+    "url": "https://doi.org/10.3221/igf-esis.70.18",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "rPETG metrics: virgin PETG spec density 1.23 g/cm3, E 2-3 GPa, tensile 50-70 MPa; printed specimens (ISO 527-2, n=6/group): new filament E mean 2.28 GPa (SD 0.25, CV 10.8%), recycled-once 2.17 GPa (SD 0.18, CV 8.3%); peak stress 46.5 MPa (SD 0.66) vs 48.6 MPa (SD 1.54); strain at peak 3.15-3.51%.",
+    "quote_or_locator": "Sec. Results 'Tensile Tests'; Table 2 (raw specimen values).",
+    "status": "verified",
+    "notes": "One recycling cycle only; 'processed' filament not mechanically degraded in their process (crystallinity/printing effects dominate)."
+  },
+  {
+    "id": "R08",
+    "title": "Thermal and Mechanical Properties of the Recycled and Virgin PET—Part I",
+    "authors": [
+      "Yasemin Celik",
+      "Madina Shamsuyeva",
+      "Hans Josef Endres"
+    ],
+    "year": 2022,
+    "venue": "Polymers",
+    "doi": "10.3390/polym14071326",
+    "url": "https://doi.org/10.3390/polym14071326",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "20 commercial rPET recyclates from 14 suppliers: flexural modulus as low as 1,860 MPa (ISO 178), elongation at flexural strength 4.8-5.2%, Charpy notched impact 1.3-2.8 kJ/m2 (avg 1.9) vs vPET 2-3 kJ/m2; rPET properties fall inside the broad literature range of vPET.",
+    "quote_or_locator": "Sec. 3.3 (bending), Figure 7-10; 'The lowest modulus value of S14-F is 1860 MPa'; impact 'average value of 1.9 kJ/m2 in the range of 1.3-2.8'.",
+    "status": "verified",
+    "notes": "PMC9003056 full text used. Supports 'unknown position within a broad virgin spec band' framing."
+  },
+  {
+    "id": "R09",
+    "title": "Sustainable polymer reclamation: recycling poly(ethylene terephthalate) glycol (PETG) for 3D printing applications",
+    "authors": [
+      "João Daniel Seno Flores",
+      "Thiago de Assis Augusto",
+      "Daniel Aparecido Lopes Vieira Cunha",
+      "Cesar Augusto Gonçalves Beatrice",
+      "Eduardo Henrique Backes",
+      "Lidiane Cristina Costa"
+    ],
+    "year": 2024,
+    "venue": "Journal of Materials Science: Materials in Engineering",
+    "doi": "10.1186/s40712-024-00163-x",
+    "url": "https://doi.org/10.1186/s40712-024-00163-x",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "rPETG from face-shield sheets processed through up to 5 recycling cycles; filaments printable, mechanical properties comparable to commercial filament especially after 3 cycles; viscosity/elasticity decrease with cycles.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": "No numerical property table extracted (full text blocked)."
+  },
+  {
+    "id": "R10",
+    "title": "Sustainable Additive Manufacturing: Mechanical Response of Polyethylene Terephthalate Glycol over Multiple Recycling Processes",
+    "authors": [
+      "Nectarios Vidakis",
+      "Markos Petousis",
+      "Lazaros Tzounis",
+      "Sotirios A. Grammatikos",
+      "Emmanouil Porfyrakis",
+      "Athena Maniadi",
+      "Nikolaos Mountakis"
+    ],
+    "year": 2021,
+    "venue": "Materials",
+    "doi": "10.3390/ma14051162",
+    "url": "https://doi.org/10.3390/ma14051162",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "PETG FFF through 6 recycling cycles: minor knockdown of tensile/flexure/impact/microhardness; crystallinity increases.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R11",
+    "title": "Influence of plastic recycling—a feasibility study for additive manufacturing using glycol modified polyethylene terephthalate (PETG)",
+    "authors": [
+      "Mats Bremer",
+      "Lukas Janoschek",
+      "Denis Kaschta",
+      "Nick Schneider",
+      "Michael Wahl"
+    ],
+    "year": 2022,
+    "venue": "SN Applied Sciences",
+    "doi": "10.1007/s42452-022-05039-3",
+    "url": "https://doi.org/10.1007/s42452-022-05039-3",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "PETG recycled once into filament: minor decrease in tensile strength and Young's modulus; blend ratios with virgin can compensate.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R12",
+    "title": "Thermomechanical Properties of Virgin and Recycled Polypropylene—High-Density Polyethylene Blends",
+    "authors": [
+      "Hannah Jones",
+      "Jake McClements",
+      "Dipa Ray",
+      "Colin S. Hindle",
+      "Michail Kalloudis",
+      "Vasileios Koutsos"
+    ],
+    "year": 2023,
+    "venue": "Polymers",
+    "doi": "10.3390/polym15214200",
+    "url": "https://doi.org/10.3390/polym15214200",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Virgin/recycled PP-HDPE blends: vPP density 0.900 g/cm3, MFI 1.3; vHDPE density 0.946 g/cm3, MFI 4.2; recycled blends lower Young's modulus and yield strength, higher elongation at break; immiscible phases; property variability discussed.",
+    "quote_or_locator": "Materials and Methods (densities); Abstract/Results (tensile behaviour).",
+    "status": "verified",
+    "notes": "PMC10647352 full text used; most property data are in figures, not text."
+  },
+  {
+    "id": "R13",
+    "title": "Quality evaluation and economic assessment of an improved mechanical recycling process for post-consumer flexible plastics",
+    "authors": [
+      "Amir Bashirgonbadi",
+      "Irdanto Saputra Lase",
+      "Laurens Delva",
+      "Kevin M. Van Geem",
+      "Steven De Meester",
+      "Kim Ragaert"
+    ],
+    "year": 2022,
+    "venue": "Waste Management",
+    "doi": "10.1016/j.wasman.2022.08.018",
+    "url": "https://doi.org/10.1016/j.wasman.2022.08.018",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Quality evaluation + economic assessment of improved mechanical recycling of post-consumer flexible plastics; shows low recyclate quality limits closed-loop uses.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R14",
+    "title": "In‐mold rheology and automated process control for injection molding of recycled polypropylene",
+    "authors": [
+      "Joshua Krantz",
+      "Zarek Nieduzak",
+      "Juliana Licata",
+      "Sarah O'Meara",
+      "Peng Gao",
+      "Davide Masato"
+    ],
+    "year": 2024,
+    "venue": "Polymer Engineering &amp; Science",
+    "doi": "10.1002/pen.26836",
+    "url": "https://doi.org/10.1002/pen.26836",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "In-mold rheology closed-loop control on 5 rPP blends with broad flow-property distribution: reduced within-mold variation; mechanical properties and part weight CV <5% under controlled processing.",
+    "quote_or_locator": "Abstract: 'coefficient of variation of under 5%'.",
+    "status": "abstract_only",
+    "notes": "Supports 'control the process, not just the material' argument; no property means extracted."
+  },
+  {
+    "id": "R15",
+    "title": "Assessment of Performance and Challenges in Use of Commercial Automated Sorting Technology for Plastic Waste",
+    "authors": [
+      "Cesar Lubongo",
+      "Paschalis Alexandridis"
+    ],
+    "year": 2022,
+    "venue": "Recycling",
+    "doi": "10.3390/recycling7020011",
+    "url": "https://doi.org/10.3390/recycling7020011",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Commercial automated sorting equipment performance and limits (film, multilayer, blended plastics problematic); MRF sorting efficiency survey.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": "No single sorting-accuracy number in abstract; do not fabricate one."
+  },
+  {
+    "id": "R16",
+    "title": "Contamination in plastic recycling: Influence of metals on the quality of reprocessed plastic",
+    "authors": [
+      "M.K. Eriksen",
+      "K. Pivnenko",
+      "M.E. Olsson",
+      "T.F. Astrup"
+    ],
+    "year": 2018,
+    "venue": "Waste Management",
+    "doi": "10.1016/j.wasman.2018.08.007",
+    "url": "https://doi.org/10.1016/j.wasman.2018.08.007",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Metals contamination in plastic recycling reduces reprocessed quality; decontamination requirements.",
+    "quote_or_locator": "Title/abstract-level; full text not extracted.",
+    "status": "metadata_only",
+    "notes": "Use only qualitatively."
+  },
+  {
+    "id": "R17",
+    "title": "Detailed Analysis of the Composition of Selected Plastic Packaging Waste Products and Its Implications for Mechanical and Thermochemical Recycling",
+    "authors": [
+      "Martijn Roosen",
+      "Nicolas Mys",
+      "Marvin Kusenberg",
+      "Pieter Billen",
+      "Ann Dumoulin",
+      "Jo Dewulf",
+      "Kevin M. Van Geem",
+      "Kim Ragaert",
+      "Steven De Meester"
+    ],
+    "year": 2020,
+    "venue": "Environmental Science &amp; Technology",
+    "doi": "10.1021/acs.est.0c03371",
+    "url": "https://doi.org/10.1021/acs.est.0c03371",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "Packaging waste streams can contain mixtures of up to nine polymers and elemental impurities (Ca, Al, Na, Zn, Fe, Cl, F) at 1-3,000 ppm, from >100 products in European sorting facilities.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R18",
+    "title": "Addressing the complex challenge of understanding and quantifying substitutability for recycled plastics",
+    "authors": [
+      "Ruben Demets",
+      "Karen Van Kets",
+      "Sophie Huysveld",
+      "Jo Dewulf",
+      "Steven De Meester",
+      "Kim Ragaert"
+    ],
+    "year": 2021,
+    "venue": "Resources, Conservation and Recycling",
+    "doi": "10.1016/j.resconrec.2021.105826",
+    "url": "https://doi.org/10.1016/j.resconrec.2021.105826",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Proposes effective technical substitutability scoring for recyclates; technical quality change is application-dependent.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R19",
+    "title": "Mechanical recycling of HDPE-based packaging: Interplay between cross contamination, aging and reprocessing",
+    "authors": [
+      "Chiara Gnoffo",
+      "Rossella Arrigo",
+      "Alberto Frache"
+    ],
+    "year": 2025,
+    "venue": "Polymer Degradation and Stability",
+    "doi": "10.1016/j.polymdegradstab.2025.111290",
+    "url": "https://doi.org/10.1016/j.polymdegradstab.2025.111290",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "HDPE/PP and HDPE/PP/PET cross-contamination x photo-/thermo-oxidation x reprocessing interactions: cross-contamination has severe impact on HDPE ductility under thermo-oxidative conditions; degradation is main cause of embrittlement for photo-oxidised samples.",
+    "quote_or_locator": "Highlights/Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R20",
+    "title": "The effect of post-consumer recycled polyethylene (PCRPE) on the properties of polyethylene blends of different densities",
+    "authors": [
+      "Victor S. Cecon",
+      "Paulo F. Da Silva",
+      "Keith L. Vorst",
+      "Greg W. Curtzwiler"
+    ],
+    "year": 2021,
+    "venue": "Polymer Degradation and Stability",
+    "doi": "10.1016/j.polymdegradstab.2021.109627",
+    "url": "https://doi.org/10.1016/j.polymdegradstab.2021.109627",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Effect of PCR-PE content on PE blends of different densities; dataset companion (R21).",
+    "quote_or_locator": "Metadata/title verified; not quantitatively extracted.",
+    "status": "metadata_only",
+    "notes": ""
+  },
+  {
+    "id": "R21",
+    "title": "Dataset of the properties of polyethylene (PE) blends of different densities mixed with post-consumer recycled polyethylene (PCRPE)",
+    "authors": [
+      "Victor S. Cecon",
+      "Paulo F. Da Silva",
+      "Keith L. Vorst",
+      "Greg W. Curtzwiler"
+    ],
+    "year": 2021,
+    "venue": "Data in Brief",
+    "doi": "10.1016/j.dib.2021.107452",
+    "url": "https://doi.org/10.1016/j.dib.2021.107452",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Open dataset of properties of PE blends with post-consumer recycled PE - candidate calibration dataset.",
+    "quote_or_locator": "Title/metadata; dataset at Data in Brief.",
+    "status": "metadata_only",
+    "notes": "Worth checking as a real CSV dataset for calibration examples."
+  },
+  {
+    "id": "R22",
+    "title": "Circularity Study on PET Bottle-To-Bottle Recycling",
+    "authors": [
+      "Elisabeth Pinter",
+      "Frank Welle",
+      "Elisa Mayrhofer",
+      "Andreas Pechhacker",
+      "Lukas Motloch",
+      "Vera Lahme",
+      "Andy Grant",
+      "Manfred Tacker"
+    ],
+    "year": 2021,
+    "venue": "Sustainability",
+    "doi": "10.3390/su13137370",
+    "url": "https://doi.org/10.3390/su13137370",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "11 closed-loop recycling cycles with 75% rPET: quality (incl. IV) not adversely affected when process includes SSP; supports 'IV recoverable' but not a guarantee for non-SSP recyclers.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": "Full text blocked; no IV values extracted."
+  },
+  {
+    "id": "R23",
+    "title": "Processability and mechanical properties of extensively recycled high density polyethylene",
+    "authors": [
+      "Pavel Oblak",
+      "Joamin Gonzalez-Gutierrez",
+      "Barbara Zupančič",
+      "Alexandra Aulova",
+      "Igor Emri"
+    ],
+    "year": 2015,
+    "venue": "Polymer Degradation and Stability",
+    "doi": "10.1016/j.polymdegradstab.2015.01.012",
+    "url": "https://doi.org/10.1016/j.polymdegradstab.2015.01.012",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "Extensively recycled HDPE: processability and mechanical properties vs number of reprocessing cycles (candidate evidence for degradation trajectory).",
+    "quote_or_locator": "Metadata/title; full text not extracted.",
+    "status": "metadata_only",
+    "notes": "Cited in R03's reference list. Use title-level claim only."
+  },
+  {
+    "id": "R24",
+    "title": "Plastics recycled content requirements",
+    "authors": [],
+    "year": 2024,
+    "venue": "OECD Environment Working Papers",
+    "doi": "10.1787/b311ee60-en",
+    "url": "https://doi.org/10.1787/b311ee60-en",
+    "type": "report",
+    "evidence_grade": "C",
+    "used_for": "OECD review of plastics recycled-content requirements: policy mandates, market effects, implementation challenges.",
+    "quote_or_locator": "OECD Environment Working Paper No. 240 (title/DOI verified).",
+    "status": "metadata_only",
+    "notes": "Working paper, not peer-reviewed; grade C."
+  },
+  {
+    "id": "R25",
+    "title": "ICIS recycled plastics market commentary: regulation raises recycling value (reported by Petnology)",
+    "authors": [
+      "Petnology / ICIS"
+    ],
+    "year": "2025",
+    "venue": null,
+    "doi": null,
+    "url": "https://www.petnology.com/magazine/article/icis-recycled-plastics-the-data-is-clear-regulation-raises-recycling-value",
+    "type": "report/standard",
+    "evidence_grade": "C",
+    "used_for": "ICIS market data (as reported): average annual spread of blow-moulding R-HDPE pellets vs virgin >= EUR 347/t above pre-2022 levels in every year from 2022; natural post-consumer R-PP pellets >= EUR 567/t above 2021 levels.",
+    "quote_or_locator": "Article text; secondary summary of ICIS Recycled Plastics data service.",
+    "status": "verified_url",
+    "notes": "Industry data aggregator summary; treat as directional."
+  },
+  {
+    "id": "R26",
+    "title": "Argus recycled polymers sample report (price assessment methodology and sample prices)",
+    "authors": [
+      "Argus Media"
+    ],
+    "year": "n.d. (sample report)",
+    "venue": null,
+    "doi": null,
+    "url": "https://www.argusmedia.com/-/media/project/argusmedia/mainsite/english/documents-and-files/sample-reports/argus-recycled-polymers.pdf",
+    "type": "report/standard",
+    "evidence_grade": "C",
+    "used_for": "Argus sample report: European vPET spot 1,470-1,600 EUR/t; flake discount ~300 EUR/t; pellet premium 0-50 EUR/t (sample report, period not pinned down).",
+    "quote_or_locator": "Sample report PDF (public).",
+    "status": "verified_url",
+    "notes": "Date of the quoted prices not extracted - do not present as current; use as illustration of the flake/pellet spread structure."
+  },
+  {
+    "id": "R27",
+    "title": "bvse market report: plastics, January 2025",
+    "authors": [
+      "bvse / plasticker"
+    ],
+    "year": "2025",
+    "venue": null,
+    "doi": null,
+    "url": "https://plasticker.de/preise/marktbericht2_en.php?id=261",
+    "type": "report/standard",
+    "evidence_grade": "C",
+    "used_for": "bvse market report: packaging PET average 1,105 EUR/t (Dec 2024) and 1,110 EUR/t (Nov 2024).",
+    "quote_or_locator": "Market report Jan 2025 (bvse).",
+    "status": "verified_url",
+    "notes": "Price levels move monthly; cite as example only."
+  },
+  {
+    "id": "R28",
+    "title": "Regulation (EU) 2025/40 of the European Parliament and of the Council on packaging and packaging waste (PPWR)",
+    "authors": [
+      "Official Journal of the European Union"
+    ],
+    "year": "2024/2025",
+    "venue": null,
+    "doi": null,
+    "url": "https://eur-lex.europa.eu/eli/reg/2025/40/oj",
+    "type": "report/standard",
+    "evidence_grade": "A",
+    "used_for": "EU Packaging and Packaging Waste Regulation (EU) 2025/40, Art. 7 recycled-content obligations for plastic packaging (e.g. 30% for PET-major-component contact-sensitive packaging and single-use plastic beverage bottles by 2030; higher 2040 targets; methodology/verification delegated acts due by end-2026).",
+    "quote_or_locator": "OJ L, 22.1.2025; Art. 7 and Annex VII.",
+    "status": "verified_secondary",
+    "notes": "EUR-Lex blocks automated fetch (HTTP 202); regulation existence/CELEX 32025R0040 confirmed via EU Publications Office Cellar work ID and search-result quotations. Exact 2040 percentages should be re-checked against the OJ text before legal use."
+  },
+  {
+    "id": "R29",
+    "title": "EN 15343:2018 Plastics - Recycled plastics - Plastics recycling traceability and assessment of conformity and recycled content",
+    "authors": [
+      "CEN"
+    ],
+    "year": "2018",
+    "venue": null,
+    "doi": null,
+    "url": "https://standards.iteh.ai/catalog/standards/cen/4c4e6d69-9a1a-4b4d-b2f5-6e0e6e4e1a5a/en-15343-2018",
+    "type": "report/standard",
+    "evidence_grade": "A",
+    "used_for": "EN 15343:2018 Plastics - Recycled plastics - Plastics recycling traceability and assessment of conformity and recycled content: the standard cited by PPWR implementing methodology for recycled-content verification.",
+    "quote_or_locator": "CEN standard record.",
+    "status": "verified_url",
+    "notes": "iTeh catalogue page reachable (HTTP 200)."
+  },
+  {
+    "id": "R30",
+    "title": "ISO 14021:2016 Environmental labels and declarations - Self-declared environmental claims (Type II environmental labelling)",
+    "authors": [
+      "ISO"
+    ],
+    "year": "2016",
+    "venue": null,
+    "doi": null,
+    "url": "https://www.iso.org/standard/66652.html",
+    "type": "report/standard",
+    "evidence_grade": "A",
+    "used_for": "ISO 14021:2016 Environmental labels and declarations - Self-declared environmental claims (Type II); governs how 'recycled content' claims must be substantiated.",
+    "quote_or_locator": "ISO catalogue record (ISO/TC 207/SC 3).",
+    "status": "unverified",
+    "notes": "iso.org returns HTTP 403 to automated checks; standard identity entered from ISO catalogue/known edition - verify manually before relying on it."
+  },
+  {
+    "id": "R31",
+    "title": "Predicting Properties from Near-Infrared Spectra with Machine Learning for Improved Polyolefin Differentiation",
+    "authors": [
+      "Shuaijun Li",
+      "Robert J. S. Ivancic",
+      "Bradley P. Sutliff",
+      "Derek Huang",
+      "Enrique Blázquez-Blázquez",
+      "Tyler B. Martin",
+      "Kalman B. Migler",
+      "Debra J. Audus",
+      "Sara V. Orski"
+    ],
+    "year": 2026,
+    "venue": "ACS Polymers Au",
+    "doi": "10.1021/acspolymersau.5c00131",
+    "url": "https://doi.org/10.1021/acspolymersau.5c00131",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "NIR + ML (PLS) predicts density, crystallinity and short-chain branching of polyolefins from spectra with high accuracy; enables property-based sorting beyond resin-code sorting.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": "R2/RMSE values not extracted."
+  },
+  {
+    "id": "R32",
+    "title": "Machine learning model and input batch management tool for the composition of new recycled polypropylene plastic material with reduced variability in target properties",
+    "authors": [
+      "Ricardo Teruel",
+      "Noelia Alcalá",
+      "Cristina Crespo",
+      "Manuel Laspalas"
+    ],
+    "year": 2024,
+    "venue": "Journal of Cleaner Production",
+    "doi": "10.1016/j.jclepro.2023.140390",
+    "url": "https://doi.org/10.1016/j.jclepro.2023.140390",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "ML model + input-batch management tool for formulating new rPP batches with reduced variability in target properties - closest published precedent for a feedstock-mixing decision tool.",
+    "quote_or_locator": "Title/journal metadata verified; abstract not retrievable.",
+    "status": "metadata_only",
+    "notes": "Flag for researcher-methods; likely important related work."
+  },
+  {
+    "id": "R33",
+    "title": "Mechanical and Thermal Degradation-Related Performance of Recycled LDPE from Post-Consumer Waste",
+    "authors": [
+      "Miroslav Müller",
+      "Viktor Kolář",
+      "Rajesh Kumar Mishra"
+    ],
+    "year": 2024,
+    "venue": "Polymers",
+    "doi": "10.3390/polym16202863",
+    "url": "https://doi.org/10.3390/polym16202863",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "rLDPE from post-consumer waste: static/cyclic tensile performance satisfactory vs virgin in their regranulate; no significant FTIR change.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R34",
+    "title": "Assessing the circularity of post-consumer HDPE milk bottles through open-loop recycling and their environmental impact",
+    "authors": [
+      "Aymara Blanco",
+      "Rafael Juan",
+      "Robert Istrate",
+      "Beatriz Paredes",
+      "Mario Martin-Gamboa",
+      "Carlos Domínguez",
+      "Javier Dufour",
+      "Rafael A. García-Muñoz"
+    ],
+    "year": 2024,
+    "venue": "Cleaner Environmental Systems",
+    "doi": "10.1016/j.cesys.2024.100185",
+    "url": "https://doi.org/10.1016/j.cesys.2024.100185",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Post-consumer rHDPE milk bottles: significant PP contamination; circularity/environmental assessment of open-loop recycling.",
+    "quote_or_locator": "Abstract.",
+    "status": "abstract_only",
+    "notes": ""
+  },
+  {
+    "id": "R35",
+    "title": "Root causes of post-consumer high-density polyethylene failing in new bottles",
+    "authors": [
+      "Amir Khaki",
+      "Christian Gerlach",
+      "Kim Ragaert",
+      "Rudinei Fiorio"
+    ],
+    "year": 2024,
+    "venue": "Resources, Conservation and Recycling",
+    "doi": "10.1016/j.resconrec.2024.107776",
+    "url": "https://doi.org/10.1016/j.resconrec.2024.107776",
+    "type": "journal-article",
+    "evidence_grade": "B",
+    "used_for": "Root causes of post-consumer HDPE failing in new bottles (contamination/degradation mechanisms).",
+    "quote_or_locator": "Title/metadata verified.",
+    "status": "metadata_only",
+    "notes": ""
+  },
+  {
+    "id": "R36",
+    "title": "The impact of impurities on the mechanical properties of recycled polyethylene",
+    "authors": [
+      "Eggo Ulphard Thoden van Velzen",
+      "Sharon Chu",
+      "Fresia Alvarado Chacon",
+      "Marieke T. Brouwer",
+      "Karin Molenveld"
+    ],
+    "year": 2021,
+    "venue": "Packaging Technology and Science",
+    "doi": "10.1002/pts.2551",
+    "url": "https://doi.org/10.1002/pts.2551",
+    "type": "journal-article",
+    "evidence_grade": "A",
+    "used_for": "Impurity effects on rPE quantified: adding bodies from other PE types reduced impact resistance by 11%, further stepwise additions of other packaging components/sorting faults decreased impact further; elongation at break increased; NIR-assisted flake analysis best composition method and strongly correlated with impact resistance.",
+    "quote_or_locator": "Abstract: 'The addition of bodies made from other types of PE already reduced the impact resistance with 11%'; 'strong correlation with the impact resistance'.",
+    "status": "abstract_only",
+    "notes": "Excellent proxy evidence (NIR composition -> impact)."
+  }
+]

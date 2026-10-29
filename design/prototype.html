@@ -1,0 +1,2481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyRB — AI reliability studio</title>
+<meta name="description" content="AnyRB v0.2 design prototype — describe a part, give it the batch you have, get a reliable design and its proof.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2315171A'/%3E%3Cpath d='M8 9v14M16 9v14M24 9v14M8 9h16M8 23h16M8 16h16' stroke='%23F7F5F0' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   AnyRB v0.2 — design tokens
+   Editorial lab: warm paper, ink, one safety accent, one verified
+   green. Serif display + sans UI + tabular numerals.
+   ============================================================ */
+:root{
+  --paper:#F7F5F0;
+  --paper-deep:#F1EDE3;
+  --card:#FFFFFF;
+  --card-warm:#FCFBF7;
+  --ink:#15171A;
+  --muted:#6B7280;
+  --muted-strong:#565E6A;
+  --line:#E4DFD3;
+  --line-strong:#D3CCBD;
+  --accent:#FF5A36;
+  --accent-ink:#B8361A;
+  --accent-soft:#FDEDE7;
+  --verify:#0B6B53;
+  --verify-soft:#E9F1ED;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --r-lg:22px;
+  --r-md:16px;
+  --r-sm:12px;
+  --r-pill:999px;
+  --sh-xs:0 1px 2px rgba(21,23,26,.04);
+  --sh-sm:0 1px 2px rgba(21,23,26,.04),0 10px 28px -18px rgba(21,23,26,.18);
+  --sh-md:0 2px 4px rgba(21,23,26,.05),0 24px 48px -24px rgba(21,23,26,.22);
+  --ease:cubic-bezier(.22,.61,.21,1);
+  --dur-1:150ms;
+  --dur-2:200ms;
+  --dur-3:260ms;
+}
+
+/* ---------- reset / base ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html:focus-within{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15.5px;
+  line-height:1.62;
+  letter-spacing:-.005em;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+h1,h2,h3,h4,p,figure,blockquote,dl,dd{margin:0}
+ul,ol{margin:0;padding:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit}
+img,svg{display:block;max-width:100%}
+textarea,input{font:inherit;color:inherit}
+[hidden]{display:none !important}
+::selection{background:rgba(255,90,54,.22);color:var(--ink)}
+:focus-visible{
+  outline:2px solid var(--ink);
+  outline-offset:2px;
+  box-shadow:0 0 0 4px rgba(255,90,54,.35);
+  border-radius:6px;
+}
+.tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+.skip{
+  position:fixed;left:16px;top:-64px;z-index:120;
+  background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:var(--r-sm);
+  font-size:13px;transition:top var(--dur-2) var(--ease);
+}
+.skip:focus{top:12px}
+
+/* ---------- typographic primitives ---------- */
+.eyebrow{
+  display:flex;align-items:center;gap:10px;
+  font-size:11px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--muted-strong);
+}
+.eyebrow .eyebrow-num{color:var(--ink)}
+.eyebrow::after{content:"";width:28px;height:1px;background:var(--line-strong)}
+.display{
+  font-family:var(--serif);font-weight:500;
+  font-size:clamp(38px,4.2vw,56px);line-height:1.03;letter-spacing:-.028em;
+  margin-top:16px;max-width:22ch;text-wrap:balance;
+}
+.lede{
+  margin-top:16px;max-width:62ch;
+  font-size:17px;line-height:1.6;color:var(--muted-strong);
+}
+h2.section-title{
+  font-family:var(--serif);font-weight:500;
+  font-size:clamp(24px,2.2vw,30px);line-height:1.15;letter-spacing:-.02em;
+}
+h3.card-title{
+  font-size:19px;font-weight:620;line-height:1.3;letter-spacing:-.012em;
+}
+.label{
+  font-size:10.5px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);line-height:1.4;
+}
+.hint{font-size:12.5px;line-height:1.5;color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.body-sm{font-size:13.5px;line-height:1.58;color:var(--muted-strong)}
+
+/* ---------- app shell ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  height:64px;display:flex;align-items:center;
+  background:var(--paper);border-bottom:1px solid var(--line);
+}
+.topbar-inner{
+  width:100%;max-width:1440px;margin:0 auto;padding:0 28px;
+  display:flex;align-items:center;gap:20px;
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{
+  width:30px;height:30px;border-radius:9px;background:var(--ink);
+  display:grid;place-items:center;flex:none;
+}
+.brand-word{
+  font-family:var(--serif);font-size:22px;letter-spacing:-.02em;
+  line-height:1;font-weight:500;
+}
+.brand-divider{width:1px;height:20px;background:var(--line-strong);margin:0 2px}
+.project{
+  display:inline-flex;align-items:center;gap:8px;min-height:36px;
+  font-size:13px;color:var(--muted-strong);padding:0 6px;border-radius:8px;
+  transition:color var(--dur-1) var(--ease);
+}
+.project:hover{color:var(--ink)}
+.project svg{opacity:.6}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+/* AI status pill */
+.ai-pill{
+  display:inline-flex;align-items:center;gap:9px;
+  height:36px;padding:0 14px;
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r-pill);box-shadow:var(--sh-xs);
+  font-size:12.5px;font-weight:600;color:var(--ink);
+  transition:border-color var(--dur-1) var(--ease),background var(--dur-1) var(--ease);
+}
+.ai-pill:hover{border-color:var(--line-strong)}
+.ai-pill .dot{
+  width:7px;height:7px;border-radius:50%;background:var(--verify);flex:none;
+  box-shadow:0 0 0 3px var(--verify-soft);
+}
+.ai-pill .dot.dot--cached{background:var(--ink);box-shadow:0 0 0 3px var(--paper-deep)}
+.ai-pill .dot.dot--offline{background:transparent;border:1.5px solid var(--muted);box-shadow:0 0 0 3px var(--paper-deep)}
+.ai-pill .chev{opacity:.45}
+.ai-pill[aria-expanded="true"]{border-color:var(--ink)}
+.ai-menu{
+  position:absolute;top:58px;right:28px;z-index:80;width:320px;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);
+  box-shadow:var(--sh-md);padding:8px;display:none;
+}
+.ai-menu.is-open{display:block;animation:menuIn var(--dur-2) var(--ease)}
+@keyframes menuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.ai-menu-head{
+  padding:10px 12px 8px;font-size:10.5px;font-weight:650;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);
+}
+.ai-mode{
+  display:grid;grid-template-columns:18px 1fr;gap:10px;width:100%;
+  text-align:left;padding:10px 12px;border-radius:10px;
+  transition:background var(--dur-1) var(--ease);
+}
+.ai-mode:hover{background:var(--paper-deep)}
+.ai-mode .mode-dot{margin-top:6px;width:8px;height:8px;border-radius:50%;background:var(--line-strong)}
+.ai-mode.is-active .mode-dot{background:var(--verify)}
+.ai-mode.is-active .mode-dot[data-mode="cached"]{background:var(--ink)}
+.ai-mode.is-active .mode-dot[data-mode="offline"]{background:transparent;border:1.5px solid var(--muted)}
+.ai-mode strong{display:block;font-size:13.5px;font-weight:620;line-height:1.4}
+.ai-mode span{display:block;font-size:11.5px;line-height:1.45;color:var(--muted);margin-top:2px}
+.ai-mode .mode-check{margin-left:auto;color:var(--verify);opacity:0}
+.ai-mode.is-active .mode-check{opacity:1}
+.lab-toggle{
+  display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 13px;
+  border:1px solid transparent;border-radius:var(--r-pill);
+  font-size:12.5px;font-weight:600;color:var(--muted-strong);
+  transition:color var(--dur-1),background var(--dur-1),border-color var(--dur-1);
+}
+.lab-toggle:hover{background:var(--card);border-color:var(--line);color:var(--ink)}
+.lab-toggle[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.icon-btn{
+  width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center;color:var(--muted-strong);
+  border:1px solid transparent;
+  transition:background var(--dur-1),border-color var(--dur-1),color var(--dur-1);
+}
+.icon-btn:hover{background:var(--card);border-color:var(--line);color:var(--ink)}
+
+.shell{
+  display:grid;grid-template-columns:236px minmax(0,1fr);
+  max-width:1440px;margin:0 auto;min-height:calc(100vh - 64px);
+}
+.rail{
+  border-right:1px solid var(--line);
+  padding:40px 20px 32px 28px;
+  display:flex;flex-direction:column;gap:32px;
+  position:sticky;top:64px;height:calc(100vh - 64px);
+  overflow:auto;
+}
+.stepper{list-style:none;display:flex;flex-direction:column}
+.step-item{position:relative}
+.step-item::before{
+  content:"";position:absolute;left:17px;top:44px;bottom:-4px;width:1px;
+  background:var(--line);
+}
+.step-item:last-child::before{display:none}
+.step-item.is-done::before{background:var(--ink);opacity:.25}
+.step{
+  position:relative;display:grid;grid-template-columns:34px 1fr 16px;gap:12px;
+  align-items:start;width:100%;text-align:left;
+  padding:12px 10px 12px;border-radius:14px;
+  transition:background var(--dur-1) var(--ease);
+}
+.step:hover{background:var(--paper-deep)}
+.step-num{
+  width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--line-strong);background:var(--paper);
+  display:grid;place-items:center;flex:none;
+  font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:500;
+  transition:all var(--dur-2) var(--ease);
+}
+.step-body{display:block;padding-top:1px;min-width:0}
+.step-name{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--muted-strong);line-height:1.25}
+.step-sub{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.step-tick{width:16px;height:16px;margin-top:9px;color:var(--verify);opacity:0}
+.step[aria-current="step"] .step-num{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.step[aria-current="step"] .step-name{color:var(--ink)}
+.step[aria-current="step"] .step-sub{color:var(--muted-strong)}
+.step-item.is-done .step-num{background:var(--card);border-color:var(--ink);color:var(--ink)}
+.step-item.is-done .step-tick{opacity:1}
+.step-item.is-done .step-name{color:var(--ink)}
+.rail-meta{
+  margin-top:auto;border-top:1px solid var(--line);padding-top:20px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.rail-meta .meta-title{
+  font-size:10.5px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+}
+.rail-meta dl{display:flex;flex-direction:column;gap:7px}
+.rail-meta .meta-row{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;line-height:1.4}
+.rail-meta dt{color:var(--muted)}
+.rail-meta dd{color:var(--ink);font-family:var(--mono);font-size:10.5px;text-align:right}
+.rail-meta .meta-claims{
+  margin-top:4px;padding:10px 12px;background:var(--paper-deep);border-radius:10px;
+  font-size:11px;line-height:1.5;color:var(--muted-strong);
+}
+.rail-meta .meta-claims b{color:var(--ink);font-weight:600}
+
+.main{
+  padding:44px 48px 88px;
+  width:100%;max-width:1160px;margin:0 auto;
+  min-width:0;
+}
+.screen{display:none}
+.screen.is-active{display:block;animation:screenIn var(--dur-3) var(--ease)}
+@keyframes screenIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.screen-head{margin-bottom:36px}
+.screen-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin-top:40px;padding-top:22px;border-top:1px solid var(--line);
+}
+.screen-foot .foot-meta{font-size:12px;color:var(--muted)}
+
+/* ---------- common cards / layout ---------- */
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--r-lg);
+  box-shadow:var(--sh-sm);
+  padding:26px;
+  position:relative;
+}
+.card--flush{padding:0;overflow:hidden}
+.card--warm{background:var(--card-warm);box-shadow:none}
+.card-head{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:14px;margin-bottom:18px;
+}
+.card-head .head-left{min-width:0}
+.card-head .head-sub{margin-top:4px;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.card-head .head-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.hr{height:1px;background:var(--line);border:0;margin:20px 0}
+
+.split{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;align-items:start;margin-top:24px}
+.design-top{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:20px;align-items:stretch;margin-top:24px}
+.prove-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:20px;align-items:stretch}
+
+/* ---------- badges / pills / chips / buttons ---------- */
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  height:24px;padding:0 9px;border-radius:var(--r-pill);
+  border:1px solid var(--line);background:var(--paper-deep);
+  font-family:var(--mono);font-size:10.5px;color:var(--muted-strong);
+  white-space:nowrap;letter-spacing:-.01em;
+}
+.badge svg{flex:none}
+.badge--green{background:var(--verify-soft);border-color:rgba(11,107,83,.18);color:var(--verify)}
+.badge--orange{background:var(--accent-soft);border-color:rgba(255,90,54,.24);color:var(--accent-ink)}
+.badge--ink{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.badge--quiet{background:transparent}
+.badge-fallback{display:none;background:var(--paper-deep);border-color:var(--line-strong);color:var(--muted-strong)}
+[data-state="error"] .badge-fallback,
+[data-state="offline"] .badge-fallback{display:inline-flex}
+
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  min-height:34px;padding:6px 13px;border-radius:var(--r-pill);
+  background:var(--card);border:1px solid var(--line);
+  font-size:12.5px;color:var(--muted-strong);line-height:1.3;
+  transition:border-color var(--dur-1) var(--ease),color var(--dur-1) var(--ease),background var(--dur-1) var(--ease);
+}
+.chip:hover{border-color:var(--line-strong);color:var(--ink)}
+.chip .chip-x{opacity:.45}
+.chip.is-active{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  min-height:44px;padding:0 20px;border-radius:var(--r-sm);
+  border:1px solid var(--line-strong);background:var(--card);color:var(--ink);
+  font-size:14px;font-weight:620;letter-spacing:-.008em;
+  box-shadow:var(--sh-xs);
+  transition:transform var(--dur-1) var(--ease),background var(--dur-1) var(--ease),
+             border-color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease);
+}
+.btn:hover{transform:translateY(-1px);border-color:var(--ink);box-shadow:var(--sh-sm)}
+.btn:active{transform:none}
+.btn svg{flex:none}
+.btn-primary{
+  background:var(--accent);border-color:var(--accent);color:#1B0D08;
+  font-weight:650;
+  box-shadow:0 1px 2px rgba(255,90,54,.25),0 12px 24px -16px rgba(255,90,54,.5);
+}
+.btn-primary:hover{background:#FF6847;border-color:#FF6847}
+.btn-ghost{background:transparent;border-color:transparent;box-shadow:none;color:var(--muted-strong)}
+.btn-ghost:hover{background:var(--card);border-color:var(--line);color:var(--ink);box-shadow:none}
+.btn-quiet{background:transparent;border-color:var(--line);box-shadow:none;color:var(--muted-strong);font-weight:560}
+.btn-quiet:hover{background:var(--card);color:var(--ink);border-color:var(--line-strong)}
+.btn-sm{min-height:36px;padding:0 13px;font-size:12.5px;border-radius:10px}
+.btn[disabled]{opacity:.55;pointer-events:none}
+.btn-wide{width:100%}
+.btn-link{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:12.5px;font-weight:560;color:var(--muted-strong);
+  min-height:32px;padding:2px 2px;border-radius:6px;
+  transition:color var(--dur-1) var(--ease);
+}
+.btn-link:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+
+.seg{
+  display:inline-flex;align-items:center;gap:2px;padding:3px;
+  background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--r-pill);
+}
+.seg button{
+  display:inline-flex;align-items:center;gap:6px;
+  min-height:30px;padding:0 12px;border-radius:var(--r-pill);
+  font-size:12px;font-weight:560;color:var(--muted-strong);line-height:1;
+  transition:background var(--dur-1) var(--ease),color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease);
+}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:var(--sh-xs)}
+
+/* ---------- screen 01 · brief ---------- */
+.prompt-card{padding:24px 26px 20px;transition:border-color var(--dur-2) var(--ease),box-shadow var(--dur-2) var(--ease)}
+.prompt-card:focus-within{border-color:var(--ink);box-shadow:var(--sh-sm),0 0 0 4px rgba(255,90,54,.12)}
+.prompt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.prompt-area{
+  display:block;width:100%;min-height:118px;resize:vertical;
+  border:0;background:transparent;padding:2px 0;
+  font-size:17px;line-height:1.62;letter-spacing:-.008em;color:var(--ink);
+}
+.prompt-area::placeholder{color:#A2A8B0}
+.prompt-area:focus{outline:none}
+.prompt-examples{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.prompt-examples .label{margin-right:2px}
+.prompt-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin-top:16px;padding-top:16px;border-top:1px solid var(--line);
+  flex-wrap:wrap;
+}
+.prompt-foot-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.prompt-foot-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.word-count{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.mic{min-height:40px;padding:0 15px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;gap:8px;background:var(--card-warm)}
+.mic.is-listening{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft);animation:pulseRing 1.6s var(--ease) infinite}
+@keyframes pulseRing{0%,100%{box-shadow:0 0 0 0 rgba(255,90,54,.28)}50%{box-shadow:0 0 0 6px rgba(255,90,54,.08)}}
+.mic .mic-icon{color:var(--accent-ink)}
+
+/* activity strip */
+.activity{
+  margin-top:16px;padding:16px 20px;
+  display:none;align-items:center;gap:22px;flex-wrap:wrap;
+  background:var(--card-warm);border:1px solid var(--line);border-radius:var(--r-md);
+}
+.activity.is-visible{display:flex;animation:screenIn var(--dur-2) var(--ease)}
+.activity-step{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
+.activity-step .a-dot{
+  width:16px;height:16px;border-radius:50%;border:1px solid var(--line-strong);
+  display:grid;place-items:center;flex:none;color:var(--paper);
+}
+.activity-step.is-active{color:var(--ink);font-weight:560}
+.activity-step.is-active .a-dot{border-color:var(--accent);border-top-color:var(--accent);animation:spin 1s linear infinite}
+.activity-step.is-done{color:var(--muted-strong)}
+.activity-step.is-done .a-dot{background:var(--verify);border-color:var(--verify)}
+.activity-step .a-model{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:-2px}
+.activity-done{font-size:12.5px;font-weight:560;color:var(--verify);display:flex;align-items:center;gap:7px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* understanding card */
+.kv-list{display:flex;flex-direction:column;margin-top:2px}
+.kv{
+  display:grid;grid-template-columns:minmax(110px,.8fr) minmax(0,1.5fr) 26px;
+  align-items:center;gap:12px;padding:11px 0;
+  border-bottom:1px solid var(--line);
+}
+.kv:last-child{border-bottom:0;padding-bottom:2px}
+.kv-k{font-size:12.5px;color:var(--muted)}
+.kv-v{font-size:14px;font-weight:560;letter-spacing:-.008em;min-width:0;overflow-wrap:anywhere}
+.kv-v .kv-unit{font-weight:450;color:var(--muted);margin-left:3px;font-size:12.5px}
+.kv-edit{
+  width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
+  color:var(--muted);opacity:.45;transition:opacity var(--dur-1),background var(--dur-1),color var(--dur-1);
+}
+.kv:hover .kv-edit,.kv-edit:focus-visible{opacity:1}
+.kv-edit:hover{background:var(--paper-deep);color:var(--ink)}
+.ai-foot{
+  display:flex;align-items:center;gap:7px;margin-top:18px;padding-top:14px;
+  border-top:1px solid var(--line);font-size:12px;color:var(--muted);
+}
+.ai-foot svg{flex:none;opacity:.7}
+
+/* lot passport card */
+.lot-material{font-family:var(--serif);font-size:26px;letter-spacing:-.02em;line-height:1.15;margin-top:2px}
+.lot-source{font-size:12px;color:var(--muted);margin-top:6px}
+.lot-stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;margin-top:18px}
+.lot-stat{background:var(--card);padding:12px 14px}
+.lot-stat .label{margin-bottom:4px;text-transform:none;letter-spacing:.05em;font-size:10px;font-weight:600}
+.lot-stat .val{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.lot-stat .val .unit{font-size:11.5px;font-weight:450;color:var(--muted);margin-left:3px}
+.lot-insight{
+  margin-top:16px;padding:12px 14px;border-radius:10px;
+  background:var(--accent-soft);border:1px solid rgba(255,90,54,.16);
+  font-size:12.5px;line-height:1.55;color:var(--ink);
+}
+.lot-insight b{font-weight:650}
+.lot-actions{display:flex;align-items:center;gap:6px;margin-top:14px;flex-wrap:wrap}
+.lot-actions .btn-sm{min-height:34px}
+
+/* plan preview */
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line);margin-top:16px}
+.plan-item{padding:18px 22px 4px;border-right:1px solid var(--line)}
+.plan-item:first-child{padding-left:0}
+.plan-item:last-child{border-right:0;padding-right:0}
+.plan-top{display:flex;align-items:center;gap:8px}
+.plan-name{font-family:var(--serif);font-size:20px;letter-spacing:-.015em}
+.plan-item p{font-size:12.5px;line-height:1.55;color:var(--muted-strong);margin-top:6px;max-width:30ch}
+.plan-prior{font-family:var(--mono);font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:10px}
+
+/* advanced */
+details.advanced,details.why{margin-top:2px}
+details.advanced summary,details.why summary{
+  list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  font-size:12.5px;font-weight:560;color:var(--muted-strong);
+  min-height:34px;padding:4px 0;border-radius:6px;
+}
+details.advanced summary::-webkit-details-marker,details.why summary::-webkit-details-marker{display:none}
+details.advanced summary:hover,details.why summary:hover{color:var(--ink)}
+details summary .chev{transition:transform var(--dur-2) var(--ease);opacity:.55}
+details[open] summary .chev{transform:rotate(90deg)}
+.advanced-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:10px;padding:18px;background:var(--paper-deep);border-radius:var(--r-md)}
+.advanced-grid .label{margin-bottom:4px}
+.advanced-grid .val{font-size:13.5px;font-weight:550;line-height:1.4}
+
+/* ---------- screen 02 · design ---------- */
+.viz-card{padding:0;display:flex;flex-direction:column;overflow:hidden}
+.viz-head .seg{margin-left:auto}
+.viz-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:22px 26px 0;flex-wrap:wrap;
+}
+.viz-title{font-size:15px;font-weight:620;letter-spacing:-.01em}
+.viz-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.viz-canvas{
+  position:relative;margin:10px 18px 0;border-radius:var(--r-md);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(21,23,26,.055) 1px, transparent 1px) 0 0/22px 22px,
+    var(--card-warm);
+  border:1px solid var(--line);
+  overflow:hidden;
+}
+.viz-canvas svg{width:100%;height:auto}
+.viz-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 26px 20px;flex-wrap:wrap}
+.viz-caption{font-size:12px;color:var(--muted)}
+.viz-caption b{color:var(--ink);font-weight:600}
+.viz-live{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--verify);font-weight:560}
+.viz-live .live-dot{width:6px;height:6px;border-radius:50%;background:var(--verify);box-shadow:0 0 0 3px var(--verify-soft)}
+
+/* metrics */
+.metrics-card{padding:6px 26px;display:flex;flex-direction:column;justify-content:space-between}
+.metric{padding:20px 0;border-bottom:1px solid var(--line)}
+.metric:last-child{border-bottom:0;padding-bottom:18px}
+.metric .label{margin-bottom:6px}
+.metric-value{display:flex;align-items:baseline;gap:7px}
+.metric-value .num{
+  font-family:var(--serif);font-weight:500;font-size:clamp(32px,3.1vw,44px);
+  line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+}
+.metric-value .unit{font-size:13px;color:var(--muted);font-weight:450;letter-spacing:0}
+.metric-value .num--text{font-size:clamp(26px,2.5vw,34px);letter-spacing:-.02em}
+.metric-sub{font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.45}
+details.why p{
+  font-size:12.5px;line-height:1.6;color:var(--muted-strong);
+  margin-top:8px;padding:12px 14px;background:var(--paper-deep);border-radius:10px;
+}
+.metric .why{margin-top:5px}
+.metric .why summary{min-height:26px;font-size:11.5px}
+
+/* candidates */
+.candidates{margin-top:20px}
+.candidate-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.candidate{
+  position:relative;text-align:left;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--r-md);
+  padding:18px 20px 16px;box-shadow:var(--sh-xs);
+  display:flex;flex-direction:column;gap:0;
+  transition:border-color var(--dur-2) var(--ease),box-shadow var(--dur-2) var(--ease),transform var(--dur-2) var(--ease);
+}
+.candidate:hover{border-color:var(--line-strong);box-shadow:var(--sh-sm);transform:translateY(-1px)}
+.candidate.is-selected{border-color:var(--ink);box-shadow:var(--sh-sm)}
+.candidate.is-selected::before{
+  content:"";position:absolute;left:0;top:16px;bottom:16px;width:3px;
+  border-radius:0 3px 3px 0;background:var(--accent);
+}
+.candidate-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.candidate-name{font-family:var(--serif);font-size:21px;letter-spacing:-.015em;line-height:1.1}
+.cand-badge{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.candidate.is-selected .cand-badge{color:var(--accent-ink)}
+.candidate-mass{display:flex;align-items:baseline;gap:5px;margin-top:14px}
+.candidate-mass .num{font-family:var(--serif);font-size:32px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.candidate-mass .unit{font-size:12px;color:var(--muted)}
+.candidate-pf{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.candidate-pf b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.candidate-tradeoff{font-size:12.5px;line-height:1.5;color:var(--muted-strong);margin-top:10px;min-height:56px}
+.candidate-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.print-pill{
+  display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;
+  border-radius:var(--r-pill);font-size:10.5px;font-weight:600;
+}
+.print-pill--pass{background:var(--verify-soft);color:var(--verify)}
+.print-pill--warn{background:var(--accent-soft);color:var(--accent-ink)}
+.cand-engine{font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.candidate-empty{
+  border:1px dashed var(--line-strong);border-radius:var(--r-md);
+  padding:26px;text-align:center;color:var(--muted);font-size:13px;grid-column:1/-1;
+}
+
+/* design bottom */
+.design-bottom{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;margin-top:20px;align-items:stretch}
+.memo p{font-size:14px;line-height:1.68;color:var(--ink);margin-top:2px}
+.memo p + p{margin-top:12px}
+.memo .memo-note{font-size:12px;color:var(--muted);margin-top:16px;display:flex;gap:7px;align-items:flex-start}
+.suggest{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.suggest .label{margin-right:2px}
+.suggest .chip{min-height:30px;font-size:12px}
+.memo-empty{font-size:13.5px;color:var(--muted);padding:10px 0}
+
+/* vs conventional */
+.vs-list{margin-top:4px;display:flex;flex-direction:column;gap:11px}
+.vs-row{display:grid;grid-template-columns:118px 1fr 62px;gap:10px;align-items:center;font-size:11.5px}
+.vs-name{color:var(--muted-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vs-row.is-current .vs-name{color:var(--ink);font-weight:600}
+.vs-track{height:7px;border-radius:4px;background:var(--paper-deep);overflow:hidden}
+.vs-bar{height:100%;border-radius:4px;background:var(--line-strong);transition:width var(--dur-3) var(--ease)}
+.vs-row.is-current .vs-bar{background:var(--accent)}
+.vs-val{text-align:right;font-family:var(--mono);font-size:11px;color:var(--muted-strong);font-variant-numeric:tabular-nums}
+.vs-row.is-current .vs-val{color:var(--ink);font-weight:600}
+.vs-note{font-size:12.5px;line-height:1.55;color:var(--muted-strong);margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.vs-note b{color:var(--ink);font-weight:600}
+
+/* ---------- screen 03 · prove ---------- */
+.gauge-card{display:flex;flex-direction:column}
+.gauge-wrap{position:relative;margin:2px auto 0;max-width:330px;width:100%}
+.gauge-wrap svg{width:100%;height:auto}
+.gauge-overlay{
+  position:absolute;left:0;right:0;bottom:36px;
+  display:flex;flex-direction:column;align-items:center;pointer-events:none;
+}
+.gauge-num{font-family:var(--serif);font-size:clamp(34px,3.4vw,46px);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge-num .unit{font-size:16px;letter-spacing:0;color:var(--muted);margin-left:2px}
+.gauge-target{font-size:11px;color:var(--muted);margin-top:7px;font-family:var(--mono)}
+.gauge-caption{font-size:12.5px;color:var(--muted-strong);text-align:center;margin-top:4px}
+.key-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;margin-top:18px}
+.key-fact{background:var(--card);padding:11px 12px}
+.key-fact .label{margin-bottom:3px;font-size:9.5px}
+.key-fact .val{font-size:12.5px;font-weight:600;line-height:1.35}
+.key-fact .val .unit{font-weight:450;color:var(--muted);font-size:11px}
+
+/* acceptance chart */
+.chart-card{display:flex;flex-direction:column}
+.chart-box{margin-top:4px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--card-warm);padding:10px 6px 2px;overflow:hidden}
+.chart-box svg{width:100%;height:auto}
+.chart-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:12px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted-strong)}
+.legend-swatch{width:10px;height:10px;border-radius:3px;border:1px solid var(--line-strong)}
+.legend-swatch--accept{background:rgba(11,107,83,.14);border-color:rgba(11,107,83,.3)}
+.legend-swatch--comp{background:rgba(255,90,54,.12);border-color:rgba(255,90,54,.3)}
+.legend-swatch--reject{background:rgba(255,90,54,.28);border-color:rgba(255,90,54,.45)}
+.chart-caption{font-size:12px;line-height:1.55;color:var(--muted);margin-top:12px}
+.chart-caption b{color:var(--ink);font-weight:600}
+
+/* passport input */
+.passport-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.input-group{display:flex;flex-direction:column;gap:6px}
+.input-group label{font-size:11.5px;font-weight:560;color:var(--muted-strong)}
+.input-wrap{display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;background:var(--card);border:1px solid var(--line-strong);border-radius:10px;transition:border-color var(--dur-1) var(--ease)}
+.input-wrap:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px rgba(255,90,54,.16)}
+.input-wrap .input-prefix{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.input-wrap input{width:100%;min-width:0;border:0;background:transparent;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.input-wrap input:focus{outline:none}
+.passport-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.passport-chips .chip{min-height:30px;font-size:11.5px;padding:5px 10px}
+.verdict{
+  margin-top:16px;border-radius:var(--r-md);padding:16px 18px;
+  border:1px solid var(--line);background:var(--card-warm);
+  transition:background var(--dur-2) var(--ease),border-color var(--dur-2) var(--ease);
+}
+.verdict-head{display:flex;align-items:center;gap:9px}
+.verdict-icon{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--paper-deep);color:var(--muted)}
+.verdict-title{font-size:15px;font-weight:650;letter-spacing:-.01em}
+.verdict-detail{font-size:12.5px;line-height:1.55;color:var(--muted-strong);margin-top:7px}
+.verdict-numbers{display:flex;gap:22px;margin-top:12px;flex-wrap:wrap}
+.verdict-num .label{font-size:9.5px;margin-bottom:2px}
+.verdict-num .val{font-family:var(--serif);font-size:22px;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.verdict.is-pass{border-color:rgba(11,107,83,.28);background:var(--verify-soft)}
+.verdict.is-pass .verdict-icon{background:var(--verify);color:#fff}
+.verdict.is-comp{border-color:rgba(255,90,54,.3);background:var(--accent-soft)}
+.verdict.is-comp .verdict-icon{background:var(--accent);color:#1B0D08}
+.verdict.is-reject{border-color:rgba(255,90,54,.42);background:var(--accent-soft)}
+.verdict.is-reject .verdict-icon{background:var(--accent);color:#1B0D08}
+.passport-note{font-size:11.5px;line-height:1.5;color:var(--muted);margin-top:12px}
+.passport-live{display:none;font-size:11.5px;color:var(--verify);align-items:center;gap:6px;margin-top:10px}
+.passport-live.is-visible{display:flex}
+
+/* checklist */
+.checklist{display:flex;flex-direction:column;margin-top:4px}
+.check-row{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.check-row:last-child{border-bottom:0}
+.check-tick{width:18px;height:18px;border-radius:50%;background:var(--verify-soft);color:var(--verify);display:grid;place-items:center;margin-top:1px;flex:none}
+.check-name{font-size:13px;font-weight:560;letter-spacing:-.005em;line-height:1.35}
+.check-evidence{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:1px}
+.check-level{font-family:var(--mono);font-size:9.5px;color:var(--muted-strong);background:var(--paper-deep);border-radius:5px;padding:2px 5px;margin-top:2px}
+.checklist-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap}
+.checklist-foot .counts{font-family:var(--mono);font-size:10.5px;color:var(--muted-strong)}
+
+/* memo + render */
+.prove-bottom{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;margin-top:20px;align-items:stretch}
+.render-card{padding:0;display:flex;flex-direction:column;overflow:hidden}
+.render-box{position:relative;margin:0 20px;border-radius:var(--r-md);overflow:hidden;background:var(--paper-deep);border:1px solid var(--line)}
+.render-img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.render-ph{display:none;aspect-ratio:4/3;width:100%;background:
+  radial-gradient(circle at 1px 1px, rgba(21,23,26,.07) 1px, transparent 1px) 0 0/18px 18px,
+  var(--card-warm);}
+.render--placeholder .render-ph{display:grid;place-items:center}
+.render-ph-inner{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:18px}
+.render-ph-inner svg{width:min(78%,260px);height:auto}
+.render-ph-inner span{font-size:11.5px;color:var(--muted);max-width:30ch;line-height:1.5}
+.render-flag{
+  position:absolute;left:10px;bottom:10px;
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(247,245,240,.94);border:1px solid var(--line);
+  border-radius:var(--r-pill);padding:4px 10px;
+  font-size:10px;color:var(--muted-strong);font-weight:560;
+}
+.render-foot{padding:14px 20px 18px}
+.render-foot .label{margin-bottom:3px}
+.render-foot p{font-size:12px;line-height:1.5;color:var(--muted-strong)}
+
+/* exports */
+.exports-card{margin-top:20px}
+.export-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.export-btn{
+  display:flex;align-items:center;gap:12px;text-align:left;
+  padding:13px 15px;border:1px solid var(--line);border-radius:var(--r-sm);
+  background:var(--card);transition:border-color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease),transform var(--dur-1) var(--ease);
+}
+.export-btn:hover{border-color:var(--ink);box-shadow:var(--sh-xs);transform:translateY(-1px)}
+.export-ico{width:32px;height:32px;border-radius:9px;background:var(--paper-deep);display:grid;place-items:center;color:var(--ink);flex:none}
+.export-txt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.export-txt strong{font-size:12.5px;font-weight:620;line-height:1.3}
+.export-txt span{font-size:10.5px;color:var(--muted);font-family:var(--mono)}
+
+/* claims */
+.claims-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--line);margin-top:16px}
+.claim{padding:16px 20px 2px;border-right:1px solid var(--line)}
+.claim:first-child{padding-left:0}
+.claim:last-child{border-right:0;padding-right:0}
+.claim-top{display:flex;align-items:center;gap:7px}
+.claim-level{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.claim-name{font-size:12.5px;font-weight:600;line-height:1.35;margin-top:6px}
+.claim-status{font-size:10.5px;margin-top:5px;display:inline-flex;align-items:center;gap:5px;font-weight:560}
+.claim-status--done{color:var(--verify)}
+.claim-status--partial{color:var(--accent-ink)}
+.claim-status--none{color:var(--muted)}
+.limitations{font-size:12.5px;line-height:1.6;color:var(--muted-strong);margin-top:20px;padding-top:16px;border-top:1px solid var(--line);max-width:110ch}
+.limitations b{color:var(--ink);font-weight:600}
+
+/* footer */
+.footer{
+  border-top:1px solid var(--line);
+  padding:22px 48px 30px;
+  max-width:1440px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+}
+.footer-brand{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted-strong)}
+.footer-brand .word{font-family:var(--serif);font-size:15px;letter-spacing:-.01em;color:var(--ink)}
+.footer-meta{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.state-switch{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.state-switch .label{font-size:9.5px;margin-right:4px}
+.state-switch a{
+  font-size:10.5px;color:var(--muted-strong);text-decoration:none;
+  padding:4px 7px;border-radius:5px;border:1px solid transparent;
+}
+.state-switch a:hover{background:var(--paper-deep);color:var(--ink)}
+.state-switch a.is-current{background:var(--ink);color:var(--paper)}
+
+/* ---------- overlays: drawer / scrim / toast / banners ---------- */
+.scrim{
+  position:fixed;inset:0;background:rgba(21,23,26,.26);z-index:60;
+  opacity:0;pointer-events:none;transition:opacity var(--dur-3) var(--ease);
+}
+.scrim.is-open{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;z-index:70;
+  width:min(472px,94vw);background:var(--card);
+  border-left:1px solid var(--line);box-shadow:var(--sh-md);
+  transform:translateX(102%);
+  transition:transform var(--dur-3) var(--ease);
+  display:flex;flex-direction:column;
+}
+.drawer.is-open{transform:none}
+.drawer-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:24px 24px 18px;border-bottom:1px solid var(--line);
+}
+.drawer-head h2{font-family:var(--serif);font-size:26px;letter-spacing:-.02em;line-height:1.1}
+.drawer-head .drawer-sub{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.drawer-body{flex:1;overflow:auto;padding:18px 24px 24px}
+.drawer-session{display:flex;gap:18px;flex-wrap:wrap;padding:12px 14px;background:var(--paper-deep);border-radius:var(--r-sm);margin-bottom:16px}
+.drawer-session .label{font-size:9.5px;margin-bottom:2px}
+.drawer-session .val{font-family:var(--mono);font-size:11.5px}
+.call{
+  border:1px solid var(--line);border-radius:var(--r-md);
+  padding:14px 16px;margin-bottom:10px;background:var(--card-warm);
+}
+.call-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.call-model{font-size:13px;font-weight:650;letter-spacing:-.01em}
+.call-tag{display:flex;align-items:center;gap:6px}
+.call-meta{display:flex;align-items:center;gap:12px;margin-top:5px;flex-wrap:wrap}
+.call-meta span{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.call-task{font-size:12px;color:var(--muted-strong);margin-top:8px;line-height:1.5}
+.call details{margin-top:8px}
+.call details summary{list-style:none;cursor:pointer;font-size:10.5px;color:var(--muted-strong);font-family:var(--mono);display:inline-flex;align-items:center;gap:5px}
+.call details summary::-webkit-details-marker{display:none}
+.call pre{
+  margin:8px 0 0;padding:10px 12px;background:var(--paper-deep);border-radius:8px;
+  font-family:var(--mono);font-size:10px;line-height:1.55;color:var(--muted-strong);
+  overflow:auto;white-space:pre;max-height:180px;
+}
+.drawer-foot{padding:16px 24px 22px;border-top:1px solid var(--line);background:var(--card-warm)}
+.drawer-rule{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.55;color:var(--muted-strong)}
+.drawer-rule svg{flex:none;margin-top:1px;color:var(--verify)}
+.drawer-actions{display:flex;gap:8px;margin-top:12px}
+
+.toast-region{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+  z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;
+  pointer-events:none;width:max-content;max-width:min(92vw,520px);
+}
+.toast{
+  display:flex;align-items:center;gap:9px;
+  background:var(--ink);color:var(--paper);
+  padding:11px 18px;border-radius:var(--r-pill);
+  font-size:12.5px;font-weight:500;line-height:1.4;
+  box-shadow:0 16px 32px -16px rgba(21,23,26,.5);
+  opacity:0;transform:translateY(6px);
+  transition:opacity var(--dur-2) var(--ease),transform var(--dur-2) var(--ease);
+}
+.toast.is-visible{opacity:1;transform:none}
+.toast svg{flex:none;color:var(--accent)}
+
+.banner{
+  display:none;align-items:flex-start;gap:14px;
+  margin-bottom:28px;padding:16px 18px;border-radius:var(--r-md);
+  border:1px solid var(--line);background:var(--card-warm);
+}
+.banner.is-visible{display:flex}
+.banner .banner-ico{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--paper-deep);color:var(--ink)}
+.banner-copy{min-width:0}
+.banner-copy strong{display:block;font-size:14px;font-weight:650;letter-spacing:-.01em}
+.banner-copy p{font-size:12.5px;color:var(--muted-strong);margin-top:3px;line-height:1.55;max-width:80ch}
+.banner-actions{display:flex;gap:8px;margin-left:auto;flex:none;flex-wrap:wrap}
+.banner--error{border-color:rgba(255,90,54,.32);background:var(--accent-soft)}
+.banner--error .banner-ico{background:var(--accent);color:#1B0D08}
+.banner--offline .banner-ico{background:var(--ink);color:var(--paper)}
+
+/* skeletons */
+[data-state="loading"] .ai-region{position:relative;min-height:140px}
+[data-state="loading"] .ai-region > *:not(.ai-skel-note){visibility:hidden}
+[data-state="loading"] .ai-region::after{
+  content:"";position:absolute;inset:20px 20px 62px;border-radius:10px;
+  background:repeating-linear-gradient(180deg,var(--paper-deep) 0 10px,transparent 10px 24px);
+  animation:shimmer 1.4s linear infinite;
+}
+[data-state="loading"] .ai-region::before{
+  content:"";position:absolute;top:22px;left:20px;width:min(38%,180px);height:9px;
+  border-radius:5px;background:var(--line);z-index:1;
+}
+.ai-skel-note{
+  display:none;position:absolute;left:22px;bottom:18px;z-index:1;
+  font-size:11.5px;color:var(--muted-strong);
+  align-items:center;gap:7px;
+}
+[data-state="loading"] .ai-skel-note{display:flex}
+[data-state="loading"] .ai-skel-note::before{
+  content:"";width:12px;height:12px;border-radius:50%;
+  border:1.5px solid var(--line-strong);border-top-color:var(--accent);
+  animation:spin 1s linear infinite;
+}
+@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+[data-state="loading"] .activity{display:flex}
+[data-state="loading"] .prompt-card .word-count{opacity:.5}
+
+/* empty / error overrides */
+.empty-only{display:none}
+[data-state="empty"] .empty-only{display:block}
+[data-state="empty"] .filled-only{display:none !important}
+.empty-note{
+  padding:22px 18px;border:1px dashed var(--line-strong);border-radius:var(--r-md);
+  background:var(--card-warm);text-align:left;
+}
+.empty-note strong{display:block;font-size:13.5px;font-weight:620;margin-bottom:4px}
+.empty-note p{font-size:12.5px;color:var(--muted);line-height:1.5;max-width:42ch}
+.empty-note .btn{margin-top:12px}
+[data-state="empty"] .verdict{opacity:.6}
+
+/* ---------- responsive ---------- */
+@media (max-width:1279px){
+  .shell{grid-template-columns:210px minmax(0,1fr)}
+  .rail{padding-left:20px;padding-right:16px}
+  .main{padding:40px 36px 80px}
+  .footer{padding-left:36px;padding-right:36px}
+  .advanced-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:1079px){
+  .shell{display:block}
+  .rail{
+    position:sticky;top:64px;z-index:40;height:auto;width:100%;
+    border-right:0;border-bottom:1px solid var(--line);
+    background:var(--paper);padding:12px 24px;
+    overflow:visible;
+  }
+  .stepper{flex-direction:row;gap:6px}
+  .step-item{flex:1}
+  .step-item::before{display:none}
+  .step{padding:8px 10px}
+  .step-num{width:28px;height:28px;font-size:10px}
+  .step-name{font-size:13px}
+  .step-sub{display:none}
+  .step-tick{margin-top:5px}
+  .rail-meta{display:none}
+  .main{padding:32px 24px 72px}
+  .split,.design-top,.prove-grid,.design-bottom,.prove-bottom{grid-template-columns:1fr}
+  .metrics-card{display:grid;grid-template-columns:repeat(3,1fr);padding:0 24px}
+  .metric{padding:18px 18px;border-bottom:0;border-right:1px solid var(--line)}
+  .metric:first-child{padding-left:0}
+  .metric:last-child{border-right:0;padding-right:0}
+  .export-grid{grid-template-columns:repeat(2,1fr)}
+  .claims-grid{grid-template-columns:repeat(2,1fr)}
+  .claim{border-bottom:1px solid var(--line);padding:14px 18px 14px}
+  .claim:nth-child(2n){border-right:0}
+  .claim:nth-child(-n+2){padding-top:14px}
+  .claim:nth-child(n+3){padding-top:14px;border-bottom:0}
+  .plan-grid{grid-template-columns:1fr}
+  .plan-item{border-right:0;border-bottom:1px solid var(--line);padding:14px 0}
+  .plan-item:last-child{border-bottom:0}
+  .ai-menu{right:24px}
+}
+@media (max-width:899px){
+  .display{max-width:26ch}
+  .candidate-grid{grid-template-columns:1fr}
+  .candidate-tradeoff{min-height:0}
+  .gauge-card,.chart-card{padding:22px}
+  .key-facts{grid-template-columns:1fr}
+  .footer{padding:20px 24px 28px;flex-direction:column;align-items:flex-start}
+  .advanced-grid{grid-template-columns:1fr 1fr}
+  .topbar-inner{padding:0 20px}
+  .project{display:none}
+  .brand-divider{display:none}
+  .ai-pill span.ai-pill-label{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lab-toggle{display:none}
+  .passport-grid{grid-template-columns:1fr}
+  .design-top{gap:16px}
+  .split{gap:16px}
+}
+@media (max-width:639px){
+  .main{padding:26px 16px 64px}
+  .display{font-size:34px}
+  .card{padding:20px}
+  .metric-value .num{font-size:32px}
+  .candidate-grid{gap:10px}
+  .export-grid{grid-template-columns:1fr}
+  .claims-grid{grid-template-columns:1fr}
+  .claim{border-right:0 !important;padding-left:0;padding-right:0}
+  .prompt-foot-right{width:100%}
+  .prompt-foot-right .btn-primary{flex:1}
+  .rail{padding:10px 14px}
+  .step-body{display:none}
+  .step{justify-content:center;grid-template-columns:auto auto;gap:6px}
+  .step-tick{display:none}
+  .key-facts{grid-template-columns:1fr}
+}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+</style>
+</head>
+<body data-state="default" data-mode="live">
+<!-- ============================================================
+     Icon sprite (inline SVG, 1.5px stroke, no external assets)
+     ============================================================ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-mark" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4v12M10 4v12M15.5 4v12M4.5 4h11M4.5 10h11M4.5 16h11"/></g></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 16 16"><path d="M2.5 8h10M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="7.5" y="2.5" width="5" height="9" rx="2.5"/><path d="M4.8 9.2a5.2 5.2 0 0010.4 0M10 14.4v3M7.2 17.4h5.6"/></g></symbol>
+  <symbol id="i-pencil" viewBox="0 0 16 16"><path d="M10.8 2.7l2.5 2.5L5.6 12.9H3.1v-2.5l7.7-7.7z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-close" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v7M5 7l3 3 3-3M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.6l6.2 10.8H1.8L8 2.6z"/><path d="M8 6.6v3.2M8 12.1v.2"/></g></symbol>
+  <symbol id="i-info" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5v.3"/></g></symbol>
+  <symbol id="i-help" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.7 1.7 0 013.2.8c0 1.1-1.5 1.3-1.5 2.2M8 12.1v.2"/></g></symbol>
+  <symbol id="i-doc" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.8h5l3 3v9.4H4V1.8z"/><path d="M9 1.8v3.1h3M6 8h4M6 10.5h4"/></g></symbol>
+  <symbol id="i-cube" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l5.3 3v6.4L8 14.2l-5.3-3V4.8L8 1.8z"/><path d="M2.7 4.8L8 7.7l5.3-2.9M8 7.7v6.5"/></g></symbol>
+  <symbol id="i-braces" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 2.5C3.9 2.5 4.5 6.2 2.8 8c1.7 1.8 1.1 5.5 2.7 5.5M10.5 2.5c1.6 0 1 3.7 2.7 5.5-1.7 1.8-1.1 5.5-2.7 5.5"/></g></symbol>
+  <symbol id="i-log" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/><circle cx="4.5" cy="4" r=".2"/><circle cx="4.5" cy="8" r=".2"/></g></symbol>
+  <symbol id="i-shield" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l5.2 2v4.1c0 3.1-2.2 5.1-5.2 6.3-3-1.2-5.2-3.2-5.2-6.3V3.8l5.2-2z"/><path d="M5.8 8l1.6 1.6 3-3.2"/></g></symbol>
+  <symbol id="i-refresh" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 11-1.5-3.6M13 2.5v3.2h-3.2"/></g></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1.5 1.5 0 00-1.5-1.5H4a1.5 1.5 0 00-1.5 1.5v6A1.5 1.5 0 004 11h1.5"/></g></symbol>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- ============================================================
+     Global chrome
+     ============================================================ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg width="19" height="19" style="color:#F7F5F0"><use href="#i-mark"/></svg></span>
+      <span class="brand-word">AnyRB</span>
+      <span class="brand-divider" aria-hidden="true"></span>
+      <button class="project" type="button" title="Switch project (mock)">
+        rPETG wall bracket
+        <svg width="14" height="14" aria-hidden="true"><use href="#i-chev-down"/></svg>
+      </button>
+    </div>
+    <div class="topbar-right">
+      <button class="ai-pill" id="aiPill" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="aiMenu">
+        <span class="dot" id="aiDot" aria-hidden="true"></span>
+        <span class="ai-pill-label" id="aiPillLabel">Live · Meta models</span>
+        <svg class="chev" width="14" height="14" aria-hidden="true"><use href="#i-chev-down"/></svg>
+      </button>
+      <button class="lab-toggle" id="labToggle" type="button" aria-pressed="false" title="Reveal advanced model inputs">Lab mode</button>
+      <button class="icon-btn" type="button" aria-label="Help" title="Help (mock)" data-toast="Help centre — mock">?</button>
+    </div>
+  </div>
+
+  <div class="ai-menu" id="aiMenu" role="menu" aria-label="AI model status">
+    <div class="ai-menu-head">AI partner status</div>
+    <button class="ai-mode is-active" type="button" role="menuitemradio" aria-checked="true" data-mode="live">
+      <span class="mode-dot" data-mode="live" aria-hidden="true"></span>
+      <span><strong>Live · Meta models <svg width="13" height="13" class="mode-check" style="display:inline;vertical-align:-2px"><use href="#i-check"/></svg></strong><span>Muse Spark · Muse Image · Muse Voice Transcribe · SAM 3.1</span></span>
+    </button>
+    <button class="ai-mode" type="button" role="menuitemradio" aria-checked="false" data-mode="cached">
+      <span class="mode-dot" data-mode="cached" aria-hidden="true"></span>
+      <span><strong>Cached session · 4 calls</strong><span>Show the last responses; no new model calls</span></span>
+    </button>
+    <button class="ai-mode" type="button" role="menuitemradio" aria-checked="false" data-mode="offline">
+      <span class="mode-dot" data-mode="offline" aria-hidden="true"></span>
+      <span><strong>Offline assistant</strong><span>Deterministic fallbacks. The verified engine still runs locally.</span></span>
+    </button>
+    <hr class="hr" style="margin:8px 0">
+    <button class="btn btn-quiet btn-sm btn-wide" type="button" id="openProvenance">
+      <svg width="14" height="14" aria-hidden="true"><use href="#i-log"/></svg> View AI provenance
+    </button>
+  </div>
+</header>
+
+<div class="shell">
+  <!-- ---------- left rail / stepper ---------- -->
+  <nav class="rail" aria-label="Steps">
+    <ol class="stepper">
+      <li class="step-item" data-step="brief">
+        <button class="step" type="button" data-nav="brief" aria-current="step">
+          <span class="step-num" aria-hidden="true">01</span>
+          <span class="step-body"><span class="step-name">Brief</span><span class="step-sub">Intent + batch</span></span>
+          <svg class="step-tick" width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg>
+        </button>
+      </li>
+      <li class="step-item" data-step="design">
+        <button class="step" type="button" data-nav="design">
+          <span class="step-num" aria-hidden="true">02</span>
+          <span class="step-body"><span class="step-name">Design</span><span class="step-sub">Candidates + trade-offs</span></span>
+          <svg class="step-tick" width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg>
+        </button>
+      </li>
+      <li class="step-item" data-step="prove">
+        <button class="step" type="button" data-nav="prove">
+          <span class="step-num" aria-hidden="true">03</span>
+          <span class="step-body"><span class="step-name">Prove</span><span class="step-sub">Qualification + lots</span></span>
+          <svg class="step-tick" width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg>
+        </button>
+      </li>
+    </ol>
+    <div class="rail-meta">
+      <div class="meta-title">Session</div>
+      <dl>
+        <div class="meta-row"><dt>Session</dt><dd>20251029</dd></div>
+        <div class="meta-row"><dt>Engine</dt><dd>v0.1</dd></div>
+        <div class="meta-row"><dt>Solver</dt><dd>94 frame elements</dd></div>
+        <div class="meta-row"><dt>Tests</dt><dd>29 py · 22 js</dd></div>
+      </dl>
+      <div class="meta-claims"><b>In-silico only.</b> Simulated numbers under stated assumptions — decision support, not certification.</div>
+    </div>
+  </nav>
+
+  <!-- ---------- main ---------- -->
+  <main class="main" id="main">
+    <div class="banner banner--error" id="errorBanner" role="alert">
+      <span class="banner-ico" aria-hidden="true"><svg width="18" height="18"><use href="#i-alert"/></svg></span>
+      <div class="banner-copy">
+        <strong>The AI partner didn't respond.</strong>
+        <p>Your brief is safe. The verified engine can run from the deterministic fallback — numbers will not change.</p>
+      </div>
+      <div class="banner-actions">
+        <button class="btn btn-sm" type="button" id="retryAI">Retry AI</button>
+        <button class="btn btn-sm btn-quiet" type="button" data-dismiss="error">Continue offline</button>
+      </div>
+    </div>
+    <div class="banner banner--offline" id="offlineBanner" role="status">
+      <span class="banner-ico" aria-hidden="true"><svg width="18" height="18"><use href="#i-shield"/></svg></span>
+      <div class="banner-copy">
+        <strong>Offline assistant.</strong>
+        <p>Meta models are unreachable. Showing the last cached responses; the verified engine still runs locally.</p>
+      </div>
+      <div class="banner-actions">
+        <button class="btn btn-sm" type="button" id="reconnectAI">Reconnect</button>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 01 · BRIEF
+         ============================================================ -->
+    <section class="screen is-active" data-screen="brief" aria-labelledby="briefTitle">
+      <div class="screen-head">
+        <div class="eyebrow"><span class="eyebrow-num">01</span> Brief</div>
+        <h1 class="display" id="briefTitle">Tell us what the part must survive.</h1>
+        <p class="lede">Describe the part, the load it must carry, and the batch you actually have. The studio turns it into a design brief — every field is editable.</p>
+      </div>
+
+      <div class="card prompt-card">
+        <div class="prompt-top">
+          <label class="label" for="brief">Your brief</label>
+          <span class="badge">type · paste · speak</span>
+        </div>
+        <textarea id="brief" class="prompt-area" rows="3" placeholder="Describe the part, the load, the limits and the batch…">A wall bracket for a recycled PETG shelf unit. 150 N tip load, 2.5 mm max tip deflection, 1 % failure target across delivered lots. Print it upright in rPETG on a 0.4 mm nozzle.</textarea>
+        <div class="prompt-examples">
+          <span class="label">Try an example</span>
+          <button class="chip" type="button" data-example="A wall bracket for a recycled PETG shelf unit. 150 N tip load, 2.5 mm max tip deflection, 1 % failure target across delivered lots. Print it upright in rPETG on a 0.4 mm nozzle.">Shelf bracket · 150 N</button>
+          <button class="chip" type="button" data-example="A wall bracket for a recycled PETG shelf unit. 150 N tip load, tighter 1.5 mm deflection limit, 1 % failure target across delivered lots. Print upright in rPETG.">Tighter deflection</button>
+          <button class="chip" type="button" data-example="A heavy-duty wall bracket for a recycled PETG workbench. 300 N tip load, 2.5 mm max tip deflection, 1 % failure target across delivered lots. Print upright in rPETG on a 0.4 mm nozzle.">Heavy duty · 300 N</button>
+        </div>
+        <div class="prompt-foot">
+          <div class="prompt-foot-left">
+            <span class="word-count" id="wordCount">35 words</span>
+            <span class="hint">Draft saved locally</span>
+          </div>
+          <div class="prompt-foot-right">
+            <button class="btn mic" type="button" id="micBtn">
+              <svg class="mic-icon" width="17" height="17" aria-hidden="true"><use href="#i-mic"/></svg>
+              <span id="micLabel">Describe it out loud</span>
+            </button>
+            <button class="btn btn-primary" type="button" id="designBtn">
+              Design with AI
+              <svg width="16" height="16" aria-hidden="true"><use href="#i-arrow-right"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="activity" id="activity" aria-live="polite">
+          <div class="activity-step" data-activity-step="0">
+            <span class="a-dot" aria-hidden="true"></span> Reading your brief <span class="a-model">Muse Spark</span>
+          </div>
+          <div class="activity-step" data-activity-step="1">
+            <span class="a-dot" aria-hidden="true"></span> Planning candidate strategies <span class="a-model">Muse Spark</span>
+          </div>
+          <div class="activity-step" data-activity-step="2">
+            <span class="a-dot" aria-hidden="true"></span> Running the verified solver <span class="a-model">engine v0.1</span>
+          </div>
+          <div class="activity-done" id="activityDone" hidden>
+            <svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg>
+            3 candidates evaluated · engine v0.1 · 0.42 s
+          </div>
+        </div>
+      </div>
+
+      <div class="split">
+        <!-- AI understanding -->
+        <div class="card ai-region" id="understandingCard" aria-live="polite">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">What the studio understood</h2>
+              <p class="head-sub">Structured fields, extracted from your brief.</p>
+            </div>
+            <div class="head-badges filled-only">
+              <span class="badge">Muse Spark 1.3 · 0.74 s</span>
+              <span class="badge badge--green">Confidence 0.94</span>
+              <span class="badge badge--quiet">Editable</span>
+              <span class="badge badge-fallback">Fallback parse</span>
+            </div>
+          </div>
+          <div class="filled-only">
+            <div class="kv-list">
+              <div class="kv"><span class="kv-k">Part</span><span class="kv-v">Wall bracket <span class="kv-unit">shelf unit</span></span><button class="kv-edit" type="button" aria-label="Edit part" data-toast="Editing is mock in the prototype"><svg width="13" height="13"><use href="#i-pencil"/></svg></button></div>
+              <div class="kv"><span class="kv-k">Design load</span><span class="kv-v tnum">150 <span class="kv-unit">N tip</span></span><button class="kv-edit" type="button" aria-label="Edit design load" data-toast="Editing is mock in the prototype"><svg width="13" height="13"><use href="#i-pencil"/></svg></button></div>
+              <div class="kv"><span class="kv-k">Deflection limit</span><span class="kv-v tnum">2.5 <span class="kv-unit">mm</span></span><button class="kv-edit" type="button" aria-label="Edit deflection limit" data-toast="Editing is mock in the prototype"><svg width="13" height="13"><use href="#i-pencil"/></svg></button></div>
+              <div class="kv"><span class="kv-k">Reliability target</span><span class="kv-v tnum"><i>P</i><sub>f</sub> ≤ 1.00 <span class="kv-unit">%</span></span><button class="kv-edit" type="button" aria-label="Edit reliability target" data-toast="Editing is mock in the prototype"><svg width="13" height="13"><use href="#i-pencil"/></svg></button></div>
+              <div class="kv"><span class="kv-k">Print process</span><span class="kv-v">FDM <span class="kv-unit">0.4 mm nozzle · upright</span></span><button class="kv-edit" type="button" aria-label="Edit print process" data-toast="Editing is mock in the prototype"><svg width="13" height="13"><use href="#i-pencil"/></svg></button></div>
+              <div class="kv"><span class="kv-k">Batch</span><span class="kv-v">rPETG preset <span class="kv-unit">lot-level distribution</span></span><button class="kv-edit" type="button" aria-label="Edit batch" data-toast="Editing is mock in the prototype"><svg width="13" height="13"><use href="#i-pencil"/></svg></button></div>
+            </div>
+            <div class="ai-foot">
+              <svg width="14" height="14" aria-hidden="true"><use href="#i-info"/></svg>
+              Nothing is hidden. Edit any field before the engine runs.
+            </div>
+          </div>
+          <div class="empty-only empty-note">
+            <strong>No brief yet.</strong>
+            <p>Describe the part on the left, or start from one of the examples. The studio will fill these fields for you.</p>
+            <button class="btn btn-sm" type="button" data-example="A wall bracket for a recycled PETG shelf unit. 150 N tip load, 2.5 mm max tip deflection, 1 % failure target across delivered lots. Print it upright in rPETG on a 0.4 mm nozzle.">Start from an example</button>
+          </div>
+          <p class="ai-skel-note">Muse Spark is reading your brief…</p>
+        </div>
+
+        <!-- Lot passport -->
+        <div class="card lot-card" aria-live="polite">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">Lot passport</h2>
+            </div>
+            <span class="badge badge--green filled-only">
+              <svg width="12" height="12" aria-hidden="true"><use href="#i-shield"/></svg> Verified preset
+            </span>
+          </div>
+          <div class="filled-only">
+            <div class="lot-material">rPETG · printed in-plane</div>
+            <p class="lot-source">Literature preset · ISO 527-2 in-plane strength · R07</p>
+            <div class="lot-stats">
+              <div class="lot-stat"><div class="label">E mean</div><div class="val tnum">2,100<span class="unit">MPa</span></div></div>
+              <div class="lot-stat"><div class="label">E CV</div><div class="val tnum">10<span class="unit">%</span></div></div>
+              <div class="lot-stat"><div class="label">σy mean</div><div class="val tnum">46<span class="unit">MPa</span></div></div>
+              <div class="lot-stat"><div class="label">σy CV</div><div class="val tnum">10<span class="unit">%</span></div></div>
+            </div>
+            <p class="lot-insight"><b>85 % of the variance is between lots</b> — that is the batch problem this tool exists to solve.</p>
+            <div class="lot-actions">
+              <button class="btn btn-quiet btn-sm" type="button" data-toast="Preset library is mock in the prototype">Change preset</button>
+              <button class="btn btn-quiet btn-sm" type="button" data-toast="Datasheet extraction is mock — Muse Spark in the live build">Paste datasheet →</button>
+            </div>
+          </div>
+          <div class="empty-only empty-note">
+            <strong>No lot selected.</strong>
+            <p>Choose a verified preset or paste a supplier datasheet. The AI extracts E, σy and their variation with provenance.</p>
+            <button class="btn btn-sm" type="button" data-toast="Preset library is mock in the prototype">Choose a preset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI plan preview -->
+      <div class="card ai-region" id="planCard" style="margin-top:20px" aria-live="polite">
+        <div class="card-head" style="margin-bottom:0">
+          <div class="head-left">
+            <h2 class="card-title">How the studio will explore</h2>
+            <p class="head-sub">Three candidate strategies, each evaluated by the verified engine.</p>
+          </div>
+          <div class="head-badges filled-only">
+            <span class="badge">Muse Spark · plan · 1.12 s</span>
+            <span class="badge badge-fallback">Deterministic fallback</span>
+          </div>
+        </div>
+        <div class="filled-only">
+          <div class="plan-grid">
+            <div class="plan-item">
+              <div class="plan-top"><span class="plan-name">Light</span></div>
+              <p>Minimum mass. Mean-material sizing, risky across batches.</p>
+              <div class="plan-prior">prior · FoS 1.0</div>
+            </div>
+            <div class="plan-item">
+              <div class="plan-top"><span class="plan-name">Balanced</span><span class="badge badge--green">Recommended</span></div>
+              <p>Mass against reliability, optimised for the 1 % target across lots.</p>
+              <div class="plan-prior">prior · robust UQ</div>
+            </div>
+            <div class="plan-item">
+              <div class="plan-top"><span class="plan-name">Conservative</span></div>
+              <p>Safety-factor sizing. Pays for safety nobody asked for.</p>
+              <div class="plan-prior">prior · FoS 1.5</div>
+            </div>
+          </div>
+        </div>
+        <div class="empty-only empty-note" style="margin-top:16px">
+          <strong>The plan appears with your brief.</strong>
+          <p>Once the studio understands the part and the batch, it proposes the strategies it will test — before running anything.</p>
+        </div>
+        <p class="ai-skel-note">Planning candidate strategies…</p>
+      </div>
+
+      <div class="card card--warm" style="margin-top:20px;padding:14px 26px">
+        <details class="advanced" id="advancedInputs">
+          <summary>Advanced model inputs <svg class="chev" width="14" height="14" aria-hidden="true"><use href="#i-chev-right"/></svg></summary>
+          <div class="advanced-grid" style="margin-bottom:14px">
+            <div><div class="label">Lattice topology</div><div class="val">94 frame elements</div></div>
+            <div><div class="label">Width field</div><div class="val">4 × 2 control points</div></div>
+            <div><div class="label">Lot / within split</div><div class="val tnum">85 / 15 %</div></div>
+            <div><div class="label">Deflection limit</div><div class="val tnum">2.5 mm</div></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="screen-foot">
+        <span class="foot-meta">Draft saved locally · session 20251029</span>
+        <button class="btn-link" type="button" id="briefProvenanceLink">
+          AI provenance <svg width="13" height="13" aria-hidden="true"><use href="#i-chev-right"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SCREEN 02 · DESIGN
+         ============================================================ -->
+    <section class="screen" data-screen="design" aria-labelledby="designTitle">
+      <div class="screen-head">
+        <div class="eyebrow"><span class="eyebrow-num">02</span> Design</div>
+        <h1 class="display" id="designTitle">AI proposes. Physics decides.</h1>
+        <p class="lede">Three candidate strategies, each evaluated by the verified engine on your batch distribution. Pick the trade-off you can defend.</p>
+      </div>
+
+      <div class="design-top">
+        <!-- Lattice visualisation -->
+        <div class="card viz-card">
+          <div class="viz-head">
+            <div>
+              <div class="viz-title">Graded lattice · elevation</div>
+              <div class="viz-meta">
+                <span class="badge">150 × 60 × 10 mm</span>
+                <span class="badge">rPETG printed</span>
+                <span class="badge">150 N tip load</span>
+              </div>
+            </div>
+            <div class="seg" role="group" aria-label="Visualisation mode">
+              <button type="button" data-viz="geometry" aria-pressed="true">Geometry</button>
+              <button type="button" data-viz="stress" aria-pressed="false">Stress &amp; buckling</button>
+              <button type="button" data-viz="width" aria-pressed="false">Strut width</button>
+            </div>
+          </div>
+          <div class="viz-canvas">
+            <svg id="lattice" viewBox="0 0 880 500" role="img" aria-labelledby="latticeTitle latticeDesc">
+              <title id="latticeTitle">Graded lattice bracket, elevation</title>
+              <desc id="latticeDesc">A 150 by 60 millimetre bracket fixed at the left wall and loaded with 150 newtons at the free tip. Internal struts are graded from thick at the root to thin at the tip.</desc>
+              <g id="latticeDraw"></g>
+            </svg>
+          </div>
+          <div class="viz-foot">
+            <div class="viz-caption" id="vizCaption">Showing: <b>Balanced · robust</b> · dimension ticks in mm</div>
+            <div class="viz-live"><span class="live-dot" aria-hidden="true"></span> Verified FE · 94 frame elements</div>
+          </div>
+        </div>
+
+        <!-- Metric trio -->
+        <div class="card metrics-card" aria-live="polite">
+          <div class="metric">
+            <div class="label">Mass</div>
+            <div class="metric-value"><span class="num" id="metricMass">50.73</span><span class="unit">g</span></div>
+            <div class="metric-sub">polymer volume × rPETG density</div>
+            <details class="why">
+              <summary>Why this number? <svg class="chev" width="13" height="13" aria-hidden="true"><use href="#i-chev-right"/></svg></summary>
+              <p>Lattice mass scales with the strut-width field. The optimiser minimised it subject to the reliability target. Engine output — not measured.</p>
+            </details>
+          </div>
+          <div class="metric">
+            <div class="label">P<sub>f</sub> across batches</div>
+            <div class="metric-value"><span class="num" id="metricPf">0.997</span><span class="unit">%</span></div>
+            <div class="metric-sub">target ≤ 1.00 % · across delivered lots</div>
+            <details class="why">
+              <summary>Why this number? <svg class="chev" width="13" height="13" aria-hidden="true"><use href="#i-chev-right"/></svg></summary>
+              <p>Closed-form bivariate-normal probability over the lot-to-lot distribution, including yield, Euler buckling and deflection. Engine output — not measured.</p>
+            </details>
+          </div>
+          <div class="metric">
+            <div class="label">Binding failure mode</div>
+            <div class="metric-value"><span class="num num--text">Euler buckling</span></div>
+            <div class="metric-sub">stiffness / buckling carries ~all of P<sub>f</sub></div>
+            <details class="why">
+              <summary>Why this number? <svg class="chev" width="13" height="13" aria-hidden="true"><use href="#i-chev-right"/></svg></summary>
+              <p>At the robust optimum the strength demand is only ~40 % of mean printed strength, so stiffness/buckling carries essentially all of the failure probability.</p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- Candidates -->
+      <section class="candidates ai-region" aria-labelledby="candidatesTitle">
+        <div class="card-head" style="margin-bottom:0">
+          <div class="head-left">
+            <h2 class="section-title" id="candidatesTitle" style="font-size:22px">Three ways to build it</h2>
+            <p class="head-sub" style="font-size:12.5px;color:var(--muted);margin-top:4px">AI-proposed priors, evaluated by the verified engine.</p>
+          </div>
+          <div class="head-badges filled-only">
+            <span class="badge">Muse Spark · plan · 1.12 s</span>
+            <span class="badge badge-fallback">Engine fallback</span>
+          </div>
+        </div>
+        <div class="candidate-grid filled-only">
+          <button class="candidate" type="button" data-candidate="light" aria-pressed="false">
+            <span class="candidate-top"><span class="candidate-name">Light</span><span class="cand-badge">AI prior</span></span>
+            <span class="candidate-mass"><span class="num tnum">44.34</span><span class="unit">g</span></span>
+            <span class="candidate-pf"><span>P<sub>f</sub> across batches</span><b class="tnum">51.8 %</b></span>
+            <span class="candidate-tradeoff">Mean-material sizing. Fails about half of delivered lots — the failure mode this tool exists to prevent.</span>
+            <span class="candidate-foot">
+              <span class="print-pill print-pill--warn"><svg width="11" height="11" aria-hidden="true"><use href="#i-alert"/></svg> Warn</span>
+              <span class="cand-engine">engine v0.1</span>
+            </span>
+          </button>
+          <button class="candidate is-selected" type="button" data-candidate="balanced" aria-pressed="true">
+            <span class="candidate-top"><span class="candidate-name">Balanced</span><span class="cand-badge">Recommended</span></span>
+            <span class="candidate-mass"><span class="num tnum">50.73</span><span class="unit">g</span></span>
+            <span class="candidate-pf"><span>P<sub>f</sub> across batches</span><b class="tnum">0.997 %</b></span>
+            <span class="candidate-tradeoff">Robust optimum. Meets the 1 % target with the least mass. This is the design to defend.</span>
+            <span class="candidate-foot">
+              <span class="print-pill print-pill--pass"><svg width="11" height="11" aria-hidden="true"><use href="#i-check"/></svg> Pass</span>
+              <span class="cand-engine">engine v0.1</span>
+            </span>
+          </button>
+          <button class="candidate" type="button" data-candidate="conservative" aria-pressed="false">
+            <span class="candidate-top"><span class="candidate-name">Conservative</span><span class="cand-badge">AI prior</span></span>
+            <span class="candidate-mass"><span class="num tnum">56.41</span><span class="unit">g</span></span>
+            <span class="candidate-pf"><span>P<sub>f</sub> across batches</span><b class="tnum">0.00064 %</b></span>
+            <span class="candidate-tradeoff">Nominal safety-factor 1.5 sizing. Safer than requested — pays extra mass for risk nobody asked for.</span>
+            <span class="candidate-foot">
+              <span class="print-pill print-pill--pass"><svg width="11" height="11" aria-hidden="true"><use href="#i-check"/></svg> Pass</span>
+              <span class="cand-engine">engine v0.1</span>
+            </span>
+          </button>
+        </div>
+        <div class="empty-only empty-note" style="margin-top:16px">
+          <strong>No candidates yet.</strong>
+          <p>Start from a brief. The studio proposes three strategies and the engine evaluates each one.</p>
+          <button class="btn btn-sm" type="button" data-nav="brief">Go to brief</button>
+        </div>
+        <p class="ai-skel-note">Muse Spark is proposing candidate strategies…</p>
+      </section>
+
+      <div class="design-bottom">
+        <!-- AI design memo -->
+        <div class="card memo ai-region" id="designMemo" aria-live="polite">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">Design memo</h2>
+            </div>
+            <div class="head-badges">
+              <span class="badge">Muse Spark 1.3 · 1.24 s · cached</span>
+              <span class="badge badge--green">numbers injected</span>
+              <span class="badge badge-fallback">Deterministic fallback</span>
+            </div>
+          </div>
+          <div class="filled-only">
+            <p>The robust design lands at <b class="tnum">50.73 g</b> with <i>P</i><sub>f</sub> <b class="tnum">0.997 %</b>, inside your <b class="tnum">1.00 %</b> target across delivered lots. Stiffness is the binding constraint: the strength demand is met with margin, so widening struts for strength would only add mass.</p>
+            <p>Compared with a nominal safety-factor-1.5 design you save <b>10 % mass</b> while keeping the required reliability; the mean-only alternative at <b class="tnum">44.34 g</b> fails <b class="tnum">51.8 %</b> of batches and should not be considered shippable. Printability is clean: minimum strut <b class="tnum">1.18 mm</b>, slenderness <b class="tnum">22.7</b>, neighbour ratio <b class="tnum">1.45</b>.</p>
+            <div class="suggest">
+              <span class="label">Suggested next</span>
+              <button class="chip" type="button" data-toast="Suggestion noted — mock action">Tighten root struts</button>
+              <button class="chip" type="button" data-nav="prove">Send to proof →</button>
+            </div>
+            <div class="memo-note">
+              <svg width="14" height="14" aria-hidden="true"><use href="#i-info"/></svg>
+              AI-written from computed outputs. The model may only phrase numbers supplied by the verified engine.
+            </div>
+          </div>
+          <div class="empty-only empty-note">
+            <strong>The memo arrives with the results.</strong>
+            <p>The AI writes it only after the engine has evaluated the candidates, and only from the numbers the engine produced.</p>
+          </div>
+          <p class="ai-skel-note">Muse Spark is drafting the memo…</p>
+        </div>
+
+        <!-- vs conventional -->
+        <div class="card" aria-labelledby="vsTitle">
+          <div class="card-head">
+            <div class="head-left"><h2 class="card-title" id="vsTitle">vs conventional</h2></div>
+            <span class="badge">Mass g · lower is better</span>
+          </div>
+          <div class="vs-list" role="img" aria-label="Mass comparison: AnyRB robust 50.73 grams, nominal safety factor 1.5 56.41 grams, uniform sized to target 60.31 grams, solid plate 111.60 grams.">
+            <div class="vs-row is-current"><span class="vs-name">AnyRB robust</span><span class="vs-track"><span class="vs-bar" style="width:45.5%"></span></span><span class="vs-val">50.73</span></div>
+            <div class="vs-row"><span class="vs-name">Nominal FoS 1.5</span><span class="vs-track"><span class="vs-bar" style="width:50.5%"></span></span><span class="vs-val">56.41</span></div>
+            <div class="vs-row"><span class="vs-name">Uniform · target</span><span class="vs-track"><span class="vs-bar" style="width:54.0%"></span></span><span class="vs-val">60.31</span></div>
+            <div class="vs-row"><span class="vs-name">Solid plate</span><span class="vs-track"><span class="vs-bar" style="width:100%"></span></span><span class="vs-val">111.60</span></div>
+          </div>
+          <p class="vs-note"><b>54 % lighter</b> than the solid plate and <b>16 % lighter</b> than a uniform lattice sized to the same reliability target.</p>
+        </div>
+      </div>
+
+      <div class="screen-foot">
+        <button class="btn btn-quiet" type="button" data-nav="brief">
+          <svg width="15" height="15" aria-hidden="true" style="transform:rotate(180deg)"><use href="#i-arrow-right"/></svg>
+          Back to brief
+        </button>
+        <button class="btn btn-primary" type="button" data-nav="prove">
+          Continue to proof
+          <svg width="16" height="16" aria-hidden="true"><use href="#i-arrow-right"/></svg>
+        </button>
+      </div>
+    </section>
+    <!-- ============================================================
+         SCREEN 03 · PROVE
+         ============================================================ -->
+    <section class="screen" data-screen="prove" aria-labelledby="proveTitle">
+      <div class="screen-head">
+        <div class="eyebrow"><span class="eyebrow-num">03</span> Prove</div>
+        <h1 class="display" id="proveTitle">Qualification you can hand to a review.</h1>
+        <p class="lede">One page that says what the design is, which batches it accepts, and what the model cannot tell you.</p>
+        <div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap">
+          <span class="badge badge--green"><svg width="12" height="12" aria-hidden="true"><use href="#i-check"/></svg> Meets 99 % reliability target</span>
+          <span class="badge">In-silico only · not certification</span>
+        </div>
+      </div>
+
+      <div class="prove-grid">
+        <!-- reliability gauge -->
+        <div class="card gauge-card">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">Probability of failure across batches</h2>
+              <p class="head-sub">Closed-form, over the delivered-lot distribution.</p>
+            </div>
+            <span class="badge badge--green">Target met</span>
+          </div>
+          <div class="gauge-wrap">
+            <svg viewBox="0 0 320 200" role="img" aria-labelledby="gaugeTitle gaugeDesc">
+              <title id="gaugeTitle">Probability of failure gauge</title>
+              <desc id="gaugeDesc">The design's failure probability is 0.997 percent against a target of at most 1.00 percent, so it sits just inside the failure budget.</desc>
+              <path d="M30 170 A130 130 0 0 1 290 170" fill="none" stroke="#E4DFD3" stroke-width="14" stroke-linecap="round"/>
+              <path d="M30 170 A130 130 0 0 1 290 170" fill="none" stroke="#0B6B53" stroke-width="14" stroke-linecap="round" pathLength="100" stroke-dasharray="99.7 100"/>
+              <line x1="276" y1="170" x2="304" y2="170" stroke="#B8361A" stroke-width="2" stroke-linecap="round"/>
+              <text x="30" y="26" font-size="10" fill="#6B7280" font-family="ui-monospace,Menlo,monospace" text-anchor="start">0 %</text>
+              <text x="290" y="26" font-size="10" fill="#B8361A" font-family="ui-monospace,Menlo,monospace" text-anchor="end">target 1.00 %</text>
+            </svg>
+            <div class="gauge-overlay">
+              <div class="gauge-num tnum">0.997<span class="unit">%</span></div>
+              <div class="gauge-target">1.00 % failure budget · 99.7 % used</div>
+            </div>
+          </div>
+          <p class="gauge-caption">Reliability across delivered lots <b class="tnum">99.0 %</b> · target ≥ 99.0 %</p>
+          <div class="key-facts">
+            <div class="key-fact"><div class="label">Governing mode</div><div class="val">Euler buckling</div></div>
+            <div class="key-fact"><div class="label">Mass</div><div class="val tnum">50.73<span class="unit"> g</span></div></div>
+            <div class="key-fact"><div class="label">Printability</div><div class="val">3 / 3 checks</div></div>
+          </div>
+        </div>
+
+        <!-- acceptance window -->
+        <div class="card chart-card">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">Batch acceptance window</h2>
+              <p class="head-sub">What the design accepts as printed, and what it can compensate for.</p>
+            </div>
+            <span class="badge">Illustrative v0.1 logic</span>
+          </div>
+          <div class="chart-box">
+            <svg viewBox="0 0 720 340" role="img" aria-labelledby="chartTitle chartDesc">
+              <title id="chartTitle">Batch acceptance window</title>
+              <desc id="chartDesc">A chart of required width scale against lot mean Young's modulus. Lots at 0.8 times nominal modulus need a 1.10 width scale and 8.5 percent added mass; lots at 0.5 times nominal modulus require more than the 1.5 times print clip and are rejected.</desc>
+              <rect x="74" y="44" width="116" height="232" fill="rgba(255,90,54,.10)"/>
+              <rect x="190" y="44" width="380" height="232" fill="rgba(255,90,54,.045)"/>
+              <rect x="570" y="44" width="124" height="232" fill="rgba(11,107,83,.08)"/>
+              <g stroke="#D3CCBD" stroke-width="1" stroke-dasharray="3 5">
+                <line x1="74" y1="258.15" x2="694" y2="258.15"/>
+                <line x1="74" y1="222.46" x2="694" y2="222.46"/>
+                <line x1="74" y1="79.69" x2="694" y2="79.69"/>
+                <line x1="156.67" y1="44" x2="156.67" y2="276"/>
+                <line x1="404.67" y1="44" x2="404.67" y2="276"/>
+                <line x1="570" y1="44" x2="570" y2="276"/>
+              </g>
+              <line x1="74" y1="44" x2="74" y2="276" stroke="#D3CCBD" stroke-width="1"/>
+              <line x1="74" y1="276" x2="694" y2="276" stroke="#D3CCBD" stroke-width="1"/>
+              <line x1="74" y1="79.69" x2="694" y2="79.69" stroke="#B8361A" stroke-width="1.4" stroke-dasharray="6 5"/>
+              <text x="686" y="72" font-size="10" fill="#B8361A" text-anchor="end" font-family="ui-monospace,Menlo,monospace" stroke="#FCFBF7" stroke-width="4" paint-order="stroke">1.5 × print clip</text>
+              <path d="M156.67 61.85 C 240 120 330 195 404.67 222.46 S 520 256 570 258.15 L 694 258.15" fill="none" stroke="#15171A" stroke-opacity=".62" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="156.67" cy="61.85" r="4.5" fill="#FF5A36" stroke="#FCFBF7" stroke-width="2"/>
+              <circle cx="404.67" cy="222.46" r="4.5" fill="#FF5A36" stroke="#FCFBF7" stroke-width="2"/>
+              <circle cx="570" cy="258.15" r="4.5" fill="#0B6B53" stroke="#FCFBF7" stroke-width="2"/>
+              <text x="170" y="50" font-size="10.5" fill="#B8361A" font-family="ui-monospace,Menlo,monospace" stroke="#FCFBF7" stroke-width="4" paint-order="stroke">E ×0.5 · reject</text>
+              <text x="418" y="206" font-size="10.5" fill="#B8361A" font-family="ui-monospace,Menlo,monospace" stroke="#FCFBF7" stroke-width="4" paint-order="stroke">E ×0.8 · width ×1.10</text>
+              <text x="418" y="219" font-size="10.5" fill="#6B7280" font-family="ui-monospace,Menlo,monospace" stroke="#FCFBF7" stroke-width="4" paint-order="stroke">+8.5 % mass · pass</text>
+              <text x="582" y="250" font-size="10.5" fill="#0B6B53" font-family="ui-monospace,Menlo,monospace" stroke="#FCFBF7" stroke-width="4" paint-order="stroke">Nominal lot · pass</text>
+              <text x="156.67" y="294" font-size="10" fill="#6B7280" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">0.5×</text>
+              <text x="404.67" y="294" font-size="10" fill="#6B7280" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">0.8×</text>
+              <text x="570" y="294" font-size="10" fill="#6B7280" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">1.0×</text>
+              <text x="694" y="294" font-size="10" fill="#6B7280" text-anchor="end" font-family="ui-monospace,Menlo,monospace">1.15×</text>
+              <text x="384" y="318" font-size="10.5" fill="#6B7280" text-anchor="middle" letter-spacing=".05em">LOT MEAN E · × NOMINAL</text>
+              <text x="66" y="262" font-size="10" fill="#6B7280" text-anchor="end" font-family="ui-monospace,Menlo,monospace">1.0</text>
+              <text x="66" y="226" font-size="10" fill="#6B7280" text-anchor="end" font-family="ui-monospace,Menlo,monospace">1.1</text>
+              <text x="66" y="83" font-size="10" fill="#6B7280" text-anchor="end" font-family="ui-monospace,Menlo,monospace">1.5</text>
+              <text x="30" y="160" font-size="10" fill="#6B7280" text-anchor="middle" transform="rotate(-90 30 160)" letter-spacing=".05em">WIDTH SCALE s</text>
+            </svg>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-swatch legend-swatch--accept"></span> Accepts as printed</span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch--comp"></span> Accepts with compensation</span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch--reject"></span> Reject · reroute</span>
+          </div>
+          <p class="chart-caption"><b>Illustrative v0.1 logic:</b> a lot at 0.8 × nominal E needs a 1.10 × width scale (+8.5 % mass) and passes with compensation; at 0.5 × it is rejected. The engine computes the exact window.</p>
+        </div>
+      </div>
+
+      <div class="prove-grid" style="margin-top:20px">
+        <!-- batch passport -->
+        <div class="card" id="passportCard">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">Batch passport</h2>
+              <p class="head-sub">Screen an incoming lot against this design.</p>
+            </div>
+            <span class="badge">Engine · instant</span>
+          </div>
+          <div class="passport-grid">
+            <div class="input-group">
+              <label for="lotE">Lot mean E · × nominal</label>
+              <div class="input-wrap">
+                <input id="lotE" name="lotE" type="number" inputmode="decimal" min="0.3" max="1.5" step="0.01" value="0.80">
+                <span class="input-prefix">×</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="lotSy">Lot mean σy · × nominal</label>
+              <div class="input-wrap">
+                <input id="lotSy" name="lotSy" type="number" inputmode="decimal" min="0.3" max="1.5" step="0.01" value="1.00">
+                <span class="input-prefix">×</span>
+              </div>
+            </div>
+          </div>
+          <div class="passport-chips">
+            <button class="chip is-active" type="button" data-lot="0.8" aria-pressed="true">Weak lot · E ×0.8</button>
+            <button class="chip" type="button" data-lot="1.0" aria-pressed="false">Nominal lot</button>
+            <button class="chip" type="button" data-lot="0.5" aria-pressed="false">Reject lot · E ×0.5</button>
+          </div>
+          <div class="verdict is-comp" id="verdict" aria-live="polite">
+            <div class="verdict-head">
+              <span class="verdict-icon" id="verdictIcon" aria-hidden="true"><svg width="13" height="13"><use href="#i-refresh"/></svg></span>
+              <span class="verdict-title" id="verdictTitle">PASS · WITH COMPENSATION</span>
+            </div>
+            <p class="verdict-detail" id="verdictDetail">Width scale ×1.10 · added mass +8.5 %. This lot remains inside the 1.00 % target once the print recipe is scaled. Strength is not the binding property for this geometry.</p>
+            <div class="verdict-numbers">
+              <div class="verdict-num"><div class="label">Width scale</div><div class="val tnum" id="verdictScale">1.10 ×</div></div>
+              <div class="verdict-num"><div class="label">Added mass</div><div class="val tnum" id="verdictMass">+8.5 %</div></div>
+              <div class="verdict-num"><div class="label">P<sub>f</sub> for lot</div><div class="val tnum" id="verdictPf">≤ 1.00 %</div></div>
+            </div>
+          </div>
+          <p class="passport-note">Illustrative v0.1 logic; supplier proxies should replace assumed lot means before production decisions.</p>
+          <div class="passport-live is-visible" id="passportLive"><svg width="13" height="13" aria-hidden="true"><use href="#i-refresh"/></svg> Engine re-evaluated this lot</div>
+        </div>
+
+        <!-- validation checklist -->
+        <div class="card">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">Scientific validation</h2>
+              <p class="head-sub">What has been checked, and how.</p>
+            </div>
+            <span class="badge badge--green">L0–L1 verified</span>
+          </div>
+          <div class="checklist">
+            <div class="check-row"><span class="check-tick" aria-hidden="true"><svg width="11" height="11"><use href="#i-check"/></svg></span><div><div class="check-name">Element benchmarks</div><div class="check-evidence">Cantilever vs Euler–Bernoulli · rel. error &lt; 1e-15</div></div><span class="check-level">L0</span></div>
+            <div class="check-row"><span class="check-tick" aria-hidden="true"><svg width="11" height="11"><use href="#i-check"/></svg></span><div><div class="check-name">Equilibrium &amp; symmetry</div><div class="check-evidence">Force equilibrium and symmetry checks</div></div><span class="check-level">L0</span></div>
+            <div class="check-row"><span class="check-tick" aria-hidden="true"><svg width="11" height="11"><use href="#i-check"/></svg></span><div><div class="check-name">Cross-implementation</div><div class="check-evidence">Python ↔ JS agree to &lt; 1e-6 relative</div></div><span class="check-level">L0</span></div>
+            <div class="check-row"><span class="check-tick" aria-hidden="true"><svg width="11" height="11"><use href="#i-check"/></svg></span><div><div class="check-name">Monte-Carlo vs closed form</div><div class="check-evidence">Analytic P<sub>f</sub> vs independent Monte-Carlo</div></div><span class="check-level">L1</span></div>
+            <div class="check-row"><span class="check-tick" aria-hidden="true"><svg width="11" height="11"><use href="#i-check"/></svg></span><div><div class="check-name">Mesh &amp; convergence</div><div class="check-evidence">Fixed 94-element lattice · tolerance checks</div></div><span class="check-level">L1</span></div>
+            <div class="check-row"><span class="check-tick" aria-hidden="true"><svg width="11" height="11"><use href="#i-check"/></svg></span><div><div class="check-name">Independent solver</div><div class="check-evidence">Energy minimisation vs direct stiffness</div></div><span class="check-level">L1</span></div>
+            <div class="check-row"><span class="check-tick" aria-hidden="true"><svg width="11" height="11"><use href="#i-check"/></svg></span><div><div class="check-name">Homogenisation</div><div class="check-evidence">Unit-cell vs analytical truss scaling</div></div><span class="check-level">L1</span></div>
+          </div>
+          <div class="checklist-foot">
+            <span class="counts">29 python tests · 22 js tests passing</span>
+            <button class="btn-link" type="button" data-toast="Validation report opens in the live build">Validation report ↗</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="prove-bottom">
+        <!-- qualification memo -->
+        <div class="card memo ai-region" id="qualMemo" aria-live="polite">
+          <div class="card-head">
+            <div class="head-left">
+              <h2 class="card-title">Qualification memo</h2>
+            </div>
+            <div class="head-badges">
+              <span class="badge">Muse Spark 1.3 · 1.62 s · live</span>
+              <span class="badge badge--green">numbers injected</span>
+              <span class="badge badge-fallback">Deterministic fallback</span>
+            </div>
+          </div>
+          <div class="filled-only">
+            <p>The design meets the <b class="tnum">1.00 %</b> failure target across delivered lots at <b class="tnum">50.73 g</b>; the governing mode is Euler buckling and the strength demand is not binding.</p>
+            <p>It accepts lots down to <b class="tnum">0.8 ×</b> nominal mean E with a <b class="tnum">1.10 ×</b> strut-width compensation (<b class="tnum">+8.5 %</b> mass); lots at <b class="tnum">0.5 ×</b> nominal mean E are outside the printable compensation range and should be rerouted. The claim is in-silico only: the material distribution is a literature preset and must be replaced by this supplier's lot data before production.</p>
+            <div class="suggest">
+              <span class="label">Next test</span>
+              <button class="chip" type="button" data-toast="Test plan noted — mock action">Measure E and σy on three incoming lots</button>
+            </div>
+            <div class="memo-note">
+              <svg width="14" height="14" aria-hidden="true"><use href="#i-info"/></svg>
+              AI-written from computed outputs. Design intent, key risk and next test are grounded in the engine results above.
+            </div>
+          </div>
+          <div class="empty-only empty-note">
+            <strong>No qualification yet.</strong>
+            <p>Choose a design on the Design step and the AI will write the qualification memo from the computed results.</p>
+            <button class="btn btn-sm" type="button" data-nav="design">Go to design</button>
+          </div>
+          <p class="ai-skel-note">Muse Spark is writing the qualification memo…</p>
+        </div>
+
+        <!-- concept render -->
+        <div class="card render-card ai-region" id="renderCard">
+          <div style="padding:22px 20px 0">
+            <div class="card-head" style="margin-bottom:14px">
+              <div class="head-left"><h2 class="card-title">Concept render</h2></div>
+              <span class="badge">Muse Image 1.0 · 4.18 s · cached</span><span class="badge badge-fallback">Fallback placeholder</span>
+            </div>
+          </div>
+          <div class="render-box">
+            <img class="render-img" src="../demo/assets/product_render.png" alt="AI-generated concept illustration of the graded lattice bracket" onerror="var c=this.closest('.render-card');c.classList.add('render--placeholder');this.remove();">
+            <div class="render-ph" aria-hidden="true">
+              <div class="render-ph-inner">
+                <svg viewBox="0 0 260 150" fill="none" stroke="#6B7280" stroke-width="1" stroke-linecap="round">
+                  <rect x="30" y="34" width="200" height="82" rx="6" stroke-opacity=".5" stroke-dasharray="3 4"/>
+                  <line x1="20" y1="24" x2="20" y2="126" stroke-opacity=".7"/>
+                  <path d="M24 30l-6 6M24 46l-6 6M24 62l-6 6M24 78l-6 6M24 94l-6 6M24 110l-6 6M24 126l-6 6" stroke-opacity=".4"/>
+                  <path d="M30 34h200M30 116h200M30 75h200M30 34v82M70 34v82M110 34v82M150 34v82M190 34v82M230 34v82" stroke-opacity=".65"/>
+                  <path d="M30 34l40 82M70 34l40 82M110 34l40 82M150 34l40 82M190 34l40 82" stroke-opacity=".4"/>
+                  <path d="M240 52v64M236 60l4-8 4 8" stroke="#FF5A36" stroke-opacity=".8"/>
+                  <text x="130" y="146" text-anchor="middle" font-size="8" fill="#6B7280" stroke="none" font-family="ui-monospace,Menlo,monospace" letter-spacing=".08em">AI ILLUSTRATION PLACEHOLDER</text>
+                </svg>
+                <span>Drop <b>demo/assets/product_render.png</b> in to replace this placeholder — the &lt;img&gt; above already points at it.</span>
+              </div>
+            </div>
+            <span class="render-flag"><svg width="11" height="11" aria-hidden="true"><use href="#i-alert"/></svg> AI illustration — not the CAD model</span>
+          </div>
+          <div class="render-foot">
+            <div class="label">Concept</div>
+            <p>Illustrative render only. Geometry, dimensions and material behaviour are defined by the verified design and engine outputs — never by the image.</p>
+          </div>
+          <p class="ai-skel-note">Muse Image is rendering the concept…</p>
+        </div>
+      </div>
+
+      <!-- exports -->
+      <div class="card exports-card">
+        <div class="card-head">
+          <div class="head-left">
+            <h2 class="card-title">Export</h2>
+            <p class="head-sub">Everything a reviewer or a printer needs, from the same verified results.</p>
+          </div>
+          <span class="badge">session 20251029</span>
+        </div>
+        <div class="export-grid">
+          <button class="export-btn" type="button" data-toast="Qualification report queued — mock export">
+            <span class="export-ico" aria-hidden="true"><svg width="16" height="16"><use href="#i-doc"/></svg></span>
+            <span class="export-txt"><strong>Qualification report</strong><span>HTML · print-ready</span></span>
+          </button>
+          <button class="export-btn" type="button" data-toast="STL queued — mock export">
+            <span class="export-ico" aria-hidden="true"><svg width="16" height="16"><use href="#i-cube"/></svg></span>
+            <span class="export-txt"><strong>STL</strong><span>1,140 triangles</span></span>
+          </button>
+          <button class="export-btn" type="button" data-toast="Design JSON queued — mock export">
+            <span class="export-ico" aria-hidden="true"><svg width="16" height="16"><use href="#i-braces"/></svg></span>
+            <span class="export-txt"><strong>Design JSON</strong><span>width field + targets</span></span>
+          </button>
+          <button class="export-btn" type="button" data-toast="Provenance log queued — mock export">
+            <span class="export-ico" aria-hidden="true"><svg width="16" height="16"><use href="#i-log"/></svg></span>
+            <span class="export-txt"><strong>AI provenance log</strong><span>models · latency · cache</span></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- claims ladder -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-head">
+          <div class="head-left">
+            <h2 class="card-title">Claims ladder</h2>
+            <p class="head-sub">Every number carries the strength of the evidence behind it.</p>
+          </div>
+          <span class="badge">decision support · not certification</span>
+        </div>
+        <div class="claims-grid">
+          <div class="claim">
+            <div class="claim-top"><span class="claim-level">L0</span></div>
+            <div class="claim-name">Equations &amp; code verified</div>
+            <div class="claim-status claim-status--done"><svg width="11" height="11" aria-hidden="true"><use href="#i-check"/></svg> achieved</div>
+          </div>
+          <div class="claim">
+            <div class="claim-top"><span class="claim-level">L1</span></div>
+            <div class="claim-name">Solution verified</div>
+            <div class="claim-status claim-status--done"><svg width="11" height="11" aria-hidden="true"><use href="#i-check"/></svg> achieved</div>
+          </div>
+          <div class="claim">
+            <div class="claim-top"><span class="claim-level">L2</span></div>
+            <div class="claim-name">Literature-calibrated + UQ</div>
+            <div class="claim-status claim-status--partial"><svg width="11" height="11" aria-hidden="true"><use href="#i-alert"/></svg> partial</div>
+          </div>
+          <div class="claim">
+            <div class="claim-top"><span class="claim-level">L4–L6</span></div>
+            <div class="claim-name">Experimental validation</div>
+            <div class="claim-status claim-status--none">not claimed</div>
+          </div>
+        </div>
+        <p class="limitations"><b>Simulated numbers only:</b> linear-elastic 2-D frame idealisation, literature-derived feedstock distributions, a local (not proven global) optimum, and no physical testing. AnyRB is decision support, not certification.</p>
+      </div>
+
+      <div class="screen-foot">
+        <button class="btn btn-quiet" type="button" data-nav="design">
+          <svg width="15" height="15" aria-hidden="true" style="transform:rotate(180deg)"><use href="#i-arrow-right"/></svg>
+          Back to design
+        </button>
+        <span class="foot-meta">Qualification ready · 3 steps · engine v0.1</span>
+      </div>
+    </section>
+  </main>
+</div>
+<footer class="footer">
+  <div class="footer-brand">
+    <span class="brand-mark" style="width:24px;height:24px;border-radius:7px" aria-hidden="true"><svg width="15" height="15" style="color:#F7F5F0"><use href="#i-mark"/></svg></span>
+    <span class="word">AnyRB</span>
+    <span style="color:var(--line-strong)">·</span>
+    <span>Decision support, not certification.</span>
+  </div>
+  <div class="footer-meta">
+    <span>In-silico only · literature-derived feedstock · simulated numbers · v0.2 design prototype</span>
+    <span class="state-switch" aria-label="Prototype state switch">
+      <span class="label">State</span>
+      <a href="?state=default" data-state-value="default">default</a>
+      <a href="?state=loading" data-state-value="loading">loading</a>
+      <a href="?state=empty" data-state-value="empty">empty</a>
+      <a href="?state=error" data-state-value="error">error</a>
+      <a href="?state=offline" data-state-value="offline">offline</a>
+    </span>
+  </div>
+</footer>
+
+<!-- ============================================================
+     AI provenance drawer
+     ============================================================ -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="provenanceDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" hidden>
+  <div class="drawer-head">
+    <div>
+      <h2 id="drawerTitle">AI provenance</h2>
+      <div class="drawer-sub">
+        <span class="badge">append-only</span>
+        <span>session 20251029</span>
+        <span class="badge badge--green">schema-validated</span>
+      </div>
+    </div>
+    <button class="icon-btn" type="button" id="closeDrawer" aria-label="Close provenance drawer">
+      <svg width="17" height="17" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-session">
+      <div><div class="label">Models configured</div><div class="val">4 · Meta</div></div>
+      <div><div class="label">Calls this session</div><div class="val">4</div></div>
+      <div><div class="label">Cache</div><div class="val">1 hit</div></div>
+      <div><div class="label">Fallbacks</div><div class="val">0</div></div>
+    </div>
+
+    <div class="call">
+      <div class="call-top">
+        <span class="call-model">Muse Spark 1.3</span>
+        <span class="call-tag"><span class="badge badge--green">live</span></span>
+      </div>
+      <div class="call-meta"><span>0.74 s</span><span>1,284 tokens</span><span>temp 0.2</span><span>schema ✓</span></div>
+      <p class="call-task">Brief parse → schema-validated structured targets. The model proposed the fields; the user can edit every value.</p>
+      <details><summary>response JSON <svg width="11" height="11" aria-hidden="true"><use href="#i-chev-right"/></svg></summary><pre>{ "part": "wall bracket",
+  "load_n": 150,
+  "defl_mm": 2.5,
+  "pf_target": 0.01,
+  "process": "FDM · 0.4 mm · upright" }</pre></details>
+    </div>
+
+    <div class="call">
+      <div class="call-top">
+        <span class="call-model">Muse Voice Transcribe</span>
+        <span class="call-tag"><span class="badge badge--green">live</span></span>
+      </div>
+      <div class="call-meta"><span>0.95 s</span><span>412 tokens</span><span>16 kHz</span><span>not stored</span></div>
+      <p class="call-task">Audio brief → transcript. The transcript goes through the same schema-validated brief parser; the audio is not retained.</p>
+      <details><summary>transcript <svg width="11" height="11" aria-hidden="true"><use href="#i-chev-right"/></svg></summary><pre>"Wall bracket, 150 newtons, 2.5 mm max deflection,
+1 percent failure target, rPETG."</pre></details>
+    </div>
+
+    <div class="call">
+      <div class="call-top">
+        <span class="call-model">SAM 3.1</span>
+        <span class="call-tag"><span class="badge">optional</span><span class="badge badge--green">live</span></span>
+      </div>
+      <div class="call-meta"><span>1.92 s</span><span>1 mask</span><span>photo → part</span></div>
+      <p class="call-task">Existing-part photo → segmentation, used only as a visual reference for the brief. Not part of the deterministic design path.</p>
+      <details><summary>result <svg width="11" height="11" aria-hidden="true"><use href="#i-chev-right"/></svg></summary><pre>{ "segments": 1,
+  "label": "bracket / support",
+  "used_for": "reference only" }</pre></details>
+    </div>
+
+    <div class="call">
+      <div class="call-top">
+        <span class="call-model">Muse Image 1.0</span>
+        <span class="call-tag"><span class="badge">cached</span></span>
+      </div>
+      <div class="call-meta"><span>4.18 s</span><span>1 image</span><span>cache hit</span></div>
+      <p class="call-task">Concept render for the Prove step. Labelled "AI illustration — not the CAD model" wherever it is shown.</p>
+      <details><summary>request <svg width="11" height="11" aria-hidden="true"><use href="#i-chev-right"/></svg></summary><pre>POST /api/image/render
+{ "design": "robust · 50.73 g",
+  "style": "technical product illustration",
+  "label": "not the CAD model" }</pre></details>
+    </div>
+
+    <div class="call" style="background:transparent;border-style:dashed">
+      <div class="call-top">
+        <span class="call-model">Deterministic engine</span>
+        <span class="call-tag"><span class="badge badge--green">verified</span></span>
+      </div>
+      <div class="call-meta"><span>not an AI call</span><span>94 frame elements</span><span>29 py · 22 js tests</span></div>
+      <p class="call-task">Every mass, P<sub>f</sub>, mode and passport number on these screens comes from here — never from a model.</p>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <div class="drawer-rule">
+      <svg width="14" height="14" aria-hidden="true"><use href="#i-shield"/></svg>
+      <span>A deterministic fallback exists for every model call, so the demo never dies. Numbers are never generated by a model.</span>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn btn-sm btn-quiet" type="button" id="copyProvenance">
+        <svg width="14" height="14" aria-hidden="true"><use href="#i-copy"/></svg> Copy log
+      </button>
+      <button class="btn btn-sm" type="button" id="closeDrawerFoot">Close</button>
+    </div>
+  </div>
+</aside>
+
+<div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (sel, root) { return (root || document).querySelector(sel); };
+  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var q = new URLSearchParams(window.location.search);
+  var SCREENS = ['brief', 'design', 'prove'];
+  var STATES = ['default', 'loading', 'empty', 'error', 'offline'];
+  var currentScreen = 'brief';
+  var DEFAULT_BRIEF = $('#brief').value;
+  var TOAST_TIMER = null;
+
+  /* ---------- toast ---------- */
+  function toast(message) {
+    var region = $('#toastRegion');
+    var el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = '<svg width="14" height="14" aria-hidden="true"><use href="#i-check"></use></svg><span></span>';
+    el.querySelector('span').textContent = message;
+    region.appendChild(el);
+    window.requestAnimationFrame(function () { el.classList.add('is-visible'); });
+    window.clearTimeout(TOAST_TIMER);
+    TOAST_TIMER = window.setTimeout(function () {
+      el.classList.remove('is-visible');
+      window.setTimeout(function () { el.remove(); }, 260);
+    }, 2800);
+  }
+
+  document.addEventListener('click', function (e) {
+    var target = e.target.closest('[data-toast]');
+    if (target) { toast(target.getAttribute('data-toast')); }
+  });
+
+  /* ---------- URL / chrome sync ---------- */
+  function updateUrl() {
+    var url = new URL(window.location.href);
+    if (currentScreen === 'brief') { url.searchParams.delete('screen'); }
+    else { url.searchParams.set('screen', currentScreen); }
+    var state = document.body.dataset.state;
+    if (state === 'default') { url.searchParams.delete('state'); }
+    else { url.searchParams.set('state', state); }
+    window.history.replaceState({}, '', url);
+    $$('[data-state-value]').forEach(function (a) {
+      var isCurrent = a.getAttribute('data-state-value') === state;
+      a.classList.toggle('is-current', isCurrent);
+      a.setAttribute('aria-current', isCurrent ? 'true' : 'false');
+      a.setAttribute('href', '?state=' + a.getAttribute('data-state-value') +
+        (currentScreen === 'brief' ? '' : '&screen=' + currentScreen));
+    });
+  }
+
+  function syncBanners() {
+    var state = document.body.dataset.state;
+    $('#errorBanner').classList.toggle('is-visible', state === 'error');
+    $('#offlineBanner').classList.toggle('is-visible', state === 'offline');
+  }
+
+  function renderChrome() {
+    var state = document.body.dataset.state;
+    var mode = document.body.dataset.mode;
+    var label = state === 'offline' ? 'Offline · fallback on'
+      : state === 'error' ? 'Fallback · deterministic'
+      : mode === 'cached' ? 'Cached session · 4 calls'
+      : 'Live · Meta models';
+    $('#aiPillLabel').textContent = label;
+    var dot = $('#aiDot');
+    dot.className = 'dot' +
+      (state === 'offline' ? ' dot--offline' : (mode === 'cached' || state === 'error') ? ' dot--cached' : '');
+    var activeMode = state === 'offline' ? 'offline' : mode;
+    $$('.ai-mode').forEach(function (btn) {
+      var on = btn.getAttribute('data-mode') === activeMode;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+
+  function applyState(next, options) {
+    options = options || {};
+    if (STATES.indexOf(next) === -1) { next = 'default'; }
+    var previous = document.body.dataset.state;
+    var brief = $('#brief');
+    if (next === 'empty' && previous !== 'empty') {
+      brief.dataset.saved = brief.value;
+      brief.value = '';
+      updateWordCount();
+    }
+    if (previous === 'empty' && next !== 'empty' && !brief.value.trim()) {
+      brief.value = brief.dataset.saved || DEFAULT_BRIEF;
+      updateWordCount();
+    }
+    document.body.dataset.state = next;
+    if (next === 'offline') {
+      document.body.dataset.mode = 'offline';
+    } else if (document.body.dataset.mode === 'offline') {
+      document.body.dataset.mode = 'live';
+    }
+    var designButton = $('#designBtn');
+    if (designButton) {
+      if (next === 'empty') { designButton.disabled = true; }
+      else if (typeof designing === 'undefined' || !designing) { designButton.disabled = false; }
+    }
+    $$('.activity-step').forEach(function (step, i) {
+      step.classList.toggle('is-active', next === 'loading' && i === 0);
+      step.classList.remove('is-done');
+    });
+    if (next !== 'loading') { $('#activity').classList.remove('is-visible'); }
+    syncBanners();
+    renderChrome();
+    updateUrl();
+    if (next === 'error') { toast('AI unavailable · deterministic fallback active'); }
+    if (next === 'offline') { toast('Offline assistant · cached responses'); }
+  }
+
+  function applyMode(mode) {
+    document.body.dataset.mode = mode;
+    if (mode === 'offline') {
+      applyState('offline');
+    } else {
+      if (document.body.dataset.state === 'offline' || document.body.dataset.state === 'error') {
+        applyState('default');
+      }
+      renderChrome();
+      toast(mode === 'cached' ? 'Cached session · showing last responses' : 'Live · Meta models');
+    }
+    closeMenu();
+  }
+
+  /* ---------- routing / stepper ---------- */
+  function go(screen, options) {
+    options = options || {};
+    if (SCREENS.indexOf(screen) === -1) { screen = 'brief'; }
+    currentScreen = screen;
+    $$('.screen').forEach(function (section) {
+      section.classList.toggle('is-active', section.getAttribute('data-screen') === screen);
+    });
+    var index = SCREENS.indexOf(screen);
+    $$('.step').forEach(function (btn, i) {
+      var item = btn.closest('.step-item');
+      if (i === index) { btn.setAttribute('aria-current', 'step'); }
+      else { btn.removeAttribute('aria-current'); }
+      item.classList.toggle('is-done', i < index);
+    });
+    updateUrl();
+    window.scrollTo({ top: 0, behavior: options.instant || reduceMotion ? 'auto' : 'smooth' });
+    document.title = 'AnyRB — ' + screen.charAt(0).toUpperCase() + screen.slice(1);
+  }
+
+  $$('[data-nav]').forEach(function (btn) {
+    btn.addEventListener('click', function () { go(btn.getAttribute('data-nav')); });
+  });
+
+  /* ---------- AI status menu ---------- */
+  var menu = $('#aiMenu');
+  var pill = $('#aiPill');
+  function openMenu() {
+    menu.classList.add('is-open');
+    pill.setAttribute('aria-expanded', 'true');
+  }
+  function closeMenu() {
+    menu.classList.remove('is-open');
+    pill.setAttribute('aria-expanded', 'false');
+  }
+  pill.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (menu.classList.contains('is-open')) { closeMenu(); } else { openMenu(); }
+  });
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#aiMenu') && !e.target.closest('#aiPill')) { closeMenu(); }
+  });
+  $$('.ai-mode').forEach(function (btn) {
+    btn.addEventListener('click', function () { applyMode(btn.getAttribute('data-mode')); });
+  });
+
+  /* ---------- provenance drawer ---------- */
+  var scrim = $('#scrim');
+  var drawer = $('#provenanceDrawer');
+  var lastFocus = null;
+  var DRAWER_MS = reduceMotion ? 0 : 280;
+
+  function openDrawer() {
+    lastFocus = document.activeElement;
+    scrim.hidden = false;
+    drawer.hidden = false;
+    window.requestAnimationFrame(function () {
+      scrim.classList.add('is-open');
+      drawer.classList.add('is-open');
+    });
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    closeMenu();
+    var close = $('#closeDrawer');
+    if (close) { close.focus(); }
+  }
+  function closeDrawer() {
+    scrim.classList.remove('is-open');
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    window.setTimeout(function () { scrim.hidden = true; drawer.hidden = true; }, DRAWER_MS);
+    document.body.style.overflow = '';
+    if (lastFocus && typeof lastFocus.focus === 'function') { lastFocus.focus(); }
+  }
+  ['#openProvenance', '#briefProvenanceLink'].forEach(function (sel) {
+    var el = $(sel);
+    if (el) { el.addEventListener('click', openDrawer); }
+  });
+  $('#closeDrawer').addEventListener('click', closeDrawer);
+  $('#closeDrawerFoot').addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+  $('#copyProvenance').addEventListener('click', function () { toast('Provenance log copied (mock)'); });
+  drawer.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab') { return; }
+    var focusable = $$('button, [href], input, summary, [tabindex]:not([tabindex="-1"])', drawer)
+      .filter(function (el) { return !el.disabled && el.offsetParent !== null; });
+    if (!focusable.length) { return; }
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+
+  /* ---------- state banners & switch ---------- */
+  $('#retryAI').addEventListener('click', function () {
+    applyState('loading');
+    toast('Retrying AI call…');
+    window.setTimeout(function () { applyState('default'); }, 1100);
+  });
+  $('#reconnectAI').addEventListener('click', function () { applyMode('live'); });
+  $$('[data-dismiss="error"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { applyState('default'); });
+  });
+  $$('[data-state-value]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      applyState(a.getAttribute('data-state-value'));
+    });
+  });
+
+  /* ---------- lab mode ---------- */
+  var labToggle = $('#labToggle');
+  labToggle.addEventListener('click', function () {
+    var on = labToggle.getAttribute('aria-pressed') !== 'true';
+    labToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+    $('#advancedInputs').open = on;
+    document.body.classList.toggle('lab-on', on);
+    toast(on ? 'Lab mode on · model inputs visible' : 'Lab mode off');
+  });
+
+  /* ---------- prompt ---------- */
+  var brief = $('#brief');
+  var micBtn = $('#micBtn');
+  var micLabel = $('#micLabel');
+  var micBusy = false;
+
+  function updateWordCount() {
+    var words = brief.value.trim() ? brief.value.trim().split(/\s+/).length : 0;
+    $('#wordCount').textContent = words + (words === 1 ? ' word' : ' words');
+  }
+  brief.addEventListener('input', function () {
+    updateWordCount();
+    if (document.body.dataset.state === 'empty') { applyState('default'); }
+  });
+  updateWordCount();
+
+  $$('[data-example]').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      if (document.body.dataset.state === 'empty') { applyState('default'); }
+      brief.value = chip.getAttribute('data-example');
+      updateWordCount();
+      brief.focus();
+      toast('Example loaded · edit anything');
+    });
+  });
+
+  micBtn.addEventListener('click', function () {
+    if (micBusy) { return; }
+    micBusy = true;
+    micBtn.classList.add('is-listening');
+    micLabel.textContent = 'Listening…';
+    window.setTimeout(function () {
+      micLabel.textContent = 'Transcribing…';
+    }, 1000);
+    window.setTimeout(function () {
+      micBtn.classList.remove('is-listening');
+      micLabel.textContent = 'Describe it out loud';
+      if (document.body.dataset.state === 'empty') { applyState('default'); }
+      brief.value = 'A wall bracket for a recycled PETG shelf unit. 150 N tip load, 2.5 mm max tip deflection, 1 % failure target across delivered lots. Print it upright in rPETG.';
+      updateWordCount();
+      micBusy = false;
+      toast('Transcribed · Muse Voice Transcribe · 0.95 s (mock)');
+    }, 2000);
+  });
+
+  /* ---------- brief → design activity ---------- */
+  var designBtn = $('#designBtn');
+  var designing = false;
+  designBtn.addEventListener('click', function () {
+    if (designing) { return; }
+    designing = true;
+    designBtn.disabled = true;
+    var activity = $('#activity');
+    var steps = $$('.activity-step');
+    var done = $('#activityDone');
+    activity.classList.add('is-visible');
+    done.hidden = true;
+    steps.forEach(function (step) {
+      step.classList.remove('is-active', 'is-done');
+    });
+    steps.forEach(function (step, i) {
+      window.setTimeout(function () {
+        steps.forEach(function (other, j) {
+          other.classList.toggle('is-done', j < i);
+          other.classList.toggle('is-active', j === i);
+        });
+      }, 300 + i * 550);
+    });
+    window.setTimeout(function () {
+      steps.forEach(function (step) { step.classList.remove('is-active'); step.classList.add('is-done'); });
+      done.hidden = false;
+    }, 2050);
+    window.setTimeout(function () {
+      activity.classList.remove('is-visible');
+      designBtn.disabled = false;
+      designing = false;
+      go('design');
+    }, 2500);
+  });
+
+  /* ---------- lattice visualisation ---------- */
+  var activeCandidate = 'balanced';
+  var vizMode = 'geometry';
+  var CANDIDATES = {
+    light: { mass: '44.34', pf: '51.8', label: 'Light', detail: 'mean-material sizing', scale: 0.82 },
+    balanced: { mass: '50.73', pf: '0.997', label: 'Balanced', detail: 'robust optimum', scale: 1 },
+    conservative: { mass: '56.41', pf: '0.00064', label: 'Conservative', detail: 'nominal safety factor 1.5', scale: 1.18 }
+  };
+
+  function strutColor(mode, t) {
+    if (mode === 'stress') {
+      var alpha = (0.3 + 0.6 * t).toFixed(2);
+      return 'rgba(255,90,54,' + alpha + ')';
+    }
+    if (mode === 'width') {
+      return 'rgba(21,23,26,' + (0.32 + 0.58 * t).toFixed(2) + ')';
+    }
+    return 'rgba(21,23,26,0.82)';
+  }
+
+  function drawLattice(scale, mode) {
+    var draw = $('#latticeDraw');
+    if (!draw) { return; }
+    var x0 = 130, x1 = 790, y0 = 112, y1 = 362, ym = 237;
+    var cols = [0, 1, 2, 3, 4, 5].map(function (i) { return x0 + i * ((x1 - x0) / 5); });
+    var rootT = [1, 0.86, 0.72, 0.58, 0.44, 0.3];
+    var verticalW = [10.6, 9.2, 7.8, 6.6, 5.6, 4.8];
+    var chordW = 6.8 * scale;
+    var midW = 3.3 * scale;
+    var diagW = 2.8 * scale;
+    var out = [];
+    var label = function (x, y, text, anchor, fill, size) {
+      return '<text x="' + x + '" y="' + y + '" text-anchor="' + (anchor || 'middle') +
+        '" font-family="ui-monospace, Menlo, monospace" font-size="' + (size || 10.5) +
+        '" fill="' + (fill || '#6B7280') + '" stroke="#FCFBF7" stroke-width="4" paint-order="stroke">' +
+        text + '</text>';
+    };
+
+    out.push('<defs>' +
+      '<pattern id="wallHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#15171A" stroke-opacity=".24" stroke-width="1"/></pattern>' +
+      '<linearGradient id="inkFade" gradientUnits="userSpaceOnUse" x1="' + x0 + '" y1="0" x2="' + x1 + '" y2="0">' +
+        '<stop offset="0" stop-color="#15171A" stop-opacity=".95"/>' +
+        '<stop offset=".55" stop-color="#15171A" stop-opacity=".7"/>' +
+        '<stop offset="1" stop-color="#15171A" stop-opacity=".38"/>' +
+      '</linearGradient>' +
+      '<linearGradient id="stressFade" gradientUnits="userSpaceOnUse" x1="' + x0 + '" y1="0" x2="' + x1 + '" y2="0">' +
+        '<stop offset="0" stop-color="#FF5A36" stop-opacity=".95"/>' +
+        '<stop offset=".6" stop-color="#FF5A36" stop-opacity=".45"/>' +
+        '<stop offset="1" stop-color="#FF5A36" stop-opacity=".12"/>' +
+      '</linearGradient>' +
+    '</defs>');
+
+    /* wall */
+    out.push('<rect x="' + (x0 - 22) + '" y="' + (y0 - 30) + '" width="22" height="' + (y1 - y0 + 60) + '" fill="url(#wallHatch)"/>');
+    out.push('<line x1="' + (x0 - 22) + '" y1="' + (y0 - 30) + '" x2="' + (x0 - 22) + '" y2="' + (y1 + 30) + '" stroke="#15171A" stroke-opacity=".45"/>');
+    out.push('<line x1="' + x0 + '" y1="' + (y0 - 30) + '" x2="' + x0 + '" y2="' + (y1 + 30) + '" stroke="#15171A" stroke-opacity=".55" stroke-width="1.5"/>');
+    out.push(label(x0 + 10, y0 - 44, 'fixed wall', 'start', '#6B7280', 10));
+
+    /* part envelope */
+    out.push('<rect x="' + x0 + '" y="' + y0 + '" width="' + (x1 - x0) + '" height="' + (y1 - y0) + '" rx="4" fill="none" stroke="#15171A" stroke-opacity=".16" stroke-dasharray="4 6"/>');
+
+    /* diagonals (single per cell, alternating) */
+    for (var bay = 0; bay < 5; bay++) {
+      for (var row = 0; row < 2; row++) {
+        var top = row === 0 ? y0 : ym;
+        var bottom = row === 0 ? ym : y1;
+        var leftX = cols[bay];
+        var rightX = cols[bay + 1];
+        var t = rootT[bay];
+        var color = strutColor(mode, t);
+        var d;
+        if ((bay + row) % 2 === 0) {
+          d = '<line x1="' + leftX + '" y1="' + top + '" x2="' + rightX + '" y2="' + bottom + '"';
+        } else {
+          d = '<line x1="' + rightX + '" y1="' + top + '" x2="' + leftX + '" y2="' + bottom + '"';
+        }
+        out.push(d + ' stroke="' + color + '" stroke-width="' + (diagW * (0.7 + 0.6 * rootT[bay])).toFixed(2) + '" stroke-linecap="round"/>');
+      }
+    }
+
+    /* chords */
+    var chordStroke = mode === 'stress' ? 'url(#stressFade)' : 'url(#inkFade)';
+    out.push('<line x1="' + x0 + '" y1="' + y0 + '" x2="' + x1 + '" y2="' + y0 + '" stroke="' + chordStroke + '" stroke-width="' + chordW + '" stroke-linecap="round"/>');
+    out.push('<line x1="' + x0 + '" y1="' + y1 + '" x2="' + x1 + '" y2="' + y1 + '" stroke="' + chordStroke + '" stroke-width="' + chordW + '" stroke-linecap="round"/>');
+    out.push('<line x1="' + x0 + '" y1="' + ym + '" x2="' + x1 + '" y2="' + ym + '" stroke="' + chordStroke + '" stroke-width="' + midW + '" stroke-linecap="round"/>');
+
+    /* verticals */
+    cols.forEach(function (x, i) {
+      out.push('<line x1="' + x + '" y1="' + y0 + '" x2="' + x + '" y2="' + y1 + '" stroke="' +
+        strutColor(mode, rootT[i]) + '" stroke-width="' + (verticalW[i] * scale) + '" stroke-linecap="round"/>');
+    });
+
+    /* joints */
+    if (mode !== 'stress') {
+      cols.forEach(function (x) {
+        [y0, ym, y1].forEach(function (y) {
+          out.push('<circle cx="' + x + '" cy="' + y + '" r="2" fill="#15171A" fill-opacity=".5"/>');
+        });
+      });
+    }
+
+    /* dimension 150 mm (top) */
+    out.push('<line x1="' + x0 + '" y1="' + 50 + '" x2="' + x1 + '" y2="' + 50 + '" stroke="#15171A" stroke-opacity=".4"/>');
+    out.push('<line x1="' + x0 + '" y1="' + 42 + '" x2="' + x0 + '" y2="' + 58 + '" stroke="#15171A" stroke-opacity=".55"/>');
+    out.push('<line x1="' + x1 + '" y1="' + 42 + '" x2="' + x1 + '" y2="' + 58 + '" stroke="#15171A" stroke-opacity=".55"/>');
+    out.push(label((x0 + x1) / 2, 38, '150 mm', 'middle', '#15171A', 11));
+
+    /* dimension 60 mm (left) */
+    out.push('<line x1="' + 62 + '" y1="' + y0 + '" x2="' + 62 + '" y2="' + y1 + '" stroke="#15171A" stroke-opacity=".4"/>');
+    out.push('<line x1="' + 54 + '" y1="' + y0 + '" x2="' + 70 + '" y2="' + y0 + '" stroke="#15171A" stroke-opacity=".55"/>');
+    out.push('<line x1="' + 54 + '" y1="' + y1 + '" x2="' + 70 + '" y2="' + y1 + '" stroke="#15171A" stroke-opacity=".55"/>');
+    out.push('<text x="40" y="' + ((y0 + y1) / 2) + '" text-anchor="middle" transform="rotate(-90 40 ' + ((y0 + y1) / 2) + ')" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#15171A">60 mm</text>');
+
+    /* load arrow */
+    out.push('<line x1="' + (x1 + 30) + '" y1="' + (y0 + 42) + '" x2="' + (x1 + 30) + '" y2="' + (y1 - 4) + '" stroke="#FF5A36" stroke-width="1.8" stroke-linecap="round"/>');
+    out.push('<path d="M' + (x1 + 23) + ' ' + (y1 - 16) + ' L' + (x1 + 30) + ' ' + (y1 + 2) + ' L' + (x1 + 37) + ' ' + (y1 - 16) + '" fill="#FF5A36"/>');
+    out.push(label(x1 + 30, y0 + 26, '150 N', 'middle', '#B8361A', 11));
+    out.push(label(x1 + 30, y0 + 40, 'tip load', 'middle', '#6B7280', 9.5));
+
+    /* deflection annotation */
+    out.push('<path d="M' + x0 + ' ' + (y1 + 32) + ' Q' + ((x0 + x1) / 2) + ' ' + (y1 + 58) + ' ' + x1 + ' ' + (y1 + 32) + '" fill="none" stroke="#6B7280" stroke-opacity=".55" stroke-dasharray="5 5"/>');
+    out.push('<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x1 + '" y2="' + (y1 + 32) + '" stroke="#6B7280" stroke-opacity=".3" stroke-dasharray="3 4"/>');
+    out.push(label((x0 + x1) / 2, y1 + 76, 'deflection limit 2.5 mm · exaggerated', 'middle', '#6B7280', 10));
+
+    draw.innerHTML = out.join('');
+  }
+
+  var vizCaption = $('#vizCaption');
+  function vizCaptionText() {
+    var cand = CANDIDATES[activeCandidate];
+    if (vizMode === 'stress') {
+      return 'Encoding: relative stress — highest near the fixed root (illustrative)';
+    }
+    if (vizMode === 'width') {
+      return 'Encoding: strut width field w(x) · 4 × 2 control points';
+    }
+    return 'Showing: <b>' + cand.label + '</b> · ' + cand.detail + ' · dimension ticks in mm';
+  }
+  function renderViz() {
+    drawLattice(CANDIDATES[activeCandidate].scale, vizMode);
+    vizCaption.innerHTML = vizCaptionText();
+  }
+
+  $$('.seg [data-viz]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      vizMode = btn.getAttribute('data-viz');
+      $$('.seg [data-viz]').forEach(function (other) {
+        other.setAttribute('aria-pressed', other === btn ? 'true' : 'false');
+      });
+      renderViz();
+    });
+  });
+
+  $$('.candidate').forEach(function (card) {
+    card.addEventListener('click', function () {
+      activeCandidate = card.getAttribute('data-candidate');
+      var cand = CANDIDATES[activeCandidate];
+      $$('.candidate').forEach(function (other) {
+        var on = other === card;
+        other.classList.toggle('is-selected', on);
+        other.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      $('#metricMass').textContent = cand.mass;
+      $('#metricPf').textContent = cand.pf;
+      renderViz();
+      toast(cand.label.split(' · ')[0] + ' selected · engine output applied');
+    });
+  });
+
+  /* ---------- batch passport ---------- */
+  var lotE = $('#lotE');
+  var lotSy = $('#lotSy');
+  var verdict = $('#verdict');
+  function setVerdict(kind, icon, title, detail, scale, mass, pf) {
+    verdict.classList.remove('is-pass', 'is-comp', 'is-reject');
+    verdict.classList.add('is-' + kind);
+    var icons = {
+      check: '<svg width="13" height="13"><use href="#i-check"></use></svg>',
+      refresh: '<svg width="13" height="13"><use href="#i-refresh"></use></svg>',
+      alert: '<svg width="13" height="13"><use href="#i-alert"></use></svg>'
+    };
+    $('#verdictIcon').innerHTML = icons[icon];
+    $('#verdictTitle').textContent = title;
+    $('#verdictDetail').textContent = detail;
+    $('#verdictScale').textContent = scale;
+    $('#verdictMass').textContent = mass;
+    $('#verdictPf').textContent = pf;
+  }
+  function updatePassport() {
+    var e = parseFloat(lotE.value);
+    var sy = parseFloat(lotSy.value);
+    if (isNaN(e)) { e = 1; }
+    if (isNaN(sy)) { sy = 1; }
+    var syNote = ' Strength is checked but is not the binding property for this geometry.';
+    if (e <= 0.55) {
+      setVerdict('reject', 'alert', 'REJECT · REROUTE',
+        'Required width scale exceeds the 1.5 × print clip. Use this lot for a non-structural part.' + syNote,
+        '> 1.50 ×', '—', '—');
+    } else if (Math.abs(e - 0.8) < 0.005) {
+      setVerdict('comp', 'refresh', 'PASS · WITH COMPENSATION',
+        'Width scale ×1.10 · added mass +8.5 %. This lot remains inside the 1.00 % target once the print recipe is scaled.' + syNote,
+        '1.10 ×', '+8.5 %', '≤ 1.00 %');
+    } else if (e >= 0.995) {
+      setVerdict('pass', 'check', 'PASS · NO COMPENSATION',
+        'This lot already meets the 1.00 % target at the current design; no print-recipe change is needed.' + syNote,
+        '1.00 ×', '0 %', '≤ 1.00 %');
+    } else {
+      setVerdict('comp', 'refresh', 'COMPENSATION REQUIRED',
+        'The engine computes the exact scale for this lot. Verified reference point: E ×0.8 → width 1.10 ×, +8.5 % mass.' + syNote,
+        'ref 1.10 ×', 'ref +8.5 %', '→ target');
+    }
+    $('#passportLive').classList.add('is-visible');
+  }
+  [lotE, lotSy].forEach(function (input) {
+    input.addEventListener('input', function () {
+      $$('.passport-chips .chip').forEach(function (chip) {
+        var on = Math.abs(parseFloat(chip.getAttribute('data-lot')) - parseFloat(lotE.value)) < 0.005;
+        chip.classList.toggle('is-active', on);
+        chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      updatePassport();
+    });
+  });
+  $$('.passport-chips .chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      lotE.value = parseFloat(chip.getAttribute('data-lot')).toFixed(2);
+      lotSy.value = '1.00';
+      $$('.passport-chips .chip').forEach(function (other) {
+        var on = other === chip;
+        other.classList.toggle('is-active', on);
+        other.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      updatePassport();
+      toast(chip.textContent.trim() + ' applied · verdict updated');
+    });
+  });
+  updatePassport();
+
+  /* ---------- keyboard ---------- */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') { return; }
+    if (!drawer.hidden) { closeDrawer(); }
+    else { closeMenu(); }
+  });
+
+  /* ---------- init ---------- */
+  var initialScreen = q.get('screen');
+  if (SCREENS.indexOf(initialScreen) === -1) { initialScreen = 'brief'; }
+  var initialState = q.get('state');
+  if (STATES.indexOf(initialState) === -1) { initialState = 'default'; }
+  if (initialState === 'offline') { document.body.dataset.mode = 'offline'; }
+  go(initialScreen, { instant: true });
+  applyState(initialState, { initial: true });
+  renderViz();
+  renderChrome();
+  updateUrl();
+})();
+</script>
+
+</body>
+</html>

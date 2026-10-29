@@ -1,0 +1,12 @@
+# AnyRB — repository hygiene (hackathon/public repo)
+# NEVER commit credentials.
+server/.env
+.env
+server/cache/
+server/provenance.jsonl
+server/evidence/live_calls.tmp.json
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.pytest_cache/

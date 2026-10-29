@@ -1,0 +1,720 @@
+{
+  "schema": "anyrb-refs-v1",
+  "file": "02-design-for-variability.md",
+  "compiled": "2026-10-29",
+  "verification_policy": "Every DOI resolved via OpenAlex (api.openalex.org/works/https://doi.org/<doi>) on 2026-10-29; metadata (title, year, venue, volume, pages, authors) taken from the resolved record. Standards/reports without DOIs verified at catalogue or publisher level; such entries are flagged in 'status'.",
+  "refs": [
+    {
+      "id": "R01",
+      "title": "Suppressing mechanical property variability in recycled plastics via bioinspired design",
+      "authors": [
+        "Dimitrios Georgiou",
+        "Danqi Sun",
+        "Xing Liu",
+        "Christos E. Athanasiou"
+      ],
+      "year": 2025,
+      "venue": "Proceedings of the National Academy of Sciences",
+      "volume": "122",
+      "issue": "33",
+      "pages": "e2502613122",
+      "doi": "10.1073/pnas.2502613122",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12377729/",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Anchor paper: nacre-inspired brick-and-mortar composite; UATSC uncertainty-aware tension-shear-chain model; quantified variability suppression (93 % modelled, 78 % measured for modulus; 68 % for permissible strain); design rules; explicit limitations.",
+      "quote_or_locator": "Abstract + Results 'UATSC Network Model'; 'Model-Experiment Comparison' (CV 18 % -> 4 %, Fig. 5); 'Case Study' (E_eff = 554 +/- 10 MPa, CV 2 %, eps_W = 0.10 +/- 0.01, Fig. 6); Discussion (interface CV guidance, K_CT+/K_CS+ ratio). Note: first author is Georgiou, not 'Ghosh'."
+    },
+    {
+      "id": "R02",
+      "title": "Cellular Solids: Structure and Properties (2nd ed.)",
+      "authors": [
+        "Lorna J. Gibson",
+        "Michael F. Ashby"
+      ],
+      "year": 1997,
+      "venue": "Cambridge University Press",
+      "doi": "10.1017/CBO9781139878326",
+      "url": "https://doi.org/10.1017/CBO9781139878326",
+      "type": "book",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Gibson-Ashby scaling E*/Es proportional to (rho*/rho_s)^n; n~1 stretch-dominated vs n~2 bending-dominated; basis for the 'topology sets the sensitivity exponent' lever.",
+      "quote_or_locator": "Ch. 4-5 (modulus-density scaling); standard reference, textbook result."
+    },
+    {
+      "id": "R03",
+      "title": "Effective properties of the octet-truss lattice material",
+      "authors": [
+        "V. S. Deshpande",
+        "N. A. Fleck",
+        "M. F. Ashby"
+      ],
+      "year": 2001,
+      "venue": "Journal of the Mechanics and Physics of Solids",
+      "volume": "49",
+      "issue": "8",
+      "pages": "1747-1769",
+      "doi": "10.1016/S0022-5096(01)00010-2",
+      "url": "https://doi.org/10.1016/S0022-5096(01)00010-2",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Octet-truss as the canonical stretch-dominated topology: stiffness scales linearly with relative density, an order of magnitude above bending-dominated foams.",
+      "quote_or_locator": "Abstract/Results: effective elastic properties of the octet-truss; E*/Es proportional to relative density."
+    },
+    {
+      "id": "R04",
+      "title": "Ultralight, ultrastiff mechanical metamaterials",
+      "authors": [
+        "Xiaoyu Zheng",
+        "Howon Lee",
+        "Todd H. Weisgraber",
+        "Maxim Shusteff",
+        "Joshua R. DeOtte",
+        "Eric B. Duoss",
+        "et al."
+      ],
+      "year": 2014,
+      "venue": "Science",
+      "volume": "344",
+      "issue": "6190",
+      "pages": "1373-1377",
+      "doi": "10.1126/science.1252291",
+      "url": "https://doi.org/10.1126/science.1252291",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Architecture, not constituent, sets specific stiffness: 'nearly constant stiffness per unit mass density' across more than three orders of magnitude in density, for polymer/metal/ceramic constituents.",
+      "quote_or_locator": "Abstract (verified verbatim)."
+    },
+    {
+      "id": "R05",
+      "title": "Resilient 3D hierarchical architected metamaterials",
+      "authors": [
+        "Lucas R. Meza",
+        "Alex J. Zelhofer",
+        "Nigel Clarke",
+        "Arturo J. Mateos",
+        "Dennis M. Kochmann",
+        "Julia R. Greer"
+      ],
+      "year": 2015,
+      "venue": "Proceedings of the National Academy of Sciences",
+      "volume": "112",
+      "issue": "37",
+      "pages": "11502-11507",
+      "doi": "10.1073/pnas.1509120112",
+      "url": "https://doi.org/10.1073/pnas.1509120112",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Hierarchical architected materials: near-theoretical strength/stiffness scaling with density, suppression of brittle failure and structural instabilities, up to 98 % height recovery after >=50 % compression; hierarchy beyond 2nd order not beneficial.",
+      "quote_or_locator": "Abstract (verified verbatim)."
+    },
+    {
+      "id": "R06",
+      "title": "On the mechanics of mother-of-pearl: A key feature in the material hierarchical structure",
+      "authors": [
+        "François Barthelat",
+        "H. Tang",
+        "Pablo D. Zavattieri",
+        "C.-M. Li",
+        "Horacio D. Espinosa"
+      ],
+      "year": 2007,
+      "venue": "Journal of the Mechanics and Physics of Solids",
+      "volume": "55",
+      "issue": "2",
+      "pages": "306-337",
+      "doi": "10.1016/j.jmps.2006.07.007",
+      "url": "https://doi.org/10.1016/j.jmps.2006.07.007",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Nacre mechanics: staggered platelet architecture, interfacial sliding and crack bridging; design precedent behind the nacre-inspired composite of R01.",
+      "quote_or_locator": "Journal volume 55(2), 2007 (OpenAlex publication_year 2006 = online-first)."
+    },
+    {
+      "id": "R07",
+      "title": "Micro-architectured materials: past, present and future",
+      "authors": [
+        "N. A. Fleck",
+        "V. S. Deshpande",
+        "M. F. Ashby"
+      ],
+      "year": 2010,
+      "venue": "Proceedings of the Royal Society A: Mathematical, Physical and Engineering Sciences",
+      "volume": "466",
+      "issue": "2121",
+      "pages": "2495-2516",
+      "doi": "10.1098/rspa.2010.0215",
+      "url": "https://doi.org/10.1098/rspa.2010.0215",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Canonical statement of the stiffness/strength vs imperfection-sensitivity trade-off: stretch-dominated trusses are stiffer and stronger but more sensitive to nodal imperfections; bending-dominated foams more defect-tolerant.",
+      "quote_or_locator": "Review article, sections on truss vs foam topologies and imperfection sensitivity."
+    },
+    {
+      "id": "R08",
+      "title": "Elastic and failure response of imperfect three-dimensional metallic lattices: the role of geometric defects induced by Selective Laser Melting",
+      "authors": [
+        "Lu Liu",
+        "Paul H. Kamm",
+        "Francisco Garcia-Moreno",
+        "John Banhart",
+        "Damiano Pasini"
+      ],
+      "year": 2017,
+      "venue": "Journal of the Mechanics and Physics of Solids",
+      "volume": "107",
+      "pages": "160-184",
+      "doi": "10.1016/j.jmps.2017.07.003",
+      "url": "https://doi.org/10.1016/j.jmps.2017.07.003",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Quantifies elastic and failure knockdowns of 3D lattices caused by geometric (manufacturing) defects; supports the honest boundary that defect-tolerance evidence is about geometry, not material scatter.",
+      "quote_or_locator": "Title + abstract scope (geometric defects induced by SLM)."
+    },
+    {
+      "id": "R09",
+      "title": "The tensile ductility of cellular solids: the role of imperfections",
+      "authors": [
+        "William Ronan",
+        "V. S. Deshpande",
+        "N. A. Fleck"
+      ],
+      "year": 2016,
+      "venue": "International Journal of Solids and Structures",
+      "volume": "102-103",
+      "pages": "200-213",
+      "doi": "10.1016/j.ijsolstr.2016.10.004",
+      "url": "https://doi.org/10.1016/j.ijsolstr.2016.10.004",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Imperfections control the tensile ductility of cellular solids - evidence that defect sensitivity is a strength/ductility phenomenon, not only a modulus one.",
+      "quote_or_locator": "Title + abstract scope."
+    },
+    {
+      "id": "R10",
+      "title": "The statistical theory of the strength of bundles of threads. I",
+      "authors": [
+        "Henry Ellis Daniels"
+      ],
+      "year": 1945,
+      "venue": "Proceedings of the Royal Society of London. Series A, Mathematical and Physical Sciences",
+      "volume": "183",
+      "issue": "995",
+      "pages": "405-435",
+      "doi": "10.1098/rspa.1945.0011",
+      "url": "https://doi.org/10.1098/rspa.1945.0011",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Classical bundle theory: load-sharing parallel elements give a strength distribution that narrows with bundle size; contrast with weakest-link series chains.",
+      "quote_or_locator": "Whole paper; standard reference for bundle vs weakest-link statistics."
+    },
+    {
+      "id": "R11",
+      "title": "Robust optimization - A comprehensive survey",
+      "authors": [
+        "Hans-Georg Beyer",
+        "Bernhard Sendhoff"
+      ],
+      "year": 2007,
+      "venue": "Computer Methods in Applied Mechanics and Engineering",
+      "volume": "196",
+      "issue": "33-34",
+      "pages": "3190-3218",
+      "doi": "10.1016/j.cma.2007.03.003",
+      "url": "https://doi.org/10.1016/j.cma.2007.03.003",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Taxonomy of robust-optimisation objectives (expected value, mean+variance, worst case) and their pitfalls; used for the objective-formulation table.",
+      "quote_or_locator": "Survey sections on robustness measures and objective formulations. NB: the task brief cited 'cma.2007.04.003'; the verified DOI is cma.2007.03.003."
+    },
+    {
+      "id": "R12",
+      "title": "Robust optimization - methodology and applications",
+      "authors": [
+        "Aharon Ben-Tal",
+        "Arkadi Nemirovski"
+      ],
+      "year": 2002,
+      "venue": "Mathematical Programming",
+      "volume": "92",
+      "issue": "3",
+      "pages": "453-480",
+      "doi": "10.1007/s101070100286",
+      "url": "https://doi.org/10.1007/s101070100286",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Worst-case / uncertainty-set robust optimisation; source of the 'all bad values at once is unphysical and over-conservative' critique.",
+      "quote_or_locator": "Methodology sections on uncertain linear programs and robust counterparts."
+    },
+    {
+      "id": "R13",
+      "title": "Manufacturing tolerant topology optimization",
+      "authors": [
+        "Ole Sigmund"
+      ],
+      "year": 2009,
+      "venue": "Acta Mechanica Sinica",
+      "volume": "25",
+      "issue": "2",
+      "pages": "227-239",
+      "doi": "10.1007/s10409-009-0240-z",
+      "url": "https://doi.org/10.1007/s10409-009-0240-z",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Manufacturing-tolerant TO (robust formulation over under/over-etch): template for treating unknown-but-bounded geometric error with the same robust machinery as statistical material error.",
+      "quote_or_locator": "Whole paper."
+    },
+    {
+      "id": "R14",
+      "title": "Robust topology optimization accounting for spatially varying manufacturing errors",
+      "authors": [
+        "Mattias Schevenels",
+        "Boyan S. Lazarov",
+        "Ole Sigmund"
+      ],
+      "year": 2011,
+      "venue": "Computer Methods in Applied Mechanics and Engineering",
+      "volume": "200",
+      "issue": "49-52",
+      "pages": "3613-3627",
+      "doi": "10.1016/j.cma.2011.08.006",
+      "url": "https://doi.org/10.1016/j.cma.2011.08.006",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Spatially varying (random-field) error treatment in robust TO; closest TO analogue to the correlated within-part scatter AnyRB would need for v0.2 redundancy levers.",
+      "quote_or_locator": "Whole paper."
+    },
+    {
+      "id": "R15",
+      "title": "An efficient approach to reliability-based topology optimization for continua under material uncertainty",
+      "authors": [
+        "Mehdi Jalalpour",
+        "Mazdak Tootkaboni"
+      ],
+      "year": 2015,
+      "venue": "Structural and Multidisciplinary Optimization",
+      "volume": "53",
+      "issue": "4",
+      "pages": "759-772",
+      "doi": "10.1007/s00158-015-1360-7",
+      "url": "https://doi.org/10.1007/s00158-015-1360-7",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "RBTO under material uncertainty for continua, with a first-order reliability step inside the topology loop; the objective formulation AnyRB v0.1 adopts.",
+      "quote_or_locator": "Whole paper."
+    },
+    {
+      "id": "R16",
+      "title": "Robust topology optimization of multi-material lattice structures under material and load uncertainties",
+      "authors": [
+        "Yu-Chin Chan",
+        "Kohei Shintani",
+        "Wei Chen"
+      ],
+      "year": 2019,
+      "venue": "Frontiers of Mechanical Engineering",
+      "volume": "14",
+      "issue": "2",
+      "pages": "141-152",
+      "doi": "10.1007/s11465-019-0531-4",
+      "url": "https://doi.org/10.1007/s11465-019-0531-4",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Closest published analogue to AnyRB's optimiser: robust TO of lattice structures under material AND load uncertainty (unit-cell scale, no recyclate distribution).",
+      "quote_or_locator": "Title + abstract scope."
+    },
+    {
+      "id": "R17",
+      "title": "Efficient quantification of material uncertainties in reliability-based topology optimization using random matrices",
+      "authors": [
+        "Aditya Vishwanathan",
+        "Gareth A. Vio"
+      ],
+      "year": 2019,
+      "venue": "Computer Methods in Applied Mechanics and Engineering",
+      "volume": "351",
+      "pages": "548-570",
+      "doi": "10.1016/j.cma.2019.03.047",
+      "url": "https://doi.org/10.1016/j.cma.2019.03.047",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Random-matrix representation of material uncertainty in RBTO: cheaper than element-wise independent sampling and avoids the unrealistic independence assumption.",
+      "quote_or_locator": "Whole paper."
+    },
+    {
+      "id": "R18",
+      "title": "Stochastic homogenization of random elastic multi-phase composites and size quantification of representative volume element",
+      "authors": [
+        "Frank F. Xu",
+        "Xi Chen"
+      ],
+      "year": 2008,
+      "venue": "Mechanics of Materials",
+      "volume": "41",
+      "issue": "2",
+      "pages": "174-186",
+      "doi": "10.1016/j.mechmat.2008.09.002",
+      "url": "https://doi.org/10.1016/j.mechmat.2008.09.002",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Stochastic homogenisation and RVE size: scatter of the homogenised property shrinks only above an RVE threshold; why unit-cell homogenisation cannot represent lot-level scatter.",
+      "quote_or_locator": "Whole paper."
+    },
+    {
+      "id": "R19",
+      "title": "Performance of Corrugated Pipe Manufactured with Recycled Polyethylene Content",
+      "authors": [
+        "Richard W. Thomas",
+        "David Cuttino"
+      ],
+      "year": 2011,
+      "venue": "National Academies Press / NCHRP",
+      "doi": "10.17226/14570",
+      "url": "https://onlinepubs.trb.org/onlinepubs/nchrp/nchrp_rpt_696AppendixC.pdf",
+      "type": "agency-report",
+      "evidence_grade": "C",
+      "status": "verified",
+      "used_for": "Case study: 66 blends tested against AASHTO M294; maximum mixed-colour PCR ~20 % and 'a conservative number is closer to 15 %'; at 15 % all pipe requirements met; two PCR batches 'behaved dramatically different'; NCTL inter-laboratory scatter 'higher than 40 %'.",
+      "quote_or_locator": "Appendix C 'Recycled Resin Blends', Sec. C.8 'Conclusions', findings 1-4; NCTL inter-laboratory scatter statement in Sec. C.8 discussion. Report number 696 inferred from the TRB appendix filename; main report body not read in full."
+    },
+    {
+      "id": "R20",
+      "title": "Machine learning model and input batch management tool for the composition of new recycled polypropylene plastic material with reduced variability in target properties",
+      "authors": [
+        "Ricardo Teruel",
+        "Noelia Alcala",
+        "Cristina Crespo",
+        "Manuel Laspalas"
+      ],
+      "year": 2023,
+      "venue": "Journal of Cleaner Production",
+      "volume": "435",
+      "pages": "140390",
+      "doi": "10.1016/j.jclepro.2023.140390",
+      "url": "https://doi.org/10.1016/j.jclepro.2023.140390",
+      "type": "journal-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Batch-mixing / input-batch-management lever: composing new rPP batches from incoming lots to reduce variability in target properties.",
+      "quote_or_locator": "Title + abstract scope; exact CV reduction not extracted (full text not read)."
+    },
+    {
+      "id": "R21",
+      "title": "Recycling of polymer blends",
+      "authors": [
+        "Andrea Dorigato"
+      ],
+      "year": 2021,
+      "venue": "Advanced Industrial and Engineering Polymer Research",
+      "volume": "4",
+      "issue": "2",
+      "pages": "53-69",
+      "doi": "10.1016/j.aiepr.2021.02.005",
+      "url": "https://doi.org/10.1016/j.aiepr.2021.02.005",
+      "type": "review-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Blending/compatibilisation of recycled polymer blends: mean-property effects; supports the finding that CV effects are rarely reported.",
+      "quote_or_locator": "Review, sections on compatibilisation and blend properties."
+    },
+    {
+      "id": "R22",
+      "title": "Modification of mechanical properties of recycled polypropylene from post-consumer containers",
+      "authors": [
+        "P. Brachet",
+        "L. T. Høydal",
+        "Einar L. Hinrichsen",
+        "Frank V. Melum"
+      ],
+      "year": 2008,
+      "venue": "Waste Management",
+      "volume": "28",
+      "issue": "12",
+      "pages": "2456-2464",
+      "doi": "10.1016/j.wasman.2007.10.021",
+      "url": "https://doi.org/10.1016/j.wasman.2007.10.021",
+      "type": "journal-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Modifiers/additives restore mechanical properties of post-consumer rPP; mean effects, no CV effect size reported.",
+      "quote_or_locator": "Whole paper (title/abstract scope)."
+    },
+    {
+      "id": "R23",
+      "title": "A Nearly Zero-Cost Lot-by-Lot Inspection of Recycled Plastics: Prediction of Mechanical Properties from Viscosity Evolution during Melt Kneading",
+      "authors": [
+        "Yusuke Hibi",
+        "Shiho Uesaka",
+        "Kiyotaka Hitomi",
+        "Ken-ichi Niihara",
+        "Asami Imai",
+        "Sadaki Samitsu"
+      ],
+      "year": 2025,
+      "venue": "ACS Sustainable Resource Management",
+      "volume": "2",
+      "issue": "4",
+      "pages": "673-680",
+      "doi": "10.1021/acssusresmgt.5c00040",
+      "url": "https://doi.org/10.1021/acssusresmgt.5c00040",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Per-lot proxy measurement: mechanical properties predicted from melt-viscosity evolution, i.e. the cheap per-lot (E, sigma_y) input AnyRB's batch-adaptive pillar depends on.",
+      "quote_or_locator": "Title + abstract scope."
+    },
+    {
+      "id": "R24",
+      "title": "Mechanical Evaluation of Recycled PETG Filament for 3D Printing",
+      "authors": [
+        "Liviu Marsavina",
+        "Vlad Dohan",
+        "Sergiu Valentin Galatanu"
+      ],
+      "year": 2024,
+      "venue": "Frattura ed Integrita Strutturale",
+      "volume": "18",
+      "issue": "70",
+      "pages": "310-321",
+      "doi": "10.3221/igf-esis.70.18",
+      "url": "https://doi.org/10.3221/igf-esis.70.18",
+      "type": "journal-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Recycled PETG filament for FFF: property loss and scatter after re-extrusion; relevant to the rPETG feedstock preset and to AM-specific claims limits.",
+      "quote_or_locator": "Title + abstract scope."
+    },
+    {
+      "id": "R25",
+      "title": "Exploring the Potential of Recycled Polymers for 3D Printing Applications: A Review",
+      "authors": [
+        "Rachel Habiba",
+        "Candida Malca",
+        "Ricardo Branco"
+      ],
+      "year": 2024,
+      "venue": "Materials",
+      "volume": "17",
+      "issue": "12",
+      "pages": "2915",
+      "doi": "10.3390/ma17122915",
+      "url": "https://doi.org/10.3390/ma17122915",
+      "type": "review-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Context for recycled-content AM practice: per-spool print/coupon qualification rather than design analysis.",
+      "quote_or_locator": "Review scope."
+    },
+    {
+      "id": "R26",
+      "title": "Thermomechanical Properties of Virgin and Recycled Polypropylene-High-Density Polyethylene Blends",
+      "authors": [
+        "Hannah Jones",
+        "Jake McClements",
+        "Dipa Ray",
+        "Colin S. Hindle",
+        "Michail Kalloudis",
+        "Vasileios Koutsos"
+      ],
+      "year": 2023,
+      "venue": "Polymers",
+      "volume": "15",
+      "issue": "21",
+      "pages": "4200",
+      "doi": "10.3390/polym15214200",
+      "url": "https://doi.org/10.3390/polym15214200",
+      "type": "journal-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Virgin/recycled polyolefin blends: evidence that blending shifts mean properties, supporting the dilution lever in the feedstock model.",
+      "quote_or_locator": "Whole paper (title/abstract scope)."
+    },
+    {
+      "id": "R27",
+      "title": "Post-Industrial Recycled Polypropylene for Automotive Application: Mechanical Properties After Thermal Ageing",
+      "authors": [
+        "Matilde Arese",
+        "Ilaria Bolliri",
+        "Gabriele Ciaccio",
+        "Valentina Brunella"
+      ],
+      "year": 2025,
+      "venue": "Processes",
+      "volume": "13",
+      "issue": "2",
+      "pages": "315",
+      "doi": "10.3390/pr13020315",
+      "url": "https://doi.org/10.3390/pr13020315",
+      "type": "journal-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Automotive PIR-PP case study: property drift after thermal ageing, i.e. service-condition variability on top of lot variability.",
+      "quote_or_locator": "Title + abstract scope."
+    },
+    {
+      "id": "R28",
+      "title": "Mechanical recycling of polyamide 6 and polypropylene for automotive applications",
+      "authors": [
+        "Samaneh Dehghani",
+        "Reza Salehiyan",
+        "Yottha Srithep"
+      ],
+      "year": 2024,
+      "venue": "Polymer Engineering and Science",
+      "volume": "65",
+      "issue": "1",
+      "pages": "250-257",
+      "doi": "10.1002/pen.27006",
+      "url": "https://doi.org/10.1002/pen.27006",
+      "type": "journal-article",
+      "evidence_grade": "B",
+      "status": "verified",
+      "used_for": "Automotive recyclates require per-batch mechanical characterisation - current practice, no distributional design method.",
+      "quote_or_locator": "Title + abstract scope (issue dated 2025; online 2024)."
+    },
+    {
+      "id": "R29",
+      "title": "ISO 12162:2009 Thermoplastics materials for pipes and fittings for pressure applications - Classification, designation and design coefficient",
+      "authors": [
+        "ISO/TC 138"
+      ],
+      "year": 2009,
+      "venue": "International Organization for Standardization",
+      "doi": null,
+      "url": "https://www.din.de/de/mitwirken/normenausschuesse/fnk/veroeffentlichungen/wdc-beuth:din21:120384143",
+      "type": "standard",
+      "evidence_grade": "B",
+      "status": "verified-catalogue-level",
+      "used_for": "Design practice: the overall service (design) coefficient C, with hydrostatic design stress HDS = MRS/C; the single-number derating that a reliability method replaces.",
+      "quote_or_locator": "DIN EN ISO 12162:2010-04 catalogue entry (adopts ISO 12162:2009): title and scope verified; numeric C values per material class require purchase of the standard."
+    },
+    {
+      "id": "R30",
+      "title": "ASTM D6662-22 Standard Specification for Polyolefin-Based Plastic Lumber Decking Boards",
+      "authors": [
+        "ASTM Committee D20"
+      ],
+      "year": 2022,
+      "venue": "ASTM International",
+      "doi": null,
+      "url": "https://standards.iteh.ai/catalog/standards/astm/37c07a56-05b8-4496-9446-ed62facd2b14/astm-d6662-22",
+      "type": "standard",
+      "evidence_grade": "B",
+      "status": "verified-catalogue-level",
+      "used_for": "Design practice for recycled plastic lumber: allowable flexural stress derived from base flexural stress with time/temperature factors; secant-modulus and 1 %/3 % strain criteria.",
+      "quote_or_locator": "Catalogue preview: Sec. 6.1.4.1 'Allowable Flexural Stress', Sec. 6.3.2.4 criteria of degradation; full formula requires purchase."
+    },
+    {
+      "id": "R31",
+      "title": "Engineering properties of recycled polyolefin plastic lumber (university test report, UNL / Firstar Plastic Lumber)",
+      "authors": [
+        "Caleb Allerheiligen",
+        "Marc Maguire"
+      ],
+      "year": null,
+      "venue": "University of Nebraska-Lincoln, Durham School of Architectural Engineering and Construction (industry test report)",
+      "doi": null,
+      "url": "https://www.solutionsplasticlumber.com/s/Firstar-Plastic-Lumber-UNL-strength-test-results.pdf",
+      "type": "test-report",
+      "evidence_grade": "C",
+      "status": "verified-primary-data",
+      "used_for": "Measured within-batch CVs for a commercial recycled-polyolefin product: compressive strength 1620 psi (CV 5.6 %), compressive modulus 70 600 psi (CV 11 %), flexural strength 2080 psi (CV 6.3 %); 1 % secant modulus 104 000 psi vs 3 % secant 69 300 psi (33 % loss between 1 % and 3 % strain).",
+      "quote_or_locator": "Results - Compression Test; Results - Flexure Test (Unweathered) tables; PDF extracted 2026-10-29."
+    },
+    {
+      "id": "R32",
+      "title": "TEPPFA design-parameter tables for thermoplastics pressure pipe (HDS = MRS/C; PE100 MRS 10.0 MPa, C 1.25)",
+      "authors": [
+        "The European Plastic Pipes and Fittings Association (TEPPFA)"
+      ],
+      "year": null,
+      "venue": "TEPPFA design guide",
+      "doi": null,
+      "url": "https://www.teppfa.eu/wp-content/uploads/DesignParametersENTS15223.pdf",
+      "type": "industry-guide",
+      "evidence_grade": "C",
+      "status": "verified-snippet-level",
+      "used_for": "Source for the HDS = MRS/C relationship and the C = 1.25 value for PE100 quoted in the dossier; supports the 'industry uses one design coefficient' argument.",
+      "quote_or_locator": "'The value to refer to is the Hydrostatic Design Stress (HDS). The HDS is the stress referring to the Minimum Required Strength (MRS) of the raw material using the Overall Service Design Coefficient (C) as given by the product standards.' Table row PE100: MRS 10.0, C 1.25."
+    },
+    {
+      "id": "R33",
+      "title": "The role of defects in dictating the strength of brittle honeycombs made by rapid prototyping",
+      "authors": [
+        "Philipp E. Seiler",
+        "Harika C. Tankasala",
+        "N. A. Fleck"
+      ],
+      "year": 2019,
+      "venue": "Acta Materialia",
+      "volume": "171",
+      "pages": "190-200",
+      "doi": "10.1016/j.actamat.2019.03.036",
+      "url": "https://doi.org/10.1016/j.actamat.2019.03.036",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Defects dictate the strength of architected brittle materials - supports the defect-sensitivity caveat in the limits section.",
+      "quote_or_locator": "Title + abstract scope."
+    },
+    {
+      "id": "R34",
+      "title": "Analysis of mechanical properties of lattice structures with stochastic geometric defects in additive manufacturing",
+      "authors": [
+        "Dongming Li",
+        "Ruixian Qin",
+        "Bingzhi Chen",
+        "Junxian Zhou"
+      ],
+      "year": 2021,
+      "venue": "Materials Science and Engineering: A",
+      "volume": "822",
+      "pages": "141666",
+      "doi": "10.1016/j.msea.2021.141666",
+      "url": "https://doi.org/10.1016/j.msea.2021.141666",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Stochastic geometric-defect modelling of AM lattices; the closest thing to a statistical defect model, but still geometric not material scatter.",
+      "quote_or_locator": "Title + abstract scope."
+    },
+    {
+      "id": "R35",
+      "title": "Robust multiscale optimization accounting for spatially-varying material uncertainties",
+      "authors": [
+        "Dilaksan Thillaithevan",
+        "Paul J. Bruce",
+        "Matthew Santer"
+      ],
+      "year": 2022,
+      "venue": "Structural and Multidisciplinary Optimization",
+      "volume": "65",
+      "issue": "2",
+      "doi": "10.1007/s00158-021-03104-w",
+      "url": "https://doi.org/10.1007/s00158-021-03104-w",
+      "type": "journal-article",
+      "evidence_grade": "A",
+      "status": "verified",
+      "used_for": "Spatially varying material uncertainty in multiscale optimisation: the formulation needed before AnyRB adds per-element material scatter (v0.2).",
+      "quote_or_locator": "Title + abstract scope."
+    }
+  ]
+}

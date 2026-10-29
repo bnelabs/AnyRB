@@ -1,0 +1,640 @@
+{
+ "schema_version": "1.0",
+ "generated": "2026-10-29",
+ "project": "AnyRB",
+ "owner": "researcher-variability (task-1)",
+ "provenance": "All values are literature-derived engineering estimates for decision-support software, NOT measured reliability. Every number is traceable to research/refs/refs-01.json; assumptions are flagged.",
+ "units": {
+  "E": "MPa (tensile/effective modulus unless noted)",
+  "yield_strength": "MPa (tensile stress at yield; for rPET values are strength at break where single number reported)",
+  "elongation": "% (elongation at break for printed parts unless noted)",
+  "density": "g/cm3"
+ },
+ "two_level_model": {
+  "description": "lot mean multiplier m ~ LogNormal(1, cv_lot); within-lot specimen multiplier s ~ LogNormal(1, cv_within); property value = nominal_mean * m * s; cv_total^2 = cv_lot^2 + cv_within^2 (approximately, for small CVs). Correlations applied between log-properties via a Gaussian copula with the given correlation matrix.",
+  "recommended_lot_variance_fraction_default": 0.85,
+  "default_split_rationale": "Within-sample specimen SDs reported by Eriksen et al. are <=1-4% of the mean for PE/PP strength, while between-sample/source spreads are 20-50% (R04). PNAS measured 17.7% across 10 plates from one supplier (R01), versus 54% across the literature (R01). This is consistent with lot-to-lot variance dominating for E and yield strength; hence sqrt(0.85)=0.92 of the total CV is assigned to lots and 0.39 to within-lot scatter. For elongation/impact, specimen scatter is much larger (PP impact SD 12-15 on 19-33 kJ/m2, R04; rPP elongation 10-100% across lots, R05), so a 0.60 lot variance fraction is used.",
+  "previous_v0_1_split": "cv_lot = 0.8*cv_total, cv_within = 0.6*cv_total implies 64%/36% variance split - this dossier recommends 85/15 (E, sigma_y) and 60/40 (elongation) unless the user supplies lot data.",
+  "warning": "The split is an evidenced inference, not a direct measurement of a single population. 'ASSUMPTION' is recorded per-property in lot_vs_within."
+ },
+ "correlations": {
+  "default_lnE_lnYieldStrength": 0.55,
+  "default_lnE_elongation": -0.25,
+  "basis": "ASSUMPTION. No verified source in this dossier reports a correlation coefficient between modulus and yield strength across recyclate lots. Polymer physics supports positive E-sigma_y and negative E-elongation coupling. Keep as user-visible sensitivity parameters; the PNAS UATSC model also treated modulus and interface strength as independent (R01)."
+ },
+ "polymers": {
+  "rpet": {
+   "id": "rpet",
+   "name": "Recycled polyethylene terephthalate (bottle-grade rPET, flakes/regranulate; injection moulding, extrusion, or filament extrusion)",
+   "process": [
+    "injection_moulding",
+    "extrusion",
+    "material_extrusion_FFF"
+   ],
+   "correlations": {
+    "lnE_lnYieldStrength": {
+     "value": 0.6,
+     "basis": "assumption",
+     "note": "No recyclate-specific correlation coefficient recovered in any verified source; value consistent with polymer-physics expectation and PNAS's independent-treatment choice [R01]. Treat as a sensitivity parameter."
+    },
+    "lnE_elongation": {
+     "value": -0.2,
+     "basis": "assumption",
+     "note": "Not measured."
+    }
+   },
+   "sources": [
+    "R01",
+    "R04",
+    "R08",
+    "R22",
+    "R24",
+    "R28"
+   ],
+   "notes": "rPET is the recyclate with the strongest 'IV can be restored by SSP' evidence [R22], so quality is highly process-dependent: an SSP-equipped supplier is a different feedstock class from a simple re-pelletiser. Software should expose a 'process route' switch rather than one rPET preset.",
+   "confidence": "B",
+   "properties": {
+    "E": {
+     "mean": 2500,
+     "cv": 0.12,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "rPET flexural modulus from 20 commercial recyclates >=1860 MPa and generally below vPET literature (ISO 178) [R08]; literature-compiled rPET modulus range broadly 1800-3500 MPa [R01 Fig.1A]; no single multi-supplier tensile-modulus dataset recovered.",
+     "confidence": "B"
+    },
+    "yield_strength": {
+     "mean": 45,
+     "cv": 0.15,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Lab-reprocessed, undried rPET shows 22.1-36.3 MPa at break (explicitly not industrial-scale) [R04]; bottle-grade rPET spec-range is 50-60+ MPa but no multi-supplier measurement recovered -> mean lowered conservatively; GRADE C / partially assumption.",
+     "confidence": "C"
+    },
+    "elongation": {
+     "mean": 3.5,
+     "cv": 0.25,
+     "unit": "%",
+     "distribution": "lognormal",
+     "evidence": "rPET strain at break 2.1-3.4% (lab) [R04]; elongation at flexural strength 4.8-5.2% (20 commercial recyclates) [R08].",
+     "confidence": "B"
+    },
+    "density": {
+     "mean": 1.34,
+     "cv": 0.008,
+     "unit": "g/cm3",
+     "distribution": "normal",
+     "evidence": "Typical semi-crystalline bottle-grade PET density 1.33-1.37; not measured in the extracted sources -> ASSUMPTION (low CV justified by density being a contractual spec that recyclers control).",
+     "confidence": "C"
+    }
+   },
+   "lot_vs_within_split": {
+    "E": {
+     "total_cv": 0.12,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.1106,
+     "cv_within": 0.0465,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "yield_strength": {
+     "total_cv": 0.15,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.1383,
+     "cv_within": 0.0581,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "elongation": {
+     "total_cv": 0.25,
+     "lot_variance_fraction": 0.6,
+     "cv_lot": 0.194,
+     "cv_within": 0.158,
+     "basis": "assumption"
+    },
+    "density": {
+     "total_cv": 0.008,
+     "lot_variance_fraction": null,
+     "basis": "assumption: density controlled by spec, treat as lot-level shift with negligible within-lot scatter"
+    }
+   }
+  },
+  "rpetg": {
+   "id": "rpetg",
+   "name": "Recycled PETG (glycol-modified PET, filament/printed or extruded sheet regrind)",
+   "process": [
+    "material_extrusion_FFF"
+   ],
+   "correlations": {
+    "lnE_lnYieldStrength": {
+     "value": 0.5,
+     "basis": "assumption",
+     "note": "Not measured; printed PETG within-batch CV is small (R07) so correlation has second-order effect."
+    },
+    "lnE_elongation": {
+     "value": -0.2,
+     "basis": "assumption",
+     "note": "Not measured."
+    }
+   },
+   "sources": [
+    "R07",
+    "R09",
+    "R10",
+    "R11"
+   ],
+   "notes": "The four rPETG sources agree that mechanical knockdown after 1-6 reprocessing cycles is small (single-digit % to ~10%), unlike rPET. For a printed-part product the dominant scatter may be printing/porosity rather than polymer batch - AnyRB's feedstock model should be calibrated with printed-coupon data, not just filament data.",
+   "confidence": "B",
+   "properties": {
+    "E": {
+     "mean": 2100,
+     "cv": 0.1,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Printed ISO 527-2 specimens: new filament 2.28 GPa (SD 0.25, CV 10.8%), recycled-once 2.17 GPa (SD 0.18, CV 8.3%), n=6 each [R07]; vendor spec 2-3 GPa.",
+     "confidence": "B"
+    },
+    "yield_strength": {
+     "mean": 46,
+     "cv": 0.1,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Peak tensile stress 46.5 MPa (SD 0.66) new vs 48.6 MPa (SD 1.54) recycled-once, ISO 527-2, n=6 [R07]; vendor tensile 50-70 MPa. Use printed-part values for printed lattice.",
+     "confidence": "B"
+    },
+    "elongation": {
+     "mean": 4.0,
+     "cv": 0.2,
+     "unit": "%",
+     "distribution": "lognormal",
+     "evidence": "Strain at peak stress 3.15-3.51% for printed PETG [R07]. NB: bulk rPETG elongation is tens of percent - printed-part brittleness is a process effect; software should model the printed part, so the low value is deliberate.",
+     "confidence": "B"
+    },
+    "density": {
+     "mean": 1.24,
+     "cv": 0.02,
+     "unit": "g/cm3",
+     "distribution": "normal",
+     "evidence": "Vendor spec 1.23 g/cm3 [R07]; common PETG datasheets 1.23-1.27 -> ASSUMPTION on CV.",
+     "confidence": "C"
+    }
+   },
+   "lot_vs_within_split": {
+    "E": {
+     "total_cv": 0.1,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.0922,
+     "cv_within": 0.0387,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "yield_strength": {
+     "total_cv": 0.1,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.0922,
+     "cv_within": 0.0387,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "elongation": {
+     "total_cv": 0.2,
+     "lot_variance_fraction": 0.5,
+     "cv_lot": 0.141,
+     "cv_within": 0.141,
+     "basis": "assumption"
+    },
+    "density": {
+     "total_cv": 0.02,
+     "lot_variance_fraction": null,
+     "basis": "assumption"
+    }
+   }
+  },
+  "rhdpe": {
+   "id": "rhdpe",
+   "name": "Recycled high-density polyethylene (PCR rigid bottles/containers from MRFs)",
+   "process": [
+    "injection_moulding",
+    "extrusion",
+    "blow_moulding",
+    "material_extrusion_FFF"
+   ],
+   "correlations": {
+    "lnE_lnYieldStrength": {
+     "value": 0.55,
+     "basis": "assumption",
+     "note": "Not measured for recyclates; PNAS modelled E and interface strength independently [R01]. Sensitivity parameter."
+    },
+    "lnE_elongation": {
+     "value": -0.3,
+     "basis": "assumption",
+     "note": "Direction motivated by degradation evidence (stiffer/embrittled after oxidation [R19]) but no coefficient measured."
+    }
+   },
+   "sources": [
+    "R01",
+    "R02",
+    "R03",
+    "R04",
+    "R12",
+    "R19",
+    "R36"
+   ],
+   "notes": "Strongest-evidenced preset. Two useful sub-cases: (a) 'film-grade rHDPE' E ~1,350 MPa CV 0.18; (b) 'MRF-mixed rigid rHDPE' E ~700-900 MPa CV 0.25-0.30. If only one preset is allowed, keep this compromise and let the user shift the mean.",
+   "confidence": "B",
+   "properties": {
+    "E": {
+     "mean": 950,
+     "cv": 0.22,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Across three US MRFs rHDPE modulus spans 380-1,250 MPa [R02 via R01]; one industrial stretch-film stream measured 1,350 +/- 239 MPa (CV 17.7%, n=50/10 plates) [R01]; literature-compiled n=40 mean 1,213 +/- 654 MPa (CV 54%, includes method heterogeneity) [R01]. Recommended preset sits between MRF-mixed and film-grade; treat as GRADE B.",
+     "confidence": "B"
+    },
+    "yield_strength": {
+     "mean": 28,
+     "cv": 0.17,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "HDPE-rich reprocessed samples 41.6-48.4 MPa; externally sourced mixed PE 22.2-38.3 MPa [R04]. Bimodality (pure rHDPE vs mixed PE) is the dominant lot-level effect; preset = mid-range mixed PCR-HDPE.",
+     "confidence": "B"
+    },
+    "elongation": {
+     "mean": 14,
+     "cv": 0.3,
+     "unit": "%",
+     "distribution": "lognormal",
+     "evidence": "Strain at yield 11.2-15.2% (HDPE-rich) and 13.3-17.0% (mixed PE) [R04]; ductile 'no break' behaviour. Elongation at break after degradation can be much lower (embrittlement under thermo-oxidative reprocessing [R19]) -> wide CV, GRADE B/C.",
+     "confidence": "C"
+    },
+    "density": {
+     "mean": 0.95,
+     "cv": 0.006,
+     "unit": "g/cm3",
+     "distribution": "normal",
+     "evidence": "Virgin HDPE control 0.946 g/cm3 [R12]; rHDPE is sorted by density and sold against a density spec -> low CV is an engineering assumption.",
+     "confidence": "C"
+    }
+   },
+   "lot_vs_within_split": {
+    "E": {
+     "total_cv": 0.22,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.2028,
+     "cv_within": 0.0852,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "yield_strength": {
+     "total_cv": 0.17,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.1567,
+     "cv_within": 0.0658,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "elongation": {
+     "total_cv": 0.3,
+     "lot_variance_fraction": 0.55,
+     "cv_lot": 0.222,
+     "cv_within": 0.201,
+     "basis": "assumption"
+    },
+    "density": {
+     "total_cv": 0.006,
+     "lot_variance_fraction": null,
+     "basis": "assumption"
+    }
+   }
+  },
+  "rpp": {
+   "id": "rpp",
+   "name": "Recycled polypropylene (PCR rigid packaging/household PP)",
+   "process": [
+    "injection_moulding",
+    "extrusion",
+    "material_extrusion_FFF"
+   ],
+   "correlations": {
+    "lnE_lnYieldStrength": {
+     "value": 0.5,
+     "basis": "assumption",
+     "note": "Filler content drives both E and density but not necessarily yield strength; no measured coefficient."
+    },
+    "lnE_elongation": {
+     "value": -0.4,
+     "basis": "assumption",
+     "note": "Filler content increases E and strongly reduces elongation at break [R05]; direction well motivated, coefficient not measured."
+    }
+   },
+   "sources": [
+    "R02",
+    "R03",
+    "R04",
+    "R05",
+    "R06",
+    "R12"
+   ],
+   "notes": "Hinczica et al. [R05] is the most direct batch-to-batch evidence in the whole library: all 10 lots met the same MFR and density specification, yet elongation at break ranged 10-100% and fatigue life ranged 3000-6.52e6 cycles. MFR/density specs are NOT sufficient acceptance criteria. Filler content (2-24 wt%) should be a first-class lot parameter.",
+   "confidence": "B",
+   "properties": {
+    "E": {
+     "mean": 1100,
+     "cv": 0.18,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Across MRFs, rPP modulus ~650 MPa in one MRF vs roughly double in the other two [R02]; process-sorted IM rPP 434-472 MPa under a different test protocol [R03]; PP is usually the stiffest common PCR polyolefin in practice. Large protocol discrepancy -> GRADE B, do not over-trust absolute value.",
+     "confidence": "B"
+    },
+    "yield_strength": {
+     "mean": 27,
+     "cv": 0.13,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Reprocessed PP tensile strength at yield 24.9-28.7 MPa across 11 samples [R04]; process-sorted IM rPP yield 12.1-13.3 MPa (protocol-dependent) [R03]. Spec MFR/density compliant lots still vary in filler (2-24 wt%) [R05].",
+     "confidence": "B"
+    },
+    "elongation": {
+     "mean": 25,
+     "cv": 0.45,
+     "unit": "%",
+     "distribution": "lognormal",
+     "evidence": "Elongation at break of 10 PCR-PP lots over 15 months: 10-100% [R05]; strain at yield 6.6-11.9% [R04]. High CV is the headline finding for rPP.",
+     "confidence": "B"
+    },
+    "density": {
+     "mean": 0.94,
+     "cv": 0.025,
+     "unit": "g/cm3",
+     "distribution": "normal",
+     "evidence": "Virgin PP control 0.900 g/cm3 [R12]; filled PCR-PP sold to 0.97 +/- 0.03 g/cm3 spec with 2-24 wt% filler [R05] -> real rPP density is a filler-content proxy and should be shifted with filler %.",
+     "confidence": "B"
+    }
+   },
+   "lot_vs_within_split": {
+    "E": {
+     "total_cv": 0.18,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.166,
+     "cv_within": 0.0697,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "yield_strength": {
+     "total_cv": 0.13,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.1199,
+     "cv_within": 0.0503,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "elongation": {
+     "total_cv": 0.45,
+     "lot_variance_fraction": 0.6,
+     "cv_lot": 0.349,
+     "cv_within": 0.285,
+     "basis": "assumption"
+    },
+    "density": {
+     "total_cv": 0.025,
+     "lot_variance_fraction": 0.8,
+     "cv_lot": 0.022,
+     "cv_within": 0.011,
+     "basis": "assumption"
+    }
+   }
+  },
+  "rldpe": {
+   "id": "rldpe",
+   "name": "Recycled low-density polyethylene (PCR film/flexible",
+   "process": [
+    "extrusion",
+    "material_extrusion_FFF"
+   ],
+   "correlations": {
+    "lnE_lnYieldStrength": {
+     "value": 0.5,
+     "basis": "assumption",
+     "note": "Not measured."
+    },
+    "lnE_elongation": {
+     "value": -0.2,
+     "basis": "assumption",
+     "note": "Not measured."
+    }
+   },
+   "sources": [
+    "R01",
+    "R04",
+    "R20",
+    "R33"
+   ],
+   "notes": "Weakest-evidenced preset; included because LDPE is part of mixed PE streams and is the usual cause of low-strength PE recyclate [R04]. Do not use for structural claims.",
+   "confidence": "D",
+   "properties": {
+    "E": {
+     "mean": 250,
+     "cv": 0.25,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Literature-compiled recycled-PE modulus ranges (approximate reading of R01 Fig.1A): rLDPE roughly 150-350 MPa, far below rHDPE; no rLDPE-specific multi-supplier dataset recovered.",
+     "confidence": "C"
+    },
+    "yield_strength": {
+     "mean": 10,
+     "cv": 0.2,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Typical LDPE tensile strength ~10 MPa cited by R04; rLDPE from post-consumer waste showed 'satisfactory' static/cyclic performance in R33 without tabulated values.",
+     "confidence": "C"
+    },
+    "elongation": {
+     "mean": 300,
+     "cv": 0.4,
+     "unit": "%",
+     "distribution": "lognormal",
+     "evidence": "Typical LDPE ductility is very high; rLDPE retains ductility in R33. Mostly ASSUMPTION.",
+     "confidence": "D"
+    },
+    "density": {
+     "mean": 0.92,
+     "cv": 0.01,
+     "unit": "g/cm3",
+     "distribution": "normal",
+     "evidence": "Typical LDPE/LLDPE 0.91-0.93; ASSUMPTION.",
+     "confidence": "C"
+    }
+   },
+   "lot_vs_within_split": {
+    "E": {
+     "total_cv": 0.25,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.2305,
+     "cv_within": 0.0968,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "yield_strength": {
+     "total_cv": 0.2,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.1844,
+     "cv_within": 0.0775,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "elongation": {
+     "total_cv": 0.4,
+     "lot_variance_fraction": 0.55,
+     "cv_lot": 0.297,
+     "cv_within": 0.268,
+     "basis": "assumption"
+    },
+    "density": {
+     "total_cv": 0.01,
+     "lot_variance_fraction": null,
+     "basis": "assumption"
+    }
+   }
+  },
+  "mixed_polyolefins": {
+   "id": "mixed_polyolefins",
+   "name": "Mixed polyolefins (e.g. #3-7 bale / commingled PE-PP)",
+   "process": [
+    "injection_moulding",
+    "extrusion"
+   ],
+   "correlations": {
+    "lnE_lnYieldStrength": {
+     "value": 0.5,
+     "basis": "assumption",
+     "note": "Not measured."
+    },
+    "lnE_elongation": {
+     "value": -0.3,
+     "basis": "assumption",
+     "note": "Not measured."
+    }
+   },
+   "sources": [
+    "R01",
+    "R02",
+    "R12",
+    "R17",
+    "R18"
+   ],
+   "notes": "For mixed streams, composition (wt% PP, filler, PET/PS contamination) is a better lot descriptor than any single mechanical property - see proxy models.",
+   "confidence": "D",
+   "properties": {
+    "E": {
+     "mean": 800,
+     "cv": 0.3,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Mixed plastic waste from MRFs shows large modulus variability across MRFs, largest for HDPE (380-1,250 MPa) [R02 via R01]; #3-7 bales contained PP up to 79 wt% [R02]. Preset is a blend assumption, GRADE D.",
+     "confidence": "D"
+    },
+    "yield_strength": {
+     "mean": 18,
+     "cv": 0.25,
+     "unit": "MPa",
+     "distribution": "lognormal",
+     "evidence": "Assumption built from rHDPE/rPP ranges [R04]; PE-PP immiscibility degrades properties [R12].",
+     "confidence": "D"
+    },
+    "elongation": {
+     "mean": 50,
+     "cv": 0.5,
+     "unit": "%",
+     "distribution": "lognormal",
+     "evidence": "Assumption; PP-rich vs PE-rich composition changes failure mode drastically (10-100% for rPP alone [R05]).",
+     "confidence": "D"
+    },
+    "density": {
+     "mean": 0.93,
+     "cv": 0.03,
+     "unit": "g/cm3",
+     "distribution": "normal",
+     "evidence": "Density of PE/PP mixture 0.90-0.96 depending on PP fraction; ASSUMPTION.",
+     "confidence": "D"
+    }
+   },
+   "lot_vs_within_split": {
+    "E": {
+     "total_cv": 0.3,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.2766,
+     "cv_within": 0.1162,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "yield_strength": {
+     "total_cv": 0.25,
+     "lot_variance_fraction": 0.85,
+     "cv_lot": 0.2305,
+     "cv_within": 0.0968,
+     "basis": "ASSUMPTION; dossier 01 recommends 85% of variance between lots for E and yield strength; engine v0.1 applies the same 0.92195/0.38730 CV multipliers uniformly"
+    },
+    "elongation": {
+     "total_cv": 0.5,
+     "lot_variance_fraction": 0.6,
+     "cv_lot": 0.387,
+     "cv_within": 0.316,
+     "basis": "assumption"
+    },
+    "density": {
+     "total_cv": 0.03,
+     "lot_variance_fraction": 0.8,
+     "cv_lot": 0.027,
+     "cv_within": 0.013,
+     "basis": "assumption"
+    }
+   }
+  }
+ },
+ "proxy_models": [
+  {
+   "id": "proxy_melt_viscosity_to_strength",
+   "input": "melt viscosity / MFR measured during compounding or in-mould (cheap, per lot; supplier datasheet or inline sensor)",
+   "target": "tensile strength and Charpy impact of the lot",
+   "relation": "Quantile/regression map from viscosity to strength/impact, calibrated per supplier: q_hat = a + b*ln(eta/eta_ref) with b>0 for strength and impact up to the point of over-degradation; a random-forest/RNN classifier can classify lots into property bins. NO closed-form universal relation was found.",
+   "accuracy": "Classification of 23 household rPP lots achieved >85% accuracy (R06). Closed-loop in-mould rheology control held mechanical-property and weight CV <5% on 5 rPP blends (R14). CAVEAT: MFR alone is demonstrably insufficient for rPP (R02 notes MFR did not track mechanical properties; Jmal et al. 2018 in R02).",
+   "source": [
+    "R06",
+    "R14",
+    "R02"
+   ],
+   "status": "usable as classification/first-order proxy, must carry residual uncertainty >=15-20%; label 'proxy, calibrate with own lot data'",
+   "residual_uncertainty_cv": "0.15-0.25 (assumption from classifier accuracy and caution in R02/R06)"
+  },
+  {
+   "id": "proxy_nir_composition_to_impact",
+   "input": "NIR / NIR-assisted flake analysis of feedstock composition (polymer mix, filler/ash proxies) or hyperspectral sorting signal",
+   "target": "density, crystallinity, short-chain branching, impact resistance",
+   "relation": "PLS/ML regression on spectra; composition (wt% other polymers) strongly correlates with impact resistance.",
+   "accuracy": "NIR-assisted flake analysis was the best composition method and strongly correlated with rPE impact resistance (R36); adding 'other PE types' reduced impact resistance by 11% at the first step (R36). PLS predicts polyolefin density/crystallinity/SCB from NIR with high accuracy (R31), but R2/RMSE values were not extractable in this study - do not quote an accuracy number.",
+   "source": [
+    "R31",
+    "R36",
+    "R15"
+   ],
+   "status": "usable for lot fingerprints / acceptance rules, not yet a calibrated property predictor in this dossier",
+   "residual_uncertainty_cv": "unknown - gap"
+  },
+  {
+   "id": "proxy_iv_to_rpet_properties",
+   "input": "intrinsic viscosity (IV) of rPET flakes/regranulate",
+   "target": "molecular weight -> strength/toughness",
+   "relation": "IV is monotonically linked to molecular weight and mechanical performance in principle; SSP can restore IV (R22).",
+   "accuracy": "No quantitative IV-to-mechanical-property mapping was recovered from verified sources -> NOT provided.",
+   "source": [
+    "R22",
+    "R08"
+   ],
+   "status": "gap - do not implement a numeric IV predictor yet",
+   "residual_uncertainty_cv": "unknown"
+  }
+ ],
+ "gaps": [
+  "No verified recyclate-specific correlation coefficient between E and yield strength (or E and elongation) was found; all correlations in this library are marked assumption.",
+  "Within-lot vs lot-to-lot variance decomposition is inferred from specimen SDs reported in R04 and cross-study spreads in R01, not measured with a nested design. The split factors (0.85/0.60) remain assumptions.",
+  "rPET tensile modulus and yield strength: only flexural/impact data from 20 commercial recyclates (R08) and lab-scale undried PET tensile data (R04) were recoverable; rPET yield strength (45 MPa) is deliberately conservative.",
+  "rPETG full text (R07) is one recycling cycle; long-run rPETG degradation numbers are qualitative only (R09-R11).",
+  "Full texts of R05 (Wiley), R06 (ACS), R14 (Wiley), R22 (MDPI), R31 (ACS) were paywalled/blocked for automated access; their numbers come from abstracts only.",
+  "Cecon et al. 2023 per-MRF Young's modulus values are reported in figures; the 380-1,250 MPa range is verified via the PNAS quotation (R01) but not re-extracted from the primary figure.",
+  "No verified data on the *seasonality* of rHDPE composition (only rPP over 15 months, R05)."
+ ],
+ "_corrections_to_spec": [
+  "PNAS 2025 e2502613122 authors are Georgiou, Sun, Liu, Athanasiou - PRODUCT_SPEC.md says 'Ghosh et al.'; correct the attribution.",
+  "J. Appl. Polym. Sci. 10.1002/app.70501 is published 2026 (issue 15), not 2025; use year 2026.",
+  "The PRODUCT_SPEC 'CV(E)=0.20' for rHDPE is defensible as a total CV; the recommended value is 0.22 with a documented sub-case split (film-grade 0.18 vs MRF-mixed 0.25-0.30).",
+  "The v0.1 two-level split CV_lot=0.8*CV_total / CV_within=0.6*CV_total (64/36 variance) over-weights within-lot scatter for E and yield strength; evidence supports ~85/15 for those properties."
+ ]
+}
