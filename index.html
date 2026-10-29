@@ -1134,8 +1134,8 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
             </div>
             <div class="segmented" id="view-toggle" role="group" aria-label="Visualisation mode">
               <button type="button" data-view="geometry" aria-pressed="true">Geometry</button>
-              <button type="button" data-view="stress" aria-pressed="false">Stress &amp; buckling</button>
-              <button type="button" data-view="width" aria-pressed="false">Strut width</button>
+              <button type="button" data-view="stress" aria-pressed="false">Where it bends</button>
+              <button type="button" data-view="width" aria-pressed="false">Strut sizes</button>
             </div>
           </div>
           <div id="lattice-stage" role="img" aria-label="Internal lattice bracket side-view drawing"></div>
@@ -1146,7 +1146,7 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
           <div class="viz-legend" aria-hidden="true">
             <span class="vl"><span class="swatch" id="legend-1"></span><span>low stress</span></span>
             <span class="vl"><span class="swatch" id="legend-2"></span><span>high stress</span></span>
-            <span class="vl"><span class="swatch" id="legend-3" style="background:var(--ink)"></span><span>strut width</span></span>
+            <span class="vl"><span class="swatch" id="legend-3" style="background:var(--ink)"></span><span>strut size</span></span>
             <span class="vl">dashed line = exaggerated bend</span>
           </div>
         </div>
@@ -6017,6 +6017,23 @@ function wireStepper() {
 // ---------------------------------------------------------------------------
 // Brief rendering
 // ---------------------------------------------------------------------------
+function plainMode(label) {
+  const map = {
+    'stiffness (deflection limit + Euler buckling)': 'too much bending (tip deflection or strut buckling)',
+    'stiffness (deflection limit)': 'too much bending',
+    'yield strength': 'material strength',
+    'strength': 'material strength',
+    'Euler buckling': 'strut buckling',
+    'deflection limit': 'tip deflection',
+  };
+  return map[label] || label;
+}
+function plainPrint(pr, pass) {
+  const ratio = pr.max_neighbour_width_ratio ?? pr.maxNeighbourRatio ?? 1;
+  const slen = pr.max_slenderness ?? pr.maxSlenderness ?? 0;
+  return `${pass ? 'print check clear' : 'print check flagged'} · width change ${nf(ratio, 2)} · thin-strut ${nf(slen, 1)}`;
+}
+
 function renderProject() {
   const pn = $('#project-name');
   if (pn) pn.textContent = state.project;
@@ -6305,8 +6322,8 @@ function renderDesign() {
   const preset = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
   $('#viz-meta').textContent = `${GEOMETRY.Lx} × ${GEOMETRY.Ly} × ${GEOMETRY.depth} mm · ${preset.label} · ${nf(state.brief.loadN, 0)} N tip load`;
   const cap = $('#viz-caption-text');
-  const rankLabel = Number.isFinite(c.rank) ? `checked by the calculator · option ${c.rank}` : 'best of this family';
-  if (cap) cap.textContent = `Showing: ${c.name} · ${c.feasible ? 'meets target' : 'below target'} · ${rankLabel}`;
+  const showName = /best of this family/i.test(c.name) ? 'best of this family' : c.name;
+  if (cap) cap.textContent = `Showing: ${showName} · ${c.feasible ? 'meets target' : 'below target'}`;
   setStep('design');
 }
 function renderCandidates() {
@@ -6320,11 +6337,11 @@ function renderCandidates() {
     const slen = print.max_slenderness ?? print.maxSlenderness ?? 0;
     const recommended = c.rank === 1 && c.feasible;
     const btn = el(`
-      <button class="candidate" type="button" aria-pressed="${c.id === state.selectedId}" data-id="${esc(c.id)}" aria-label="${esc(c.name)} candidate: ${nf(c.mass_g, 2)} grams printed mass, probability of failure ${fmtPf(c.pf)}, ${printPass ? 'printability pass' : 'printability warning'}">
+      <button class="candidate" type="button" aria-pressed="${c.id === state.selectedId}" data-id="${esc(c.id)}" aria-label="${esc(c.name)} suggestion: ${nf(c.mass_g, 2)} grams estimated printed mass, failure chance ${fmtPf(c.pf)}, ${printPass ? 'print check clear' : 'print check flagged'}">
         <div class="c-tags">
           <span class="pill pill--muted">AI suggestion</span>
           ${recommended ? '<span class="pill pill--verify"><span class="p-dot"></span>Recommended</span>' : ''}
-          ${printPass ? '' : '<span class="pill pill--accent">printability warn</span>'}
+          ${printPass ? '' : '<span class="pill pill--accent">print check flag</span>' }
         </div>
         <div class="c-name">${esc(c.name)}</div>
         <div class="c-mass">${nf(c.mass_g, 2)} <span class="u">g</span> <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">printed</span></div>
@@ -6349,8 +6366,8 @@ function renderHero() {
   $('#hero-mass').textContent = `${nf(h.printed_mass_g, 2)} g`;
   $('#hero-ub').textContent = `${nf(h.mass_analytic_g, 2)} g`;
   $('#hero-pf').textContent = fmtPf(h.pf);
-  $('#hero-print').textContent = `${h.printabilityPass ? 'pass' : 'warn'} · ratio ${nf(print.max_neighbour_width_ratio, 2)} · L/w ${nf(print.max_slenderness, 1)}`;
-  $('#hero-mode').textContent = h.governing || '—';
+  $('#hero-print').textContent = plainPrint(print, !!h.printabilityPass);
+  $('#hero-mode').textContent = plainMode(h.governing || '—');
   const polish = $('#hero-polish');
   if (polish) {
     if (h.union_polished) {
@@ -6376,14 +6393,14 @@ function renderHero() {
   pfEl.className = 'm-value ' + (c.pf <= state.brief.targetPf ? 'is-good' : 'is-warn');
   $('#metric-pf-sub').textContent = `target ≤ ${fmtPf(state.brief.targetPf)} · across delivered lots`;
   const modeEl = $('#metric-mode-value');
-  modeEl.textContent = c.governing || '—';
-  $('#metric-mode-sub').textContent = 'whichever failure mode carries the probability';
+  modeEl.textContent = plainMode(c.governing || '—');
+  $('#metric-mode-sub').textContent = 'the weak point that drives the risk';
   const print = c.printability || {};
   const badge = $('#metric-print-badge');
   if (badge) {
     const pass = c.printabilityPass ?? !!(print.pass);
     badge.className = 'pill ' + (pass ? 'pill--verify' : 'pill--accent');
-    badge.textContent = `${pass ? 'printability pass' : 'printability warn'} · ratio ${nf(print.max_neighbour_width_ratio ?? print.maxNeighbourRatio, 2)} · L/w ${nf(print.max_slenderness ?? print.maxSlenderness, 1)}`;
+    badge.textContent = plainPrint(print, pass);
   }
   renderMassFootnotes();
 }
@@ -6710,15 +6727,13 @@ function renderProof() {
   chip.innerHTML = `<span class="p-dot" style="background:currentColor"></span>${meets ? 'Meets' : 'Misses'} ${(100 - target * 100).toFixed(0)} % reliability target`;
 
   drawGauge($('#gauge'), rep.pfAnalytic, target);
-  $('#gauge-mode').textContent = rep.modes.governingLabel;
+  $('#gauge-mode').textContent = plainMode(rep.modes.governingLabel);
   const printed = a.printed_mass_g ?? a.mass_g;
   $('#gauge-mass').textContent = `${nf(printed, 2)} g`;
   const ub = $('#gauge-mass-ub');
   if (ub) ub.textContent = `${nf(a.mass_analytic_g ?? a.mass_g, 2)} g`;
   const pr = E.printabilityReport(a);
-  $('#gauge-print').textContent = pr
-    ? `${pr.pass ? 'pass' : 'warn'} · ratio ${nf(pr.max_neighbour_width_ratio, 2)} · L/w ${nf(pr.max_slenderness, 1)}`
-    : '—';
+  $('#gauge-print').textContent = pr ? plainPrint(pr, !!pr.pass) : '—';
   $('#gauge-rel').textContent = `${(rep.reliability * 100).toFixed(2)} %`;
 
   renderQC();
