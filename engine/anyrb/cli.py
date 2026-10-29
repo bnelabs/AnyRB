@@ -23,7 +23,7 @@ from .mechanics import evaluate
 
 
 def _print_comparison(res: dict) -> None:
-    print(f"{'strategy':<26}{'mass (g)':>10}{'P_f':>12}{'sigma_req':>12}"
+    print(f"{'strategy':<26}{'printed g':>10}{'analytic g':>10}{'P_f':>12}{'sigma_req':>12}"
           f"{'E_req':>10}{'u_tip':>9}")
     print("-" * 79)
     for k in ("solid", "uniform", "uniform_match", "nominal_sf15",
@@ -31,7 +31,7 @@ def _print_comparison(res: dict) -> None:
         r = res.get(k)
         if r is None:
             continue
-        print(f"{k:<26}{r.mass_g:>10.2f}{r.pf:>12.5f}{r.sigma_req_MPa:>12.2f}"
+        print(f"{k:<26}{(r.printed_mass_g or r.mass_g):>10.2f}{r.mass_g:>10.2f}{r.pf:>12.5f}{r.sigma_req_MPa:>12.2f}"
               f"{r.E_req_MPa:>10.1f}{r.u_tip_mean_mm:>9.3f}")
     print(f"\ntarget P_f = {res['target_pf']:.3g}")
 

@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-29T15:54:06+00:00",
+  "generated_utc": "2026-10-29T16:05:19+00:00",
   "material": {
     "id": "rpetg",
     "name": "rPETG (recycled PETG, printed parts)",
@@ -164,6 +164,14 @@
     "creep_factor": 2.0,
     "compression_factor": 0.8,
     "note": "Advisory bound: sustained load + compression knock-down; not the design allowables."
+  },
+  "validation": {
+    "total": 53,
+    "PASS": 51,
+    "WARN": 2,
+    "FAIL": 0,
+    "runtime_s": 32.6,
+    "exit_code": 0
   },
   "mass_basis": {
     "analytic_upper_bound_g": 50.809428668061415,

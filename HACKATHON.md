@@ -59,10 +59,9 @@ The browser never sees the API key; it stays in a local server process.
    1 % failure risk, under 60 g, recycled PETG."* Show the transcript, then Muse Spark's structured
    understanding card. Paste a supplier datasheet; Spark extracts E, σy, CVs with provenance.
 3. **0:55–1:35 — Design (AI proposes, physics disposes).** Show three AI-proposed candidates; the verified
-   engine ranks them. Pick the balanced one and optimise: 62.7 g → 46.4 g at ~1 % failure probability.
+   engine ranks them. Pick the balanced one and optimise: 55.9 g printed prior → 46.4 g printed optimum (analytic 62.7 → 50.8 g) at ~1 % failure probability.
    Show the lattice, the binding failure mode and the AI memo.
-4. **1:35–2:10 — Prove.** Batch passport: a lot with 80 % of nominal E needs a 1.10× width scale (+8.5 % mass)
-   and passes; a 50 %-E lot is rejected. Scientific validation checklist (L0–L1 verified, L2 partial, no
+4. **1:35–2:10 — Prove.** Batch passport: a lot with 90 % of nominal E needs a 1.15× global-equivalent scale (+14.9 % printed mass, conditional); an 80 %-E lot needs 1.39× (+22.0 %, conditional); a 50 %-E lot is rejected. The recipe is a lot-specific 8-control resize with 12 % measurement uncertainty retained. Scientific validation checklist (L0–L1 verified, L2 partial, no
    physical tests). Muse Spark writes the qualification narrative; Muse Image renders the illustrative product.
 5. **2:10–2:40 — Why it matters.** 58 % lighter than a solid plate at the same simulated risk; 14 % lighter than
    a uniform lattice; conventional FoS-1.5 over-pays. The claim ladder and minimum validation programme

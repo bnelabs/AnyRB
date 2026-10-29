@@ -1,5 +1,5 @@
 /**
- * AnyBatch v0.2 — embedded Muse Image concept render (offline/demo fallback).
+ * AnyRB v0.3 — embedded Muse Image concept render (offline/demo fallback).
  * Source asset: demo/assets/product_render.png (Muse Image 1.0, 1200×1200).
  * Downscaled and inlined so the standalone build stays single-file.
  * Always labelled "AI illustration — not the CAD model".

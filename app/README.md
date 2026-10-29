@@ -133,8 +133,8 @@ runs `node --check` on the generated classic script. No external fonts, CDNs or 
 | default uniform 2.0 mm | 62.69 g · P_f 0.0082 % · governing Euler buckling |
 | robust multi-start optimum | **46.40 g · P_f 0.996 %** (analytic mass basis) |
 | comparison | solid 111.60 g · uniform target-sized 53.97 g @1.00 % · nominal FoS1.5 50.77 g · mean-only 41.11 g @51.8 % |
-| printability | min width 1.18 mm · L/w 22.7 · neighbour ratio 1.45 (all pass) |
-| batch passport at robust design | E ×0.80 → scale 1.10 (+8.5 % mass, pass); E ×0.50 → reject |
+| printability | min width 1.24 mm · L/w 21.9 · neighbour ratio 1.38 (pass; limits enforced) |
+| batch passport at robust design | E ×0.90 → global-equivalent 1.15 (+14.9 % printed mass, conditional); E ×0.50 → reject; 8-control resize, 12 % measurement CV retained |
 | validation | 51 PASS / 2 WARN / 0 FAIL · 53 checks · L0–L1 verified, L2 partial |
 | AI verification | live backend: brief/plan/review/proof via Muse Spark (10.8–22.8 s, cached on repeat), Muse Image render, Muse Voice ASR |
 

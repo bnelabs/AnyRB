@@ -14,6 +14,7 @@ import os
 from dataclasses import asdict
 
 import numpy as np
+from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
@@ -30,6 +31,17 @@ from .optimize import (compare_strategies, batch_recipe, acceptance_window,
                        pareto_curve, optimize_robust)
 from .reliability import failure_probability, mode_split, monte_carlo, sensitivity
 from .stl import write_ascii_stl
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _validation_summary() -> dict | None:
+    try:
+        data = json.loads((PROJECT_ROOT / "validation" / "results.json").read_text())
+        return data.get("summary")
+    except Exception:
+        return None
+
 
 PALETTE = {
     "solid": "#8D99AE",
@@ -294,6 +306,7 @@ def build_report(mat: Material, target_pf: float = 0.01,
     aw = acceptance_window(mat, robust.controls, target_pf, n_grid=41)
     sustained = sustained_bound(mat, robust.controls)
     feasibility = family_feasibility(mat, target_pf)
+    val = _validation_summary() or {}
 
     # batch passport scenarios
     lot_rows = []
@@ -336,6 +349,7 @@ def build_report(mat: Material, target_pf: float = 0.01,
         "printability": printable,
         "family_feasibility": feasibility,
         "sustained_bound": sustained,
+        "validation": val,
         "mass_basis": {
             "analytic_upper_bound_g": robust.mass_g,
             "printed_union_estimate_g": robust.printed_mass_g,
@@ -565,6 +579,11 @@ slicer's extrusion-multiplier setting. Inputs would be supplier lot data or a me
 
 <h2>5. Verification evidence (why you can trust the model at all)</h2>
 <div class="card">
+<div class="ok"><strong>Independent validation suite:</strong> {val.get('PASS', '—')} PASS / {val.get('WARN', '—')} WARN /
+{val.get('FAIL', '—')} FAIL across {val.get('total', '—')} checks (see <code>validation/VALIDATION.md</code>).
+The two WARNs are disclosed, not hidden: <strong>F4</strong> the analytic strut-sum is a conservative upper bound
+(robust design 50.81 g vs printed union 46.40 g, +9.5 %), and <strong>F5</strong> the deterministic Halton printed-mass
+estimator is within 0.1 % on shipped designs but 0.35 % at the minimum strut width, slightly outside its 0.3 % target.</div>
 <div class="ok"><strong>Code verification passed in this build:</strong>
 single-element cantilever FE matches the Euler–Bernoulli closed form to machine precision
 (relative error &lt; 1e-15); the bivariate-normal failure integral matches SciPy's reference to

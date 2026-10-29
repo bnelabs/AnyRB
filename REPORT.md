@@ -178,14 +178,14 @@ AI can be swapped without changing any scientific result.
 
 | Strategy | Mass (g) | P_f | Note |
 |---|---|---|---|
-| Solid plate | 111.6 | ~0 | over-designed, 2.2× the mass |
-| Uniform lattice, sized for ~1 % | 55.3 | 0.98 % | no grading |
-| Uniform lattice, same printed mass as robust (46.4 g) | 46.0 | ~100 % | shaping matters, not just mass |
-| Nominal design, deterministic SF 1.5 | 50.9 | ~0.001 % | 10 % heavier than robust, far lower risk than required |
-| Mean-material design, SF 1.0 | 41.3 | 51 % | "works for the average lot" = fails half the lots |
+| Solid plate | 111.6 | ~0 | over-designed, 2.4× the printed mass |
+| Uniform lattice, sized for ~1 % | 54.0 | 0.98 % | no grading |
+| Uniform lattice, same printed mass as robust (46.25 g) | 46.25 | ~100 % | shaping matters, not just mass |
+| Nominal design, deterministic SF 1.5 | 50.77 | ~0.001 % | ~9 % heavier than robust, far lower risk than required |
+| Mean-material design, SF 1.0 | 41.11 | 51 % | "works for the average lot" = fails half the lots |
 | **Robust design (AnyRB)** | **46.4** | **0.996 %** | target met; printed union estimate; analytic upper bound 50.8 g |
 
-Batch-passport examples for the robust design: a lot with 80 % of nominal E needs width scale ≈ 1.10 (+8.5 % mass, "pass with compensation"); a lot with 70 % of nominal strength needs no compensation, because strength is not the binding property for this geometry; nominal lots pass as designed. The acceptance window and sensitivity ranking (mean E, load and the deflection limit dominate; CV(σy) and the correlation are negligible for this geometry) are generated per design in [`reports/qualification_report.html`](reports/qualification_report.html).
+Batch-passport examples for the robust design (v0.3, 12 % measurement CV retained, 8-control lot-specific resize): a lot with 90 % of nominal E needs a global-equivalent scale ≈ 1.15 and +14.9 % printed mass ("conditional (heavy compensation)"); a lot with 80 % of nominal E needs ≈ 1.39 and +22.0 % ("conditional"); lots at 50 % E are outside the printable compensation range and are rejected. A lot with 70 % of nominal strength needs no compensation because strength is not the binding property for this geometry. The acceptance window and sensitivity ranking (mean E, load and the deflection limit dominate; CV(σy) and the correlation are negligible for this geometry) are generated per design in [`reports/qualification_report.html`](reports/qualification_report.html).
 
 The engineering interpretation:
 
