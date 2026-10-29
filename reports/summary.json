@@ -1,270 +1,270 @@
 {
- "generated_utc": "2026-10-29T20:25:55+00:00",
- "material": {
-  "id": "rpetg",
-  "name": "rPETG (recycled PETG, printed parts)",
-  "process": "FDM/FFF",
-  "E_mean": 2100.0,
-  "E_cv": 0.1,
-  "sy_mean": 46.0,
-  "sy_cv": 0.1,
-  "rho": 1.24,
-  "corr": 0.55,
-  "lot_fraction": 0.92195,
-  "within_fraction": 0.3873
- },
- "target_pf": 0.01,
- "load_N": 150.0,
- "deflection_limit_mm": 2.5,
- "robust": {
-  "name": "Robust optimisation",
-  "strategy": "robust",
-  "controls": [
-   0.7048622886681098,
-   0.6173622886681099,
-   0.3548622886681098,
-   0.17986228866810977,
-   0.17986228866810983,
-   0.44236228866810984,
-   0.5298622886681098,
-   0.42048728866810986
-  ],
-  "mass_g": 50.809428668061415,
-  "printed_mass_g": 46.40025605333333,
-  "mass_analytic_g": 50.809428668061415,
-  "pf": 0.009956387330703032,
-  "reliability": 0.990043612669297,
-  "sigma_req_MPa": 18.80622128676824,
-  "E_req_MPa": 1687.9766194499934,
-  "u_tip_mean_mm": 2.0094959755357067,
-  "printability": {
-   "min_width_mm": 1.2427942708684527,
-   "max_width_mm": 1.9859795900725021,
-   "max_slenderness": 21.915259138263814,
-   "max_neighbour_width_ratio": 1.3754074300634593,
-   "out_of_bounds": false
+  "generated_utc": "2026-10-29T20:35:23+00:00",
+  "material": {
+    "id": "rpetg",
+    "name": "rPETG (recycled PETG, printed parts)",
+    "process": "FDM/FFF",
+    "E_mean": 2100.0,
+    "E_cv": 0.1,
+    "sy_mean": 46.0,
+    "sy_cv": 0.1,
+    "rho": 1.24,
+    "corr": 0.55,
+    "lot_fraction": 0.92195,
+    "within_fraction": 0.3873
   },
-  "union_polished": false,
-  "union_evals": 0
- },
- "uniform_target_sized": {
-  "name": "Uniform lattice (target)",
-  "strategy": "uniform",
-  "controls": [
-   0.6492279466251099,
-   0.6492279466251099,
-   0.6492279466251099,
-   0.6492279466251099,
-   0.6492279466251099,
-   0.6492279466251099,
-   0.6492279466251099,
-   0.6492279466251099
-  ],
-  "mass_g": 60.318749016337094,
-  "printed_mass_g": 53.97413141333333,
-  "mass_analytic_g": 60.318749016337094,
-  "pf": 0.009826446903518415,
-  "reliability": 0.9901735530964816,
-  "sigma_req_MPa": 14.471040671677411,
-  "E_req_MPa": 1687.2124096158602,
-  "u_tip_mean_mm": 1.684358455065965,
-  "printability": {
-   "min_width_mm": 1.9140625,
-   "max_width_mm": 1.9140625,
-   "max_slenderness": 14.777088651735198,
-   "max_neighbour_width_ratio": 1.0,
-   "out_of_bounds": false
+  "target_pf": 0.01,
+  "load_N": 150.0,
+  "deflection_limit_mm": 2.5,
+  "robust": {
+    "name": "Robust optimisation",
+    "strategy": "robust",
+    "controls": [
+      0.7048622886681098,
+      0.6173622886681099,
+      0.3548622886681098,
+      0.17986228866810977,
+      0.17986228866810983,
+      0.44236228866810984,
+      0.5298622886681098,
+      0.42048728866810986
+    ],
+    "mass_g": 50.809428668061415,
+    "printed_mass_g": 46.40025605333333,
+    "mass_analytic_g": 50.809428668061415,
+    "pf": 0.009956387330703032,
+    "reliability": 0.990043612669297,
+    "sigma_req_MPa": 18.80622128676824,
+    "E_req_MPa": 1687.9766194499934,
+    "u_tip_mean_mm": 2.0094959755357067,
+    "printability": {
+      "min_width_mm": 1.2427942708684527,
+      "max_width_mm": 1.9859795900725021,
+      "max_slenderness": 21.915259138263814,
+      "max_neighbour_width_ratio": 1.3754074300634593,
+      "out_of_bounds": false
+    },
+    "union_polished": false,
+    "union_evals": 0
   },
-  "union_polished": false,
-  "union_evals": 0
- },
- "nominal_sf15": {
-  "name": "Nominal optimisation (SF 1.5)",
-  "strategy": "nominal_sf1.5",
-  "controls": [
-   0.7157997886681099,
-   0.7486122886681098,
-   0.4095497886681098,
-   0.3657997886681098,
-   0.7376747886681098,
-   0.7376747886681098,
-   0.38767478866810984,
-   0.3439247886681098
-  ],
-  "mass_g": 56.43064733679817,
-  "printed_mass_g": 50.77227616,
-  "mass_analytic_g": 56.43064733679817,
-  "pf": 6.335722583239445e-06,
-  "reliability": 0.9999936642774168,
-  "sigma_req_MPa": 13.516956350450839,
-  "E_req_MPa": 1399.4239973352467,
-  "u_tip_mean_mm": 1.665980949208627,
-  "printability": {
-   "min_width_mm": 1.4156242813046143,
-   "max_width_mm": 2.1019870717868865,
-   "max_slenderness": 19.79363144623785,
-   "max_neighbour_width_ratio": 1.4610665265397251,
-   "out_of_bounds": false
+  "uniform_target_sized": {
+    "name": "Uniform lattice (target)",
+    "strategy": "uniform",
+    "controls": [
+      0.6492279466251099,
+      0.6492279466251099,
+      0.6492279466251099,
+      0.6492279466251099,
+      0.6492279466251099,
+      0.6492279466251099,
+      0.6492279466251099,
+      0.6492279466251099
+    ],
+    "mass_g": 60.318749016337094,
+    "printed_mass_g": 53.97413141333333,
+    "mass_analytic_g": 60.318749016337094,
+    "pf": 0.009826446903518415,
+    "reliability": 0.9901735530964816,
+    "sigma_req_MPa": 14.471040671677411,
+    "E_req_MPa": 1687.2124096158602,
+    "u_tip_mean_mm": 1.684358455065965,
+    "printability": {
+      "min_width_mm": 1.9140625,
+      "max_width_mm": 1.9140625,
+      "max_slenderness": 14.777088651735198,
+      "max_neighbour_width_ratio": 1.0,
+      "out_of_bounds": false
+    },
+    "union_polished": false,
+    "union_evals": 0
   },
-  "union_polished": false,
-  "union_evals": 0
- },
- "mean_only": {
-  "name": "Mean-material design (SF 1.0)",
-  "strategy": "nominal_sf1",
-  "controls": [
-   0.6712721805599453,
-   0.5181471805599454,
-   0.3431471805599453,
-   0.12439718055994532,
-   0.0,
-   0.10252218055994533,
-   0.16814718055994532,
-   0.3431471805599453
-  ],
-  "mass_g": 44.38185870186539,
-  "printed_mass_g": 41.11342016,
-  "mass_analytic_g": 44.38185870186539,
-  "pf": 0.5116495224201859,
-  "reliability": 0.4883504775798141,
-  "sigma_req_MPa": 21.861982516081817,
-  "E_req_MPa": 2096.7577470583697,
-  "u_tip_mean_mm": 2.3842107498648004,
-  "printability": {
-   "min_width_mm": 1.0222121349551379,
-   "max_width_mm": 1.893561941564258,
-   "max_slenderness": 24.9678347089577,
-   "max_neighbour_width_ratio": 1.4264778062033725,
-   "out_of_bounds": false
+  "nominal_sf15": {
+    "name": "Nominal optimisation (SF 1.5)",
+    "strategy": "nominal_sf1.5",
+    "controls": [
+      0.7157997886681099,
+      0.7486122886681098,
+      0.4095497886681098,
+      0.3657997886681098,
+      0.7376747886681098,
+      0.7376747886681098,
+      0.38767478866810984,
+      0.3439247886681098
+    ],
+    "mass_g": 56.43064733679817,
+    "printed_mass_g": 50.77227616,
+    "mass_analytic_g": 56.43064733679817,
+    "pf": 6.335722583239445e-06,
+    "reliability": 0.9999936642774168,
+    "sigma_req_MPa": 13.516956350450839,
+    "E_req_MPa": 1399.4239973352467,
+    "u_tip_mean_mm": 1.665980949208627,
+    "printability": {
+      "min_width_mm": 1.4156242813046143,
+      "max_width_mm": 2.1019870717868865,
+      "max_slenderness": 19.79363144623785,
+      "max_neighbour_width_ratio": 1.4610665265397251,
+      "out_of_bounds": false
+    },
+    "union_polished": false,
+    "union_evals": 0
   },
-  "union_polished": false,
-  "union_evals": 0
- },
- "solid": {
-  "name": "Solid plate",
-  "strategy": "solid",
-  "controls": [
-   1.3862943611198906,
-   1.3862943611198906,
-   1.3862943611198906,
-   1.3862943611198906,
-   1.3862943611198906,
-   1.3862943611198906,
-   1.3862943611198906,
-   1.3862943611198906
-  ],
-  "mass_g": 111.6,
-  "printed_mass_g": 111.6,
-  "mass_analytic_g": 111.6,
-  "pf": 0.0,
-  "reliability": 1.0,
-  "sigma_req_MPa": 3.5,
-  "E_req_MPa": 304.8888888888889,
-  "u_tip_mean_mm": 0.36296296296296293,
-  "printability": null,
-  "union_polished": false,
-  "union_evals": 0
- },
- "pf_mc": 0.010633333333333333,
- "pf_mc_stderr": 0.0004187335181941604,
- "p5_margin": 1.0649546531247107,
- "robustness_index": 0.8559884916195963,
- "sensitivity": {
-  "base": 0.009956387330703032,
-  "cv_E": 0.022634526682255074,
-  "cv_sy": 5.551115123125783e-17,
-  "corr": 0.0,
-  "load": 0.5288735582280766,
-  "mean_E": 0.7778961496729228,
-  "mean_sy": 1.535327420754129e-12,
-  "u_limit": 0.5288735582280766
- },
- "acceptance_window_pass_fraction": 0.5365853658536586,
- "printability": {
-  "min_width_mm": 1.2427942708684527,
-  "max_width_mm": 1.9859795900725021,
-  "max_slenderness": 21.915259138263814,
-  "max_neighbour_width_ratio": 1.3754074300634593,
-  "out_of_bounds": false
- },
- "family_feasibility": {
-  "feasible": true,
-  "min_achievable_pf": 0.0,
+  "mean_only": {
+    "name": "Mean-material design (SF 1.0)",
+    "strategy": "nominal_sf1",
+    "controls": [
+      0.6712721805599453,
+      0.5181471805599454,
+      0.3431471805599453,
+      0.12439718055994532,
+      0.0,
+      0.10252218055994533,
+      0.16814718055994532,
+      0.3431471805599453
+    ],
+    "mass_g": 44.38185870186539,
+    "printed_mass_g": 41.11342016,
+    "mass_analytic_g": 44.38185870186539,
+    "pf": 0.5116495224201859,
+    "reliability": 0.4883504775798141,
+    "sigma_req_MPa": 21.861982516081817,
+    "E_req_MPa": 2096.7577470583697,
+    "u_tip_mean_mm": 2.3842107498648004,
+    "printability": {
+      "min_width_mm": 1.0222121349551379,
+      "max_width_mm": 1.893561941564258,
+      "max_slenderness": 24.9678347089577,
+      "max_neighbour_width_ratio": 1.4264778062033725,
+      "out_of_bounds": false
+    },
+    "union_polished": false,
+    "union_evals": 0
+  },
+  "solid": {
+    "name": "Solid plate",
+    "strategy": "solid",
+    "controls": [
+      1.3862943611198906,
+      1.3862943611198906,
+      1.3862943611198906,
+      1.3862943611198906,
+      1.3862943611198906,
+      1.3862943611198906,
+      1.3862943611198906,
+      1.3862943611198906
+    ],
+    "mass_g": 111.6,
+    "printed_mass_g": 111.6,
+    "mass_analytic_g": 111.6,
+    "pf": 0.0,
+    "reliability": 1.0,
+    "sigma_req_MPa": 3.5,
+    "E_req_MPa": 304.8888888888889,
+    "u_tip_mean_mm": 0.36296296296296293,
+    "printability": null,
+    "union_polished": false,
+    "union_evals": 0
+  },
+  "pf_mc": 0.010633333333333333,
+  "pf_mc_stderr": 0.0004187335181941604,
+  "p5_margin": 1.0649546531247107,
+  "robustness_index": 0.8559884916195963,
+  "sensitivity": {
+    "base": 0.009956387330703032,
+    "cv_E": 0.022634526682255074,
+    "cv_sy": 5.551115123125783e-17,
+    "corr": 0.0,
+    "load": 0.5288735582280766,
+    "mean_E": 0.7778961496729228,
+    "mean_sy": 1.535327420754129e-12,
+    "u_limit": 0.5288735582280766
+  },
+  "acceptance_window_pass_fraction": 0.5365853658536586,
+  "printability": {
+    "min_width_mm": 1.2427942708684527,
+    "max_width_mm": 1.9859795900725021,
+    "max_slenderness": 21.915259138263814,
+    "max_neighbour_width_ratio": 1.3754074300634593,
+    "out_of_bounds": false
+  },
+  "family_feasibility": {
+    "feasible": true,
+    "min_achievable_pf": 0.0,
+    "process_ok": true,
+    "sigma_req_MPa": 7.705158584255079,
+    "E_req_MPa": 668.052422193389,
+    "max_width_mm": 4.0,
+    "target_pf": 0.01
+  },
+  "sustained_bound": {
+    "pf_bound": 0.999999903638175,
+    "E_req_bound_MPa": 3375.953238899987,
+    "sigma_req_bound_MPa": 23.507776608460297,
+    "deflection_bound_mm": 4.018991951071413,
+    "creep_factor": 2.0,
+    "compression_factor": 0.8,
+    "note": "Advisory bound: sustained load + compression knock-down; not the design allowables."
+  },
+  "validation": {
+    "total": 58,
+    "PASS": 56,
+    "WARN": 2,
+    "FAIL": 0,
+    "runtime_s": 48.2,
+    "exit_code": 0
+  },
+  "assumptions": {
+    "corr_range": [
+      {
+        "corr": 0.3,
+        "pf": 0.009956387330703032
+      },
+      {
+        "corr": 0.7,
+        "pf": 0.009956387330703032
+      }
+    ],
+    "split_range": [
+      {
+        "lot_fraction": 0.75,
+        "pf": 0.0019963895160628464
+      },
+      {
+        "lot_fraction": 0.95,
+        "pf": 0.012010313374504644
+      }
+    ],
+    "pf_min": 0.0019963895160628464,
+    "pf_max": 0.012010313374504644
+  },
+  "brittle_screen": {
+    "strain_req_pct": 0.8955343469889637,
+    "elongation_mean_pct": 4.0,
+    "elongation_cv": 0.2,
+    "pf_brittle": 0.0,
+    "pf_bound": 0.009956387330703032,
+    "note": "Marginal brittle-lot screen; not included in the headline two-property P_f because the E-elongation correlation is assumed."
+  },
   "process_ok": true,
-  "sigma_req_MPa": 7.705158584255079,
-  "E_req_MPa": 668.052422193389,
-  "max_width_mm": 4.0,
-  "target_pf": 0.01
- },
- "sustained_bound": {
-  "pf_bound": 0.999999903638175,
-  "E_req_bound_MPa": 3375.953238899987,
-  "sigma_req_bound_MPa": 23.507776608460297,
-  "deflection_bound_mm": 4.018991951071413,
-  "creep_factor": 2.0,
-  "compression_factor": 0.8,
-  "note": "Advisory bound: sustained load + compression knock-down; not the design allowables."
- },
- "validation": {
-  "total": 58,
-  "PASS": 56,
-  "WARN": 2,
-  "FAIL": 0,
-  "runtime_s": 50.2,
-  "exit_code": 0
- },
- "assumptions": {
-  "corr_range": [
-   {
-    "corr": 0.3,
-    "pf": 0.009956387330703032
-   },
-   {
-    "corr": 0.7,
-    "pf": 0.009956387330703032
-   }
-  ],
-  "split_range": [
-   {
-    "lot_fraction": 0.75,
-    "pf": 0.0019963895160628464
-   },
-   {
-    "lot_fraction": 0.95,
-    "pf": 0.012010313374504644
-   }
-  ],
-  "pf_min": 0.0019963895160628464,
-  "pf_max": 0.012010313374504644
- },
- "brittle_screen": {
-  "strain_req_pct": 0.8955343469889637,
-  "elongation_mean_pct": 4.0,
-  "elongation_cv": 0.2,
-  "pf_brittle": 0.0,
-  "pf_bound": 0.009956387330703032,
-  "note": "Marginal brittle-lot screen; not included in the headline two-property P_f because the E-elongation correlation is assumed."
- },
- "process_ok": true,
- "lot_record_supplied": false,
- "mass_basis": {
-  "analytic_upper_bound_g": 50.809428668061415,
-  "printed_union_estimate_g": 46.40025605333333,
-  "analytic_overcount_pct": 9.50247474854471,
-  "method": "printed union Halton 60k samples; analytic sums strut volumes (upper bound)"
- },
- "stl": {
-  "path": "/Users/barisnacierzeren/Downloads/Candidate-2/anyrb/reports/robust_design.stl",
-  "triangles": 1140,
-  "size_bytes": 251825
- },
- "limitations": [
-  "In-silico only; no experimental validation was possible in this project.",
-  "Linear-elastic plane-frame idealisation; no plasticity, creep or fatigue.",
-  "Euler buckling with pinned-pinned effective length (k=1), pure axial load (no combined axial-bending buckling); rigid joints are not modelled explicitly.",
-  "Strut mass sums element volumes without subtracting material overlap at nodes; this is conservative (over-estimates mass) for thick struts.",
-  "Batch-uniform material inside a part; no spatial scatter or print defects.",
-  "Literature-derived feedstock distributions (provisional v0.1).",
-  "Not a certification tool. Use as decision support and validate before production."
- ]
+  "lot_record_supplied": false,
+  "mass_basis": {
+    "analytic_upper_bound_g": 50.809428668061415,
+    "printed_union_estimate_g": 46.40025605333333,
+    "analytic_overcount_pct": 9.50247474854471,
+    "method": "printed union Halton 60k samples; analytic sums strut volumes (upper bound)"
+  },
+  "stl": {
+    "path": "/Users/barisnacierzeren/Downloads/Candidate-2/anyrb/reports/robust_design.stl",
+    "triangles": 1140,
+    "size_bytes": 251825
+  },
+  "limitations": [
+    "In-silico only; no experimental validation was possible in this project.",
+    "Linear-elastic plane-frame idealisation; no plasticity, creep or fatigue.",
+    "Euler buckling with pinned-pinned effective length (k=1), pure axial load (no combined axial-bending buckling); rigid joints are not modelled explicitly.",
+    "Strut mass sums element volumes without subtracting material overlap at nodes; this is conservative (over-estimates mass) for thick struts.",
+    "Batch-uniform material inside a part; no spatial scatter or print defects.",
+    "Literature-derived feedstock distributions (provisional v0.1).",
+    "Not a certification tool. Use as decision support and validate before production."
+  ]
 }

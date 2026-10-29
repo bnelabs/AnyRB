@@ -105,3 +105,33 @@ Report/HTML show “lot-vs-within split 75–95 % moves P_f from 0.20 % to 1.20 
 ## 4. Bottom line
 
 **SHIP WITH FIXES — no blockers.** The v0.4 delta is real, correctly implemented and honestly scoped: process gate (engine + API + UI, no AI call on incompatible material), brittle marginal and assumption bounds independently reproduced, union-polish stage correctly recorded/declined, validation a genuine 58 checks/56 PASS/2 WARN/0 FAIL, all suites green (33/37/51+1), repo has no secrets and is clean at `da0c198`, PDFs/report rebuilt with no stale v0.3 numbers, and the headline masses/claims are unchanged and correct. The three MINOR items are a 10-minute doc/claim hardening (test counts; brittle “conservative” wording + elongation split; polish acceptance slack); the NITs are report/README completeness. After those, this is a clean SHIP.
+
+---
+
+## 5. Final confirmation — hardening commit `60eee8b` (2026-10-29 23:35)
+
+**Status: SHIP WITH ONE FIX (R1 below).** The hardening commit is verified fixed for M1–M3/N1–N3, but the committed qualification report/PDF embed stale validation counts (R1); one regeneration in the right order clears it. Working tree was clean at `60eee8b` apart from this audit file (validation artifacts regenerated during checking were restored to HEAD).
+
+### 5.1 Hardening fixes — verified
+- **M1 FIXED:** README:62 "33 engine tests (~55 s)", README:120 "33 tests", HACKATHON:88 "engine, 33 · test-server 51+1 · node app/tests/run.mjs 37"; app README:34 "37 tests … v0.4 AI helpers".
+- **M2 FIXED:** `Material.elongation_lot_variance_fraction` per preset (rPETG 0.50, rPET 0.60, rHDPE 0.55, rPP 0.60; validated 0–1 in `__post_init__`); `failure_probability_elongation` uses lot f=√frac and within f=√(1−frac) (`reliability.py:118-126`); measured-lot elongation CV = 0.185472 (√((0.2·√0.5)² + 0.12²)); independent check at demand 0.02 → engine **6.010388e-7** vs independent SciPy 6.010388e-7 (diff 5.9e-18), at 0.04 → **0.5280468** vs 0.5280468 (diff 6.7e-16) — exactly the updated K5 references. Wording “add-on estimate (not a formal bound)” is used in README/HACKATHON/REPORT/report HTML/app UI/engine docstring; the fixed 1 % screen threshold and the elongation-specific split are stated in the report sentence; K5 PASS.
+- **M3 FIXED:** strict acceptance `target_pf * 1.000001` (rounding only) in both the multi-start filter and the union-polish gate (`optimize.py:248,262`), mirrored in `app/optimize.js` (`afterPf <= targetPf * 1.000001` and feasible-start checks); published numbers unchanged (robust P_f 0.009956, printed 46.400 g, analytic 50.809 g).
+- **N1/N2/N3 FIXED:** report HTML now includes the union-polish stage with **“declined — printed mass 46.40 g, 0 polish evaluations”** and the assumption clause **“target is met under the default 85/15 split; at the 95 % extreme the modelled P_f (1.20 %) exceeds 1 % … assumptions, not validated population values”**; app README label updated.
+- **Suites (re-run against 60eee8b):** `make test` **33/33 OK**; `make validate` **56 PASS / 2 WARN / 0 FAIL (58 checks)** with only F4/F5 WARN; `node app/tests/run.mjs` **37/37**; `make test-server` **51 passed, 1 skipped**. Committed `validation/results.json` = 58/56/2/0; K8 PASS; no `.env`/caches/provenance/pycache tracked; `git grep` key patterns across all revisions = 0 hits; `main...origin/main` in sync.
+
+### 5.2 Residual (one MINOR) — R1
+**The hardening commit regenerated the qualification report before the final validation run, so the committed report HTML and qualification PDF embed the wrong validation counts.**
+- `reports/qualification_report.html:185-186` says **“55 PASS / 3 WARN / 0 FAIL across 58 checks”** while committed `validation/results.json`, `reports/summary.json`, README/HACKATHON/REPORT/VALIDATION.md all say **56 PASS / 2 WARN / 0 FAIL** — and the same paragraph immediately says “**The two WARNs** are disclosed”, contradicting its own “3 WARN”.
+- Cause: report HTML mtime 23:27:08, final `validation/results.json` mtime 23:28:35 (report embeds `_validation_summary()` read at generation time); the qualification PDF was then built 23:29:37 from that stale report HTML. (The da0c198 report had the correct 56/2; the hardening regeneration introduced the stale count.)
+- **Validation gap:** K8 does **not** catch it — `validation/run_validation.py:1713,1738-1750` compares `summary["validation"]` (correct 56/2) and calls `counts_present`/`fresh` on that block; it never asserts the *report HTML sentence* matches, despite its own note (“a regenerated report must embed exactly these counts”). Hence K8 PASS is a false positive on this item.
+- **Fix (about 2 minutes, in this order):**
+  ```bash
+  cd anyrb
+  make validate            # 56 PASS / 2 WARN / 0 FAIL
+  make report              # report + summary now embed 56/2/0
+  make pdf                 # rebuild the three PDFs (Qualification PDF especially)
+  git add reports/ && git commit -m "Regenerate report/PDFs after final validation (56/2/0)"
+  git push origin main
+  ```
+  Then confirm `grep -o '[0-9]* PASS / [0-9]* WARN' reports/qualification_report.html` = **56 PASS / 2 WARN**. Recommend also strengthening K8 to assert the exact report sentence (currently it validates only the summary block).
+- No other residual: the stale-count issue is textual/report-only; no model number, claim, suite result or hygiene item regressed.
