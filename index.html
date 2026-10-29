@@ -4868,18 +4868,18 @@ function makeProvenance(entry = {}) {
 
 // ---------------------------------------------------------------------------
 // Mass disclosure (validator finding F4): analytic mass double-counts strut
-// overlap at joints. Ratio from the validator's voxel-union estimate for the
-// robust design: 32,692 mm³ union vs 40,921 mm³ analytic (≈ 20 % lower printed).
-// We report the CONSERVATIVE analytic figure everywhere; this footnote keeps it honest.
+// overlap at joints. Corrected v0.3 union audit: printed union 46.40 g vs analytic
+// 50.81 g for the robust design (+9.5 % conservative upper bound).
+// We report printed mass everywhere; the analytic bound is labelled below.
 // ---------------------------------------------------------------------------
 // v0.3 mass basis: analytic mass is a conservative UPPER BOUND; the displayed
 // design mass is the deterministic printed/union (Halton QMC) mass.
 const MASS_UNION = {
-  analyticMassG: 50.78,
+  analyticMassG: 50.81,
   unionMassG: 46.40,
-  unionRatio: 46.40 / 50.78,
+  unionRatio: 46.40 / 50.81,
   note: 'Halton QMC union, 60,000 samples — matches the Python reference within 0.5 %.',
-  validatorNote: 'Validator F4 (fixed v0.3): analytic mass double-counts strut overlap; at the shipped robust design analytic 50.78 g vs printed union ≈46.40 g (+9.4 % upper bound). The app reports printed mass; analytic is shown as the upper bound only.',
+  validatorNote: 'Validator F4 (fixed v0.3): analytic mass double-counts strut overlap; at the shipped robust design analytic 50.81 g vs printed union ≈46.40 g (+9.5 % upper bound). The app reports printed mass; analytic is shown as the upper bound only.',
 };
 function massDisclosure(printedMassG) {
   const printed = Number.isFinite(printedMassG) ? printedMassG : MASS_UNION.unionMassG;
