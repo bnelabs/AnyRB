@@ -1,6 +1,6 @@
 # AnyRB independent validation report (v0.2)
 
-Generated: 2026-10-29T14:56:06+00:00 · Suite runtime 12.5 s · Python 3.15.2 · NumPy 2.5.4 · SciPy 1.18.1 · Matplotlib 3.11.2
+Generated: 2026-10-29T15:02:59+00:00 · Suite runtime 13.5 s · Python 3.15.2 · NumPy 2.5.4 · SciPy 1.18.1 · Matplotlib 3.11.2
 
 **Independent** means: the frame element is re-implemented here, the global stiffness matrix is assembled here, reliability is re-derived with SciPy quadrature/CDF/Monte-Carlo, and the optimiser is checked against a brute-force grid. The engine is imported only where a check is explicitly *engine vs independent*. The suite is reproducible with `cd AnyRB && .venv/bin/python validation/run_validation.py`.
 
@@ -46,8 +46,8 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | C7 | C | Two-level variance decomposition and hierarchical sampling | Parameter identity + 2000 lots x 500 within-lot specimens | CV^2 identity <= 1e-6 (fractions rounded to 5 dp); sigma^2 identity <= 1e-4; hierarchical CV rel <= 2% | param identity 6.9e-08, sigma^2 identity 1.3e-05, hierarchical CV 0.0994 vs 0.1 (-6.13e-03) | **PASS** |
 | C8 | C | Measured-lot override changes the distribution level correctly | Semantics + P_f for measured lot 2300 MPa / 50 MPa against robust-design demands | exact semantics; known-lot P_f < 1e-3 and lot-level equals within-level (zero lot CV) | semantics=True, P_f known 7.22e-16, lot-level 0.00e+00 | **PASS** |
 | C9 | C | Degenerate (zero-variance) marginal and extreme-threshold limits | Constructed degenerate Material; compare P_f to deterministic indicator; extreme demands | exact indicator match <= 1e-15; finite results for extreme demands | degenerate ok=True, extreme sum=1.000000 | **PASS** |
-| D1 | D | Brute-force grid baseline on the reduced 2-parameter family | 2109 evaluations of anyrb.evaluate (~4.0 s) | grid must contain feasible designs | best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346 | **PASS** |
-| D2 | D | Production pattern search vs brute-force grid (2 parameters) | 4 deterministic starts x up to 1500 evals (~0.9 s) via an 8-D wrapper | feasible (P_f <= target) and mass <= grid best * 1.01 | mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40 | **PASS** |
+| D1 | D | Brute-force grid baseline on the reduced 2-parameter family | 2109 evaluations of anyrb.evaluate (~5.2 s) | grid must contain feasible designs | best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346 | **PASS** |
+| D2 | D | Production pattern search vs brute-force grid (2 parameters) | 4 deterministic starts x up to 1500 evals (~0.8 s) via an 8-D wrapper | feasible (P_f <= target) and mass <= grid best * 1.01 | mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40 | **PASS** |
 | D3 | D | 200 random designs cannot beat the optimiser by > 2% | 200 uniform random (w0, g) designs vs the fixed optimiser result | no feasible random design lighter than 0.98 x optimiser mass | random best 56.161 g (feasible 134/200) vs 53.311 g | **PASS** |
 | D4 | D | Shipped robust design is feasible and independently reproducible | Recompute demands with independent assembly; P_f via SciPy bivariate normal; mass from widths | pf <= target; |pf_diff| <= 1e-8; mass rel diff <= 1e-10; widths in bounds | reported pf 0.009834 vs independent 0.009834; mass 50.742 g vs independent 50.742 g; widths [1.18,2.01] mm; target 0.01 | **PASS** |
 | D5 | D | Printability metrics are reported, not silently rejected | Engine printability_report vs manual recomputation on the robust design | values match <= 1e-12; out_of_bounds False | min/max width 1.18/2.01 mm, slenderness 22.70 (limit 30), neighbour ratio 1.457 (limit 1.5), out_of_bounds False | **PASS** |
@@ -67,8 +67,8 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | G3 | G | Hierarchical lot->specimen sampling reproduces total CV | Draw lot means with CV_lot then specimens with CV_within; estimate total CV | relative error <= 1% | total CV 0.1003 vs 0.1 (+2.74e-03) | **PASS** |
 | G4 | G | Measured-lot path uses within-lot distribution | Compare lot_pass_probability with failure_probability(level='within') | exact equality; input material not mutated | 4.947828e-06 vs 4.947828e-06 | **PASS** |
 | H1 | H | Frozen fixtures reproduce from the current Python engine | 5 cases in app/tests/fixtures/reference.json | deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12 | max rel 0.00e+00 (), max \|dP_f\| 0.00e+00 | **PASS** |
-| H2 | H | Frozen fixture regenerates byte-identically | Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1) | byte-identical files | identical (30077 vs 30077 bytes); regenerated at artifacts/reference_regenerated.json | **PASS** |
-| H3 | H | JavaScript engine/fixture cross-language tests pass | node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency | filtered engine/fixture tests: exit 0 and 0 failures | 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 4.1 s | **PASS** |
+| H2 | H | Frozen fixture regenerates byte-identically | Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1) | byte-identical files | identical (30074 vs 30074 bytes); regenerated at artifacts/reference_regenerated.json | **PASS** |
+| H3 | H | JavaScript engine/fixture cross-language tests pass | node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency | filtered engine/fixture tests: exit 0 and 0 failures | 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 4.0 s | **PASS** |
 | H4 | H | Live JavaScript vs Python cross-implementation agreement | node ESM cross-check script computing all five cases in app/engine.js | deterministic fields rel <= 1e-6; P_f abs <= 1e-8 | max rel 4.77e-14 (uniform_w1.5:sigma_req_MPa), max \|dP_f\| 1.07e-13 over 5 cases | **PASS** |
 | I1 | I | Claim-ladder mapping (L0-L2) updated by this validation | Mapping of A-H results onto the dossier-05 claim ladder | documentation consistent with evidence (no over-claim) | L0 achieved, L1 achieved, L2 partial, L3+ absent | **PASS** |
 | I2 | I | Model-form limitations are enumerated and quantified where possible | Limitations register compiled from PRODUCT_SPEC §7, REPORT §6 and checks A-H | all known major limitations listed | 11 limitations documented | **PASS** |
@@ -231,14 +231,14 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 ### D1 — Brute-force grid baseline on the reduced 2-parameter family [PASS]
 
 - **Claim:** A 57x37 grid establishes the reference optimum of the uniform-width + root-gradient family
-- **Method:** 2109 evaluations of anyrb.evaluate (~4.0 s)
+- **Method:** 2109 evaluations of anyrb.evaluate (~5.2 s)
 - **Tolerance:** grid must contain feasible designs
 - **Observed:** best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346
 
 ### D2 — Production pattern search vs brute-force grid (2 parameters) [PASS]
 
 - **Claim:** Deterministic engine pattern_search finds a feasible design within +1% of the grid optimum
-- **Method:** 4 deterministic starts x up to 1500 evals (~0.9 s) via an 8-D wrapper
+- **Method:** 4 deterministic starts x up to 1500 evals (~0.8 s) via an 8-D wrapper
 - **Tolerance:** feasible (P_f <= target) and mass <= grid best * 1.01
 - **Observed:** mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40
 
@@ -397,14 +397,14 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 - **Claim:** The fixture generator's deterministic output is exactly the committed reference.json
 - **Method:** Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1)
 - **Tolerance:** byte-identical files
-- **Observed:** identical (30077 vs 30077 bytes); regenerated at artifacts/reference_regenerated.json
+- **Observed:** identical (30074 vs 30074 bytes); regenerated at artifacts/reference_regenerated.json
 
 ### H3 — JavaScript engine/fixture cross-language tests pass [PASS]
 
 - **Claim:** The JS engine reproduces the frozen fixtures; full app suite reported informationally
 - **Method:** node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency
 - **Tolerance:** filtered engine/fixture tests: exit 0 and 0 failures
-- **Observed:** 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 4.1 s
+- **Observed:** 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 4.0 s
 - **Notes:** Full app suite: 28 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.
 
 ### H4 — Live JavaScript vs Python cross-implementation agreement [PASS]
@@ -483,8 +483,8 @@ It does not validate the model against any physical part. No tensile, lattice-co
 ## Environment and reproducibility
 
 - Python 3.15.2, NumPy 2.5.4, SciPy 1.18.1, Matplotlib 3.11.2, Node v26.12.1
-- Engine file SHA-256: `22a60d3044ede5ace989164537a303a0`
-- Fixture SHA-256: `d0b80fbb6873c14c8b0bdeea43ea78f6`
+- Engine file SHA-256: `2dee8788602f834219692669a1918483`
+- Fixture SHA-256: `58273403702c5086d18138f01f7e39a6`
 - Seeds are fixed (20261029, 7, 11, 42, 101, 2027, 5); no network access is used by the suite.
 
 ## Defects found by this validation, and their status

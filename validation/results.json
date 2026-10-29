@@ -1,7 +1,7 @@
 {
  "suite": "AnyRB independent scientific validation",
  "version": "v0.2-validation",
- "generated_utc": "2026-10-29T14:56:06+00:00",
+ "generated_utc": "2026-10-29T15:02:59+00:00",
  "environment": {
   "python": "3.15.2",
   "numpy": "2.5.4",
@@ -9,16 +9,16 @@
   "matplotlib": "3.11.2",
   "node": "v26.12.1",
   "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
-  "engine_files": "22a60d3044ede5ace989164537a303a0",
-  "fixture_sha256": "d0b80fbb6873c14c8b0bdeea43ea78f6",
-  "fixture_sha256_full": "d0b80fbb6873c14c8b0bdeea43ea78f6"
+  "engine_files": "2dee8788602f834219692669a1918483",
+  "fixture_sha256": "58273403702c5086d18138f01f7e39a6",
+  "fixture_sha256_full": "58273403702c5086d18138f01f7e39a6"
  },
  "summary": {
   "total": 46,
   "PASS": 45,
   "WARN": 1,
   "FAIL": 0,
-  "runtime_s": 12.5,
+  "runtime_s": 13.5,
   "exit_code": 0
  },
  "claim_ladder": {
@@ -570,7 +570,7 @@
    "category": "D: optimiser",
    "title": "Brute-force grid baseline on the reduced 2-parameter family",
    "claim": "A 57x37 grid establishes the reference optimum of the uniform-width + root-gradient family",
-   "method": "2109 evaluations of anyrb.evaluate (~4.0 s)",
+   "method": "2109 evaluations of anyrb.evaluate (~5.2 s)",
    "tolerance": "grid must contain feasible designs",
    "observed": "best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346",
    "status": "PASS",
@@ -582,7 +582,7 @@
    "category": "D: optimiser",
    "title": "Production pattern search vs brute-force grid (2 parameters)",
    "claim": "Deterministic engine pattern_search finds a feasible design within +1% of the grid optimum",
-   "method": "4 deterministic starts x up to 1500 evals (~0.9 s) via an 8-D wrapper",
+   "method": "4 deterministic starts x up to 1500 evals (~0.8 s) via an 8-D wrapper",
    "tolerance": "feasible (P_f <= target) and mass <= grid best * 1.01",
    "observed": "mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40",
    "status": "PASS",
@@ -850,7 +850,7 @@
    "claim": "The fixture generator's deterministic output is exactly the committed reference.json",
    "method": "Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1)",
    "tolerance": "byte-identical files",
-   "observed": "identical (30077 vs 30077 bytes); regenerated at artifacts/reference_regenerated.json",
+   "observed": "identical (30074 vs 30074 bytes); regenerated at artifacts/reference_regenerated.json",
    "status": "PASS",
    "notes": "",
    "evidence": {}
@@ -862,7 +862,7 @@
    "claim": "The JS engine reproduces the frozen fixtures; full app suite reported informationally",
    "method": "node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency",
    "tolerance": "filtered engine/fixture tests: exit 0 and 0 failures",
-   "observed": "1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 4.1 s",
+   "observed": "1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 4.0 s",
    "status": "PASS",
    "notes": "Full app suite: 28 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.",
    "evidence": {}
