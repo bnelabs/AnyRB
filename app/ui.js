@@ -93,7 +93,7 @@ const state = {
   }),
   briefMeta: { model: null, confidence: null, fallback: true, ms: 0 },
   lot: AC.presetLot('rPETG'),
-  lotMeta: { model: 'Verified preset', confidence: 1, fallback: false },
+  lotMeta: { model: 'Published data', confidence: 1, fallback: false },
   material: AC.materialFromLot(AC.presetLot('rPETG')),
   plan: null,
   planMeta: { model: null, fallback: true },
@@ -167,14 +167,14 @@ function renderAIStatus(snap) {
   if (!pill) return;
   pill.dataset.mode = mode;
   if (mode === 'live') label.textContent = 'Live · Meta models';
-  else if (mode === 'mock') label.textContent = 'Live · simulated Meta';
-  else label.textContent = 'Offline · fallback on';
+  else if (mode === 'mock') label.textContent = 'Demo · simulated AI';
+  else label.textContent = 'Offline · built-in text';
   pill.setAttribute('aria-label', `AI status: ${label.textContent}. Open AI mode menu.`);
   const count = state.aiCalls.length;
   const provCount = $('#prov-count');
-  if (provCount) provCount.textContent = `${count} call${count === 1 ? '' : 's'}`;
+  if (provCount) provCount.textContent = `${count} request${count === 1 ? '' : 's'}`;
   const provSub = $('#ai-menu-prov-sub');
-  if (provSub) provSub.textContent = `${count} call${count === 1 ? '' : 's'} · ${mode === 'offline' ? 'offline fallbacks' : mode === 'mock' ? 'simulated models' : 'live models'}`;
+  if (provSub) provSub.textContent = `${count} request${count === 1 ? '' : 's'} · ${mode === 'offline' ? 'built-in text' : mode === 'mock' ? 'simulated AI' : 'live AI'}`;
   $$('#ai-menu [role="menuitemradio"]').forEach((b) => {
     b.setAttribute('aria-checked', b.dataset.mode === mode || (mode === 'mock' && b.dataset.mode === 'live') ? 'true' : 'false');
   });
@@ -187,8 +187,8 @@ function renderBanner() {
   if (demo.state === 'error' && banner.dataset.dismissed !== '1') {
     banner.hidden = false;
     banner.dataset.kind = 'error';
-    $('#banner-title').textContent = 'The AI partner didn’t respond.';
-    $('#banner-body').textContent = 'Your brief is safe. The verified engine can run from the deterministic fallback — numbers will not change.';
+    $('#banner-title').textContent = 'The AI service didn’t respond.';
+    $('#banner-body').textContent = 'Your brief is safe. The calculator still runs, and the numbers will not change.';
     const actions = $('#banner-actions');
     if (!actions.childElementCount) {
       actions.innerHTML = '<button class="btn btn--sm" id="banner-retry" type="button">Retry AI</button><button class="btn btn--sm btn--ghost" id="banner-offline" type="button">Continue offline</button>';
@@ -200,18 +200,18 @@ function renderBanner() {
   if (state.aiMode === 'offline' && banner.dataset.dismissed !== '1') {
     banner.hidden = false;
     banner.dataset.kind = 'offline';
-    $('#banner-title').textContent = 'Offline assistant (no Meta API)';
+    $('#banner-title').textContent = 'Offline mode';
     const standalone = typeof location !== 'undefined' && location.protocol === 'file:';
     $('#banner-body').textContent = standalone
-      ? 'This is the standalone file and the local backend at http://127.0.0.1:8787 is not reachable. Start the backend, then reload this file (or open the served app) to use the live Meta models. The verified engine still runs locally and AI text uses deterministic fallbacks.'
-      : 'The backend is not reachable, so the verified engine still runs locally and AI text uses deterministic fallbacks, badged per card. Start the backend and reload for live Meta models.';
+      ? 'This is the standalone file and the local backend at http://127.0.0.1:8787 is not reachable. Start the backend, then reload this file (or open the served app) to use the live AI service. The calculator still runs locally; AI text comes from built-in templates.'
+      : 'The backend is not reachable. The calculator still runs locally; AI text comes from built-in templates. Start the backend and reload to use live AI.';
     $('#banner-actions').innerHTML = '<a class="btn btn--sm" href="http://127.0.0.1:8787/" target="_blank" rel="noopener">Open live studio</a><button class="btn btn--sm" id="banner-retry-live" type="button">Retry connection</button><button class="btn btn--sm btn--ghost" id="banner-dismiss" type="button">Dismiss</button>';
     $('#banner-retry-live')?.addEventListener('click', async () => {
       banner.hidden = true; banner.dataset.dismissed = '1';
       toast('Checking for the local Meta backend…');
       await ai.detect();
       const snap = ai.getSnapshot();
-      if (snap.mode === 'live') toast('Live · Meta models connected');
+      if (snap.mode === 'live') toast('Connected to the live AI service');
       else toast('Still offline — start the backend and try again', 'err');
     });
     $('#banner-dismiss')?.addEventListener('click', () => { banner.hidden = true; banner.dataset.dismissed = '1'; });
@@ -265,13 +265,13 @@ function renderProject() {
   const seed = $('#session-seed');
   if (seed) seed.textContent = String(DEFAULTS.seed);
   const engine = $('#session-engine');
-  if (engine) engine.textContent = `v0.4 · ${E.N_ELEMENTS} el.`;
+  if (engine) engine.textContent = 'v0.4';
   const valid = $('#session-valid');
   if (valid) {
     const v = state.validation || {};
     const counts = v.counts || { PASS: v.checks.filter((c) => c.status === 'pass').length, WARN: v.checks.filter((c) => c.status && c.status !== 'pass').length, FAIL: 0 };
     const total = v.total || v.countsTotal || 46;
-    valid.textContent = `${counts.PASS}/${total} pass · ${counts.WARN} warn`;
+    valid.textContent = `${counts.PASS} of ${total} passed · ${counts.WARN} warning${counts.WARN === 1 ? '' : 's'}`;
   }
 }
 function renderBriefText() {
@@ -290,8 +290,8 @@ function updateWordCount() {
 function renderBriefMeta() {
   const m = $('#brief-meta');
   if (!m) return;
-  const parts = ['Draft saved locally', `session ${DEFAULTS.seed}`];
-  parts.push(state.aiMode === 'live' ? 'Meta models live' : state.aiMode === 'mock' ? 'simulated Meta models' : 'offline assistant');
+  const parts = ['Draft saved on this device', `run ${DEFAULTS.seed}`];
+  parts.push(state.aiMode === 'live' ? 'AI service live' : state.aiMode === 'mock' ? 'simulated AI' : 'built-in assistant');
   m.textContent = parts.join(' · ');
   renderFeasibility();
 }
@@ -333,19 +333,19 @@ function renderUnderstanding() {
   const badge = $('#understand-badge');
   if (badge) {
     badge.dataset.kind = state.briefMeta.fallback ? 'fallback' : 'live';
-    badge.innerHTML = `<span class="b-dot"></span>${esc(state.briefMeta.model || 'deterministic parser')}${state.briefMeta.ms ? ` · ${(state.briefMeta.ms / 1000).toFixed(2)} s` : ''}`;
+    badge.innerHTML = `<span class="b-dot"></span>${esc(state.briefMeta.model || 'built-in reader')}${state.briefMeta.ms ? ` · ${(state.briefMeta.ms / 1000).toFixed(2)} s` : ''}`;
   }
   const conf = $('#understand-confidence');
   if (conf) conf.textContent = `Confidence ${state.briefMeta.confidence != null ? state.briefMeta.confidence.toFixed(2) : '—'}`;
   const sub = $('#understanding-sub');
-  if (sub) sub.textContent = state.briefMeta.fallback ? 'Deterministic fallback parse — every field editable.' : 'Parsed by the AI partner — every field editable.';
+  if (sub) sub.textContent = state.briefMeta.fallback ? 'Read by the built-in reader — every field is editable.' : 'Read by the AI assistant — every field is editable.';
 }
 
 function applyPresetLot(key) {
   state.lot = AC.presetLot(key);
   state.material = AC.materialFromLot(state.lot);
   state.brief.preset = key;
-  state.lotMeta = { model: 'Verified preset', confidence: 1, fallback: false };
+  state.lotMeta = { model: 'Published data', confidence: 1, fallback: false };
   renderLot();
   renderAdvancedControls();
   persist();
@@ -353,10 +353,11 @@ function applyPresetLot(key) {
 function renderLot() {
   const lot = state.lot;
   const pMeta = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
-  $('#lot-name').textContent = `${pMeta.label} · in-plane`;
+  $('#lot-name').textContent = pMeta.label;
   const presetMeta = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
-  const processTag = state.material.printProcessOk ? `${state.material.process} · printed data` : `${state.material.process} · CONTRAST ONLY (not a printed process)`;
-  $('#lot-source').textContent = `${lot.source || 'Literature-derived preset'} · ${processTag}`;
+  const processTag = state.material.printProcessOk ? '3D-printed test data' : 'moulded data · comparison only';
+  $('#lot-source').textContent = lot.source || 'Published material data';
+  $('#lot-source').title = lot.sourceDetails || '';
   $('#lot-E').textContent = `${int(lot.E_mean)} MPa`;
   $('#lot-Ecv').textContent = `${nf(lot.E_cv * 100, 1)} %`;
   $('#lot-sy').textContent = `${nf(lot.sy_mean, 1)} MPa`;
@@ -367,7 +368,7 @@ function renderLot() {
   if (badge) {
     badge.innerHTML = state.lotMeta.fallback
       ? '<span class="p-dot"></span>Offline extracted'
-      : `<span class="p-dot"></span>${esc(state.lotMeta.model || 'Verified preset')}`;
+      : `<span class="p-dot"></span>${esc(state.lotMeta.model || 'Published data')}`;
     badge.className = 'pill ' + (state.lotMeta.fallback ? 'pill--fallback' : 'pill--verify');
   }
   renderFeasibility();
@@ -375,15 +376,15 @@ function renderLot() {
 function renderPresetMenu() {
   const host = $('#preset-menu');
   if (!host) return;
-  host.innerHTML = '<div class="micro" style="margin-bottom:8px">Verified presets · printed (FDM/FFF) vs contrast only</div>';
+  host.innerHTML = '<div class="micro" style="margin-bottom:8px">Material sets · printed parts vs comparison only</div>';
   Object.values(MATERIAL_PRESETS).forEach((p) => {
     const contrast = p.printProcessOk === false;
-    const b = el(`<button class="chip" type="button" aria-pressed="${p.key === state.brief.preset}" title="${esc(contrast ? 'Contrast only — ' + p.process + ' data, not valid for a printed lattice' : 'Printed process data — valid for a printed lattice')}" style="margin:0 6px 6px 0">${esc(p.label)}${contrast ? ' <span style="color:var(--accent-ink);font-size:10px">· contrast only</span>' : ''}</button>`);
+    const b = el(`<button class="chip" type="button" aria-pressed="${p.key === state.brief.preset}" title="${esc(contrast ? 'Comparison only — moulded-part data, not valid for a printed design' : 'Printed test data — valid for this model')}" style="margin:0 6px 6px 0">${esc(p.label)}${contrast ? ' <span style="color:var(--accent-ink);font-size:10px">· comparison only</span>' : ''}</button>`);
     b.addEventListener('click', () => {
       applyPresetLot(p.key);
       host.hidden = true;
-      if (contrast) toast(`${p.label} · contrast only: ${p.process} data cannot size a printed lattice — Design blocked`, 'err');
-      else toast(`${p.label} applied · ${int(p.E_mean)} MPa · σy ${nf(p.sy_mean, 1)} MPa`);
+      if (contrast) toast(`${p.label} · comparison only: moulded-part data cannot size a printed design — Design is blocked`, 'err');
+      else toast(`${p.label} applied · ${int(p.E_mean)} MPa stiffness · ${nf(p.sy_mean, 1)} MPa strength`);
       renderUnderstanding();
       renderPlanPreview();
     });
@@ -402,7 +403,7 @@ function renderPresetMenu() {
     <div class="plan-item">
       <div class="pi-top"><span class="pi-name">${esc(c.name)}</span><span class="pill pill--muted">prior</span></div>
       <div class="pi-rationale">${esc(c.rationale || AC.CANDIDATE_META[c.id]?.rationale || '')}</div>
-      <div class="pi-prior">${esc(c.tagline || AC.CANDIDATE_META[c.id]?.tagline || 'AI-proposed')}</div>
+      <div class="pi-prior">${esc(c.tagline || AC.CANDIDATE_META[c.id]?.tagline || 'AI suggestion')}</div>
     </div>`).join('');
   const badge = $('#plan-badge');
   if (badge) {
@@ -490,12 +491,12 @@ async function runDesignFlow() {
     state.maxStep = 'design';
     setStep('design', { force: true });
     persist();
-    toast(`3 AI priors evaluated as proposed · optimised design ${nf(state.hero.printed_mass_g, 2)} g printed · ${((performance.now() - t0) / 1000).toFixed(2)} s`);
+    toast(`Three AI suggestions checked · best design found at ${nf(state.hero.printed_mass_g, 2)} g estimated printed mass · ${((performance.now() - t0) / 1000).toFixed(2)} s`);
   } catch (err) {
     console.error(err);
     showAIError(err);
     setActivity(null);
-    toast('AI step failed — deterministic fallback available', 'err');
+    toast('The AI step failed — we can use the built-in text instead', 'err');
   } finally {
     setBusy(false);
   }
@@ -529,7 +530,7 @@ function selectCandidate(id) {
   const c = selectedCandidate();
   if (c) {
     renderDesignMemo(c);
-    toast(id === 'optimised' ? 'Engine-optimised design selected' : `${c.name} prior selected · proof will optimise it`);
+    toast(id === 'optimised' ? 'Best design selected' : `${c.name} suggestion selected — proof will improve it`);
     persist();
   }
 }
@@ -546,7 +547,7 @@ function renderDesign() {
   const preset = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
   $('#viz-meta').textContent = `${GEOMETRY.Lx} × ${GEOMETRY.Ly} × ${GEOMETRY.depth} mm · ${preset.label} · ${nf(state.brief.loadN, 0)} N tip load`;
   const cap = $('#viz-caption-text');
-  const rankLabel = Number.isFinite(c.rank) ? `engine-ranked #${c.rank}` : 'engine-optimised';
+  const rankLabel = Number.isFinite(c.rank) ? `checked by the calculator · option ${c.rank}` : 'best of this family';
   if (cap) cap.textContent = `Showing: ${c.name} · ${c.feasible ? 'meets target' : 'below target'} · ${rankLabel}`;
   setStep('design');
 }
@@ -563,18 +564,18 @@ function renderCandidates() {
     const btn = el(`
       <button class="candidate" type="button" aria-pressed="${c.id === state.selectedId}" data-id="${esc(c.id)}" aria-label="${esc(c.name)} candidate: ${nf(c.mass_g, 2)} grams printed mass, probability of failure ${fmtPf(c.pf)}, ${printPass ? 'printability pass' : 'printability warning'}">
         <div class="c-tags">
-          <span class="pill pill--muted">AI prior</span>
+          <span class="pill pill--muted">AI suggestion</span>
           ${recommended ? '<span class="pill pill--verify"><span class="p-dot"></span>Recommended</span>' : ''}
           ${printPass ? '' : '<span class="pill pill--accent">printability warn</span>'}
         </div>
         <div class="c-name">${esc(c.name)}</div>
         <div class="c-mass">${nf(c.mass_g, 2)} <span class="u">g</span> <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">printed</span></div>
-        <div class="c-pf">P_f ${fmtPf(c.pf)} <span style="color:var(--muted)">· target ${fmtPf(state.brief.targetPf)}</span></div>
+        <div class="c-pf">Failure chance ${fmtPf(c.pf)} <span style="color:var(--muted)">· target ${fmtPf(state.brief.targetPf)}</span></div>
         <div class="c-tradeoff">${esc(c.rationale || AC.CANDIDATE_META[c.id]?.rationale || '')}</div>
         <div class="c-engine">
           <span class="c-print pill ${printPass ? 'pill--verify' : 'pill--accent'}" style="height:22px">${printPass ? 'print pass' : ICONS.warn + ' print warn'} · w-ratio ${nf(ratio, 2)} · L/w ${nf(slen, 1)}</span>
         </div>
-        <div class="micro" style="margin-top:6px">AI prior · engine-evaluated as proposed · analytic UB ${nf(c.mass_analytic_g ?? 0, 2)} g<br>Selecting it runs the optimiser from this prior</div>
+        <div class="micro" style="margin-top:6px">AI suggestion · checked as proposed · high-side estimate ${nf(c.mass_analytic_g ?? 0, 2)} g<br>Pick it and the calculator will improve it from here</div>
       </button>`);
     btn.addEventListener('click', () => selectCandidate(c.id));
     host.appendChild(btn);
@@ -595,9 +596,9 @@ function renderHero() {
   const polish = $('#hero-polish');
   if (polish) {
     if (h.union_polished) {
-      polish.innerHTML = `<b>Union-mass polish:</b> accepted — printed Halton mass ${nf(h.union_before_printed_g, 2)} g → <b>${nf(h.union_after_printed_g, 2)} g</b> after ${int(h.union_evals)} local printed-mass evaluations (10k-sample QMC), with P_f + printability constraints rechecked on the final 60k estimate.`;
+      polish.innerHTML = `<b>Mass check:</b> the final local search reduced the estimated printed mass from ${nf(h.union_before_printed_g, 2)} g to <b>${nf(h.union_after_printed_g, 2)} g</b>. Failure chance and printability were rechecked afterwards.`;
     } else {
-      polish.innerHTML = `<b>Union-mass polish:</b> checked — no printed-mass improvement found for this local finish, so the multi-start printed-mass winner is shipped. (Global multi-start search still ranks with the analytic upper bound; disclosed.)`;
+      polish.innerHTML = `<b>Mass check:</b> the final local search found no lighter printable design, so we kept the best result from the main search.`;
     }
   }
   const btn = $('#btn-select-hero');
@@ -611,7 +612,7 @@ function renderHero() {
   const c = selectedCandidate();
   if (!c) return;
   $('#metric-mass-value').innerHTML = `${nf(c.mass_g, 2)} <span class="m-unit">g</span>`;
-  $('#metric-mass-sub').textContent = `printed union mass · analytic upper bound ${nf(c.mass_analytic_g ?? 0, 2)} g`;
+  $('#metric-mass-sub').textContent = `estimated printed mass · high-side estimate ${nf(c.mass_analytic_g ?? 0, 2)} g`;
   const pfEl = $('#metric-pf-value');
   pfEl.textContent = fmtPf(c.pf);
   pfEl.className = 'm-value ' + (c.pf <= state.brief.targetPf ? 'is-good' : 'is-warn');
@@ -640,9 +641,9 @@ function renderMassFootnotes() {
   if (proofNote) {
     const up = state.proof;
     const union = up ? (up.union_polished
-      ? ` Union-mass polish accepted: ${nf(up.union_before_printed_g, 2)} g → ${nf(up.union_after_printed_g, 2)} g printed after ${int(up.union_evals)} local printed-mass evaluations (10k QMC).`
-      : ' Union-mass polish checked: no printed-mass improvement found; the multi-start printed-mass winner is shipped.') : '';
-    proofNote.textContent = `Printed mass ${nf(d.printed_g, 2)} g · analytic upper bound ${nf(d.analytic_upper_bound_g, 2)} g (+${nf(d.upper_bound_pct, 1)}%) — ${d.note}${union}`;
+      ? ` Final mass check: ${nf(up.union_before_printed_g, 2)} g → ${nf(up.union_after_printed_g, 2)} g estimated printed mass.`
+      : ' Final mass check: no lighter printable design found.') : '';
+    proofNote.textContent = `Estimated printed mass ${nf(d.printed_g, 2)} g · high-side estimate ${nf(d.analytic_upper_bound_g, 2)} g (+${nf(d.upper_bound_pct, 1)}%) — ${d.note}${union}`;
   }
 }
 
@@ -667,7 +668,7 @@ function renderVsStrip() {
   const parts = [];
   if (solid && solid.mass_g > c.mass_g) parts.push(`${((1 - c.mass_g / solid.mass_g) * 100).toFixed(0)} % lighter than the solid plate`);
   if (uniform && uniform.mass_g > c.mass_g) parts.push(`${((1 - c.mass_g / uniform.mass_g) * 100).toFixed(0)} % lighter than a uniform lattice sized to the same target`);
-  $('#vs-takeaway').textContent = (parts.length ? parts.join(' · ') + '. ' : '') + 'All bars use printed mass (solid = exact).';
+  $('#vs-takeaway').textContent = (parts.length ? parts.join(' · ') + '. ' : '') + 'Bars show estimated printed mass; the solid plate is exact.';
 }
 
 function renderDesignMemo(c) {
@@ -684,7 +685,7 @@ function renderDesignMemo(c) {
       body.innerHTML = highlightNumbers(res.memo || fallback.memo);
       const kind = res.fallback || res.live === false ? 'fallback' : 'live';
       badge.dataset.kind = kind;
-      badge.innerHTML = `<span class="b-dot"></span>${esc(res.provenance ? res.provenance.model : 'AI partner')}${res.provenance ? ` · ${(res.provenance.latencyMs / 1000).toFixed(2)} s` : ''} · ${kind}${res.grounded === false ? ' · fallback (ungrounded)' : ' · numbers injected'}`;
+      badge.innerHTML = `<span class="b-dot"></span>${esc(res.provenance ? res.provenance.model : 'AI assistant')}${res.provenance ? ` · ${(res.provenance.latencyMs / 1000).toFixed(2)} s` : ''} · ${kind}${res.grounded === false ? ' · fallback (numbers not checked)' : ' · numbers checked'}`;
       card.classList.toggle('is-fallback', kind === 'fallback');
       const actions = $('#design-memo-actions');
       const next = (res.nextActions && res.nextActions.length ? res.nextActions : fallback.nextActions).slice(0, 3);
@@ -694,7 +695,7 @@ function renderDesignMemo(c) {
       console.error(err);
       body.innerHTML = highlightNumbers(fallback.memo);
       badge.dataset.kind = 'fallback';
-      badge.innerHTML = '<span class="b-dot"></span>offline-assistant · fallback';
+      badge.innerHTML = '<span class="b-dot"></span>built-in assistant · fallback';
     }
   })();
 }
@@ -796,7 +797,7 @@ function renderLattice() {
   if (l2) l2.style.background = view === 'stress' ? 'var(--accent)' : 'var(--ink)';
   const legendNote = $('#viz-caption-meta');
   if (legendNote) legendNote.textContent = view === 'stress'
-    ? `max σ/σy ${maxU.toFixed(2)} · deformed ×${fac.toFixed(1)} · not to scale`
+    ? `max stress use ${maxU.toFixed(2)} · bend shown ×${fac.toFixed(1)} · not to scale`
     : view === 'width' ? `width ${nf(wMin, 2)}–${nf(wMax, 2)} mm · not to scale` : 'not to scale · illustrative rendering';
 }
 function wireViewToggle() {
@@ -911,7 +912,7 @@ async function runProofFlow() {
     setStep('prove', { force: true });
     renderProof();
     persist();
-    toast(`Proof ready · ${nf(bestAnalysis.printed_mass_g ?? bestAnalysis.mass_g, 2)} g printed · P_f ${fmtPf(bestPf)}`);
+    toast(`Proof ready · ${nf(bestAnalysis.printed_mass_g ?? bestAnalysis.mass_g, 2)} g estimated printed mass · failure chance ${fmtPf(bestPf)}`);
     loadProofMemos();
   } catch (err) {
     console.error(err);
@@ -965,7 +966,7 @@ function renderProof() {
   renderQC();
   drawAcceptance($('#acceptance-chart'), p.window, a, p.passport);
   $('#acceptance-caption').textContent = 'Lot-mean envelope the engine accepts for this design. The known-lot recipe re-optimises all 8 width controls for the measured lot (measurement CV retained) instead of one global scale.';
-  $('#acceptance-target').textContent = `target P_f ≤ ${fmtPf(target)}`;
+  $('#acceptance-target').textContent = `target failure chance ≤ ${fmtPf(target)}`;
 
   renderRecipe();
   renderSustained();
@@ -1063,7 +1064,7 @@ function drawAcceptance(host, win, analysis, passport) {
     <circle cx="${lotX}" cy="${lotY}" r="9" fill="none" stroke="#15171A" stroke-opacity="0.3"/>
     <text x="${lotX + 14}" y="${lotY - 8}" font-family="-apple-system, Segoe UI, sans-serif" font-size="11" fill="#15171A">measured lot</text>
     <text x="${W - pad.r}" y="${H - 8}" text-anchor="end" font-family="-apple-system, Segoe UI, sans-serif" font-size="11" fill="#6B7280">lot mean E · MPa</text>
-    <text x="14" y="${(pad.t + (H - pad.b)) / 2}" font-family="-apple-system, Segoe UI, sans-serif" font-size="11" fill="#6B7280" transform="rotate(-90 14 ${(pad.t + (H - pad.b)) / 2})" text-anchor="middle">lot mean σy · MPa</text>
+    <text x="14" y="${(pad.t + (H - pad.b)) / 2}" font-family="-apple-system, Segoe UI, sans-serif" font-size="11" fill="#6B7280" transform="rotate(-90 14 ${(pad.t + (H - pad.b)) / 2})" text-anchor="middle">batch strength · MPa</text>
   </svg>`;
 }
 
@@ -1132,12 +1133,12 @@ function renderRecipe() {
   const pr = r.printability || {};
   if (summary) {
     summary.innerHTML = `
-      <span>Printed mass <b>${nf(r.printed_mass_g, 2)} g</b> · analytic UB <b>${nf(r.printed_mass_analytic_g, 2)} g</b></span>
+      <span>Estimated printed mass <b>${nf(r.printed_mass_g, 2)} g</b> · high-side estimate <b>${nf(r.printed_mass_analytic_g, 2)} g</b></span>
       <span>Added mass <b>${signed(r.added_mass_pct, 1)} %</b> vs as-designed</span>
-      <span>P_f measured lot <b>${fmtPf(r.pf)}</b> · target ${fmtPf(target)}</span>
+      <span>Failure chance for this batch <b>${fmtPf(r.pf)}</b> · target ${fmtPf(target)}</span>
       <span>Measurement CV <b>${nf(r.measurement_cv * 100, 0)} %</b> retained</span>
       <span>Printability <b>${r.printability_pass ? 'pass' : 'warn'}</b> · ratio ${nf(pr.max_neighbour_width_ratio, 2)} · L/w ${nf(pr.max_slenderness, 1)}</span>
-      <span>Global equivalent <b>${r.global_equivalent_scale.toFixed(2)}×</b> (slicer fallback only)</span>`;
+      <span>Global equivalent <b>${r.global_equivalent_scale.toFixed(2)}×</b> (slicer setting only)</span>`;
   }
   const verdict = $('#passport-verdict');
   const icon = $('#verdict-icon');
@@ -1147,7 +1148,7 @@ function renderRecipe() {
     verdict.dataset.kind = recipeVerdictKind(r.verdict);
     icon.textContent = /reject/i.test(r.verdict) ? '✕' : /conditional/i.test(r.verdict) ? '!' : '✓';
     title.textContent = r.verdict.toUpperCase();
-    body.textContent = `8-control lot resize · global equivalent ${r.global_equivalent_scale.toFixed(2)}× · printed mass ${nf(r.printed_mass_g, 2)} g (${signed(r.added_mass_pct, 1)} %) · P_f ${fmtPf(r.pf)} against ${fmtPf(target)}${/conditional/i.test(r.verdict) ? ' — heavy compensation, review with the supplier before printing.' : /reject/i.test(r.verdict) ? ' — reroute this lot to a non-structural part.' : '.'}`;
+    body.textContent = `Eight-zone resize · global equivalent ${r.global_equivalent_scale.toFixed(2)}× · estimated printed mass ${nf(r.printed_mass_g, 2)} g (${signed(r.added_mass_pct, 1)} %) · failure chance ${fmtPf(r.pf)} against ${fmtPf(target)}${/conditional/i.test(r.verdict) ? ' — a lot of extra material; check with the supplier before printing.' : /reject/i.test(r.verdict) ? ' — use this batch for a non-structural part.' : '.'}`;
   }
 }
 function renderSustained() {
@@ -1162,17 +1163,17 @@ function renderSustained() {
   const badge = $('#sustained-badge');
   if (badge) {
     badge.dataset.kind = qualified ? 'engine' : 'fallback';
-    badge.innerHTML = `<span class="b-dot"></span>${qualified ? 'advisory · inside target' : 'not qualified for sustained load'}`;
+    badge.innerHTML = `<span class="b-dot"></span>${qualified ? 'rough check · inside target' : 'not cleared for long-term load'}`;
   }
   host.innerHTML = `
-    <span>P_f bound (lot level) <b>${fmtPf(s.pf_bound)}</b> vs target ${fmtPf(state.brief.targetPf)}</span>
+    <span>Failure chance under long-term assumptions <b>${fmtPf(s.pf_bound)}</b> vs target ${fmtPf(state.brief.targetPf)}</span>
     <span>Deflection bound <b>${nf(s.deflection_bound_mm, 2)} mm</b> (creep ×${nf(s.creep_factor, 1)})</span>
     <span>E_req bound <b>${nf(s.E_req_bound_MPa, 0)} MPa</b> (static ${nf(state.proof.optimizedAnalysis.demands.E_req, 0)} MPa ×${nf(s.creep_factor, 1)})</span>
-    <span>σy_req bound <b>${nf(s.sigma_req_bound_MPa, 1)} MPa</b> (static ${nf(state.proof.optimizedAnalysis.demands.sigma_y_req, 1)} MPa ÷${nf(s.compression_factor, 1)})</span>`;
+    <span>Strength demand under long-term assumptions <b>${nf(s.sigma_req_bound_MPa, 1)} MPa</b> (static ${nf(state.proof.optimizedAnalysis.demands.sigma_y_req, 1)} MPa ÷${nf(s.compression_factor, 1)})</span>`;
   const note = $('#sustained-note');
   if (note) note.textContent = qualified
-    ? 'Advisory only — the creep/compression bound stays inside the reliability target, but the static qualification above is the design result. Not qualified for sustained load by test.'
-    : 'NOT qualified for sustained load: the creep ×2.0 / compression ÷0.8 bound exceeds the reliability target. The static result above is unchanged. Do not use this part for long-term or compressive service without test data.';
+    ? 'A rough check only — it stays inside your failure target. The main design result above is unchanged; this is not a physical long-term test.'
+    : 'Do not use this part for long-term or compressive load without physical test data: the rough long-term check exceeds your failure target. The main design result above is unchanged.';
 }
 function recomputeRecipe() {
   const p = state.proof;
@@ -1252,13 +1253,13 @@ function renderBrittle(br, where) {
   if (!br) { host.textContent = '—'; return; }
   const warn = br.brittle_ok === false;
   host.innerHTML = `
-    <div><span class="micro">Peak strain demand</span><b>${nf(br.strain_req_pct, 3)} %</b></div>
-    <div><span class="micro">Elongation capacity</span><b>${nf(br.elongation_mean_pct, 1)} % <span style="color:var(--muted);font-size:11px">CV ${nf(br.elongation_cv * 100, 0)} %</span></b></div>
-    <div><span class="micro">Marginal P_f (brittle)</span><b>${fmtPf(br.pf_brittle)}</b></div>
-    <div><span class="micro">Add-on estimate · P_f + marginal</span><b>${fmtPf(br.pf_brittle_bound)}</b></div>
-    <div class="${warn ? 'is-warn' : ''}"><span class="micro">Screen</span><b>${warn ? 'brittle-lot warning' : 'brittle margin OK'}</b></div>`;
-  if (badge) badge.innerHTML = `<span class="b-dot"></span>marginal screen · NOT in headline P_f`;
-  if (note) note.textContent = `${br.brittle_note || ''} Peak strain demand = σy_req / E_mean at mean E; capacity mean/CV are printed elongation from the feedstock library. E–elongation correlation assumed ${nf(br.corr_E_elong_assumed ?? br.corr_E_elong ?? -0.25, 2)}.`;
+    <div><span class="micro">Stretch the design needs</span><b>${nf(br.strain_req_pct, 3)} %</b></div>
+    <div><span class="micro">Stretch at break</span><b>${nf(br.elongation_mean_pct, 1)} % <span style="color:var(--muted);font-size:11px">variation ${nf(br.elongation_cv * 100, 0)} %</span></b></div>
+    <div><span class="micro">Separate crack risk</span><b>${fmtPf(br.pf_brittle)}</b></div>
+    <div><span class="micro">Extra estimate · main + crack risk</span><b>${fmtPf(br.pf_brittle_bound)}</b></div>
+    <div class="${warn ? 'is-warn' : ''}"><span class="micro">Check</span><b>${warn ? 'review this batch' : 'stretch margin OK'}</b></div>`;
+  if (badge) badge.innerHTML = `<span class="b-dot"></span>separate check · not in main failure chance`;
+  if (note) note.textContent = `${br.brittle_note || ''} The needed stretch is the required stress divided by average stiffness; the capacity comes from printed test data. The link between stiffness and stretch is assumed ${nf(br.corr_E_elong_assumed ?? br.corr_E_elong ?? -0.25, 2)}.`;
 }
 function renderAssumptions(a) {
   const host = $('#assumptions-values');
@@ -1266,11 +1267,11 @@ function renderAssumptions(a) {
   if (!a) { host.textContent = '—'; return; }
   const corr = Array.isArray(a.corr_range) ? a.corr_range : [];
   const split = Array.isArray(a.split_range) ? a.split_range : [];
-  host.innerHTML = `<div class="assumption-band" style="grid-column:1/-1">P_f range <b>${fmtPf(a.pf_min)} – ${fmtPf(a.pf_max)}</b> across the two unmeasured assumptions</div>
-    <div><span class="micro">corr(lnE, lnσy) 0.30 / 0.70</span><br>${corr.map((x) => `<b>${fmtPf(x.pf)}</b>`).join(' &nbsp;·&nbsp; ')}</div>
-    <div><span class="micro">lot-vs-within split 75 % / 95 %</span><br>${split.map((x) => `<b>${fmtPf(x.pf)}</b>`).join(' &nbsp;·&nbsp; ')}</div>`;
+  host.innerHTML = `<div class="assumption-band" style="grid-column:1/-1">Failure chance range <b>${fmtPf(a.pf_min)} – ${fmtPf(a.pf_max)}</b> across the two unmeasured inputs</div>
+    <div><span class="micro">Stiffness–strength link 0.30 / 0.70</span><br>${corr.map((x) => `<b>${fmtPf(x.pf)}</b>`).join(' &nbsp;·&nbsp; ')}</div>
+    <div><span class="micro">Batch-vs-within spread 75 % / 95 %</span><br>${split.map((x) => `<b>${fmtPf(x.pf)}</b>`).join(' &nbsp;·&nbsp; ')}</div>`;
   const badge = $('#assumptions-badge');
-  if (badge) badge.innerHTML = '<span class="b-dot"></span>assumption sensitivity · not validation';
+  if (badge) badge.innerHTML = '<span class="b-dot"></span>sensitivity check · not validation';
 }
 function renderFeasibility() {
   const familyGate = $('#family-gate');
@@ -1288,9 +1289,9 @@ function renderFeasibility() {
     processGate.hidden = false;
     familyGate.hidden = true;
     const sub = $('#process-gate-sub');
-    if (sub) sub.textContent = `Material data is for '${state.material.process}' — not valid for a printed lattice. Pick rPETG (printed, FDM/FFF), or treat this preset as contrast only.`;
+    if (sub) sub.textContent = 'These numbers come from moulded parts, so they do not describe a 3D-printed lattice. Choose rPETG (printed), or use this preset only for comparison.';
     const facts = $('#process-gate-facts');
-    if (facts) facts.innerHTML = `process <b>${esc(state.material.process)}</b> · printed-process gate: <b>FDM/FFF only</b> · ${esc(state.material.processNote || 'injection/compression data')}`;
+    if (facts) facts.innerHTML = `process <b>${esc(state.material.process)}</b> · this model needs <b>3D-printed material data</b> · ${esc(state.material.processNote || 'moulded-part data')}`;
     if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.dataset.blockReason = 'process'; btn.title = ff.detail || 'Material data is not for a printed process — Design blocked'; }
     return;
   }
@@ -1298,8 +1299,8 @@ function renderFeasibility() {
   const facts = $('#family-gate-facts');
   if (!ff.feasible) {
     familyGate.hidden = false;
-    if (facts) facts.innerHTML = `widest uniform lattice <b>${nf(ff.max_width_mm, 2)} mm</b> · min achievable P_f <b>${fmtPf(ff.min_achievable_pf)}</b> vs target ${fmtPf(target)} · demand <b>${nf(ff.sigma_req_MPa, 1)} MPa</b> σy / <b>${nf(ff.E_req_MPa, 0)} MPa</b> E`;
-    if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.dataset.blockReason = 'infeasible'; btn.title = 'Infeasible for this bracket/lattice family — adjust target, load or material'; }
+    if (facts) facts.innerHTML = `widest struts <b>${nf(ff.max_width_mm, 2)} mm</b> · best failure chance <b>${fmtPf(ff.min_achievable_pf)}</b> vs target ${fmtPf(target)} · needs <b>${nf(ff.sigma_req_MPa, 1)} MPa</b> strength / <b>${nf(ff.E_req_MPa, 0)} MPa</b> stiffness`;
+    if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.dataset.blockReason = 'infeasible'; btn.title = 'This bracket family cannot meet the target — change the target, load or material'; }
   } else {
     familyGate.hidden = true;
     if (btn && btn.dataset.blocked === '1') { btn.disabled = false; delete btn.dataset.blocked; delete btn.dataset.blockReason; btn.title = ''; }
@@ -1399,14 +1400,14 @@ function renderValidation() {
   const foot = $('#validation-foot');
   if (foot) {
     const runtime = v.runtime_s ? ` · ${Number(v.runtime_s).toFixed(1)} s` : '';
-    foot.textContent = `${counts.PASS} pass · ${counts.WARN} warn · ${counts.FAIL} fail · ${total} checks · Python 29 / JS 37 tests${runtime}`;
+    foot.textContent = `${counts.PASS} passed · ${counts.WARN} warning${counts.WARN === 1 ? '' : 's'} · ${counts.FAIL} failed · ${total} checks${runtime}`;
   }
   const sub = $('#validation-sub');
-  if (sub) sub.textContent = v.source ? `Source: ${v.source}` : 'L0–L1 verified';
+  if (sub) sub.textContent = 'The maths and code were checked by a separate script. No physical tests yet.';
   const pill = $('#validation-pill');
-  if (pill) pill.innerHTML = `<span class="p-dot"></span>${counts.FAIL ? 'review needed' : counts.WARN ? 'L0–L1 verified · warnings' : 'L0–L1 verified'}`;
+  if (pill) pill.innerHTML = `<span class="p-dot"></span>${counts.FAIL ? 'needs review' : counts.WARN ? 'model checked · notes' : 'model checked'}`;
   const link = $('#validation-link');
-  if (link) { link.href = 'validation/VALIDATION.md'; link.textContent = 'Validation report ↗'; }
+  if (link) { link.href = 'validation/VALIDATION.md'; link.textContent = 'See the checks ↗'; }
 }
 function renderClaims() {
   const host = $('#claims-list');
@@ -1414,7 +1415,7 @@ function renderClaims() {
   const ladder = AC.claimsLadderFromValidation(state.validation);
   host.innerHTML = ladder.map((c) => {
     const cls = c.tone === 'green' ? 'is-green' : c.tone === 'amber' ? 'is-amber' : 'is-muted';
-    const tag = /achiev/i.test(c.status) ? 'achieved' : /partial/i.test(c.status) ? 'partial' : /planned/i.test(c.status) ? 'planned' : 'not claimed';
+    const tag = /achiev/i.test(c.status) ? 'checked' : /partial/i.test(c.status) ? 'partly' : /planned/i.test(c.status) ? 'planned' : 'not yet';
     return `<div class="claim-row"><span class="cl-level">${esc(c.level)}</span><span class="cl-text">${esc(c.text)}</span><span class="cl-tag ${cls}">${tag}</span></div>`;
   }).join('');
 }
@@ -1444,7 +1445,7 @@ function loadProofMemos() {
       renderProofMemo(res);
       const kind = res.fallback || res.live === false ? 'fallback' : 'live';
       badge.dataset.kind = kind;
-      badge.innerHTML = `<span class="b-dot"></span>${esc(res.provenance ? res.provenance.model : 'AI partner')}${res.provenance ? ` · ${(res.provenance.latencyMs / 1000).toFixed(2)} s` : ''} · ${kind}${res.grounded === false ? ' · fallback (ungrounded)' : ' · numbers injected'}`;
+      badge.innerHTML = `<span class="b-dot"></span>${esc(res.provenance ? res.provenance.model : 'AI assistant')}${res.provenance ? ` · ${(res.provenance.latencyMs / 1000).toFixed(2)} s` : ''} · ${kind}${res.grounded === false ? ' · fallback (numbers not checked)' : ' · numbers checked'}`;
     } catch (err) {
       console.error(err);
       renderProofMemo({ memo: AC.fallbackProofMemo(payload).memo, fallback: true, nextTest: '' });
@@ -1469,7 +1470,7 @@ function renderProofMemo(res) {
   if (!body || !res) return;
   body.innerHTML = highlightNumbers(res.memo || '');
   const actions = $('#proof-memo-actions');
-  const tests = res.recommendedTests && res.recommendedTests.length ? res.recommendedTests.slice(0, 2) : [res.nextTest || 'Measure E and σy on three incoming lots'].filter(Boolean);
+  const tests = res.recommendedTests && res.recommendedTests.length ? res.recommendedTests.slice(0, 2) : [res.nextTest || 'Measure stiffness and strength on three incoming batches'].filter(Boolean);
   actions.innerHTML = tests.map((t) => `<button class="btn btn--sm btn--ghost" type="button">${esc(t)}</button>`).join('');
   actions.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => toast(`${b.textContent} — added to review list`)));
   const risk = $('#proof-memo-risk');
@@ -1515,7 +1516,7 @@ function openDrawer() {
   drawer.setAttribute('aria-hidden', 'false');
   $('#scrim')?.classList.add('is-open');
   $('#drawer-close')?.focus();
-  toast(`AI provenance · ${state.aiCalls.length} call${state.aiCalls.length === 1 ? '' : 's'} this session`);
+  toast(`AI activity · ${state.aiCalls.length} request${state.aiCalls.length === 1 ? '' : 's'} in this run`);
 }
 function closeDrawer() {
   $('#drawer')?.classList.remove('is-open');
@@ -1531,12 +1532,12 @@ function renderProvenance() {
   const cached = calls.filter((c) => c.cached).length;
   const avg = calls.length ? calls.reduce((s, c) => s + (c.latencyMs || 0), 0) / calls.length : 0;
   const summary = `<div class="prov-summary">
-    <div class="prov-stat"><div class="ps-k">Calls</div><div class="ps-v">${calls.length}</div></div>
-    <div class="prov-stat"><div class="ps-k">Avg latency</div><div class="ps-v">${(avg / 1000).toFixed(2)} s</div></div>
+    <div class="prov-stat"><div class="ps-k">Requests</div><div class="ps-v">${calls.length}</div></div>
+    <div class="prov-stat"><div class="ps-k">Average time</div><div class="ps-v">${(avg / 1000).toFixed(2)} s</div></div>
     <div class="prov-stat"><div class="ps-k">Fallback / cached</div><div class="ps-v">${fallbackCount} / ${cached}</div></div>
   </div>`;
   if (!calls.length) {
-    body.innerHTML = summary + '<div class="drawer-empty">No AI calls yet this session.<br>Run “Design with AI” to see model, latency, cache and fallback provenance.</div>';
+    body.innerHTML = summary + '<div class="drawer-empty">No AI requests yet.<br>Run “Design with AI” to see which model answered, how long it took, whether it was cached, and whether it fell back.</div>';
     return;
   }
   body.innerHTML = summary + '<div class="prov-list">' + calls.slice().reverse().map((c) => {
@@ -1550,7 +1551,7 @@ function renderProvenance() {
         <span>${c.schemaOk ? 'schema ok' : 'schema issue'}</span>
         ${c.grounding ? `<span>${esc(c.grounding)}</span>` : ''}
       </div>
-      <details><summary>Response detail</summary><pre>${esc(JSON.stringify(c, null, 2))}</pre></details>
+      <details><summary>Raw response</summary><pre>${esc(JSON.stringify(c, null, 2))}</pre></details>
     </div>`;
   }).join('') + '</div>';
 }
@@ -1570,9 +1571,9 @@ function wireDrawer() {
     const text = JSON.stringify({ session: DEFAULTS.seed, mode: state.aiMode, calls: state.aiCalls }, null, 2);
     try {
       await navigator.clipboard.writeText(text);
-      toast('Provenance log copied');
+      toast('AI activity copied');
     } catch (err) {
-      toast('Copy blocked — export the AI provenance log instead', 'err');
+      toast('Copy blocked — export the AI activity log instead', 'err');
     }
   });
 }
@@ -1604,7 +1605,7 @@ function wireAIMenu() {
         else toast('Live Meta models connected');
       } else if (mode === 'offline') {
         demo.state = 'offline';
-        toast('Offline assistant · deterministic fallbacks, engine still local');
+        toast('Offline mode · built-in text, calculator still local');
       } else {
         toast('Cached session · showing the last responses');
       }
@@ -1697,10 +1698,10 @@ function renderAdvancedControls() {
   };
   makeRange('Load F (N)', 50, 400, 5, state.brief.loadN, 'N', (v) => { state.brief.loadN = v; renderUnderstanding(); persist(); });
   makeRange('Deflection limit (mm)', 0.5, 6, 0.1, state.brief.deflLimitMm, 'mm', (v) => { state.brief.deflLimitMm = v; renderUnderstanding(); persist(); });
-  makeRange('Reliability target P_f (%)', 0.05, 5, 0.05, state.brief.targetPf * 100, '%', (v) => { state.brief.targetPf = v / 100; renderUnderstanding(); persist(); });
+  makeRange('Allowed failure chance (%)', 0.05, 5, 0.05, state.brief.targetPf * 100, '%', (v) => { state.brief.targetPf = v / 100; renderUnderstanding(); persist(); });
   makeRange('CV(E) (%)', 2, 30, 0.5, state.material.E_cv * 100, '%', (v) => { state.material.E_cv = v / 100; state.lot.E_cv = v / 100; renderLot(); persist(); });
-  makeRange('CV(σy) (%)', 2, 30, 0.5, state.material.sy_cv * 100, '%', (v) => { state.material.sy_cv = v / 100; state.lot.sy_cv = v / 100; renderLot(); persist(); });
-  makeRange('corr(ln E, ln σy)', -0.5, 0.9, 0.01, state.material.corr, '', (v) => { state.material.corr = v; persist(); });
+  makeRange('Strength variation (%)', 2, 30, 0.5, state.material.sy_cv * 100, '%', (v) => { state.material.sy_cv = v / 100; state.lot.sy_cv = v / 100; renderLot(); persist(); });
+  makeRange('Stiffness–strength link', -0.5, 0.9, 0.01, state.material.corr, '', (v) => { state.material.corr = v; persist(); });
   const c = selectedCandidate();
   if (c) {
     makeRange('Uniform width scale', 0.6, 1.6, 0.01, 1, '×', (v) => {
@@ -1719,7 +1720,7 @@ function wireLab() {
     state.lab = !state.lab;
     document.body.classList.toggle('lab-on', state.lab);
     btn.setAttribute('aria-pressed', String(state.lab));
-    toast(state.lab ? 'Lab mode on · model inputs visible' : 'Lab mode off');
+    toast(state.lab ? 'Advanced view on · model inputs visible' : 'Advanced view off');
     if (state.lab) {
       $('#advanced-brief')?.setAttribute('open', '');
       renderAdvancedControls();
@@ -1730,7 +1731,7 @@ function wireLab() {
 function wireHelp() {
   $('#btn-help')?.addEventListener('click', () => {
     openDrawer();
-    toast('Every AI claim is signed; every number is engine-computed. Claims ladder on Prove.');
+    toast('Every AI sentence is grounded in calculated numbers. See “What this can and can’t prove” on Prove.');
   });
 }
 
@@ -1752,7 +1753,7 @@ function buildDesignJson() {
     generated_at: new Date().toISOString(),
     mode: state.aiMode,
     in_silico_only: true,
-    disclaimer: 'Decision support, not certification. Simulated numbers only.',
+    disclaimer: 'Model estimates — confirm the final design with a physical test before production.',
     project: state.project,
     brief: state.brief,
     lot: state.lot,
@@ -1843,15 +1844,15 @@ function buildDesignJson() {
     ai: { mode: state.aiMode, calls: state.aiCalls },
     limitations: [
       'Linear-elastic plane-frame idealisation; no plasticity, creep, fatigue or joint behaviour.',
-      'Out-of-plane / layer-normal loading is not modelled; rPETG strength is printed in-plane ISO 527-2.',
+      'Loading across layer lines is not modelled. The PETG strength number comes from printed test parts pulled in the print direction.',
       'Optimum is local (multi-start pattern search), not proven global.',
-      'Mass: displayed mass is the deterministic printed/union estimate (Halton QMC, matching Python within 0.5 %); analytic mass is a conservative upper bound only.',
+      'Mass: the headline is an estimate of the printed part from a simulated print volume. A higher cautious estimate is shown separately.',
       'Printability: neighbour width ratio > 1.5 or slenderness > 30 is a hard constraint in the optimiser; the selected design passes both.',
       'Sustained load: the creep x2.0 / compression /0.8 bound is an advisory only; static design allowables are unchanged and no sustained-load qualification has been performed.',
       'Known lot: the lot-specific recipe retains measurement uncertainty (default CV 12 %) and re-optimises all 8 width controls; global equivalent scale is a slicer fallback.',
-      'Brittle-lot screen: marginal lognormal against elongation-at-break, reported as an add-on estimate (not a formal upper bound); NOT included in the headline two-property P_f because the E-elongation correlation is assumed (-0.25).',
-      'Printed-process gate: only FDM/FFF material data is valid for the printed lattice; injection/compression presets are contrast only and block Design.',
-      'Assumption bounds vary corr(lnE, lnσy) and the lot/within split; they are assumption sensitivity, not validation.',
+      'Brittleness check: a separate estimate of crack risk. It is not part of the main failure chance because the link between stiffness and stretch is assumed.',
+      'Process guard: only 3D-printed material data can design this printed part. Moulded-part presets are comparison-only and block Design.',
+      'The uncertainty range shows how the failure chance moves if the stiffness–strength link and batch spread are different. It is a sensitivity check, not validation.',
       'Design-stage report: no delivered lot is specified unless a lot ID/measurement is entered in the QC record.',
       'Feedstock distributions are literature-derived; no experimental validation in this project.',
     ],
@@ -1879,7 +1880,7 @@ function buildReportHtml() {
   .memo{background:#FCFBF7} .lim{font-size:12px;color:var(--muted)}
   .tag{color:var(--verify)} .warn{color:#B8361A}
 </style></head><body>
-<div class="micro">AnyRB v0.4 · in-silico qualification · decision support, not certification</div>
+<div class="micro">AnyRB v0.4 · design and batch check · model estimates</div>
 <h1>${esc(state.project)}</h1>
 <div class="badge">Generated ${new Date().toISOString()} · AI mode: ${esc(state.aiMode)} · seed ${DEFAULTS.seed}</div>
 <div class="card"><div class="micro">Brief</div>
@@ -1925,7 +1926,7 @@ ${p && p.assumptions ? `<h2>Assumption sensitivity (not validation)</h2><div cla
 <h2>Validation</h2><div class="card">${state.validation.checks.map((x) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="badge">${esc(x.status)}</span><br><span class="lim">${esc(x.detail)}</span></div>`).join('')}
 <p class="lim">Source: ${esc(state.validation.source || 'embedded fallback')}</p></div>
 <h2>AI provenance</h2><div class="card"><table><thead><tr><th>Endpoint</th><th>Model</th><th>Latency</th><th>Status</th></tr></thead><tbody>${state.aiCalls.map((cl) => `<tr><td>${esc(cl.endpoint)}</td><td>${esc(cl.model)}</td><td>${(cl.latencyMs / 1000).toFixed(2)} s</td><td>${cl.demo ? 'mock' : cl.fallback ? 'fallback' : 'live'}${cl.cached ? ' · cached' : ''}</td></tr>`).join('') || '<tr><td colspan="4">No AI calls recorded</td></tr>'}</tbody></table></div>
-<h2>Claims &amp; limitations</h2><div class="card"><p class="lim"><b>Simulated numbers only.</b> Linear-elastic 2-D frame idealisation; literature-derived feedstock; local optimum; no physical testing. In-silico decision support, not certification. AnyRB changes the mean demand and the decision, not the material's own CV.</p></div>
+<h2>What to check before production</h2><div class="card"><p class="lim"><b>These are model estimates, not measurements.</b> The part is represented in 2-D with simplified physics; material data comes from published studies; the design is a local best, not a proven global one; and nothing has been physically tested. Use this to choose a design and a batch, then confirm with a physical test.</p></div>
 </body></html>`;
 }
 function wireExports() {
@@ -1948,7 +1949,7 @@ function wireExports() {
           toast('Design JSON exported');
         } else if (kind === 'provenance') {
           download(new Blob([JSON.stringify({ session: DEFAULTS.seed, mode: state.aiMode, calls: state.aiCalls, exported_at: new Date().toISOString() }, null, 2)], { type: 'application/json' }), `anyrb_provenance_${stamp}.json`);
-          toast('AI provenance log exported');
+          toast('AI activity log exported');
         }
       } catch (err) {
         console.error(err);
@@ -1967,7 +1968,7 @@ function showAIError(err) {
   banner.hidden = false;
   banner.dataset.kind = 'error';
   $('#banner-title').textContent = 'The AI partner didn’t respond.';
-  $('#banner-body').textContent = `Falling back to the deterministic assistant (${String(err && err.message || 'request failed').slice(0, 120)}). Engine numbers are unchanged.`;
+  $('#banner-body').textContent = `Using the built-in reader (${String(err && err.message || 'request failed').slice(0, 120)}). The calculated numbers are unchanged.`;
   $('#banner-actions').innerHTML = '<button class="btn btn--sm" id="banner-retry2" type="button">Retry AI</button><button class="btn btn--sm btn--ghost" id="banner-dismiss2" type="button">Continue offline</button>';
   $('#banner-retry2')?.addEventListener('click', () => ai.detect().then(() => { hideAIError(); toast('Retrying AI connection…'); }));
   $('#banner-dismiss2')?.addEventListener('click', hideAIError);
@@ -2037,12 +2038,12 @@ async function applyDemoState() {
     if (banner) {
       banner.hidden = false;
       banner.dataset.kind = 'error';
-      $('#banner-title').textContent = 'The AI partner didn’t respond.';
-      $('#banner-body').textContent = 'Your brief is safe. The verified engine can run from the deterministic fallback — numbers will not change.';
+      $('#banner-title').textContent = 'The AI service didn’t respond.';
+      $('#banner-body').textContent = 'Your brief is safe. The calculator still runs, and the numbers will not change.';
       $('#banner-actions').innerHTML = '<button class="btn btn--sm btn--ghost" id="banner-demo-offline" type="button">Continue offline</button>';
       $('#banner-demo-offline')?.addEventListener('click', () => { banner.hidden = true; });
     }
-    toast('Demo state: AI error with deterministic fallback');
+    toast('Demo state: AI error, using built-in text');
   }
   if (demo.state === 'offline') toast('Demo state: offline assistant (forced)');
 }

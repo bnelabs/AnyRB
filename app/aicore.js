@@ -18,8 +18,8 @@ import { GEOMETRY, DEFAULTS, MATERIAL_PRESETS, numericMaterial, UI_RANGES } from
 import * as E from './engine.js';
 import * as O from './optimize.js';
 
-export const OFFLINE_MODEL = 'offline-assistant';
-export const OFFLINE_NOTE = 'Offline assistant (no Meta API)';
+export const OFFLINE_MODEL = 'built-in assistant';
+export const OFFLINE_NOTE = 'Offline — built-in assistant';
 
 // ---------------------------------------------------------------------------
 // Example briefs (chips in the Brief step)
@@ -75,6 +75,7 @@ export function presetLot(key) {
     id: p.key,
     name: p.label,
     source: p.source,
+    sourceDetails: p.sourceDetails || '',
     confidence: 1,
     E_mean: p.E_mean,
     E_cv: p.E_cv,
@@ -241,7 +242,7 @@ export function parseLotTextHeuristics(text, presetKey = DEFAULTS.preset) {
   return {
     material,
     confidence: Math.min(0.92, 0.45 + extractedCount * 0.11),
-    source: extractedCount > 0 ? 'Pasted supplier text (offline heuristic)' : 'Preset fallback (no usable numbers found in text)',
+    source: extractedCount > 0 ? 'Text you pasted (read by the built-in reader)' : 'Selected material preset',
     extracted: extractedCount > 0,
     fallback: true,
     model: OFFLINE_MODEL,
@@ -255,9 +256,9 @@ export function parseLotTextHeuristics(text, presetKey = DEFAULTS.preset) {
 // Candidate design priors + engine evaluation/ranking
 // ---------------------------------------------------------------------------
 export const CANDIDATE_META = {
-  light: { name: 'Light profile', tagline: 'Lowest mass', rationale: 'Uniformly thin struts that should just clear the reliability target in the first pass — efficient, but the least forgiving when a lot runs weak.' },
-  balanced: { name: 'Root-biased', tagline: 'Balanced', rationale: 'Moves material to the root and bottom chord where the cantilever moment peaks, keeping the tip light. The usual best trade-off for a bracket.' },
-  conservative: { name: 'Conservative', tagline: 'Extra margin', rationale: 'Uniformly wider than the first-pass feasibility boundary — more mass and a lower failure probability, useful with highly variable feedstock.' },
+  light: { name: 'Light', tagline: 'Lowest mass', rationale: 'Thin struts that should just reach the reliability target. Efficient, but the least forgiving if a batch comes in weak.' },
+  balanced: { name: 'Balanced', tagline: 'Balanced', rationale: 'Puts more material where the bracket bends most, near the wall, and keeps the tip light. Usually the best trade-off.' },
+  conservative: { name: 'Extra-safe', tagline: 'More margin', rationale: 'Thicker than needed for the target, with a lower failure chance. Useful when the incoming batches vary a lot.' },
 };
 
 function clampWidth(w) {
@@ -286,7 +287,7 @@ export function fallbackPlan(brief, material, ctx) {
     targetPf,
     firstPassWidthMm: Math.exp(O.feasibleUniformStart(material, ctx, targetPf)[0]),
     basePrintedMassG: opt.printed_mass_g,
-    note: 'Deterministic priors from the verified multi-start optimum (± width scale).',
+    note: 'Starting points built from the best design the calculator found (with a little more or less material).',
   };
 }
 
@@ -428,9 +429,9 @@ export function recommendedDesign(materialIn, ctx, targetPf) {
   const assumptions = E.assumptionBounds(material, analysis.demands.sigma_y_req, analysis.demands.E_req, 'lot');
   return {
     id: 'optimised',
-    name: 'Engine-optimised',
+    name: 'Best of this family',
     strategy: 'multi-start robust pattern search',
-    rationale: `Final engine-optimised design (multi-start pattern search): ${printed.toFixed(2)} g printed, chosen by printed mass with the printability constraint.`,
+    rationale: `The best design the calculator found: ${printed.toFixed(2)} g estimated printed mass, chosen by mass with the print settings checked.`,
     tagline: 'Recommended',
     logWidth: opt.design,
     controlWidthsMm: E.designWidths(opt.design).map((w) => clampWidth(w)),
@@ -496,11 +497,11 @@ const num = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : '—');
 export function fallbackDesignReview(payload) {
   const f = payload && payload.facts ? payload.facts : payload || {};
   const memo = [
-    `This direction lands at ${num(f.mass_g, 2)} g with a batch failure probability of ${pct(f.pf, 3)} against a ${pct(f.target_pf, 2)} target, so it is ${f.feasible ? 'inside' : 'outside'} the reliability requirement.`,
-    `The binding failure mode is ${f.governing_mode || 'not computed'} — the root and lower chord carry most of the cantilever moment.`,
-    `The required material demand is ${num(f.sigma_y_req_mpa, 2)} MPa strength and ${num(f.E_req_mpa, 0)} MPa stiffness, which is what drives the batch decision rather than the raw strength of the polymer.`,
-    `Printability is ${f.printability_warn ? 'flagged' : 'within guidelines'}: minimum strut width ${num(f.min_width_mm, 2)} mm, maximum slenderness ${num(f.max_slenderness, 1)} and neighbour ratio ${num(f.neighbour_ratio, 2)}.`,
-    `Next, I would keep this geometry and check the measured lot's modulus — that is the quantity that moves the failure probability most in the stiffness-governed regime.`,
+    `This design comes out at ${num(f.mass_g, 2)} g, with an estimated ${pct(f.pf, 3)} chance of failing across batches against your ${pct(f.target_pf, 2)} target. That puts it ${f.feasible ? 'inside' : 'outside'} the target.`,
+    `The weak point is ${f.governing_mode || 'not computed'} — the wall end and lower edge carry most of the bending.`,
+    `The part needs about ${num(f.sigma_y_req_mpa, 2)} MPa of material strength and ${num(f.E_req_mpa, 0)} MPa of stiffness. Stiffness is what decides the batch outcome here, not raw strength.`,
+    `Print checks are ${f.printability_warn ? 'flagged' : 'clear'}: thinnest strut ${num(f.min_width_mm, 2)} mm, longest thin strut ${num(f.max_slenderness, 1)}, and the biggest width change between neighbours ${num(f.neighbour_ratio, 2)}.`,
+    `Next I would keep this shape and check the stiffness of the batch you actually received — that is what moves the failure chance most here.`,
   ].join(' ');
   return { memo, nextActions: ['Verify the measured lot E before printing', 'Open Prove to compute the batch passport'], model: OFFLINE_MODEL, fallback: true };
 }
@@ -508,11 +509,11 @@ export function fallbackDesignReview(payload) {
 export function fallbackProofMemo(payload) {
   const f = payload && payload.facts ? payload.facts : payload || {};
   const memo = [
-    `Qualification narrative: the selected design (${num(f.mass_g, 2)} g printed mass; analytic upper bound ${num(f.mass_analytic_upper_bound_g, 2)} g) meets a ${pct(f.target_pf, 2)} batch reliability target with a closed-form P_f of ${pct(f.pf, 3)} (${f.feasible ? 'pass' : 'fail'}).`,
-    `The governing mode is ${f.governing_mode || 'not computed'}; the material demand is ${num(f.sigma_y_req_mpa, 2)} MPa at yield and ${num(f.E_req_mpa, 0)} MPa stiffness.`,
-    `The batch acceptance window shows the lot-mean envelope in which the design stays inside the target; the known-lot passport re-optimises all ${(() => (Array.isArray(f.widths_mm) ? f.widths_mm.length : 8))()} width controls for the measured lot with measurement uncertainty retained (${num(f.measurement_cv, 2)} CV).`,
-    `Key risk: feedstock distribution assumptions from literature-derived presets — replace them with the supplier's own lot data before production.`,
-    `Recommended next test: measure lot E and σy on printed ISO 527-2 specimens from the incoming batch and re-run the passport.`,
+    `The selected design is ${num(f.mass_g, 2)} g estimated printed mass (the cautious high-side figure is ${num(f.mass_analytic_upper_bound_g, 2)} g). It comes out at an estimated ${pct(f.pf, 3)} chance of failing across batches against your ${pct(f.target_pf, 2)} target, so it ${f.feasible ? 'meets' : 'misses'} the target.`,
+    `The weak point is ${f.governing_mode || 'not computed'}; the part needs about ${num(f.sigma_y_req_mpa, 2)} MPa of strength and ${num(f.E_req_mpa, 0)} MPa of stiffness.`,
+    `The batch window shows which measured batch averages still meet the target. The batch-specific recipe adjusts all ${(() => (Array.isArray(f.widths_mm) ? f.widths_mm.length : 8))()} width zones for the batch you measured and keeps the measurement uncertainty (${num(f.measurement_cv, 2)} CV) in the calculation.`,
+    `The main uncertainty is the material data: it comes from published studies, so replace it with your supplier's own batch data before production.`,
+    `Next test: measure stiffness and strength on printed specimens from the incoming batch, then rerun this page.`,
   ].join(' ');
   return { memo, nextTest: 'Printed ISO 527-2 tensile specimens from the incoming lot', model: OFFLINE_MODEL, fallback: true };
 }
@@ -849,7 +850,7 @@ export const MASS_UNION = {
   analyticMassG: 50.81,
   unionMassG: 46.40,
   unionRatio: 46.40 / 50.81,
-  note: 'Halton QMC union, 60,000 samples — matches the Python reference within 0.5 %.',
+  note: 'Estimated printed mass from a simulated print volume; within 0.5% of a much larger reference calculation.',
   validatorNote: 'Validator F4 (fixed v0.3): analytic mass double-counts strut overlap; at the shipped robust design analytic 50.81 g vs printed union ≈46.40 g (+9.5 % upper bound). The app reports printed mass; analytic is shown as the upper bound only.',
 };
 export function massDisclosure(printedMassG) {
@@ -860,7 +861,7 @@ export function massDisclosure(printedMassG) {
     printed_g: round2(printed, 2),
     analytic_upper_bound_g: round2(upper, 2),
     upper_bound_pct: round2(pct, 1),
-    note: `Displayed mass is the deterministic printed/union estimate (Halton QMC); the analytic upper bound is ≈${round2(upper, 2)} g (about ${round2(pct, 1)} % higher because strut overlap is counted twice). Comparison bars use printed mass.`,
+    note: `The headline mass is our estimate of the printed part (simulated print volume). A cautious high-side figure is ${round2(upper, 2)} g, about ${round2(pct, 1)} % higher because strut overlap is counted twice. Comparison bars use the estimated printed mass.`,
     sample_union_g: MASS_UNION.unionMassG,
   };
 }
@@ -878,10 +879,10 @@ export function validationFallback() {
     checks: [
       { id: 'A', title: 'FE element benchmarks', detail: 'A1–A7: axial, cantilever, rigid body, independent assembly, equilibrium, symmetry, linearity — 8/8 pass', status: 'pass' },
       { id: 'B', title: 'Independent solver', detail: 'Energy-minimisation cross-check of the assembled system — 2/2 pass', status: 'pass' },
-      { id: 'C', title: 'Reliability closed form', detail: 'Closed-form bivariate P_f vs SciPy, high-precision quadrature and Monte-Carlo — 10/10 pass', status: 'pass' },
+      { id: 'C', title: 'Failure-chance maths', detail: 'The closed-form failure chance matches numerical integration and simulation. 10/10.', status: 'pass' },
       { id: 'D', title: 'Optimiser robustness', detail: 'Brute-force grid + independent random search find no better feasible design — 5/5 pass', status: 'pass' },
-      { id: 'E', title: 'Homogenisation check', detail: 'Periodic unit-cell energy/stress vs analytical truss scaling — 6/6 pass', status: 'pass' },
-      { id: 'F', title: 'Mass & STL audit', detail: 'Corrected F4 joint-overlap mass over-count (known, conservative, analytic is the upper bound) + F5 Halton printed-mass estimator WARN (60k QMC vs 600k MC) — both quantified', status: 'warn' },
+      { id: 'E', title: 'Lattice stiffness', detail: 'The lattice stiffness matches a simple truss estimate. 6/6.', status: 'pass' },
+      { id: 'F', title: 'Printed mass estimate', detail: 'The estimated printed mass is checked against a much larger simulation. Two small, quantified warnings remain (high-side mass and minimum-strut tolerance).', status: 'warn' },
       { id: 'G', title: 'Material-model audit', detail: 'Lognormal moments, correlation, two-level variance decomposition — 4/4 pass', status: 'pass' },
       { id: 'H', title: 'Cross-implementation', detail: 'Python ↔ JS fixture agreement — 4/4 pass', status: 'pass' },
       { id: 'I', title: 'Claim scope', detail: 'Number-grounding and claims-ladder audit — 2/2 pass', status: 'pass' },
@@ -945,7 +946,7 @@ export function buildDesignMemoPayload({ brief, selected, comparison }) {
     pf_brittle: selected.pf_brittle,
     pf_brittle_bound: selected.pf_brittle_bound,
     brittle_ok: selected.brittle_ok,
-    brittle_note: 'Marginal brittle-lot screen; add-on estimate (not a formal bound), NOT included in the headline P_f (E-elongation correlation assumed).',
+    brittle_note: 'Separate brittleness check; an extra estimate, not included in the main failure chance because the link between stiffness and stretch is assumed.',
   };
   return { facts, target_pf: brief.targetPf, design: { control_widths_mm: facts.widths_mm } };
 }
@@ -1030,13 +1031,24 @@ export function buildProofPayload({ brief, selected, proof, validation }) {
 export function claimsLadderFromValidation(validation) {
   const v = validation || {};
   if (Array.isArray(v.claimLadder) && v.claimLadder.length) {
-    return v.claimLadder.map((r) => ({
-      level: r.id || r.level,
-      title: r.level || r.id,
-      text: r.text || r.evidence || '',
-      status: r.status || 'partial',
-      tone: /achiev/i.test(r.status) ? 'green' : /partial/i.test(r.status) ? 'amber' : 'muted',
-    }));
+    const human = {
+      L0: { level: 'The maths', text: 'The equations and solver were checked independently.' },
+      L1: { level: 'The code', text: 'The app reproduces the reference calculations.' },
+      L2: { level: 'Material data', text: 'Material inputs come from published studies, not from your supplier.' },
+      L3: { level: 'Lab comparison', text: 'A lab comparison is planned but not done yet.' },
+      'L4–L6': { level: 'Real-world proof', text: 'No physical part tests and no certification.' },
+    };
+    return v.claimLadder.map((r) => {
+      const id = r.id || r.level;
+      const h = human[id] || null;
+      return {
+        level: h ? h.level : (r.level || r.id),
+        title: r.level || r.id,
+        text: h ? h.text : (r.text || r.evidence || ''),
+        status: r.status || 'partial',
+        tone: /achiev/i.test(r.status) ? 'green' : /partial/i.test(r.status) ? 'amber' : 'muted',
+      };
+    });
   }
   return claimsLadder();
 }
@@ -1044,10 +1056,10 @@ export function claimsLadderFromValidation(validation) {
 /** Claims ladder shown in the UI (honest wording, fixed copy). */
 export function claimsLadder() {
   return [
-    { level: 'Verified', text: 'FE element benchmarks, closed-form reliability vs SciPy/quadrature/Monte-Carlo, printed-mass/STL audits, printability and 8-control lot-resize checks', tone: 'green' },
-    { level: 'Supported', text: 'Batch-distribution reliability and robust design under the stated model assumptions — best of this bracket/lattice family', tone: 'ink' },
-    { level: 'Illustrative', text: 'Known-lot compensation, sustained-load advisory and acceptance windows (v0.1 logic; needs supplier calibration)', tone: 'amber' },
-    { level: 'Not claimed', text: 'Physical part performance, certification, fatigue/creep validation, out-of-plane or layer-normal strength, general topology optimality', tone: 'muted' },
+    { level: 'Checked', text: 'The maths and code were checked independently, including the mass and printability calculations.', tone: 'green' },
+    { level: 'Supported', text: 'The design method is internally consistent and matches the stated assumptions. It covers this one bracket family.', tone: 'ink' },
+    { level: 'Illustrative', text: 'Batch compensation, the long-term-load check and acceptance windows are early logic. They need your supplier data to be calibrated.', tone: 'amber' },
+    { level: 'Not claimed', text: 'Real part performance, certification, fatigue or creep validation, strength across layer lines, or a general best-shape guarantee.', tone: 'muted' },
   ];
 }
 

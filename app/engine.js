@@ -862,7 +862,7 @@ export function nodeDisplacements(analysis, E) {
 export const PRINTED_MASS = {
   samples: 60000,      // Halton quasi-Monte-Carlo samples (deterministic)
   margin: 4.0,         // bbox margin around the part, mm
-  note: 'Deterministic Halton quasi-Monte-Carlo union (60,000 samples, bases 2/3/5) of the strut boxes plus the wall pad. The analytic mass is a conservative upper bound.',
+  note: 'Estimated printed mass from a simulated print volume. The higher figure is a cautious upper estimate.',
 };
 
 // Halton sequence in [0,1) — cached per (n, base); identical to the Python engine.
@@ -1091,7 +1091,7 @@ export function brittleScreen(analysis, materialIn, level = 'lot') {
     brittle_ok: Number.isFinite(pfBrittle) ? pfBrittle <= 0.01 : null,
     brittle_threshold: 0.01,
     brittle_included_in_headline: false,
-    note: 'Marginal brittle-lot screen at mean-E strain; add-on ESTIMATE, not a formal upper bound; not included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25). Screen threshold fixed at 1 %.',
+    note: 'A separate brittleness check at average stiffness. It is an extra estimate, not a formal upper bound, and is not included in the main failure chance because the stiffness–stretch link is assumed (-0.25). Warning threshold fixed at 1%.',
   };
 }
 
@@ -1104,7 +1104,7 @@ export function familyFeasibility(materialIn, opts = {}) {
       feasible: false,
       process_ok: false,
       reason: 'process_mismatch',
-      detail: `material data is for '${material.process}', not FDM/FFF; a printed lattice cannot use moulded-property data`,
+      detail: 'these material numbers come from moulded parts; this model needs 3D-printed test data',
       min_achievable_pf: null,
       max_width_mm: GEOMETRY.wMax,
       target_pf: targetPf,

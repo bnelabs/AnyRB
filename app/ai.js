@@ -207,7 +207,7 @@ export function createAIClient(options = {}) {
     });
     if (!r.live || r.mock) {
       const fb = r.data;
-      return { lot: fb.lot || fb.material, confidence: fb.confidence, model: fb.model, fallback: true, extracted: fb.extracted, note: fb.note, source: fb.source || 'Offline heuristic', provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
+      return { lot: fb.lot || fb.material, confidence: fb.confidence, model: fb.model, fallback: true, extracted: fb.extracted, note: fb.note, source: fb.source || 'Built-in reader', provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
     }
     const norm = normalizeLotResponse(r.data, { preset: presetKey });
     return { ...norm, provenance: r.provenance, live: true };

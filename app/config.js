@@ -56,67 +56,71 @@ export const LOAD = {
 export const MATERIAL_PRESETS = {
   rPETG: {
     key: 'rPETG',
-    label: 'rPETG · printed',
-    name: 'rPETG printed (in-plane strength)',
+    label: 'rPETG · 3D-printed',
+    name: 'Recycled PETG (printed test parts)',
     process: 'FDM/FFF',
     E_mean: 2100, E_cv: 0.10,
     sy_mean: 46.0, sy_cv: 0.10,
     rho: 1.24, corr: 0.55,
     elongationMean: 4.0, elongationCv: 0.20, corrEElong: -0.25, elongationLotVarianceFraction: 0.50,
     printProcessOk: true,
-    processNote: 'printed in-plane data — valid for a printed lattice',
+    processNote: 'printed test data — valid for this model',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
-    source: 'R07: printed rPETG, ISO 527-2 in-plane strength 46.5 MPa (library); E 2100 MPa; doi:10.3221/igf-esis.70.18.',
-    note: 'σy is the printed in-plane strength (ISO 527-2, R07). Out-of-plane / layer-normal loading is not modelled in v0.1.',
+    source: 'Published tests of 3D-printed recycled PETG',
+    sourceDetails: 'Printed rPETG tensile tests (ISO 527-2). Study DOI 10.3221/igf-esis.70.18. The preset uses E 2,100 MPa and strength 46 MPa, CV 10%.',
+    note: 'Strength comes from printed test parts pulled in the print direction. Loading across layer lines is not covered by this model.',
   },
   rPET: {
     key: 'rPET',
-    label: 'rPET · bottle (IM)',
-    name: 'rPET (bottle-grade recyclate, injection moulding)',
+    label: 'rPET · moulded (comparison only)',
+    name: 'Recycled PET (moulded — comparison only)',
     process: 'IM',
     E_mean: 2500, E_cv: 0.12,
     sy_mean: 45.0, sy_cv: 0.15,
     rho: 1.34, corr: 0.60,
     elongationMean: 3.5, elongationCv: 0.25, corrEElong: -0.25, elongationLotVarianceFraction: 0.60,
     printProcessOk: false,
-    processNote: 'injection-moulding data — contrast only, not valid for a printed lattice',
+    processNote: 'moulded-part data — comparison only, not valid for a printed design',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
-    source: 'rPET studies; spec §3 (provisional).',
-    note: 'Provisional v0.1: literature-derived, not a supplier datasheet. Replace with your lot data.',
+    source: 'Published studies of moulded recycled PET',
+    sourceDetails: 'Literature ranges used as an early comparison set; not supplier data.',
+    note: 'A good example of why batch data matters: stretch at break varies widely between batches.',
   },
   rHDPE: {
     key: 'rHDPE',
-    label: 'rHDPE · PCR',
-    name: 'rHDPE (post-consumer recyclate)',
+    label: 'rHDPE · comparison only',
+    name: 'Recycled HDPE (moulded — comparison only)',
     process: 'IM/compression',
     E_mean: 950, E_cv: 0.22,
     sy_mean: 28.0, sy_cv: 0.17,
     rho: 0.95, corr: 0.55,
     elongationMean: 14.0, elongationCv: 0.30, corrEElong: -0.25, elongationLotVarianceFraction: 0.55,
     printProcessOk: false,
-    processNote: 'injection/compression data — contrast only, not valid for a printed lattice',
+    processNote: 'moulded-part data — comparison only, not valid for a printed design',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
-    source: 'Cecon 2023 (modulus range); Eriksen 2019; PNAS 2025 — as cited in spec §1.',
-    note: 'Headline recyclate: wide lot-to-lot variation is the reason this product exists.',
+    source: 'Published studies of recycled HDPE',
+    sourceDetails: 'Modulus and strength ranges compiled from Cecon 2023, Eriksen 2019 and the PNAS 2025 study.',
+    note: 'A good example of why this tool exists: batch-to-batch spread is the main problem.',
   },
   rPP: {
     key: 'rPP',
-    label: 'rPP · PCR',
-    name: 'rPP (post-consumer recyclate)',
+    label: 'rPP · comparison only',
+    name: 'Recycled PP (moulded — comparison only)',
     process: 'IM',
     E_mean: 1100, E_cv: 0.18,
     sy_mean: 27.0, sy_cv: 0.13,
     rho: 0.94, corr: 0.50,
     elongationMean: 25.0, elongationCv: 0.45, corrEElong: -0.25, elongationLotVarianceFraction: 0.60,
     printProcessOk: false,
-    processNote: 'injection data — contrast only, not valid for a printed lattice',
+    processNote: 'moulded-part data — comparison only, not valid for a printed design',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
-    source: 'PCR-PP lot-drift literature; spec §3 (provisional).',
-    note: 'Provisional v0.1: literature-derived, not a supplier datasheet. Replace with your lot data.',
+    source: 'Published studies of recycled PP over 15 months',
+    sourceDetails: 'Ten recycled-PP batches; stretch at break ranged from 10% to 100%. Literature ranges are an early estimate, not supplier data.',
+    note: 'A good example of why batch data matters: stretch at break varies widely between batches.',
   },
 };
 // Numeric material fields only (what the engine consumes).
@@ -182,7 +186,7 @@ export const OPTIMIZER = {
   scaleMin: 1.0,             // spec §2.4 batch-adaptive scale s ∈ [1, 1.5]
   scaleMax: 1.5,
   scalePass: 1.15,           // verdict: pass ≤ 1.15, conditional ≤ 1.5
-  statusLabel: 'provisional v0.1',
+  statusLabel: 'early estimate',
 };
 
 // ---------------------------------------------------------------------------
@@ -208,16 +212,16 @@ export const UI_RANGES = {
 // ---------------------------------------------------------------------------
 export const APP_META = {
   title: 'AnyRB',
-  subtitle: 'Any Recycled Batch — AI reliability studio for recycled-polymer parts',
+  subtitle: 'Any Recycled Batch — design software for recycled-plastic parts',
   thesis:
-    'Design the internal geometry for the batch distribution — then adapt the print recipe to the lot you actually received. No physical testing required to use it; the physics, statistics and material data are virtual.',
+    'Design the inside of the part around the batches you actually get, then adjust the print recipe for the batch in hand. You do not need physical tests to use it; the calculations and material data are in the software.',
   version: 'v0.3 · review-response',
   calibration:
-    'Calibrated v0.1 demo. Physics cross-checked against the canonical Python engine (fixture: app/tests/fixtures/reference.json).',
+    'Demo version. The calculations were cross-checked against a separate reference implementation.',
   strengthNote:
-    'rPETG σy is the printed in-plane strength measured on printed ISO 527-2 specimens (R07: 46 MPa, CV 10 %) — not a layer-normal or out-of-plane strength. Out-of-plane loading is not modelled in v0.1.',
+    'The PETG strength number comes from printed test parts pulled in the print direction. It does not describe strength across layer lines, and this model does not cover that loading direction.',
   disclaimer:
-    'In-silico only. Not a certification tool. Material distributions are literature-derived, the model is a linear-elastic plane-frame idealisation, and nothing here has been physically tested. Results are the best of this bracket/lattice family — not a general topology optimiser. Validate with your own lot data and physical tests before production.',
+    'Use this to compare designs and batches before you print. The numbers come from a model, so confirm the final choice with a physical test before production.',
 };
 
 export const CITATIONS = [
@@ -290,10 +294,10 @@ export const V03 = {
 // ---------------------------------------------------------------------------
 export const V04 = {
   printedProcesses: ['FDM/FFF'],
-  processGateNote: 'Material data is for an injection/compression process — not valid for a printed lattice. Pick rPETG (printed, FDM/FFF) or treat this preset as contrast only.',
-  brittleNote: 'Brittle-lot screen is a marginal lognormal P(elongation < strain demand) at mean-E strain. It is an add-on ESTIMATE, not a formal upper bound, and is NOT included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25); the screen threshold is fixed at 1 %.',
-  brittleCaveat: 'Elongation-vs-E correlation assumed -0.25 (unmeasured).',
-  assumptionNote: 'Varies two unmeasured assumptions — corr(lnE, lnσy) 0.30/0.70 and lot-vs-within split 75/95% — and shows the P_f range. This is assumption sensitivity, NOT validation.',
+  processGateNote: 'This preset comes from moulded parts, not printed ones. Pick rPETG (3D-printed) or use this preset only for comparison.',
+  brittleNote: 'A separate brittleness check: how likely the printed material is to crack before the part stretches as far as the model needs. It is an extra estimate, not a formal upper limit, and it is not included in the main failure chance because the link between stiffness and stretch is assumed (-0.25). The warning threshold is fixed at 1%.',
+  brittleCaveat: 'Assumes a typical link between stiffness and stretch (not measured).',
+  assumptionNote: 'Shows how the failure chance moves if two unmeasured inputs are different: the stiffness–strength link (0.30/0.70) and the split between batch-to-batch and within-batch variation (75/95%). This is a sensitivity check, not validation.',
   unionPolish: { nHalton: 10000, maxEvals: 90, acceptFactor: 0.999 },
-  qcNotUsedNote: 'Recorded for traceability only — NOT used in the simulation (no calibrated proxy).',
+  qcNotUsedNote: 'Kept for the record only — not used in the model (no calibration yet).',
 };
