@@ -92,20 +92,28 @@ class Material:
         return E, sy
 
     def lot_from_measurement(self, E_measured: float | None = None,
-                             sy_measured: float | None = None) -> "Material":
+                             sy_measured: float | None = None,
+                             measurement_cv: float = 0.0) -> "Material":
         """Return a material whose *lot* level is replaced by measured values.
 
         The within-lot CVs are kept from this material; the returned Material's
         E_mean/sy_mean are the measured lot means and the lot CV is set to zero.
         """
+        # A single supplier value / coupon is not the true lot mean: keep the
+        # measurement uncertainty in the distribution instead of pretending the
+        # lot has only within-lot scatter.  Variances add in log space.
+        e_within = self.E_cv * self.within_fraction
+        s_within = self.sy_cv * self.within_fraction
+        e_cv = float(np.sqrt(max(e_within ** 2 + measurement_cv ** 2, 1e-12)))
+        s_cv = float(np.sqrt(max(s_within ** 2 + measurement_cv ** 2, 1e-12)))
         return Material(
             id=self.id + "-measured",
             name=self.name + " (measured lot)",
             process=self.process,
             E_mean=float(E_measured if E_measured is not None else self.E_mean),
-            E_cv=float(self.E_cv * self.within_fraction),
+            E_cv=e_cv,
             sy_mean=float(sy_measured if sy_measured is not None else self.sy_mean),
-            sy_cv=float(self.sy_cv * self.within_fraction),
+            sy_cv=s_cv,
             rho=self.rho,
             corr=self.corr,
             lot_fraction=0.0,

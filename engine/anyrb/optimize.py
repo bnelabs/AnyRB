@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .lattice import (W_MAX, W_MIN, build_lattice, mass_g, uniform_controls,
-                      widths_from_controls)
+from .lattice import (W_MAX, W_MIN, build_lattice, mass_g, printed_mass_g,
+                      printability_report, uniform_controls, widths_from_controls)
 from .materials import Material
 from .mechanics import demands, evaluate, solid_demands
 from .reliability import failure_probability
@@ -39,6 +39,9 @@ class DesignResult:
     E_req_MPa: float
     u_tip_mean_mm: float
     widths: np.ndarray | None = None
+    printed_mass_g: float | None = None
+    mass_analytic_g: float | None = None
+    printability: dict | None = None
     reliability: float = field(init=False)
     strategy: str = ""
 
@@ -51,6 +54,8 @@ class DesignResult:
             "strategy": self.strategy,
             "controls": np.asarray(self.controls, float).tolist(),
             "mass_g": self.mass_g,
+            "printed_mass_g": self.printed_mass_g,
+            "mass_analytic_g": self.mass_analytic_g,
             "pf": self.pf,
             "reliability": self.reliability,
             "sigma_req_MPa": self.sigma_req_MPa,
@@ -126,6 +131,13 @@ def pattern_search(objective, x0: np.ndarray, steps=STEP_SCHEDULE,
     return best_x, best_val, evals
 
 
+def _print_penalty(widths: np.ndarray) -> float:
+    pr = printability_report(build_lattice(), widths)
+    ratio = max(0.0, pr["max_neighbour_width_ratio"] - 1.5) / 0.5
+    slen = max(0.0, pr["max_slenderness"] - 30.0) / 30.0
+    return 80.0 * (ratio + slen)
+
+
 def _starts(mat: Material, target_pf: float,
             widths=(None, 2.0, 2.2, 2.5, 3.0, 3.6)) -> list[np.ndarray]:
     """Deterministic multi-start set: smallest feasible uniform + fixed widths."""
@@ -160,7 +172,10 @@ def _result(name: str, strategy: str, mat: Material, controls: np.ndarray) -> De
     return DesignResult(name=name, strategy=strategy, controls=np.asarray(controls, float),
                         mass_g=r["mass_g"], pf=r["pf"],
                         sigma_req_MPa=r["sigma_req_MPa"], E_req_MPa=r["E_req_MPa"],
-                        u_tip_mean_mm=r["u_tip_mean_mm"], widths=r["widths"])
+                        u_tip_mean_mm=r["u_tip_mean_mm"], widths=r["widths"],
+                        printed_mass_g=r.get("printed_mass_g"),
+                        mass_analytic_g=r.get("mass_analytic_g"),
+                        printability=printability_report(build_lattice(), r["widths"]))
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +184,7 @@ def _result(name: str, strategy: str, mat: Material, controls: np.ndarray) -> De
 def minimum_uniform_width(mat: Material, target_pf: float) -> float | None:
     """Smallest uniform width whose P_f meets the target (monotone in width)."""
     def pf(w):
-        return evaluate(mat, uniform_controls(w))["pf"]
+        return evaluate(mat, uniform_controls(w), printed=False)["pf"]
 
     if pf(W_MAX) > target_pf:
         return None
@@ -190,10 +205,12 @@ def minimum_uniform_width(mat: Material, target_pf: float) -> float | None:
 def uniform_width_for_mass(mat: Material, mass_target: float) -> float:
     """Uniform width whose lattice mass equals mass_target (search)."""
     def m(w):
-        return evaluate(mat, uniform_controls(w))["mass_g"]
+        x = evaluate(mat, uniform_controls(w))
+        lat = build_lattice()
+        return printed_mass_g(lat, x["widths"], mat.rho, n=10_000)
 
     lo, hi = W_MIN, W_MAX
-    for _ in range(50):
+    for _ in range(24):
         mid = 0.5 * (lo + hi)
         if m(mid) < mass_target:
             lo = mid
@@ -209,14 +226,25 @@ def optimize_robust(mat: Material, target_pf: float = 0.01,
                     x0: np.ndarray | None = None, max_evals: int = 1200,
                     name: str = "Robust optimisation") -> DesignResult:
     def objective(x):
-        r = evaluate(mat, x)
+        r = evaluate(mat, x, printed=False)
         excess = max(0.0, r["pf"] - target_pf) / target_pf
-        return r["mass_g"] * (1.0 + 100.0 * excess)
+        return r["mass_g"] * (1.0 + 100.0 * excess + _print_penalty(r["widths"]))
 
     if x0 is not None:
         x, _, _ = pattern_search(objective, x0, max_evals=max_evals)
-    else:
-        x, _, _ = _run_multistart(objective, _starts(mat, target_pf))
+        return _result(name, "robust", mat, x)
+    # multi-start: the search ranks with the analytic upper bound; the final
+    # selection among the start solutions uses the printed/union mass.
+    best = None
+    for start in _starts(mat, target_pf):
+        xs, _, _ = pattern_search(objective, start, max_evals=max_evals)
+        r = evaluate(mat, xs)
+        if r["pf"] > target_pf * 1.02:
+            continue
+        score = r["printed_mass_g"] if r.get("printed_mass_g") else r["mass_g"]
+        if best is None or score < best[0]:
+            best = (score, xs)
+    x = best[1] if best else _run_multistart(objective, _starts(mat, target_pf))[0]
     return _result(name, "robust", mat, x)
 
 
@@ -246,13 +274,22 @@ def optimize_deterministic(mat: Material, safety_factor: float = 1.5,
     x0 = uniform_controls(w0)
 
     def objective(x):
-        r = evaluate(mat, x)
+        r = evaluate(mat, x, printed=False)
         d = r["demands"]
         v = max(0.0, safety_factor * d.sigma_req / mat.sy_mean - 1.0) \
             + max(0.0, safety_factor * d.E_req / mat.E_mean - 1.0)
-        return r["mass_g"] * (1.0 + 200.0 * v)
+        return r["mass_g"] * (1.0 + 200.0 * v + _print_penalty(r["widths"]))
 
-    x, _, _ = _run_multistart(objective, _starts(mat, 0.01))
+    candidates = []
+    for start in _starts(mat, 0.01):
+        xs, _, _ = pattern_search(objective, start, max_evals=1200)
+        r = evaluate(mat, xs)
+        d = r["demands"]
+        ok = (safety_factor * d.sigma_req <= mat.sy_mean * 1.002
+              and safety_factor * d.E_req <= mat.E_mean * 1.002)
+        if ok:
+            candidates.append((r.get("printed_mass_g") or r["mass_g"], xs))
+    x = min(candidates)[1] if candidates else _run_multistart(objective, _starts(mat, 0.01))[0]
     label = name or f"Nominal optimisation (SF {safety_factor:g})"
     return _result(label, f"nominal_sf{safety_factor:g}", mat, x)
 
@@ -271,7 +308,7 @@ def compare_strategies(mat: Material, target_pf: float = 0.01) -> dict:
                        uniform_controls(w_uniform))
                if w_uniform is not None else None)
 
-    w_match = uniform_width_for_mass(mat, robust.mass_g)
+    w_match = uniform_width_for_mass(mat, robust.printed_mass_g or robust.mass_g)
     uniform_match = _result("Uniform lattice (mass-matched)", "uniform_match", mat,
                             uniform_controls(w_match))
 
@@ -279,6 +316,8 @@ def compare_strategies(mat: Material, target_pf: float = 0.01) -> dict:
     solid = DesignResult(name="Solid plate", strategy="solid",
                          controls=uniform_controls(W_MAX),
                          mass_g=sd.mass_g,
+                         printed_mass_g=sd.mass_g,
+                         mass_analytic_g=sd.mass_g,
                          pf=failure_probability(mat, sd.sigma_req, sd.E_req),
                          sigma_req_MPa=sd.sigma_req, E_req_MPa=sd.E_req,
                          u_tip_mean_mm=150.0 * sd.u_tip_unit / mat.E_mean)
@@ -304,10 +343,119 @@ def pareto_curve(mat: Material, targets: list[float] | None = None,
     for t in targets:
         r = optimize_robust(mat, target_pf=t, x0=x, max_evals=900,
                             name=f"target {t:g}")
-        out.append({"target_pf": t, "achieved_pf": r.pf, "mass_g": r.mass_g,
+        out.append({"target_pf": t, "achieved_pf": r.pf,
+                    "mass_g": r.printed_mass_g if r.printed_mass_g else r.mass_g,
+                    "mass_analytic_g": r.mass_g,
                     "controls": r.controls.tolist()})
         x = r.controls
     return out
+
+
+
+
+# ---------------------------------------------------------------------------
+# v0.3 review-response additions
+# ---------------------------------------------------------------------------
+def family_feasibility(mat: Material, target_pf: float = 0.01,
+                       F: float | None = None, u_lim: float | None = None) -> dict:
+    """Can this bracket family meet the target at maximum printable widths?
+
+    Uses the widest uniform lattice as a conservative upper bound on achievable
+    reliability; if that cannot meet the target, the family/ material are
+    infeasible before any AI candidate is drawn.
+    """
+    from .lattice import F_DESIGN, U_LIMIT
+    F = F_DESIGN if F is None else F
+    u_lim = U_LIMIT if u_lim is None else u_lim
+    widths = widths_from_controls(uniform_controls(W_MAX), build_lattice().midpoints)
+    d = demands(build_lattice(), widths, F=F, u_lim=u_lim)
+    pf = failure_probability(mat, d.sigma_req, d.E_req, level="lot")
+    return {"feasible": bool(pf <= target_pf), "min_achievable_pf": pf,
+            "sigma_req_MPa": d.sigma_req, "E_req_MPa": d.E_req,
+            "max_width_mm": W_MAX, "target_pf": target_pf}
+
+
+def sustained_bound(mat: Material, controls: np.ndarray,
+                    creep_factor: float = 2.0, compression_factor: float = 0.8,
+                    F: float | None = None, u_lim: float | None = None) -> dict:
+    """Advisory sustained-load / creep bound (not the design allowables).
+
+    A printed recyclate part left loaded creeps; a simple, clearly-labelled
+    bound multiplies the stiffness demand by `creep_factor` and knocks the
+    compression strength down by `compression_factor`.
+    """
+    from .lattice import F_DESIGN, U_LIMIT
+    F = F_DESIGN if F is None else F
+    u_lim = U_LIMIT if u_lim is None else u_lim
+    lat = build_lattice()
+    widths = widths_from_controls(controls, lat.midpoints)
+    d = demands(lat, widths, F=F, u_lim=u_lim)
+    E_req_bound = d.E_req * creep_factor
+    sigma_req_bound = d.sigma_req / max(compression_factor, 1e-6)
+    pf_bound = failure_probability(mat, sigma_req_bound, E_req_bound, level="lot")
+    return {"pf_bound": pf_bound, "E_req_bound_MPa": E_req_bound,
+            "sigma_req_bound_MPa": sigma_req_bound,
+            "deflection_bound_mm": F * d.u_tip_unit / max(mat.E_mean, 1e-9) * creep_factor,
+            "creep_factor": creep_factor,
+            "compression_factor": compression_factor,
+            "note": "Advisory bound: sustained load + compression knock-down; not the design allowables."}
+
+
+def lot_specific_recipe(mat: Material, controls: np.ndarray, target_pf: float = 0.01,
+                        lot_E: float | None = None, lot_sy: float | None = None,
+                        measurement_cv: float = 0.12,
+                        max_iter: int = 1200) -> dict:
+    """Second, smaller optimisation for a measured lot.
+
+    Instead of one global width scale, re-optimise the 8 width controls for the
+    lot's measured mean properties, with the measurement uncertainty retained in
+    the failure probability.  Returns per-control width multipliers.
+    """
+    lat = build_lattice()
+    m = mat.lot_from_measurement(lot_E, lot_sy, measurement_cv=measurement_cv)
+
+    def evaluate_x(x):
+        c = np.clip(np.asarray(x, float), LOG_LO, LOG_HI)
+        widths = widths_from_controls(c, lat.midpoints)
+        d = demands(lat, widths)
+        pf = failure_probability(m, d.sigma_req, d.E_req, level="within")
+        analytic = mass_g(lat, widths, mat.rho)
+        pen = _print_penalty(widths)
+        return {"pf": pf, "mass": analytic, "widths": widths, "demands": d, "pen": pen, "controls": c}
+
+    def objective(x):
+        r = evaluate_x(x)
+        excess = max(0.0, r["pf"] - target_pf) / target_pf
+        return r["mass"] * (1.0 + 100.0 * excess + r["pen"])
+
+    base = np.clip(np.asarray(controls, float), LOG_LO, LOG_HI)
+    x, _, _ = pattern_search(objective, base, max_evals=max_iter)
+    r = evaluate_x(x)
+    printed = printed_mass_g(lat, r["widths"], mat.rho)
+    base_r = evaluate_x(base)
+    base_printed = printed_mass_g(lat, base_r["widths"], mat.rho)
+    scales = np.exp(r["controls"] - base)
+    g = float(np.median(scales))
+    if r["pf"] > target_pf * 1.02:
+        verdict = "reject / reroute"
+    elif g <= 1.001:
+        verdict = "pass as designed"
+    elif g <= 1.15:
+        verdict = "pass with compensation"
+    elif g <= 1.5:
+        verdict = "conditional (heavy compensation)"
+    else:
+        verdict = "reject / reroute"
+    return {
+        "controls": r["controls"], "width_multipliers": np.asarray(scales, float),
+        "global_equivalent_scale": g,
+        "printed_mass_g": printed, "printed_mass_analytic_g": r["mass"],
+        "base_printed_mass_g": base_printed,
+        "added_mass_pct": 100.0 * (printed / base_printed - 1.0),
+        "pf": r["pf"], "verdict": verdict,
+        "measurement_cv": measurement_cv,
+        "printability": printability_report(lat, r["widths"]),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -315,12 +463,12 @@ def pareto_curve(mat: Material, targets: list[float] | None = None,
 # ---------------------------------------------------------------------------
 def batch_recipe(mat: Material, controls: np.ndarray, target_pf: float = 0.01,
                  lot_E: float | None = None, lot_sy: float | None = None,
-                 max_scale: float = 1.5) -> dict:
+                 max_scale: float = 1.5, measurement_cv: float = 0.12) -> dict:
     """Required uniform width scale for a delivered lot (measured or random lot)."""
     lattice = build_lattice()
     known = lot_E is not None or lot_sy is not None
     if known:
-        m = mat.lot_from_measurement(lot_E, lot_sy)
+        m = mat.lot_from_measurement(lot_E, lot_sy, measurement_cv=measurement_cv)
         level = "within"
     else:
         m = mat
@@ -352,7 +500,14 @@ def batch_recipe(mat: Material, controls: np.ndarray, target_pf: float = 0.01,
                 if hi - lo < 0.002:
                     break
             s_req = hi
-    _, mass_req = (eval_scale(s_req) if s_req is not None else (None, None))
+    _, mass_analytic_req = (eval_scale(s_req) if s_req is not None else (None, None))
+    lattice = build_lattice()
+    def _printed(scale):
+        c = np.clip(np.asarray(controls) + np.log(scale), LOG_LO, LOG_HI)
+        w = widths_from_controls(c, lattice.midpoints)
+        return printed_mass_g(lattice, w, mat.rho)
+    mass0 = _printed(1.0)
+    mass_req = _printed(s_req) if s_req is not None else None
     if s_req is None:
         verdict = "reject / reroute"
     elif s_req <= 1.001:
@@ -368,9 +523,12 @@ def batch_recipe(mat: Material, controls: np.ndarray, target_pf: float = 0.01,
         "pf_as_designed": pf0,
         "mass_as_designed_g": mass0,
         "mass_required_g": mass_req,
+        "mass_analytic_as_designed_g": mass_g(lattice, widths_from_controls(controls, lattice.midpoints), mat.rho),
+        "mass_analytic_required_g": mass_analytic_req,
         "added_mass_pct": (100.0 * (mass_req / mass0 - 1.0)) if mass_req else None,
         "verdict": verdict,
         "level": level,
+        "measurement_cv": measurement_cv if known else 0.0,
     }
 
 

@@ -1,5 +1,5 @@
 /**
- * AnyRB v0.2 — UI controller.
+ * AnyRB v0.3 — UI controller (review-response release).
  *
  * Three-step AI studio: 01 Brief → 02 Design → 03 Prove.
  * The verified engine (engine.js / optimize.js) does every number; the AI layer
@@ -8,7 +8,7 @@
  */
 
 import {
-  GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META,
+  GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META, V03,
 } from './config.js';
 import * as E from './engine.js';
 import * as O from './optimize.js';
@@ -98,7 +98,8 @@ const state = {
   plan: null,
   planMeta: { model: null, fallback: true },
   candidates: [],
-  selectedId: null,
+  hero: null,
+  selectedId: 'optimised',
   comparison: null,
   optimized: null,
   proof: null,
@@ -107,6 +108,7 @@ const state = {
   lab: false,
   busy: false,
   passport: { e: 1, sy: 1, adapt: null },
+  qc: { lotId: '', supplier: '', recycledPct: null, e: null, sy: null, cv: V03.measurementCvDefault * 100 },
   ai: null,
   aiMode: 'detecting',
   aiCalls: [],
@@ -121,7 +123,10 @@ ai.onChange((snap) => {
 });
 
 const ctx = () => O.makeContext({ F: state.brief.loadN, uLim: state.brief.deflLimitMm, rho: state.material.rho });
-const selectedCandidate = () => state.candidates.find((c) => c.id === state.selectedId) || state.candidates[0] || null;
+const selectedCandidate = () => {
+  if (state.selectedId === 'optimised' && state.hero) return state.hero;
+  return state.candidates.find((c) => c.id === state.selectedId) || state.hero || state.candidates[0] || null;
+};
 
 // ---------------------------------------------------------------------------
 // Persistence
@@ -248,7 +253,7 @@ function renderProject() {
   const seed = $('#session-seed');
   if (seed) seed.textContent = String(DEFAULTS.seed);
   const engine = $('#session-engine');
-  if (engine) engine.textContent = `v0.1 · ${E.N_ELEMENTS} el.`;
+  if (engine) engine.textContent = `v0.3 · ${E.N_ELEMENTS} el.`;
   const valid = $('#session-valid');
   if (valid) {
     const v = state.validation || {};
@@ -276,6 +281,7 @@ function renderBriefMeta() {
   const parts = ['Draft saved locally', `session ${DEFAULTS.seed}`];
   parts.push(state.aiMode === 'live' ? 'Meta models live' : state.aiMode === 'mock' ? 'simulated Meta models' : 'offline assistant');
   m.textContent = parts.join(' · ');
+  renderFeasibility();
 }
 function renderUnderstanding() {
   const host = $('#understanding-fields');
@@ -350,6 +356,7 @@ function renderLot() {
       : `<span class="p-dot"></span>${esc(state.lotMeta.model || 'Verified preset')}`;
     badge.className = 'pill ' + (state.lotMeta.fallback ? 'pill--fallback' : 'pill--verify');
   }
+  renderFeasibility();
 }
 function renderPresetMenu() {
   const host = $('#preset-menu');
@@ -426,6 +433,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function runDesignFlow() {
   if (state.busy) return;
+  if (state.feasibility && !state.feasibility.feasible) {
+    toast('Infeasible for this bracket/lattice family — Design is blocked', 'err');
+    renderFeasibility();
+    return;
+  }
   const t0 = performance.now();
   setBusy(true);
   setActivity(['running', 'future', 'future']);
@@ -449,18 +461,19 @@ async function runDesignFlow() {
     setActivity(['done', 'done', 'running'], performance.now() - t0);
     await sleep(70);
 
-    const ranked = AC.optimizeAndRankCandidates(plan.candidates, state.material, ctx(), state.brief.targetPf);
-    state.candidates = ranked;
-    const best = AC.pickBestCandidate(ranked);
-    state.selectedId = best ? best.id : null;
+    // Priors are evaluated exactly as proposed (no hidden optimisation) so the
+    // three trade-offs stay distinct; the optimiser result is the separate hero.
+    state.candidates = AC.evaluateAndRankCandidates(plan.candidates, state.material, ctx(), state.brief.targetPf);
+    state.hero = AC.recommendedDesign(state.material, ctx(), state.brief.targetPf);
+    state.selectedId = 'optimised';
     state.comparison = buildComparisonStrip();
     setActivity(['done', 'done', 'done'], performance.now() - t0);
     renderDesign();
-    renderDesignMemo(best);
+    renderDesignMemo(state.hero);
     state.maxStep = 'design';
     setStep('design', { force: true });
     persist();
-    toast(`3 AI priors optimised by the engine · v0.1 · ${((performance.now() - t0) / 1000).toFixed(2)} s`);
+    toast(`3 AI priors evaluated as proposed · optimised design ${nf(state.hero.printed_mass_g, 2)} g printed · ${((performance.now() - t0) / 1000).toFixed(2)} s`);
   } catch (err) {
     console.error(err);
     showAIError(err);
@@ -471,14 +484,17 @@ async function runDesignFlow() {
   }
 }
 
+function printedOf(row) {
+  return row && (row.printed_mass_g != null ? row.printed_mass_g : row.mass_g);
+}
 function buildComparisonStrip() {
   const material = state.material;
   const c = ctx();
   const solid = O.solidBaseline(material, c, state.brief.targetPf);
   const uniform = O.uniformTargetBaseline(material, c, state.brief.targetPf);
   return {
-    solid: { mass_g: solid.mass_g, pf: solid.pf, label: 'Solid plate' },
-    uniform: { mass_g: uniform.mass_g, pf: uniform.pf, label: 'Uniform · target-sized' },
+    solid: { mass_g: printedOf(solid), mass_analytic_g: solid.mass_g, pf: solid.pf, label: 'Solid plate' },
+    uniform: { mass_g: printedOf(uniform), mass_analytic_g: uniform.mass_g, pf: uniform.pf, label: 'Uniform · target-sized' },
     nominal: null,
     meanOnly: null,
   };
@@ -488,12 +504,14 @@ function selectCandidate(id) {
   if (id === state.selectedId) return;
   state.selectedId = id;
   renderCandidates();
+  renderHero();
   renderMetrics();
   renderLattice();
+  renderVsStrip();
   const c = selectedCandidate();
   if (c) {
     renderDesignMemo(c);
-    toast(`${c.name} selected · engine output applied`);
+    toast(id === 'optimised' ? 'Engine-optimised design selected' : `${c.name} prior selected · proof will optimise it`);
     persist();
   }
 }
@@ -502,13 +520,15 @@ function renderDesign() {
   const c = selectedCandidate();
   if (!c) return;
   renderCandidates();
+  renderHero();
   renderMetrics();
   renderLattice();
   renderVsStrip();
   const preset = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
   $('#viz-meta').textContent = `${GEOMETRY.Lx} × ${GEOMETRY.Ly} × ${GEOMETRY.depth} mm · ${preset.label} · ${nf(state.brief.loadN, 0)} N tip load`;
   const cap = $('#viz-caption-text');
-  if (cap) cap.textContent = `Showing: ${c.name} · ${c.feasible ? 'meets target' : 'below target'} · engine-ranked #${c.rank}`;
+  const rankLabel = Number.isFinite(c.rank) ? `engine-ranked #${c.rank}` : 'engine-optimised';
+  if (cap) cap.textContent = `Showing: ${c.name} · ${c.feasible ? 'meets target' : 'below target'} · ${rankLabel}`;
   setStep('design');
 }
 function renderCandidates() {
@@ -517,32 +537,55 @@ function renderCandidates() {
   host.innerHTML = '';
   state.candidates.forEach((c) => {
     const print = c.printability || {};
-    const warn = print.warnNeighbour || print.warnSlenderness;
+    const printPass = c.printabilityPass ?? !!(print.pass);
+    const ratio = print.max_neighbour_width_ratio ?? print.maxNeighbourRatio ?? 1;
+    const slen = print.max_slenderness ?? print.maxSlenderness ?? 0;
     const recommended = c.rank === 1 && c.feasible;
     const btn = el(`
-      <button class="candidate" type="button" aria-pressed="${c.id === state.selectedId}" data-id="${esc(c.id)}" aria-label="${esc(c.name)} candidate: ${nf(c.mass_g, 2)} grams, probability of failure ${fmtPf(c.pf)}, ${warn ? 'printability warning' : 'printability pass'}">
+      <button class="candidate" type="button" aria-pressed="${c.id === state.selectedId}" data-id="${esc(c.id)}" aria-label="${esc(c.name)} candidate: ${nf(c.mass_g, 2)} grams printed mass, probability of failure ${fmtPf(c.pf)}, ${printPass ? 'printability pass' : 'printability warning'}">
         <div class="c-tags">
           <span class="pill pill--muted">AI prior</span>
           ${recommended ? '<span class="pill pill--verify"><span class="p-dot"></span>Recommended</span>' : ''}
+          ${printPass ? '' : '<span class="pill pill--accent">printability warn</span>'}
         </div>
         <div class="c-name">${esc(c.name)}</div>
-        <div class="c-mass">${nf(c.mass_g, 2)} <span class="u">g</span></div>
+        <div class="c-mass">${nf(c.mass_g, 2)} <span class="u">g</span> <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">printed</span></div>
         <div class="c-pf">P_f ${fmtPf(c.pf)} <span style="color:var(--muted)">· target ${fmtPf(state.brief.targetPf)}</span></div>
         <div class="c-tradeoff">${esc(c.rationale || AC.CANDIDATE_META[c.id]?.rationale || '')}</div>
         <div class="c-engine">
-          <span class="c-print pill ${warn ? 'pill--accent' : 'pill--verify'}" style="height:22px">${warn ? ICONS.warn + ' printability warn' : 'printability pass'}</span>
-          <span>engine v0.1</span>
+          <span class="c-print pill ${printPass ? 'pill--verify' : 'pill--accent'}" style="height:22px">${printPass ? 'print pass' : ICONS.warn + ' print warn'} · w-ratio ${nf(ratio, 2)} · L/w ${nf(slen, 1)}</span>
         </div>
+        <div class="micro" style="margin-top:6px">AI prior · engine-evaluated as proposed · analytic UB ${nf(c.mass_analytic_g ?? 0, 2)} g<br>Selecting it runs the optimiser from this prior</div>
       </button>`);
     btn.addEventListener('click', () => selectCandidate(c.id));
     host.appendChild(btn);
   });
 }
+function renderHero() {
+  const h = state.hero;
+  const card = $('#optimised-hero');
+  if (!card) return;
+  if (!h) { card.hidden = true; return; }
+  card.hidden = false;
+  const print = h.printability || {};
+  $('#hero-mass').textContent = `${nf(h.printed_mass_g, 2)} g`;
+  $('#hero-ub').textContent = `${nf(h.mass_analytic_g, 2)} g`;
+  $('#hero-pf').textContent = fmtPf(h.pf);
+  $('#hero-print').textContent = `${h.printabilityPass ? 'pass' : 'warn'} · ratio ${nf(print.max_neighbour_width_ratio, 2)} · L/w ${nf(print.max_slenderness, 1)}`;
+  $('#hero-mode').textContent = h.governing || '—';
+  const btn = $('#btn-select-hero');
+  if (btn) {
+    const active = state.selectedId === 'optimised';
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.textContent = active ? 'Selected' : 'Use optimised design';
+    btn.dataset.id = 'optimised';
+  }
+}
 function renderMetrics() {
   const c = selectedCandidate();
   if (!c) return;
   $('#metric-mass-value').innerHTML = `${nf(c.mass_g, 2)} <span class="m-unit">g</span>`;
-  $('#metric-mass-sub').textContent = 'polymer volume × density';
+  $('#metric-mass-sub').textContent = `printed union mass · analytic upper bound ${nf(c.mass_analytic_g ?? 0, 2)} g`;
   const pfEl = $('#metric-pf-value');
   pfEl.textContent = fmtPf(c.pf);
   pfEl.className = 'm-value ' + (c.pf <= state.brief.targetPf ? 'is-good' : 'is-warn');
@@ -550,18 +593,25 @@ function renderMetrics() {
   const modeEl = $('#metric-mode-value');
   modeEl.textContent = c.governing || '—';
   $('#metric-mode-sub').textContent = 'whichever failure mode carries the probability';
+  const print = c.printability || {};
+  const badge = $('#metric-print-badge');
+  if (badge) {
+    const pass = c.printabilityPass ?? !!(print.pass);
+    badge.className = 'pill ' + (pass ? 'pill--verify' : 'pill--accent');
+    badge.textContent = `${pass ? 'printability pass' : 'printability warn'} · ratio ${nf(print.max_neighbour_width_ratio ?? print.maxNeighbourRatio, 2)} · L/w ${nf(print.max_slenderness ?? print.maxSlenderness, 1)}`;
+  }
   renderMassFootnotes();
 }
 function renderMassFootnotes() {
   const c = selectedCandidate();
   const proving = state.proof && state.step === 'prove';
-  const mass = proving ? state.proof.optimizedAnalysis.mass_g : (c ? c.mass_g : null);
+  const mass = proving ? (state.proof.optimizedAnalysis.printed_mass_g ?? state.proof.optimizedAnalysis.mass_g) : (c ? c.mass_g : null);
   if (mass == null) return;
   const d = AC.massDisclosure(mass);
   const designNote = $('#mass-footnote');
   if (designNote) designNote.textContent = d.note;
   const proofNote = $('#proof-mass-note');
-  if (proofNote) proofNote.textContent = `Analytic mass ${d.analytic_g} g (conservative) — ${d.note}`;
+  if (proofNote) proofNote.textContent = `Printed mass ${nf(d.printed_g, 2)} g · analytic upper bound ${nf(d.analytic_upper_bound_g, 2)} g (+${nf(d.upper_bound_pct, 1)}%) — ${d.note}`;
 }
 
 function renderVsStrip() {
@@ -585,7 +635,7 @@ function renderVsStrip() {
   const parts = [];
   if (solid && solid.mass_g > c.mass_g) parts.push(`${((1 - c.mass_g / solid.mass_g) * 100).toFixed(0)} % lighter than the solid plate`);
   if (uniform && uniform.mass_g > c.mass_g) parts.push(`${((1 - c.mass_g / uniform.mass_g) * 100).toFixed(0)} % lighter than a uniform lattice sized to the same target`);
-  $('#vs-takeaway').textContent = (parts.length ? parts.join(' · ') + '. ' : '') + 'All bars use the same analytic mass basis (conservative; strut overlap not unioned).';
+  $('#vs-takeaway').textContent = (parts.length ? parts.join(' · ') + '. ' : '') + 'All bars use printed mass (solid = exact).';
 }
 
 function renderDesignMemo(c) {
@@ -777,17 +827,50 @@ async function runProofFlow() {
       meanOnly: { mass_g: row('mean_only').mass_g, pf: row('mean_only').pf, label: 'Mean-only' },
       rows: comparison.rows,
     };
+    const sustained = E.sustainedBound(bestAnalysis, state.material, {
+      creepFactor: V03.creepFactor, compressionFactor: V03.compressionFactor,
+    });
+    state.qc.e = state.qc.e ?? state.material.E_mean;
+    state.qc.sy = state.qc.sy ?? state.material.sy_mean;
+    state.qc.cv = state.qc.cv ?? V03.measurementCvDefault * 100;
+    const recipe = O.lotSpecificRecipe(state.material, bestDesign, {
+      targetPf: state.brief.targetPf,
+      measurementCv: state.qc.cv / 100,
+      lotE: state.qc.e,
+      lotSy: state.qc.sy,
+      F: state.brief.loadN,
+      uLim: state.brief.deflLimitMm,
+    });
     state.validation = await loadValidation();
-    state.optimized = { design: bestDesign, analysis: bestAnalysis, pf: bestPf, mass: bestAnalysis.mass_g, starts: multi.starts || [] };
+    const printedRows = comparison.rows.map((r) => ({
+      ...r,
+      mass_g: r.printed_mass_g != null ? r.printed_mass_g : r.mass_g,
+      mass_analytic_g: r.mass_g,
+    }));
+    state.comparison = {
+      solid: { mass_g: comparison.solid.printed_mass_g ?? comparison.solid.mass_g, pf: comparison.solid.pf, label: 'Solid plate' },
+      uniform: { mass_g: comparison.uniform.printed_mass_g ?? comparison.uniform.mass_g, pf: comparison.uniform.pf, label: 'Uniform · target-sized' },
+      nominal: { mass_g: printedOf(row('nominal_sf15')), pf: row('nominal_sf15').pf, label: 'Nominal FoS 1.5' },
+      meanOnly: { mass_g: printedOf(row('mean_only')), pf: row('mean_only').pf, label: 'Mean-only' },
+      rows: printedRows,
+    };
+    state.optimized = {
+      design: bestDesign, analysis: bestAnalysis, pf: bestPf,
+      mass: bestAnalysis.printed_mass_g ?? bestAnalysis.mass_g,
+      mass_analytic_g: bestAnalysis.mass_g,
+      starts: multi.starts || [],
+    };
     state.proof = {
       optimizedDesign: bestDesign, optimizedAnalysis: bestAnalysis,
-      report, window: win, passport: computePassport(bestAnalysis, material, 1, 1),
+      report, window: win,
+      sustained, recipe, qc: { ...state.qc },
+      passport: { eRatio: 1, syRatio: 1, lotE: recipe.lot.lot_E, lotSy: recipe.lot.lot_sy, adapt: null },
       comparison, proofMemo: null, render: null,
     };
     setStep('prove', { force: true });
     renderProof();
     persist();
-    toast(`Proof ready · ${nf(bestAnalysis.mass_g, 2)} g · P_f ${fmtPf(bestPf)}`);
+    toast(`Proof ready · ${nf(bestAnalysis.printed_mass_g ?? bestAnalysis.mass_g, 2)} g printed · P_f ${fmtPf(bestPf)}`);
     loadProofMemos();
   } catch (err) {
     console.error(err);
@@ -828,28 +911,28 @@ function renderProof() {
 
   drawGauge($('#gauge'), rep.pfAnalytic, target);
   $('#gauge-mode').textContent = rep.modes.governingLabel;
-  $('#gauge-mass').textContent = `${nf(a.mass_g, 2)} g`;
+  const printed = a.printed_mass_g ?? a.mass_g;
+  $('#gauge-mass').textContent = `${nf(printed, 2)} g`;
+  const ub = $('#gauge-mass-ub');
+  if (ub) ub.textContent = `${nf(a.mass_analytic_g ?? a.mass_g, 2)} g`;
   const pr = E.printabilityReport(a);
-  const checks = pr ? [pr.warnNeighbour, pr.warnSlenderness].filter(Boolean).length : 0;
-  $('#gauge-print').textContent = pr ? `${3 - checks} / 3 checks` : '—';
+  $('#gauge-print').textContent = pr
+    ? `${pr.pass ? 'pass' : 'warn'} · ratio ${nf(pr.max_neighbour_width_ratio, 2)} · L/w ${nf(pr.max_slenderness, 1)}`
+    : '—';
   $('#gauge-rel').textContent = `${(rep.reliability * 100).toFixed(2)} %`;
 
+  renderQC();
   drawAcceptance($('#acceptance-chart'), p.window, a, p.passport);
-  const adapt08 = computePassport(a, state.material, 0.8, 1).adapt;
-  const adapt05 = computePassport(a, state.material, 0.5, 1).adapt;
-  $('#acceptance-caption').textContent = `Illustrative v0.1 logic: a lot at 0.8 × nominal E needs a ${adapt08.scale != null ? adapt08.scale.toFixed(2) : '—'} × width scale (${adapt08.addedMassPct != null ? signed(adapt08.addedMassPct, 1) + ' % mass' : 'not achievable'}) and ${adapt08.verdict === 'reject' ? 'is rejected' : 'passes with compensation'}; at 0.5 × it is ${adapt05.verdict === 'reject' ? 'rejected' : 'compensated'}. The engine computes the exact window.`;
+  $('#acceptance-caption').textContent = 'Lot-mean envelope the engine accepts for this design. The known-lot recipe re-optimises all 8 width controls for the measured lot (measurement CV retained) instead of one global scale.';
   $('#acceptance-target').textContent = `target P_f ≤ ${fmtPf(target)}`;
 
-  const eSlider = $('#lot-e-range');
-  const sySlider = $('#lot-sy-range');
-  if (eSlider) eSlider.value = p.passport.eRatio;
-  if (sySlider) sySlider.value = p.passport.syRatio;
-  renderPassport();
+  renderRecipe();
+  renderSustained();
   renderValidation();
   renderClaims();
   renderMassFootnotes();
   renderProject();
-  if (pr) $('#stl-meta').textContent = `min width ${pr.minWidth.toFixed(2)} mm · box per strut`;
+  $('#stl-meta').textContent = pr ? `min width ${nf(pr.min_width_mm, 2)} mm · box per strut` : '—';
   renderRenderCard(null);
 }
 
@@ -941,59 +1024,174 @@ function drawAcceptance(host, win, analysis, passport) {
   </svg>`;
 }
 
-function renderPassport() {
+// ---------------------------------------------------------------------------
+// v0.3 Known-lot print recipe + QC record + sustained-load advisory
+// ---------------------------------------------------------------------------
+function renderQC() {
+  const m = state.material;
+  const q = state.qc;
+  const set = (sel, value) => {
+    const el = $(sel);
+    if (el && document.activeElement !== el && value != null && value !== '') el.value = value;
+  };
+  set('#qc-lot-id', q.lotId || 'LOT-2026-014');
+  set('#qc-supplier', q.supplier || 'Recycled Polymer Co.');
+  set('#qc-recycled', q.recycledPct == null ? 78 : q.recycledPct);
+  set('#qc-e', q.e == null ? Math.round(m.E_mean) : q.e);
+  set('#qc-sy', q.sy == null ? Math.round(m.sy_mean * 10) / 10 : q.sy);
+  set('#qc-cv', q.cv == null ? V03.measurementCvDefault * 100 : q.cv);
+}
+function recipeVerdictKind(verdict) {
+  if (/reject/i.test(verdict)) return 'reject';
+  if (/conditional/i.test(verdict)) return 'compensate';
+  if (/compensation/i.test(verdict)) return 'compensate';
+  return 'pass';
+}
+function renderRecipe() {
   const p = state.proof;
-  if (!p) return;
-  const e = Number($('#lot-e-range').value);
-  const sy = Number($('#lot-sy-range').value);
-  $('#lot-e-out').textContent = `${e.toFixed(2)}×`;
-  $('#lot-sy-out').textContent = `${sy.toFixed(2)}×`;
-  const passport = computePassport(p.optimizedAnalysis, state.material, e, sy);
-  p.passport = passport;
-  state.passport = { e, sy, adapt: passport.adapt };
-  const adapt = passport.adapt;
+  const host = $('#recipe-multipliers');
+  const summary = $('#recipe-summary');
+  if (!host) return;
+  const r = p && p.recipe;
+  const target = state.brief.targetPf;
+  if (!r) {
+    host.innerHTML = '';
+    if (summary) summary.textContent = 'Recompute to see the lot-specific recipe.';
+    return;
+  }
+  host.innerHTML = r.width_multipliers.map((v, i) => `
+    <div class="recipe-mult ${v > 1.15 ? 'is-heavy' : ''}" title="Width multiplier for control ${i + 1}">
+      <div class="rm-k">C${i + 1}</div><div class="rm-v">${v.toFixed(2)}×</div>
+    </div>`).join('');
+  const pr = r.printability || {};
+  if (summary) {
+    summary.innerHTML = `
+      <span>Printed mass <b>${nf(r.printed_mass_g, 2)} g</b> · analytic UB <b>${nf(r.printed_mass_analytic_g, 2)} g</b></span>
+      <span>Added mass <b>${signed(r.added_mass_pct, 1)} %</b> vs as-designed</span>
+      <span>P_f measured lot <b>${fmtPf(r.pf)}</b> · target ${fmtPf(target)}</span>
+      <span>Measurement CV <b>${nf(r.measurement_cv * 100, 0)} %</b> retained</span>
+      <span>Printability <b>${r.printability_pass ? 'pass' : 'warn'}</b> · ratio ${nf(pr.max_neighbour_width_ratio, 2)} · L/w ${nf(pr.max_slenderness, 1)}</span>
+      <span>Global equivalent <b>${r.global_equivalent_scale.toFixed(2)}×</b> (slicer fallback only)</span>`;
+  }
   const verdict = $('#passport-verdict');
   const icon = $('#verdict-icon');
   const title = $('#verdict-title');
   const body = $('#verdict-body');
-  const comp = adapt.scale != null && adapt.scale > 1.0005;
-  if (adapt.verdict === 'reject') {
-    verdict.dataset.kind = 'reject';
-    icon.textContent = '✕';
-    title.textContent = 'REJECT · REROUTE';
-    body.textContent = `Required width scale exceeds the ${OPTIMIZER.scaleMax.toFixed(1)} × print clip. Use this lot for a non-structural part, or accept the risk explicitly.`;
-  } else if (comp) {
-    verdict.dataset.kind = 'compensate';
-    icon.textContent = '!';
-    title.textContent = 'PASS · WITH COMPENSATION';
-    body.textContent = `Width scale ${nf(adapt.scale, 2)} × · added mass ${signed(adapt.addedMassPct, 1)} %. P_f for this lot remains inside the ${fmtPf(state.brief.targetPf)} target (${fmtPf(adapt.achieved)}).`;
-  } else {
-    verdict.dataset.kind = 'pass';
-    icon.textContent = '✓';
-    title.textContent = 'PASS';
-    body.textContent = `No compensation needed. Width scale ${nf(adapt.scale == null ? 1 : adapt.scale, 2)} ×. P_f for this lot ${fmtPf(adapt.achieved)}.`;
+  if (verdict) {
+    verdict.dataset.kind = recipeVerdictKind(r.verdict);
+    icon.textContent = /reject/i.test(r.verdict) ? '✕' : /conditional/i.test(r.verdict) ? '!' : '✓';
+    title.textContent = r.verdict.toUpperCase();
+    body.textContent = `8-control lot resize · global equivalent ${r.global_equivalent_scale.toFixed(2)}× · printed mass ${nf(r.printed_mass_g, 2)} g (${signed(r.added_mass_pct, 1)} %) · P_f ${fmtPf(r.pf)} against ${fmtPf(target)}${/conditional/i.test(r.verdict) ? ' — heavy compensation, review with the supplier before printing.' : /reject/i.test(r.verdict) ? ' — reroute this lot to a non-structural part.' : '.'}`;
   }
 }
-function wirePassport() {
-  ['#lot-e-range', '#lot-sy-range'].forEach((sel) => {
-    const input = $(sel);
-    if (!input) return;
-    input.addEventListener('input', debounce(() => renderPassport(), 40));
+function renderSustained() {
+  const p = state.proof;
+  const host = $('#sustained-values');
+  if (!host) return;
+  const s = p && p.sustained;
+  if (!s) { host.textContent = '—'; return; }
+  const qualified = s.pf_bound <= state.brief.targetPf;
+  const card = $('#sustained-card');
+  if (card) card.classList.toggle('is-warn', !qualified);
+  const badge = $('#sustained-badge');
+  if (badge) {
+    badge.dataset.kind = qualified ? 'engine' : 'fallback';
+    badge.innerHTML = `<span class="b-dot"></span>${qualified ? 'advisory · inside target' : 'not qualified for sustained load'}`;
+  }
+  host.innerHTML = `
+    <span>P_f bound (lot level) <b>${fmtPf(s.pf_bound)}</b> vs target ${fmtPf(state.brief.targetPf)}</span>
+    <span>Deflection bound <b>${nf(s.deflection_bound_mm, 2)} mm</b> (creep ×${nf(s.creep_factor, 1)})</span>
+    <span>E_req bound <b>${nf(s.E_req_bound_MPa, 0)} MPa</b> (static ${nf(state.proof.optimizedAnalysis.demands.E_req, 0)} MPa ×${nf(s.creep_factor, 1)})</span>
+    <span>σy_req bound <b>${nf(s.sigma_req_bound_MPa, 1)} MPa</b> (static ${nf(state.proof.optimizedAnalysis.demands.sigma_y_req, 1)} MPa ÷${nf(s.compression_factor, 1)})</span>`;
+  const note = $('#sustained-note');
+  if (note) note.textContent = qualified
+    ? 'Advisory only — the creep/compression bound stays inside the reliability target, but the static qualification above is the design result. Not qualified for sustained load by test.'
+    : 'NOT qualified for sustained load: the creep ×2.0 / compression ÷0.8 bound exceeds the reliability target. The static result above is unchanged. Do not use this part for long-term or compressive service without test data.';
+}
+function recomputeRecipe() {
+  const p = state.proof;
+  if (!p) return;
+  const readNum = (sel, fallback) => {
+    const v = Number($(sel)?.value);
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  };
+  state.qc.e = readNum('#qc-e', state.material.E_mean);
+  state.qc.sy = readNum('#qc-sy', state.material.sy_mean);
+  state.qc.cv = readNum('#qc-cv', V03.measurementCvDefault * 100);
+  state.qc.lotId = ($('#qc-lot-id')?.value || '').slice(0, 64);
+  state.qc.supplier = ($('#qc-supplier')?.value || '').slice(0, 64);
+  state.qc.recycledPct = readNum('#qc-recycled', null);
+  const btn = $('#btn-recipe');
+  if (btn) { btn.disabled = true; btn.textContent = 'Computing…'; }
+  setTimeout(() => {
+    try {
+      p.recipe = O.lotSpecificRecipe(state.material, p.optimizedDesign, {
+        targetPf: state.brief.targetPf,
+        measurementCv: state.qc.cv / 100,
+        lotE: state.qc.e,
+        lotSy: state.qc.sy,
+        F: state.brief.loadN,
+        uLim: state.brief.deflLimitMm,
+      });
+      p.qc = { ...state.qc };
+      p.passport = { eRatio: 1, syRatio: 1, lotE: state.qc.e, lotSy: state.qc.sy, adapt: null };
+      renderRecipe();
+      renderQC();
+      persist();
+      toast(`Lot recipe: ${p.recipe.verdict} · ${nf(p.recipe.printed_mass_g, 2)} g printed · +${nf(p.recipe.added_mass_pct, 1)} %`);
+    } catch (err) {
+      console.error(err);
+      toast('Recipe computation failed — see console', 'err');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Recompute recipe'; }
+    }
+  }, 40);
+}
+function wireRecipe() {
+  $('#btn-recipe')?.addEventListener('click', recomputeRecipe);
+  ['#qc-e', '#qc-sy', '#qc-cv'].forEach((sel) => {
+    $(sel)?.addEventListener('change', debounce(() => { if (state.proof) recomputeRecipe(); }, 500));
   });
   $$('[data-lot]').forEach((chip) => {
     chip.addEventListener('click', () => {
       const kind = chip.dataset.lot;
-      const e = kind === 'weak' ? 0.8 : kind === 'reject' ? 0.5 : 1.0;
-      const sy = kind === 'weak' ? 0.9 : 1.0;
-      $('#lot-e-range').value = e;
-      $('#lot-sy-range').value = sy;
-      renderPassport();
-      toast(`${chip.textContent} applied · compensation calculated`);
+      const eRatio = kind === 'weak' ? 0.8 : kind === 'reject' ? 0.5 : 1.0;
+      if (!state.proof) { toast('Run the proof step first'); return; }
+      state.qc.e = state.material.E_mean * eRatio;
+      state.qc.sy = state.material.sy_mean * (kind === 'weak' ? 0.95 : 1.0);
+      renderQC();
+      recomputeRecipe();
     });
   });
 }
 
 // ---------------------------------------------------------------------------
+// Brief feasibility gate (widest printable uniform lattice vs target)
+// ---------------------------------------------------------------------------
+function renderFeasibility() {
+  const gate = $('#family-gate');
+  if (!gate) return;
+  const target = state.brief.targetPf;
+  const ff = E.familyFeasibility(state.material, {
+    targetPf: target,
+    F: state.brief.loadN,
+    uLim: state.brief.deflLimitMm,
+  });
+  state.feasibility = ff;
+  const facts = $('#family-gate-facts');
+  const btn = $('#btn-design');
+  if (!ff.feasible) {
+    gate.hidden = false;
+    if (facts) facts.innerHTML = `widest uniform lattice <b>${nf(ff.max_width_mm, 2)} mm</b> · min achievable P_f <b>${fmtPf(ff.min_achievable_pf)}</b> vs target ${fmtPf(target)} · demand <b>${nf(ff.sigma_req_MPa, 1)} MPa</b> σy / <b>${nf(ff.E_req_MPa, 0)} MPa</b> E`;
+    if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.title = 'Infeasible for this bracket/lattice family — adjust target, load or material'; }
+  } else {
+    gate.hidden = true;
+    if (btn && btn.dataset.blocked === '1') { btn.disabled = false; delete btn.dataset.blocked; btn.title = ''; }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Validation + claims// ---------------------------------------------------------------------------
 // Validation + claims
 // ---------------------------------------------------------------------------
 async function loadValidation() {
@@ -1086,7 +1284,7 @@ function renderValidation() {
   const foot = $('#validation-foot');
   if (foot) {
     const runtime = v.runtime_s ? ` · ${Number(v.runtime_s).toFixed(1)} s` : '';
-    foot.textContent = `${counts.PASS} pass · ${counts.WARN} warn · ${counts.FAIL} fail · ${total} checks · Python 29 / JS 28 tests${runtime}`;
+    foot.textContent = `${counts.PASS} pass · ${counts.WARN} warn · ${counts.FAIL} fail · ${total} checks · Python 29 / JS 33 tests${runtime}`;
   }
   const sub = $('#validation-sub');
   if (sub) sub.textContent = v.source ? `Source: ${v.source}` : 'L0–L1 verified';
@@ -1122,7 +1320,7 @@ function loadProofMemos() {
     controlWidthsMm: E.designWidths(p.optimizedDesign),
     printability: E.printabilityReport(p.optimizedAnalysis),
   };
-  const payload = AC.buildProofPayload({ brief: state.brief, selected, proof: { passport: p.passport }, validation: state.validation });
+  const payload = AC.buildProofPayload({ brief: state.brief, selected, proof: { passport: p.passport, sustained: p.sustained, recipe: p.recipe }, validation: state.validation });
   const badge = $('#proof-memo-badge');
   (async () => {
     try {
@@ -1445,10 +1643,14 @@ function buildDesignJson() {
     lot: state.lot,
     candidates: state.candidates.map((x) => ({ id: x.id, name: x.name, control_widths_mm: x.controlWidthsMm, mass_g: x.mass_g, pf: x.pf, feasible: x.feasible, governing: x.governing })),
     selected: c ? { id: c.id, name: c.name, control_widths_mm: c.controlWidthsMm, mass_g: c.mass_g, pf: c.pf } : null,
+    family_scope: 'best of this bracket/lattice family',
     optimized: p ? {
       design_log_width: p.optimizedDesign,
       widths_mm: E.designWidths(p.optimizedDesign),
-      mass_g: p.optimizedAnalysis.mass_g,
+      printed_mass_g: p.optimizedAnalysis.printed_mass_g,
+      mass_analytic_upper_bound_g: p.optimizedAnalysis.mass_g,
+      mass_basis: AC.massDisclosure(p.optimizedAnalysis.printed_mass_g).note,
+      printability: E.printabilityReport(p.optimizedAnalysis),
       sigma_y_req_MPa: p.optimizedAnalysis.demands.sigma_y_req,
       E_req_MPa: p.optimizedAnalysis.demands.E_req,
       E_req_def_MPa: p.optimizedAnalysis.demands.E_req_def,
@@ -1460,11 +1662,31 @@ function buildDesignJson() {
       printability: E.printabilityReport(p.optimizedAnalysis),
       mass_disclosure: AC.massDisclosure(p.optimizedAnalysis.mass_g),
     } : null,
-    passport: p ? {
-      measured_lot: { E_ratio: p.passport.eRatio, sy_ratio: p.passport.syRatio, E_MPa: p.passport.lotE, sy_MPa: p.passport.lotSy },
-      required_scale: p.passport.adapt.scale,
-      added_mass_pct: p.passport.adapt.addedMassPct,
-      verdict: p.passport.adapt.verdict,
+    sustained_load_advisory: p && p.sustained ? {
+      ...p.sustained,
+      qualified: p.sustained.pf_bound <= state.brief.targetPf,
+      label: 'ADVISORY — not the static design allowable; static result unchanged',
+    } : null,
+    known_lot_recipe: p && p.recipe ? {
+      lot: p.recipe.lot,
+      measurement_cv: p.recipe.measurement_cv,
+      width_multipliers: p.recipe.width_multipliers,
+      global_equivalent_scale: p.recipe.global_equivalent_scale,
+      printed_mass_g: p.recipe.printed_mass_g,
+      printed_mass_analytic_g: p.recipe.printed_mass_analytic_g,
+      added_mass_pct: p.recipe.added_mass_pct,
+      pf: p.recipe.pf,
+      verdict: p.recipe.verdict,
+      printability: p.recipe.printability,
+      note: 'Lot-specific 8-control resize; global equivalent scale is a slicer fallback only.',
+    } : null,
+    qc_record: p ? {
+      lot_id: p.qc.lotId,
+      supplier: p.qc.supplier,
+      measurement_used: { E_MPa: p.qc.e, sy_MPa: p.qc.sy },
+      measurement_cv: p.qc.cv / 100,
+      recycled_content_pct: p.qc.recycledPct,
+      recycled_content_note: 'Paperwork claim — not simulated or verified.',
     } : null,
     validation: state.validation,
     ai: { mode: state.aiMode, calls: state.aiCalls },
@@ -1472,7 +1694,10 @@ function buildDesignJson() {
       'Linear-elastic plane-frame idealisation; no plasticity, creep, fatigue or joint behaviour.',
       'Out-of-plane / layer-normal loading is not modelled; rPETG strength is printed in-plane ISO 527-2.',
       'Optimum is local (multi-start pattern search), not proven global.',
-      AC.massDisclosure(0).validatorNote + ' Reported mass is conservative; comparison bars use the same analytic basis.',
+      'Mass: displayed mass is the deterministic printed/union estimate (Halton QMC, matching Python within 0.5 %); analytic mass is a conservative upper bound only.',
+      'Printability: neighbour width ratio > 1.5 or slenderness > 30 is a hard constraint in the optimiser; the selected design passes both.',
+      'Sustained load: the creep x2.0 / compression /0.8 bound is an advisory only; static design allowables are unchanged and no sustained-load qualification has been performed.',
+      'Known lot: the lot-specific recipe retains measurement uncertainty (default CV 12 %) and re-optimises all 8 width controls; global equivalent scale is a slicer fallback.',
       'Feedstock distributions are literature-derived; no experimental validation in this project.',
     ],
   };
@@ -1499,14 +1724,15 @@ function buildReportHtml() {
   .memo{background:#FCFBF7} .lim{font-size:12px;color:var(--muted)}
   .tag{color:var(--verify)} .warn{color:#B8361A}
 </style></head><body>
-<div class="micro">AnyRB v0.2 · in-silico qualification · decision support, not certification</div>
+<div class="micro">AnyRB v0.3 · in-silico qualification · decision support, not certification</div>
 <h1>${esc(state.project)}</h1>
 <div class="badge">Generated ${new Date().toISOString()} · AI mode: ${esc(state.aiMode)} · seed ${DEFAULTS.seed}</div>
 <div class="card"><div class="micro">Brief</div>
 <p><b>${esc(b.partType)}</b> · load ${nf(b.loadN, 0)} N · deflection limit ${nf(b.deflLimitMm, 1)} mm · reliability target ${fmtPf(b.targetPf)} · process ${esc(b.process)}</p>
 <div class="k">Batch: ${esc(state.lot.name || state.lot.id)} — E ${int(state.lot.E_mean)} MPa (CV ${nf(state.lot.E_cv * 100, 1)} %), σy ${nf(state.lot.sy_mean, 1)} MPa (CV ${nf(state.lot.sy_cv * 100, 1)} %), ρ ${nf(state.lot.rho, 2)} g/cm³. ${esc(state.lot.source || '')}</div></div>
 ${a ? `<h2>Qualification summary</h2><div class="card"><div class="grid">
-<div><div class="k">Mass</div><div class="v">${nf(a.mass_g, 3)} g</div></div>
+<div><div class="k">Printed mass (Halton union)</div><div class="v">${nf(a.printed_mass_g ?? a.mass_g, 3)} g</div></div>
+<div><div class="k">Analytic upper bound</div><div class="v">${nf(a.mass_analytic_g ?? a.mass_g, 3)} g · ${esc(AC.massDisclosure(a.printed_mass_g ?? a.mass_g).note)}</div></div>
 <div><div class="k">Governing mode</div><div class="v">${esc(rep ? rep.modes.governingLabel : '')}</div></div>
 <div><div class="k">σy demand</div><div class="v">${nf(a.demands.sigma_y_req, 2)} MPa</div></div>
 <div><div class="k">E demand</div><div class="v">${nf(a.demands.E_req, 1)} MPa (def ${nf(a.demands.E_req_def, 1)}, buck ${nf(a.demands.E_req_buck, 1)})</div></div>
@@ -1515,13 +1741,20 @@ ${a ? `<h2>Qualification summary</h2><div class="card"><div class="grid">
 <div><div class="k">Monte-Carlo P_f (5,000)</div><div class="v">${rep ? fmtPf(rep.mc.pfMc) + ' ± ' + fmtPf(rep.mc.pfMcStdErr) : '—'}</div></div>
 <div><div class="k">Tip deflection at mean E</div><div class="v">${nf(rep ? rep.deflectionAtMeanE : 0, 3)} mm · limit ${nf(b.deflLimitMm, 1)} mm</div></div>
 <div><div class="k">Mass disclosure (validator F4)</div><div class="v">${esc(AC.massDisclosure(a ? a.mass_g : AC.MASS_UNION.analyticMassG).note)}</div></div>
-${pr ? `<div><div class="k">Printability</div><div class="v">min w ${nf(pr.minWidth, 2)} mm · L/w ${nf(pr.maxSlenderness, 1)} · neighbour ${nf(pr.maxNeighbourRatio, 2)}</div></div>` : ''}
+${pr ? `<div><div class="k">Printability</div><div class="v">${pr.pass ? 'PASS' : 'WARN'} · min w ${nf(pr.min_width_mm, 2)} mm · L/w ${nf(pr.max_slenderness, 1)} · neighbour ${nf(pr.max_neighbour_width_ratio, 2)}</div></div>` : ''}
 </div></div>` : ''}
 <h2>Design memo</h2><div class="card memo">${esc(memo)}</div>
-${rows.length ? `<h2>Strategy comparison</h2><div class="card"><table><thead><tr><th>Strategy</th><th>Mass g</th><th>P_f</th><th>E_req MPa</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${nf(r.mass_g, 2)}</td><td>${fmtPf(r.pf)}</td><td>${nf(r.E_req, 1)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+${rows.length ? `<h2>Strategy comparison</h2><div class="card"><p class="lim">All masses are printed/union mass (Halton QMC); analytic upper bound is not used in this table.</p><table><thead><tr><th>Strategy</th><th>Printed mass g</th><th>P_f</th><th>E_req MPa</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${nf(r.printed_mass_g ?? r.mass_g, 2)}</td><td>${fmtPf(r.pf)}</td><td>${nf(r.E_req, 1)}</td></tr>`).join('')}</tbody></table></div>` : ''}
 ${p ? `<h2>Batch passport</h2><div class="card"><div class="k">Measured lot</div><div class="v">E ${nf(p.passport.lotE, 0)} MPa (${p.passport.eRatio.toFixed(2)} ×), σy ${nf(p.passport.lotSy, 1)} MPa (${p.passport.syRatio.toFixed(2)} ×)</div>
 <div class="k" style="margin-top:8px">Verdict</div><div class="v">${esc(p.passport.adapt.verdict)} · required width scale ${p.passport.adapt.scale == null ? 'not achievable' : nf(p.passport.adapt.scale, 2) + ' ×'} · added mass ${p.passport.adapt.addedMassPct == null ? '—' : signed(p.passport.adapt.addedMassPct, 1) + ' %'}</div>
 <p class="lim">Illustrative v0.1 logic; supplier proxies should replace assumed lot means before production decisions.</p></div>` : ''}
+${p && p.sustained ? `<h2>Sustained-load advisory</h2><div class="card"><div class="v">${p.sustained.pf_bound <= b.targetPf ? 'Inside the reliability target under the creep/compression bound.' : '<b class="warn">NOT qualified for sustained load.</b> The creep x2.0 / compression /0.8 bound exceeds the target; the static result is unchanged.'}</div>
+<div class="k" style="margin-top:8px">P_f bound ${fmtPf(p.sustained.pf_bound)} · deflection bound ${nf(p.sustained.deflection_bound_mm, 2)} mm · E_req bound ${nf(p.sustained.E_req_bound_MPa, 0)} MPa · σy_req bound ${nf(p.sustained.sigma_req_bound_MPa, 1)} MPa</div>
+<p class="lim">Advisory for long-term loads; never the static design allowable.</p></div>` : ''}
+${p && p.recipe ? `<h2>Known-batch print recipe</h2><div class="card"><p class="lim">Lot-specific 8-control resize (not one global scale), measurement CV ${nf(p.recipe.measurement_cv * 100, 0)} % retained.</p>
+<div class="v">Width multipliers: ${p.recipe.width_multipliers.map((v) => nf(v, 2) + '×').join(' · ')}</div>
+<div class="k" style="margin-top:8px">Global equivalent scale ${nf(p.recipe.global_equivalent_scale, 2)}× (slicer fallback only) · printed mass ${nf(p.recipe.printed_mass_g, 2)} g (${signed(p.recipe.added_mass_pct, 1)} %) · P_f ${fmtPf(p.recipe.pf)} · verdict <b>${esc(p.recipe.verdict)}</b></div>
+<div class="k" style="margin-top:8px">QC record: lot ${esc(p.qc.lotId || '—')} · supplier ${esc(p.qc.supplier || '—')} · measurement used E ${nf(p.qc.e, 0)} MPa / σy ${nf(p.qc.sy, 1)} MPa · measurement CV ${nf(p.qc.cv, 0)} % · recycled content ${p.qc.recycledPct == null ? '—' : nf(p.qc.recycledPct, 0) + ' %'} <i>(paperwork claim, not simulated)</i></div></div>` : ''}
 <h2>Validation</h2><div class="card">${state.validation.checks.map((x) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="badge">${esc(x.status)}</span><br><span class="lim">${esc(x.detail)}</span></div>`).join('')}
 <p class="lim">Source: ${esc(state.validation.source || 'embedded fallback')}</p></div>
 <h2>AI provenance</h2><div class="card"><table><thead><tr><th>Endpoint</th><th>Model</th><th>Latency</th><th>Status</th></tr></thead><tbody>${state.aiCalls.map((cl) => `<tr><td>${esc(cl.endpoint)}</td><td>${esc(cl.model)}</td><td>${(cl.latencyMs / 1000).toFixed(2)} s</td><td>${cl.demo ? 'mock' : cl.fallback ? 'fallback' : 'live'}${cl.cached ? ' · cached' : ''}</td></tr>`).join('') || '<tr><td colspan="4">No AI calls recorded</td></tr>'}</tbody></table></div>
@@ -1609,7 +1842,8 @@ function buildStatic() {
   $('#btn-back-brief')?.addEventListener('click', () => setStep('brief'));
   $('#btn-continue')?.addEventListener('click', runProofFlow);
   $('#btn-retry-brief')?.addEventListener('click', () => { $('#understanding-error').hidden = true; runDesignFlow(); });
-  wireStepper(); wireViewToggle(); wirePassport(); wireExports(); wireDrawer(); wireAIMenu(); wireDatasheet(); wireLab(); wireHelp();
+  $('#btn-select-hero')?.addEventListener('click', () => selectCandidate('optimised'));
+  wireStepper(); wireViewToggle(); wireRecipe(); wireExports(); wireDrawer(); wireAIMenu(); wireDatasheet(); wireLab(); wireHelp();
   renderClaims(); renderValidation(); renderPlanPreview(); renderUnderstanding(); renderLot(); renderPresetMenu(); renderAdvancedControls();
   if ($('#brief-text')) $('#brief-text').value = state.brief.notes || $('#brief-text').value;
   updateWordCount();
@@ -1654,6 +1888,7 @@ async function boot() {
   renderLot();
   renderPlanPreview();
   renderAdvancedControls();
+  renderFeasibility();
   setStep('brief', { force: true });
   try { await ai.detect(); } catch (err) { console.error(err); }
   renderAIStatus(ai.getSnapshot());

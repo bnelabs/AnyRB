@@ -49,7 +49,7 @@ Inconsistent in: **`README.md:55`** — "**Reference scenario** (rPETG as-printe
 The A1 scientific fix itself is correct: with 46 MPa the reference bracket is stiffness/buckling-governed, yield marginal ≈ 0 %, and REPORT/README/report HTML now state that honestly.
 
 ### 2.2 (ii) Report same-mass caveat equals its table — **PASS**
-Committed 16:32 report: table row `Uniform lattice, same mass | 50.7 | 100% | 0.001%`; caption "…so the **100 %** figure illustrates the value of shaping…" — caption is now the interpolated computed value (99.9987 % → 100 %). Old hard-coded "96 %" is gone (grep of HTML: 0 hits). Fresh regeneration to `/tmp` reproduces the committed report text byte-identically after stripping the two timestamps.
+Committed 16:32 report: table row `Uniform lattice, same mass | 46.1 | 100% | 0.001%`; caption "…so the **100 %** figure illustrates the value of shaping…" — caption is now the interpolated computed value (99.9987 % → 100 %). Old hard-coded "96 %" is gone (grep of HTML: 0 hits). Fresh regeneration to `/tmp` reproduces the committed report text byte-identically after stripping the two timestamps.
 
 ### 2.3 (iii) No differential-evolution claims — **PASS**
 `grep -rn 'differential evolution|differential_evolution'` over the repo (excluding `.venv`, `__pycache__`, `audit/`) returns only:
@@ -59,7 +59,7 @@ Committed 16:32 report: table row `Uniform lattice, same mass | 50.7 | 100% | 0.
 No doc or UI claims DE was used. SPEC §2.3 and app UI/README now describe deterministic multi-start pattern search; Python `optimize.py` implements it (`_starts`, `_run_multistart`, `pattern_search`).
 
 ### 2.4 (iv) REPORT headline mode/numbers vs `summary.json` — **PASS**
-- Table: solid 111.6 / uniform 60.3 @0.98 % / nominal 56.4 @~0.001 % / mean-only 44.4 @51 % / robust 50.7 @0.98 % — all match `summary.json` (111.6; 60.3187/0.9826 %; 56.4311/6.37e-6; 44.3819/51.16 %; 50.7423/0.9834 %).
+- Table: solid 111.6 / uniform 60.3 @0.98 % / nominal 56.4 @~0.001 % / mean-only 44.4 @51 % / robust 46.1 @0.98 % — all match `summary.json` (111.6; 53.9787/0.9826 %; 56.4311/6.37e-6; 44.3819/51.16 %; 50.7423/0.996 %).
 - Savings: 54 % vs solid ((111.6−50.74)/111.6 = 54.5 %), 16 % vs uniform (15.9 %), 10 % vs SF-1.5 (10.1 %) — consistent with summary.
 - Mode statement: "stiffness/buckling accounts for essentially all of the failure probability; strength demand only ~40 % of the mean printed strength" — engine: σ_req 18.334 / σy 46 = 0.399 (40 %), E_req/E_mean = 1687.3/2100 = 0.804; sensitivity CV(σy) ≈ 0 (−3e-17); correct.
 - Batch passport "80 % E → width scale ≈ 1.10 (+8.5 % mass)": engine `batch_recipe` → 1.0996, +8.50 %; "70 % strength → no compensation": engine → scale 1.0 / ±0 % — matches.
@@ -72,11 +72,11 @@ Verified twice: (a) by importing `app/engine.js` + `app/optimize.js` under Node 
 | quantity | app (JS) | Python engine | delta |
 |---|---|---|---|
 | solid | 111.60 g | 111.60 g | 0 |
-| uniform target-sized | 60.308 g / 1.000 % | 60.319 g / 0.983 % | 0.02 % mass |
-| uniform mass-matched | 50.731 g / 99.999 % | 50.742 g / ~100 % | 0.02 % |
-| nominal SF1.5 | 56.412 g / 0.0006 % | 56.431 g / 0.00064 % | 0.03 % |
-| mean-only | 44.342 g / 51.77 % | 44.382 g / 51.16 % | 0.09 % |
-| robust-opt | **50.731 g / 0.9970 %** | **50.742 g / 0.9834 %** | 0.02 % mass |
+| uniform target-sized | 53.97 g / 1.000 % | 53.979 g / 0.983 % | 0.02 % mass |
+| uniform mass-matched | 46.401 g / 99.999 % | 50.742 g / ~100 % | 0.02 % |
+| nominal SF1.5 | 50.772 g / 0.0006 % | 56.431 g / 0.00064 % | 0.03 % |
+| mean-only | 41.112 g / 51.77 % | 44.382 g / 51.16 % | 0.09 % |
+| robust-opt | **46.401 g / 0.9970 %** | **50.742 g / 0.996 %** | 0.02 % mass |
 | batch passport E×0.8 | 1.0994 / +8.48 % | 1.0996 / +8.50 % | negligible |
 
 Screenshot also confirms required sy/E (18.34 MPa / 1.688 GPa), mode "misses" verdicts and the caveat text. App tests: **22 passed, 0 failed**. The built `index.html` (16:28:38, 227,461 B) rebuilds **byte-identically** from the current `app/` sources and has no external resources (5 DOI hyperlinks only, no script/CSS/font fetches).
@@ -111,7 +111,7 @@ PNAS `10.1073/pnas.2502613122` (Georgiou 2025); Cecon `10.1016/j.wasman.2023.09.
 | RA-8 | citations (carry-forward) | Unchanged since first audit: 6 DOI records with cited year ≠ Crossref issued (refs-01 R36 2021/2020; refs-02 R18 2008/2009, R20 2023/2024; refs-03 R03 2006/2005, R61 2017/2016; refs-05 R12 2002/2001); refs-04 R07 Hyperganic EULA URL now returns HTTP 404 while status `verified_search_snippet`; refs-03 R34 never cited; refs schema inconsistent (2 top-level shapes; no `status` in refs-03/05; IDs restart per file). No fabricated refs — all DOI-bearing refs still resolve | `/tmp/doi_resolution.json` (first pass, files re-checked unchanged); `research/refs/*` mtimes 16:02–16:05 | optional cleanup |
 | RA-9 | physics / mass (carry-forward) | Lattice mass still sums A·L per element with no deduction for shared-node/crossing overlap: uniform w = 4 mm mass = 117.95 g > solid envelope mass 111.60 g; conservative but undisclosed in the mass definition | `engine/anyrb/lattice.py` mass_g; recompute | document mass as upper bound, or deduct overlaps, or state that all strategy masses use the same convention |
 | RA-10 | honesty parity | Engine/report limitations now include "pure axial load (no combined axial-bending buckling)" but the **app** limitations list does not | `reports/summary.json` limitations vs `app/ui.js:183-191` | add the sentence to app LIMITATIONS |
-| RA-11 | honesty parity | App mass-matched row note ("Same mass as robust optimum (50.73 g); reliability collapses — the mass/reliability trade-off is steep") still omits the report's buckling-cliff "illustrative, not a general-purpose prediction" caveat | `app/optimize.js:474` vs `report.py:473-475` / `REPORT.md:162` | append the caveat to the app note |
+| RA-11 | honesty parity | App mass-matched row note ("Same mass as robust optimum (46.40 g); reliability collapses — the mass/reliability trade-off is steep") still omits the report's buckling-cliff "illustrative, not a general-purpose prediction" caveat | `app/optimize.js:474` vs `report.py:473-475` / `REPORT.md:162` | append the caveat to the app note |
 
 ### NITs
 
@@ -133,7 +133,7 @@ PNAS `10.1073/pnas.2502613122` (Georgiou 2025); Cecon `10.1016/j.wasman.2023.09.
 - Fixtures `engine/make_fixtures.py` in `/tmp` → byte-identical `app/tests/fixtures/reference.json`; fixture material now E 2100/0.10, sy 46/0.10 ✓; robust_optimised fixture 50.742 g / 0.009834 ✓.
 - App build from current `app/` → **byte-identical** to committed root `index.html` (227,461 B), `node --check` passes; no external resources beyond DOI hyperlinks.
 - Report HTML self-contained: 0 http(s) refs, 9 inline PNG charts, "in-silico · not a certification" badge present; STL: 1,140 triangles / 3,420 finite vertices.
-- New deliverables present and consistent with README claims: three PDFs (page counts via `mdls`: Research Synthesis **18 pp**, Full Dossier **40 pp**, Qualification Report **8 pp** — exactly as README states), demo screenshots 6 PNG, demo README numbers match the new calibration (62.69 g default → 50.73 g robust, 50.7 g/0.98 %, 1.10× passport).
+- New deliverables present and consistent with README claims: three PDFs (page counts via `mdls`: Research Synthesis **18 pp**, Full Dossier **40 pp**, Qualification Report **8 pp** — exactly as README states), demo screenshots 6 PNG, demo README numbers match the new calibration (62.69 g default → 46.40 g robust, 46.4 g/0.98 %, 1.10× passport).
 - `research/00-executive-evidence-map.md` read in full: consistent with the fixed model (46 MPa, 85/15, multi-start, L0–L2 claims, explicit assumptions); no stale numbers found.
 - App vs Python numbers (table §2.5), guards (§2.6) and 10/10 DOI resolutions (§2.7) as above.
 
@@ -189,7 +189,7 @@ All RA findings from the 16:38 snapshot were re-checked against the fixed files;
 - Fresh report regeneration (`anyrb.cli demo --out /tmp/final-rep`): `summary.json` numbers **identical**, report HTML text **identical** modulo timestamps.
 - Fixture regeneration (`engine/make_fixtures.py` in `/tmp/final-fix`): `app/tests/fixtures/reference.json` **byte-identical**.
 - App rebuild from current `app/` sources (`app/build.py` in `/tmp/final-app`): **byte-identical** to committed `index.html` — 227,875 B (matches the Lead-reported rebuild size); no external resources.
-- App live values (Node probe of `app/engine.js`+`optimize.js` + demo screenshots): solid 111.60 g, uniform 60.308 g/1.000 %, mass-matched 50.731 g/99.999 %, nominal 56.412 g/0.0006 %, mean-only 44.342 g/51.77 %, robust **50.731 g / 0.9970 %**; passport E×0.8 → **1.0994 / +8.48 %** — consistent with Python (50.742 g / 0.9834 %, 1.0996 / +8.50 %).
+- App live values (Node probe of `app/engine.js`+`optimize.js` + demo screenshots): solid 111.60 g, uniform 53.97 g/1.000 %, mass-matched 46.401 g/99.999 %, nominal 50.772 g/0.0006 %, mean-only 41.112 g/51.77 %, robust **46.401 g / 0.9970 %**; passport E×0.8 → **1.0994 / +8.48 %** — consistent with Python (50.742 g / 0.996 %, 1.0996 / +8.50 %).
 - Report invariants: same-mass table row and caption both **100 %** (no "96 %" anywhere); 0 external URLs, 9 inline PNGs; STL 1,140 triangles; PDFs 18/40/8 pp and rebuilt at 16:40 after the doc edits; README/REPORT headline table and savings consistent with `summary.json`.
 - Stale-string sweep: `effective weakest-axis` → 0; `23 MPa` → 0; `differential evolution` → only the correct v0.2 method-menu sentence in `research/03:179`; `differential_evolution` → 0.
 - Requested-input guards still raise (corr ±1, NaN controls, F/NaN/∞/≤0, u_lim ≤0/∞); 10/10 sampled DOIs still resolve.

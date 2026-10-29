@@ -27,7 +27,7 @@ Meta Model API (api.meta.ai/v1)
 
 ```bash
 cd AnyRB
-.venv/bin/pip install fastapi uvicorn httpx python-multipart pytest   # already in .venv
+.venv/bin/python -m pip install fastapi uvicorn httpx python-multipart pytest   # already in .venv
 cp server/.env.example server/.env    # then fill META_API_KEY (NEVER commit server/.env)
 ```
 
@@ -41,13 +41,18 @@ cd AnyRB
 
 # live (reads server/.env) — recommended demo command
 .venv/bin/python -m server.app
-# same, explicit uvicorn form
-.venv/bin/uvicorn server.app:app --port 8787
+# same, explicit uvicorn form (use -m: see moved-repo note below)
+.venv/bin/python -m uvicorn server.app:app --port 8787
 
 # mock / offline demo (no key, no network, deterministic)
 ANYRB_MOCK=1 .venv/bin/python -m server.app
 .venv/bin/python -m server.app --mock
 ```
+
+> **Moved-repo note:** this `.venv` was created when the project folder was called
+> `anybatch`, so the console scripts `.venv/bin/uvicorn` / `.venv/bin/pip` have a stale
+> shebang (`bad interpreter`). Use `.venv/bin/python -m uvicorn …` / `.venv/bin/python -m pip …`
+> (both verified), or re-link once with `python3 -m venv --upgrade .venv`.
 
 Open **http://127.0.0.1:8787** — the backend serves the built app (`/`) and the API
 same-origin. Both commands were verified on 2026-10-29 (`--port 8787`; if that port is
@@ -58,6 +63,33 @@ Per-request mode override (useful for demoing Live vs fallback without restartin
 fallback path; `?mock=0` clears the override. Responses always report what happened in
 `_meta` (`model`, `latency_s`, `cached`, `fallback`, `mock`, `usage/tokens`).
 
+## v0.3 contract (reviewer response)
+
+v0.3 constrains the AI to decisions the verified engine can refuse, surfaces family scope and
+carries measurement uncertainty. All changes are additive; `GET /api/health` reports
+`version: "v0.3"`. See `API.md` §v0.3 for the full contract. Summary:
+
+* **Brief/lot parsing** now return optional `measurement_cv` (default `0.12`, retained in
+  lot-level `P_f`; stated vs defaulted is flagged), lot `lot_id` / `supplier` /
+  `measurement_source` / `measurement_cv`, and the brief response carries a camel-case `brief`
+  mirror for the browser client. Values are never invented: absent means null/default.
+* **Plan** prompt states the scope is "best of this bracket/lattice family" (not a topology
+  optimiser), candidates must respect printability (neighbour ratio ≤ 1.5, slenderness ≤ 30)
+  and the engine feasibility gate; the model proposes priors only. If the request's engine
+  gate says the family is infeasible, the server does not call the AI: it returns
+  `blocked: true` placeholders so the UI can refuse the design.
+* **Review/proof memos** receive the full engine facts (printed mass + analytic upper bound,
+  printability, lot-specific recipe multipliers/scale/added mass, measurement CV, sustained
+  bound, feasibility, family scope), cite printed mass for comparisons, label analytic as an
+  upper bound, call the sustained bound advisory (and say "not qualified for sustained load"
+  when it fails), never claim certification, and remain number-grounded.
+* v0.2 request payloads are still accepted; old response consumers keep working.
+
+Freshness note: `server/evidence/live_calls.json` is the v0.2-era live evidence; the v0.3
+contract changes are mock-tested (`40 passed, 1 skipped`). Re-run
+`.venv/bin/python server/verify_live.py` with a key to refresh live evidence (the endpoints
+still accept the script's payloads).
+
 ## Verified live calls (2026-10-29, real key)
 
 Evidence file: [`server/evidence/live_calls.json`](evidence/live_calls.json) (no key in it —
@@ -67,18 +99,18 @@ the demo is instant after warm-up.
 
 | Endpoint | Model | Latency | Tokens (prompt/completion/total) | Fallback |
 |---|---|---|---|---|
-| POST `/api/brief/parse` | muse-spark-1.3-contributor | 10.5 s | 396 / 888 / 1284 | no |
-| POST `/api/lot/parse` | muse-spark-1.3-contributor | 10.3 s | 335 / 815 / 1150 | no |
-| POST `/api/design/plan` | muse-spark-1.3-contributor | 18.0 s | 503 / 1688 / 2191 | no |
-| POST `/api/design/review` | muse-spark-1.3-contributor | 13.0 s | 558 / 1290 / 1848 | no |
-| POST `/api/proof/memo` | muse-spark-1.3-contributor | 24.6 s | 565 / 2704 / 3269 | no |
-| POST `/api/voice/transcribe` | muse-voice-transcribe-1.0 | 4.0 s | audio 8.8 s | no |
-| POST `/api/image/render` | muse-image-1.0 | 19.3 s | — | no |
-| POST `/api/photo/segment` | sam-3.1 | 1.5 s | — | no |
+| POST `/api/brief/parse` | muse-spark-1.3-contributor | 9.8 s | 396 / 888 / 1284 | no |
+| POST `/api/lot/parse` | muse-spark-1.3-contributor | 11.6 s | 335 / 815 / 1150 | no |
+| POST `/api/design/plan` | muse-spark-1.3-contributor | 13.7 s | 503 / 1688 / 2191 | no |
+| POST `/api/design/review` | muse-spark-1.3-contributor | 19.3 s | 558 / 1290 / 1848 | no |
+| POST `/api/proof/memo` | muse-spark-1.3-contributor | 14.5 s | 565 / 2704 / 3269 | no |
+| POST `/api/voice/transcribe` | muse-voice-transcribe-1.0 | 3.6 s | audio 8.8 s | no |
+| POST `/api/image/render` | muse-image-1.0 | 19.1 s | — | no |
+| POST `/api/photo/segment` | sam-3.1 | 2.1 s | — | no |
 
 Observed behaviour worth knowing:
 
-* Spark is a reasoning model: 10–25 s per call (`reasoning_effort=low`, `max_tokens≥3000`).
+* Spark is a reasoning model: 9–20 s per call (`reasoning_effort=low`, `max_tokens≥3000`).
   Use a 60 s client timeout; the server allows up to 240 s read.
 * The generated image comes back WebP 1600×1600; the backend converts it to a JPEG data URL
   (1280 px, ~270–290 KB) so the browser payload stays small. It is labelled
@@ -106,7 +138,7 @@ cd AnyRB
 ```bash
 cd AnyRB
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q
-# 26 passed, 1 skipped  (skipped = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
+# 40 passed, 1 skipped  (skipped = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
 ```
 
 The suite isolates itself before importing the app: `META_API_KEY=""`, a temporary cache and

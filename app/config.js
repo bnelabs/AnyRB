@@ -180,16 +180,16 @@ export const UI_RANGES = {
 // ---------------------------------------------------------------------------
 export const APP_META = {
   title: 'AnyRB',
-  subtitle: 'Reliable recycled-polymer parts, despite batch variation',
+  subtitle: 'Any Recycled Batch — AI reliability studio for recycled-polymer parts',
   thesis:
     'Design the internal geometry for the batch distribution — then adapt the print recipe to the lot you actually received. No physical testing required to use it; the physics, statistics and material data are virtual.',
-  version: 'v0.1 prototype',
+  version: 'v0.3 · review-response',
   calibration:
     'Calibrated v0.1 demo. Physics cross-checked against the canonical Python engine (fixture: app/tests/fixtures/reference.json).',
   strengthNote:
     'rPETG σy is the printed in-plane strength measured on printed ISO 527-2 specimens (R07: 46 MPa, CV 10 %) — not a layer-normal or out-of-plane strength. Out-of-plane loading is not modelled in v0.1.',
   disclaimer:
-    'In-silico only. Not a certification tool. Material distributions are literature-derived, the model is a linear-elastic plane-frame idealisation, and nothing here has been physically tested. Validate with your own lot data and physical tests before production.',
+    'In-silico only. Not a certification tool. Material distributions are literature-derived, the model is a linear-elastic plane-frame idealisation, and nothing here has been physically tested. Results are the best of this bracket/lattice family — not a general topology optimiser. Validate with your own lot data and physical tests before production.',
 };
 
 export const CITATIONS = [
@@ -230,4 +230,28 @@ export const CALIBRATION = {
   status: 'calibrated',
   values: 'verified feedstock library + spec v0.1 calibrated defaults',
   note: 'Geometry, material presets, two-level split and reference numbers are cross-checked against app/tests/fixtures/reference.json.',
+};
+
+
+// ---------------------------------------------------------------------------
+// v0.3 review-response contract (JS mirrors the Python reference)
+// ---------------------------------------------------------------------------
+export const V03 = {
+  branding: { name: 'AnyRB', full: 'Any Recycled Batch', tagline: 'AI reliability studio for recycled-polymer parts' },
+  printedMass: { res: 0.25, margin: 4.0, note: 'Deterministic voxel union of strut boxes + wall pad; analytic mass is a conservative upper bound.' },
+  printability: { maxNeighbourWidthRatio: 1.5, maxSlenderness: 30.0, enforcement: 'Final selected design must pass both (advisory manufacturing caps enforced in the optimiser).' },
+  measurementCvDefault: 0.12,
+  creepFactor: 2.0,
+  compressionFactor: 0.8,
+  sustainedNote: 'Advisory sustained-load / creep bound: stiffness demand x2.0 and compression strength /0.8. NOT the static design allowable; if the bound fails the part is not qualified for sustained load.',
+  familyScope: 'best of this bracket/lattice family',
+  qcDefaults: { lotId: '', supplier: '', recycledContentPct: null },
+  qcNote: 'Recycled-content % is a paperwork claim (not simulated or verified).',
+  reference: {
+    robust_analytic_mass_g: 50.81,
+    robust_printed_mass_g: 46.34,
+    python_robust_printed_mass_g: 46.40,
+    uniform2_printed_mass_g: 53.97,
+    uniform2_analytic_mass_g: 60.32,
+  },
 };

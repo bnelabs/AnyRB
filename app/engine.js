@@ -581,6 +581,7 @@ export function analyzeLattice(logWidth, opts = {}) {
   const F = opts.F ?? DEFAULTS.F;
   const uLim = opts.uLim ?? GEOMETRY.uLim;
   const rho = opts.rho ?? DEFAULTS.material.rho;
+  const computePrinted = opts.printed !== false;
   const unit = unitLoadSolve(logWidth);
 
   const sigma_y_req = F * unit.maxSigmaCoeff; // MPa
@@ -591,7 +592,9 @@ export function analyzeLattice(logWidth, opts = {}) {
   let strutVolume = 0;
   for (const el of unit.responses) strutVolume += el.A * el.L;
   const totalVolume = strutVolume + GEOMETRY.padVolume;
-  const mass_g = (rho * totalVolume) / 1000; // g = g/cm³ × mm³ / 1000
+  const mass_g = (rho * totalVolume) / 1000; // analytic upper bound, g
+  const printedVolume = computePrinted ? printedVolumeMm3(logWidth) : null;
+  const printed_mass_g = computePrinted ? (rho * printedVolume) / 1000 : null;
 
   const widthsMm = unit.responses.map((e) => e.w);
   const sigmaElem = unit.responses.map((e) => F * e.sigmaCoeff);
@@ -619,6 +622,9 @@ export function analyzeLattice(logWidth, opts = {}) {
     maxBuckElement: unit.maxBuckElement,
     volumes: { struts_mm3: strutVolume, pad_mm3: GEOMETRY.padVolume, total_mm3: totalVolume },
     mass_g,
+    mass_analytic_g: mass_g,
+    printed_mass_g,
+    printed_volume_mm3: printedVolume,
     widthStats: {
       min: Math.min(...widthsMm),
       max: Math.max(...widthsMm),
@@ -666,6 +672,10 @@ export function analyzeSolid(opts = {}) {
     demands: { sigma_y_req, E_req, E_req_def, E_req_buck, sigma_coeff: sigmaCoeff, buck_coeff: 0 },
     volumes: { struts_mm3: volume - GEOMETRY.padVolume, pad_mm3: GEOMETRY.padVolume, total_mm3: volume },
     mass_g: (rho * volume) / 1000,
+    mass_analytic_g: (rho * volume) / 1000,
+    printed_mass_g: (rho * volume) / 1000,
+    printed_volume_mm3: volume,
+    printability: { pass: true, max_neighbour_width_ratio: 1, max_slenderness: 0, warnNeighbour: false, warnSlenderness: false },
     widthStats: { min: GEOMETRY.Ly, max: GEOMETRY.Ly, mean: GEOMETRY.Ly },
     widthsMm: [],
     sigmaElem: [],
@@ -833,37 +843,214 @@ export function nodeDisplacements(analysis, E) {
  *   - maximum slenderness L_e/w_e (guideline ≤ 30)
  *   - minimum strut width used by the FE.
  */
+// ---------------------------------------------------------------------------
+// v0.3: deterministic printed/union mass (voxel union) — mirrors Python
+// `engine/anyrb/lattice.py::printed_volume_mm3`.
+// Grid: res 0.25 mm, margin 4 mm; pad [0,10]x[0,60]x[-5,5]; every strut is a
+// box along its full length with width w_e and depth t. All struts span the full
+// depth, so the union is a 2-D occupancy raster x depth.
+// ---------------------------------------------------------------------------
+export const PRINTED_MASS = {
+  samples: 60000,      // Halton quasi-Monte-Carlo samples (deterministic)
+  margin: 4.0,         // bbox margin around the part, mm
+  note: 'Deterministic Halton quasi-Monte-Carlo union (60,000 samples, bases 2/3/5) of the strut boxes plus the wall pad. The analytic mass is a conservative upper bound.',
+};
+
+// Halton sequence in [0,1) — cached per (n, base); identical to the Python engine.
+const HALTON_CACHE = new Map();
+export function halton(n, base) {
+  const key = n + ':' + base;
+  const cached = HALTON_CACHE.get(key);
+  if (cached) return cached;
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let f = 1.0;
+    let r = 0.0;
+    let k = i + 1;
+    while (k > 0) {
+      f /= base;
+      r += f * (k % base);
+      k = Math.floor(k / base);
+    }
+    out[i] = r;
+  }
+  HALTON_CACHE.set(key, out);
+  return out;
+}
+
+/**
+ * Deterministic printed/union volume (mm^3): Halton QMC over the bbox
+ * [-4,154] x [-4,64] x [-5,5]; a sample is inside if it falls in any strut box
+ * (0 <= along <= L, |perp| <= w/2, full depth) or in the wall pad.
+ * Mirrors Python `lattice.py::printed_volume_mm3` exactly (same sequence).
+ */
+export function printedVolumeMm3(logWidth, opts = {}) {
+  const n = opts.n ?? PRINTED_MASS.samples;
+  const margin = opts.margin ?? PRINTED_MASS.margin;
+  const hx = halton(n, 2);
+  const hy = halton(n, 3);
+  const xs = new Float64Array(n);
+  const ys = new Float64Array(n);
+  const inside = new Uint8Array(n);
+  const spanX = GEOMETRY.Lx + 2 * margin;
+  const spanY = GEOMETRY.Ly + 2 * margin;
+  for (let i = 0; i < n; i++) {
+    xs[i] = -margin + hx[i] * spanX;
+    ys[i] = -margin + hy[i] * spanY;
+  }
+  // wall pad [0,10] x [0,60], full depth
+  for (let i = 0; i < n; i++) {
+    if (xs[i] >= 0 && xs[i] <= GEOMETRY.padWidth && ys[i] >= 0 && ys[i] <= GEOMETRY.Ly) inside[i] = 1;
+  }
+  for (const el of MESH_ELEMENTS) {
+    const w = widthField(logWidth, el.xm, el.ym);
+    const n1 = MESH_NODES[el.n1];
+    const n2 = MESH_NODES[el.n2];
+    const c1x = n1.x;
+    const c1y = n1.y;
+    const dx = n2.x - n1.x;
+    const dy = n2.y - n1.y;
+    const L = Math.hypot(dx, dy);
+    if (L <= 1e-12) continue;
+    const ux = dx / L;
+    const uy = dy / L;
+    const px = -uy;
+    const py = ux;
+    const hw = w / 2;
+    // bbox quick reject per sample (keeps the 5.6M-sample-element loop cheap)
+    const xmin = Math.min(c1x, c1x + dx) - hw - 1;
+    const xmax = Math.max(c1x, c1x + dx) + hw + 1;
+    const ymin = Math.min(c1y, c1y + dy) - hw - 1;
+    const ymax = Math.max(c1y, c1y + dy) + hw + 1;
+    for (let i = 0; i < n; i++) {
+      const X = xs[i];
+      const Y = ys[i];
+      if (X < xmin || X > xmax || Y < ymin || Y > ymax) continue;
+      const rx = X - c1x;
+      const ry = Y - c1y;
+      const along = rx * ux + ry * uy;
+      if (along < 0 || along > L) continue;
+      const perp = rx * px + ry * py;
+      if (Math.abs(perp) <= hw) inside[i] = 1;
+    }
+  }
+  let count = 0;
+  for (let i = 0; i < n; i++) count += inside[i];
+  const bboxVolume = spanX * spanY * GEOMETRY.depth;
+  return (count / n) * bboxVolume;
+}
+
+export function printedMassG(logWidth, rho, opts = {}) {
+  return (rho * printedVolumeMm3(logWidth, opts)) / 1000;
+}
+
 export function printabilityReport(analysis) {
   if (!analysis || analysis.kind !== 'lattice' || !analysis.designLogWidth) return null;
   const elements = analysis.elements;
   let minWidth = Infinity;
   let maxSlenderness = 0;
-  analytics:
   for (const el of elements) {
     if (el.w < minWidth) minWidth = el.w;
     const sl = el.L / Math.max(1e-9, el.w);
     if (sl > maxSlenderness) maxSlenderness = sl;
   }
-  // Neighbour width ratio: maximum width ratio between CONSECUTIVE elements in
-  // the canonical FE element list (this is the cross-language definition the
-  // Python engine reports; e.g. 1.63 for the 50.08 g robust design).
+  // Max width ratio across consecutive FE elements INCLUDING the wrap between
+  // the last and first element (Python: np.roll(widths, 1)).
   let maxNeighbourRatio = 1;
-  for (let i = 0; i + 1 < elements.length; i++) {
+  const nW = elements.length;
+  for (let i = 0; i < nW; i++) {
     const a = elements[i].w;
-    const b = elements[i + 1].w;
+    const b = elements[(i + 1) % nW].w;
     const r = Math.max(a, b) / Math.max(1e-9, Math.min(a, b));
     if (r > maxNeighbourRatio) maxNeighbourRatio = r;
   }
   const neighbourGuideline = 1.5;
   const slendernessGuideline = 30;
+  const warnNeighbour = maxNeighbourRatio > neighbourGuideline;
+  const warnSlenderness = maxSlenderness > slendernessGuideline;
+  const maxWidth = elements.reduce((mx, el) => Math.max(mx, el.w), -Infinity);
   return {
+    min_width_mm: minWidth,
+    max_width_mm: maxWidth,
+    max_slenderness: maxSlenderness,
+    max_neighbour_width_ratio: maxNeighbourRatio,
+    out_of_bounds: minWidth < GEOMETRY.wMin - 1e-9 || maxWidth > GEOMETRY.wMax + 1e-9,
     minWidth,
+    maxWidth,
     maxSlenderness,
     maxNeighbourRatio,
     neighbourGuideline,
     slendernessGuideline,
-    warnNeighbour: maxNeighbourRatio > neighbourGuideline,
-    warnSlenderness: maxSlenderness > slendernessGuideline,
+    warnNeighbour,
+    warnSlenderness,
+    pass: !warnNeighbour && !warnSlenderness,
+  };
+}
+
+/**
+ * Known lot with measurement uncertainty retained (mirrors Python
+ * `Material.lot_from_measurement`): within-lot CV and measurement CV combine in
+ * quadrature; the lot-to-lot fraction is set to zero.
+ */
+export function lotFromMeasurement(materialIn, E_measured, sy_measured, measurementCv = 0.12) {
+  const m = normalizeMaterial(materialIn);
+  const eWithin = m.E_cv * m.withinFraction;
+  const sWithin = m.sy_cv * m.withinFraction;
+  const eCv = Math.sqrt(Math.max(eWithin * eWithin + measurementCv * measurementCv, 1e-12));
+  const sCv = Math.sqrt(Math.max(sWithin * sWithin + measurementCv * measurementCv, 1e-12));
+  return {
+    ...m,
+    id: (m.preset || 'material') + '-measured',
+    E_mean: Number.isFinite(E_measured) ? E_measured : m.E_mean,
+    E_cv: eCv,
+    sy_mean: Number.isFinite(sy_measured) ? sy_measured : m.sy_mean,
+    sy_cv: sCv,
+    lotFraction: 0,
+    withinFraction: 1,
+    measurementCv,
+    level: 'within',
+  };
+}
+
+/** Family feasibility gate: widest printable uniform lattice vs target. */
+export function familyFeasibility(materialIn, opts = {}) {
+  const material = normalizeMaterial(materialIn);
+  const targetPf = opts.targetPf ?? DEFAULTS.targetPf;
+  const analysis = analyzeLattice(uniformDesign(GEOMETRY.wMax), {
+    F: opts.F ?? DEFAULTS.F,
+    uLim: opts.uLim ?? GEOMETRY.uLim,
+    rho: material.rho,
+    printed: false,
+  });
+  const pf = probabilityOfFailure(analysis, material, 'lot');
+  return {
+    feasible: pf <= targetPf,
+    min_achievable_pf: pf,
+    sigma_req_MPa: analysis.demands.sigma_y_req,
+    E_req_MPa: analysis.demands.E_req,
+    max_width_mm: GEOMETRY.wMax,
+    target_pf: targetPf,
+    analysis,
+  };
+}
+
+/** Advisory sustained-load / creep bound (not the design allowables). */
+export function sustainedBound(analysis, materialIn, opts = {}) {
+  const material = normalizeMaterial(materialIn);
+  const creepFactor = opts.creepFactor ?? 2.0;
+  const compressionFactor = opts.compressionFactor ?? 0.8;
+  const E_req_bound_MPa = analysis.demands.E_req * creepFactor;
+  const sigma_req_bound_MPa = analysis.demands.sigma_y_req / Math.max(compressionFactor, 1e-6);
+  const pf_bound = pfFromThresholds(sigma_req_bound_MPa, E_req_bound_MPa, levelMaterial(material, 'lot'));
+  const deflection_bound_mm = (analysis.deflectionScale / Math.max(material.E_mean, 1e-9)) * creepFactor;
+  return {
+    pf_bound,
+    E_req_bound_MPa,
+    sigma_req_bound_MPa,
+    deflection_bound_mm,
+    creep_factor: creepFactor,
+    compression_factor: compressionFactor,
+    note: 'Advisory bound: sustained load (creep x2.0) plus compression knock-down (x0.8) — not the static design allowables; not qualified for sustained load if the bound fails.',
   };
 }
 

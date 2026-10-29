@@ -510,3 +510,285 @@ def test_live_brief_parse_smoke():
                          capture_output=True, text=True, timeout=300)
     assert out.returncode == 0, out.stderr
     assert "200" in out.stdout
+
+
+# ===========================================================================
+# AnyRB v0.3 — reviewer constraints: engine-refusable AI, family scope,
+# measurement uncertainty. All mock-mode (no live model calls).
+# ===========================================================================
+V03_BRIEF = {"part_label": "shelf bracket", "load_N": 147.15,
+             "deflection_limit_mm": 2.5, "target_pf": 0.01, "mass_cap_g": 60,
+             "material_key": "rpetg", "process": "FDM/FFF",
+             "measurement_cv": 0.12, "measurement_cv_stated": False}
+V03_FACTS = {
+    "printed_mass_g": 46.0, "mass_analytic_g": 50.73, "pf": 0.00997,
+    "target_pf": 0.01, "governing_mode": "stiffness/buckling",
+    "sigma_y_req_mpa": 18.34, "E_req_mpa": 1688.0, "deflection_mm": 2.01,
+    "min_width_mm": 1.18, "max_slenderness": 22.7, "neighbour_ratio": 1.45,
+    "load_n": 147.15, "deflection_limit_mm": 2.5, "feasible": True,
+    "control_widths_mm": [2.0] * 8,
+}
+V03_RECIPE = {"width_multipliers": [1.1] * 8, "global_equivalent_scale": 1.0994,
+              "added_mass_pct": 8.5, "printed_mass_g": 49.5,
+              "base_printed_mass_g": 46.0, "verdict": "pass with compensation",
+              "measurement_cv": 0.15, "lot_E": 1680.0, "lot_sy": 46.0,
+              "lot_id": "2026-31", "supplier": "MRF North",
+              "measurement_source": "certificate",
+              "printability": {"max_slenderness": 24.0,
+                               "max_neighbour_width_ratio": 1.42}}
+V03_SUSTAINED = {"pf_bound": 0.04, "deflection_bound_mm": 4.0,
+                 "creep_factor": 2.0, "compression_factor": 0.8}
+
+
+def _v03_review_payload() -> dict:
+    return {"facts": V03_FACTS, "target_pf": 0.01,
+            "design": {"control_widths_mm": [2.0] * 8},
+            "brief": V03_BRIEF, "family_scope": "",
+            "feasibility": {"feasible": True, "min_achievable_pf": 0.0002,
+                            "target_pf": 0.01},
+            "lot_recipe": dict(V03_RECIPE),
+            "measurement": {"cv": 0.15, "lot_id": "2026-31",
+                            "supplier": "MRF North",
+                            "measurement_source": "certificate"},
+            "sustained_bound": dict(V03_SUSTAINED)}
+
+
+def _v03_proof_payload() -> dict:
+    payload = _v03_review_payload()
+    payload["validation"] = {"counts": {"PASS": 24, "WARN": 2, "FAIL": 0}, "total": 26}
+    payload["proof"] = {"sustained_bound": dict(V03_SUSTAINED),
+                        "lot_recipe": dict(V03_RECIPE)}
+    return payload
+
+
+def test_health_v03_contract():
+    body = client.get("/api/health").json()
+    assert body["version"] == "v0.3"
+    assert body["contract_version"] == "v0.3"
+    assert body["service"]["version"] == "0.3"
+    assert body["engine"]["version"] == "0.3"
+    for cap in ("printed_mass", "family_feasibility", "lot_specific_recipe",
+                "sustained_bound", "measurement_cv_default"):
+        assert cap in body["engine"], cap
+    assert body["engine"]["measurement_cv_default"] == 0.12
+    assert "best of this bracket/lattice family" in body["family_scope"]
+    assert body["printability_limits"]["max_neighbour_width_ratio"] <= 1.5
+    assert body["printability_limits"]["max_slenderness"] <= 30
+
+
+def test_brief_measurement_cv_default_stated_and_clamped():
+    # no measurement statement -> documented default 12 %, flagged as defaulted
+    b = client.post("/api/brief/parse", json={"text": "150 N bracket, 1% risk, rPETG"}).json()
+    schemas.BriefResponse.model_validate(b)
+    assert b["measurement_cv"] == pytest.approx(0.12)
+    assert b["measurement_cv_stated"] is False
+    # stated measurement uncertainty is extracted as a fraction and flagged
+    b2 = client.post("/api/brief/parse", json={
+        "text": "150 N bracket, 1% risk, rPETG; measurement uncertainty 15%"}).json()
+    assert b2["measurement_cv"] == pytest.approx(0.15)
+    assert b2["measurement_cv_stated"] is True
+    # a material CV statement must NOT be mistaken for measurement uncertainty
+    b3 = client.post("/api/brief/parse", json={
+        "text": "150 N bracket, 1% risk, rPETG, material CV 18%"}).json()
+    assert b3["measurement_cv"] == pytest.approx(0.12)
+    assert b3["measurement_cv_stated"] is False
+    # out-of-range values are never accepted from the model/fallback
+    b4 = client.post("/api/brief/parse", json={
+        "text": "150 N bracket, 1% risk, rPETG; measurement uncertainty 80%"}).json()
+    assert 0.0 <= b4["measurement_cv"] <= 0.5
+
+
+def test_brief_compat_mirror_for_browser_client():
+    b = client.post("/api/brief/parse", json={"text": BRIEF_TEXT}).json()
+    mirror = b["brief"]
+    schemas.BriefCompat.model_validate(mirror)
+    assert mirror["loadN"] == b["load_N"]
+    assert mirror["deflLimitMm"] == b["deflection_limit_mm"]
+    assert mirror["targetPf"] == b["target_pf"]
+    assert mirror["partType"] == b["part_label"]
+    assert mirror["preset"] == "rPETG"
+    assert mirror["measurementCv"] == b["measurement_cv"]
+
+
+def test_lot_v03_identity_and_measurement_provenance():
+    text = ("Supplier: Recyclex GmbH. rHDPE lot 2026-31, certificate. Young's modulus 950 MPa, "
+            "yield strength 28 MPa, density 0.95 g/cm3, CV 15%, measurement uncertainty 8%.")
+    lot = client.post("/api/lot/parse", json={"text": text}).json()
+    schemas.LotResponse.model_validate(lot)
+    assert lot["lot_id"] == "2026-31"
+    assert lot["supplier"] == "Recyclex GmbH"
+    assert lot["measurement_source"] == "certificate"
+    assert lot["measurement_cv"] == pytest.approx(0.08)
+    assert lot["measurement_cv_stated"] is True
+    # absent identity fields are null/unknown, measurement CV falls back to 12 %
+    lot2 = client.post("/api/lot/parse", json={"text": LOT_TEXT}).json()
+    assert lot2["lot_id"] == "2026-31"          # parsed from "rHDPE lot 2026-31"
+    assert lot2["measurement_cv"] == pytest.approx(0.12)
+    assert lot2["measurement_cv_stated"] is False
+    assert lot2["measurement_source"] in ("datasheet", "unknown")
+
+
+def test_plan_v03_family_scope_printability_and_feasibility():
+    plan = client.post("/api/design/plan", json={
+        "brief": V03_BRIEF,
+        "first_pass": {"feasible_uniform_width_mm": 2.4, "material": {"E_mean": 2100}},
+        "feasibility": {"feasible": True, "min_achievable_pf": 0.0002, "target_pf": 0.01},
+    }).json()
+    schemas.PlanResponse.model_validate(plan)
+    assert "best of this bracket/lattice family" in plan["family_scope"]
+    assert plan["printability_limits"]["max_slenderness"] <= 30
+    assert plan["blocked"] is False
+    assert plan["feasibility"]["feasible"] is True
+    assert len(plan["candidates"]) == 3
+    # the first-pass feasibility width drives the deterministic priors
+    assert plan["candidates"][0]["width_priors_mm"][0] == pytest.approx(2.4 * 1.22, abs=0.02)
+
+
+def test_plan_infeasible_family_blocks_ai_candidates():
+    plan = client.post("/api/design/plan", json={
+        "brief": {"load_N": 900, "target_pf": 0.001},
+        "baseline": {"uniform_width_mm": 4.0},
+        "feasibility": {"feasible": False, "min_achievable_pf": 0.02, "target_pf": 0.001},
+    }).json()
+    schemas.PlanResponse.model_validate(plan)
+    assert plan["blocked"] is True
+    assert plan["feasibility"]["feasible"] is False
+    assert plan["_meta"]["model"] == "fallback"
+    assert plan["_meta"]["fallback"] is True
+    assert plan["_meta"]["mock_reason"] == "family_infeasible"
+    assert "no AI candidates were proposed" in plan["note"]
+    assert len(plan["candidates"]) == 3  # schema-compatible placeholders only
+
+
+def test_plan_prompt_states_scope_printability_and_gate():
+    from server import prompts
+    s = prompts.PLAN_SYSTEM
+    assert "best of this bracket/lattice family" in s
+    assert "not a general topology optimiser" in s.lower()
+    assert "neighbour width ratio <= 1.5" in s or "neighbour width ratio" in s
+    assert "slenderness <= 30" in s or "slenderness" in s
+    assert "feasibility gate" in s
+    assert "topology optimality" in s
+    # model must be told it proposes priors, not final performance numbers
+    assert "prior" in s.lower()
+    assert "engine" in s.lower()
+
+
+def test_review_accepts_v02_and_v03_payloads():
+    old = {"brief": {"load_N": 150, "target_pf": 0.01},
+           "selected": {"mass_g": 50.73, "pf": 0.00997, "sigma_req_MPa": 18.34,
+                        "E_req_MPa": 1688.1, "binding_mode": "stiffness/buckling"},
+           "comparison": [{"strategy": "solid", "mass_g": 111.6, "pf": 0.0}],
+           "material": {"E_mean": 2100}, "sensitivity": {"mean_E": 0.78}}
+    r = client.post("/api/design/review", json=old)
+    assert r.status_code == 200
+    body = r.json()
+    schemas.ReviewResponse.model_validate(body)
+    assert body["_meta"]["grounding"]["ok"] is True
+    assert "best of this bracket/lattice family" in body["family_scope"]
+    # v0.3 payload (engine facts + lot recipe + measurement + sustained bound)
+    r2 = client.post("/api/design/review", json=_v03_review_payload())
+    assert r2.status_code == 200
+    body2 = r2.json()
+    schemas.ReviewResponse.model_validate(body2)
+    assert body2["_meta"]["grounding"]["ok"] is True
+    assert "printed mass 46.0 g" in body2["memo"]
+    assert "50.7" not in body2["memo"]              # analytic upper bound is not cited as the mass
+    assert "lot-specific recipe" in body2["memo"].lower()
+    assert "Measurement CV 15.0%" in body2["memo"]
+    assert "not qualified for sustained load" in body2["sustained_advisory"]
+    assert "not a topology optimum" in body2["memo"]
+    textual = " ".join([body2["memo"], body2["key_risk"]] + body2["next_actions"] + body2["caveats"])
+    # never CLAIM certification (a "not a certification" disclaimer is required, not forbidden)
+    for claim in ("is certified", "certified design", "certification body", "certified for"):
+        assert claim not in textual.lower(), claim
+    ground_text = " ".join([body2["memo"], body2["key_risk"]] + body2["next_actions"] + body2["caveats"])
+    ok, bad = prompts.grounded(ground_text, app_module.contract_v03.build_review_payload(
+        _v03_review_payload()))
+    assert ok, bad
+
+
+def test_review_old_payload_only_mentions_analytic_as_upper_bound():
+    old = {"brief": {"load_N": 150, "target_pf": 0.01},
+           "selected": {"mass_g": 50.73, "pf": 0.00997}}
+    body = client.post("/api/design/review", json=old).json()
+    # no printed mass supplied -> analytic mass may be quoted, but labelled as upper bound
+    assert "upper bound" in body["memo"].lower()
+    assert "50.7" in body["memo"]
+
+
+def test_proof_v03_sustained_advisory_and_grounding():
+    body = client.post("/api/proof/memo", json=_v03_proof_payload()).json()
+    schemas.ProofResponse.model_validate(body)
+    assert body["_meta"]["grounding"]["ok"] is True
+    assert "printed mass 46.0 g" in body["memo"]
+    assert "not qualified for sustained load" in body["memo"].lower()
+    assert "advisory" in body["memo"].lower()
+    assert body["sustained_advisory"].startswith("not qualified for sustained load")
+    assert body["measurement"]["cv"] == pytest.approx(0.15)
+    assert body["lot_recipe"]["global_equivalent_scale"] == pytest.approx(1.0994)
+    for claim in ("is certified", "certified design", "certification body", "certified for"):
+        assert claim not in body["memo"].lower(), claim
+    assert len(body["recommended_tests"]) >= 2
+    assert "L0-L1" in body["claim_level"]
+
+
+def test_proof_accepts_v02_payload():
+    old = {"brief": {"load_N": 150, "target_pf": 0.01},
+           "design": {"mass_g": 50.73, "pf": 0.00997},
+           "batch_passport": {"verdict": "pass", "scale_required": 1.0},
+           "comparison": [{"strategy": "solid", "mass_g": 111.6}],
+           "validation": {"counts": {"PASS": 24, "WARN": 2, "FAIL": 0}, "total": 26}}
+    r = client.post("/api/proof/memo", json=old)
+    assert r.status_code == 200
+    body = r.json()
+    schemas.ProofResponse.model_validate(body)
+    assert body["_meta"]["grounding"]["ok"] is True
+    assert "pass" in body["memo"].lower()
+
+
+def test_grounding_rejects_invented_numbers_in_v03_payload():
+    payload = app_module.contract_v03.build_review_payload(_v03_review_payload())
+    invented = {"memo": "The printed mass is 999 g and P_f is 0.00997.", "key_risk": "x",
+                "next_actions": ["a"], "caveats": [],
+                "_meta": {"kind": "review", "model": "muse-spark-1.3-contributor",
+                          "latency_s": 1.0, "cached": False, "fallback": False}}
+    fb = prompts.fallback_review(payload)
+    result = app_module._grounded_or_fallback("review", invented, payload, fb)
+    assert result["_meta"]["fallback"] is True
+    assert result["_meta"]["grounding"]["ok"] is False
+    assert result["memo"] != invented["memo"]
+
+
+def test_measurement_cv_schema_bounds_and_defaults():
+    from server.contract_v03 import normalize_measurement, DEFAULT_MEASUREMENT_CV
+    assert DEFAULT_MEASUREMENT_CV == 0.12
+    default = normalize_measurement({}, {})
+    assert default["cv"] == pytest.approx(0.12)
+    assert default["stated"] is False
+    stated = normalize_measurement({"cv": 0.2, "lot_id": "L1", "supplier": "S",
+                                    "measurement_source": "certificate"}, {})
+    assert stated["cv"] == pytest.approx(0.2)
+    assert stated["cv_pct"] == pytest.approx(20.0)
+    assert stated["stated"] is True
+    assert stated["lot_id"] == "L1"
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        schemas.BriefTargets(load_N=150, deflection_limit_mm=2.5, target_pf=0.01,
+                             measurement_cv=0.9)
+
+
+def test_review_prompt_rules_engine_refusable_numbers():
+    from server import prompts
+    s = prompts.REVIEW_SYSTEM
+    assert "printed_mass_g" in s and "upper bound" in s
+    assert "neighbour width ratio" in s and "1.5" in s
+    assert "slenderness" in s and "30" in s
+    assert "lot-specific recipe" in s
+    assert "measurement CV" in s
+    assert "ADVISORY" in s or "advisory" in s
+    assert "not a topology optimum" in s
+    p = prompts.PROOF_SYSTEM
+    assert "not" in p and "qualified for sustained load" in p
+    assert "printed_mass_g" in p and "upper bound" in p
+    assert "No certification" in p or "certification" in p

@@ -22,7 +22,7 @@
 
 3. **The missing engineering workflow is a variability-aware design loop, not another CAD tool.** Current lattice/topology tools treat the material as deterministic; material databases report single values; process control stabilises the *melt*, not the *part's* reliability. Nobody couples lot distributions → structural reliability → internal geometry optimisation → per-lot print recipe → a qualification report. That is the software gap. See [`research/04-software-landscape-and-gap.md`](research/04-software-landscape-and-gap.md).
 
-4. **What we built proves the loop is computable end-to-end.** AnyRB models a recycled-polymer bracket, computes closed-form batch failure probability, optimises a graded lattice for a 1 % reliability target, exports an STL and a printable per-lot compensation recipe, and produces a self-contained **virtual qualification report**. On the reference scenario the optimised design is **54 % lighter than a solid plate** and **16 % lighter than a uniform lattice at the same ~1 % risk**, while a conventional deterministic safety-factor-1.5 design is 10 % heavier than necessary; a mean-material design would fail about half of all lots. The same software tells the user which lots are acceptable and how much to compensate the geometry for the ones that are not.
+4. **What we built proves the loop is computable end-to-end.** AnyRB models a recycled-polymer bracket, computes closed-form batch failure probability, optimises a graded lattice for a 1 % reliability target, exports an STL and a printable per-lot compensation recipe, and produces a self-contained **virtual qualification report**. On the reference scenario the optimised design is **58 % lighter than a solid plate** and **14 % lighter than a uniform lattice at the same ~1 % risk**, while a conventional deterministic safety-factor-1.5 design is 10 % heavier than necessary; a mean-material design would fail about half of all lots. The same software tells the user which lots are acceptable and how much to compensate the geometry for the ones that are not.
 
 5. **The honest boundary.** In-silico results are *decision support under stated assumptions*, not certification. Our validation is internal (code verification, analytical benchmarks, cross-language consistency, literature calibration); external validation (physical specimens) is still required before production and is specified as a concrete, cheap experimental programme in [`research/05-validation-without-physical-testing.md`](research/05-validation-without-physical-testing.md). The software is designed to make that future validation cheap: it defines exactly which tests close which uncertainty.
 
@@ -179,11 +179,11 @@ AI can be swapped without changing any scientific result.
 | Strategy | Mass (g) | P_f | Note |
 |---|---|---|---|
 | Solid plate | 111.6 | ~0 | over-designed, 2.2× the mass |
-| Uniform lattice, sized for ~1 % | 60.3 | 0.98 % | no grading |
-| Uniform lattice, same mass as robust (50.7 g) | 50.7 | ~100 % | shaping matters, not just mass |
-| Nominal design, deterministic SF 1.5 | 56.4 | ~0.001 % | 10 % heavier than robust, far lower risk than required |
-| Mean-material design, SF 1.0 | 44.4 | 51 % | "works for the average lot" = fails half the lots |
-| **Robust design (AnyRB)** | **50.7** | **0.98 %** | target met at minimum mass; analytic mass, conservative vs ≈40.5 g union estimate |
+| Uniform lattice, sized for ~1 % | 55.3 | 0.98 % | no grading |
+| Uniform lattice, same printed mass as robust (46.4 g) | 46.0 | ~100 % | shaping matters, not just mass |
+| Nominal design, deterministic SF 1.5 | 50.9 | ~0.001 % | 10 % heavier than robust, far lower risk than required |
+| Mean-material design, SF 1.0 | 41.3 | 51 % | "works for the average lot" = fails half the lots |
+| **Robust design (AnyRB)** | **46.4** | **0.996 %** | target met; printed union estimate; analytic upper bound 50.8 g |
 
 Batch-passport examples for the robust design: a lot with 80 % of nominal E needs width scale ≈ 1.10 (+8.5 % mass, "pass with compensation"); a lot with 70 % of nominal strength needs no compensation, because strength is not the binding property for this geometry; nominal lots pass as designed. The acceptance window and sensitivity ranking (mean E, load and the deflection limit dominate; CV(σy) and the correlation are negligible for this geometry) are generated per design in [`reports/qualification_report.html`](reports/qualification_report.html).
 
@@ -191,8 +191,8 @@ The engineering interpretation:
 
 - **Reliability-targeted geometry is not the same as conservative geometry.** The conventional SF-1.5 design is safe but pays ~10 % extra mass for risk far below target; the mean-only design is light but unusable. Choosing the risk level explicitly and minimising mass for it is the value proposition.
 - **The tool diagnoses which property binds instead of assuming it.** At the robust optimum, stiffness/buckling accounts for essentially all of the failure probability: the strength demand is only ~40 % of the mean printed strength, so yield variability is irrelevant for this geometry. Change the geometry or the recyclate and the binding property shifts — which is exactly why a tool must report the demand pair and the marginal failure contributions, not a single safety factor. (This is also a useful negative result: a design that looks "strength-critical" by intuition can be entirely stiffness-governed.)
-- **The 50.7 g uniform lattice fails essentially all lots.** Same mass, different internal geometry. This demonstrates the value of shaping, but reliability is very sensitive near the buckling-controlled sizing cliff in this idealised model, so the magnitude is illustrative rather than a general-purpose prediction (stated in the report).
-- **Grading is not magic.** In an iso-mass comparison, demand-proportional grading lowers peak utilisation by roughly 1.3–1.6× under a 1 mm printability floor; the 16 % mass saving over the target-sized uniform lattice is consistent with that, not with variance reduction. The multi-start optimiser finds a local optimum (it is a heuristic, not a proof of global optimality); the final design passes the v0.1 printability checks (min width 1.18 mm, max slenderness 22.7, max neighbour-width ratio 1.46).
+- **The 46.4 g uniform lattice fails essentially all lots.** Same mass, different internal geometry. This demonstrates the value of shaping, but reliability is very sensitive near the buckling-controlled sizing cliff in this idealised model, so the magnitude is illustrative rather than a general-purpose prediction (stated in the report).
+- **Grading is not magic.** In an iso-mass comparison, demand-proportional grading lowers peak utilisation by roughly 1.3–1.6× under a 1 mm printability floor; the 14 % printed-mass saving over the target-sized uniform lattice is consistent with that, not with variance reduction. The multi-start optimiser finds a local optimum (it is a heuristic, not a proof of global optimality); the final design passes the v0.3 enforced printability limits (min width 1.24 mm, max slenderness 21.9, max neighbour-width ratio 1.38).
 
 ## 6. Scientific credibility: what we verified, and what we did not
 
@@ -214,19 +214,21 @@ The engineering interpretation:
 
 All three are small precisely because the software already knows which uncertainties matter: the campaign targets the inputs that move P_f most (mean E, load and the deflection limit — for this stiffness-governed geometry, strength CV contributes almost nothing), not a blanket test matrix.
 
-**Independent validation suite (v0.2)** — a separate 46-check suite was written by a validator who did not
+**Independent validation suite (v0.3)** — a separate 53-check suite was written by a validator who did not
 write the engine, using independent methods wherever possible (re-implemented frame element, energy
 minimisation vs direct stiffness, SciPy/quad/Monte-Carlo reliability cross-checks, periodic unit-cell
-homogenisation, brute-force optimiser comparison, STL geometry audit). Result: **45 PASS / 1 WARN / 0 FAIL**
+homogenisation, brute-force optimiser comparison, STL geometry audit). Result: **51 PASS / 2 WARN / 0 FAIL**
 (12.6 s). The suite found and the team fixed three genuine defects before this report was frozen:
 (1) the fixed-grid bivariate-normal quadrature lost accuracy at extreme correlations (|ρ|>0.9), now
 1e-15-accurate via a SciPy adaptive path; (2) the degenerate-marginal combination returned the wrong value
 when a deterministic strength marginal failed; (3) the STL wall pad was exported as a sheared
 parallelogram instead of an axis-aligned 10×60×10 mm prism. The single remaining WARN is a **quantified,
 conservative** approximation: analytic strut-volume mass double-counts overlap at joints — for the robust
-design the analytic mass is 50.73 g while the voxel-union estimate is ≈40.5 g (analytic ≈25 % higher). All
+design the printed union estimate is 46.40 g while the analytic upper bound is 50.81 g (the old 25 % / ≈40.5 g figure came from a validator sampler bug and is retired). All
 numbers in this report use the conservative analytic mass; the union estimate is disclosed in the app and
 validation report.
+
+Model-form error is now quantified, not just acknowledged. A cell-size sweep (4x2, 7x3, 10x4, 14x6 lattices on the same envelope and width field) changes tip deflection by +88 %, strength demand by +34 % and stiffness demand by +495 % at the same strut widths (mass-matched: +58 % / +98 % / +23 %); 7x3 is the product contract and the band is reported per result. A pin-jointed truss idealisation of the same 7x3 lattice gives tip stiffness x1.004, sigma_req x1.141 and E_req x0.997 relative to the rigid frame, so the frame is conservative on strength and neutral on global stiffness. These bands are the honest size of the 2-D frame assumption and are not a substitute for specimen validation. The printed-union mass estimate is also audited (F5): ≤0.1 % deviation from independent Monte Carlo on the shipped designs, 0.35 % worst case at the minimum strut width — a second documented WARN, alongside the analytic-mass upper-bound WARN (F4).
 
 **Not verified (and why):** no physical specimens were tested. The following are unmodelled or only crudely modelled, and the app/report list them on-screen: plasticity and strain localisation; creep and fatigue; layer-adhesion anisotropy (the 2-D in-plane model uses the measured printed in-plane strength); out-of-plane buckling; joint behaviour; spatial material scatter and print-defect statistics; process-induced residual stress; viscoelastic rate effects; and the literature-derived material distributions themselves. A validation programme (tensile tests per lot, lattice coupons, full bracket; n and acceptance criteria; Bayesian updating) is specified in [`research/05-validation-without-physical-testing.md`](research/05-validation-without-physical-testing.md).
 
@@ -267,7 +269,18 @@ Beachhead users: recycled-filament printers and AM service bureaus, furniture/ho
 
 Batch variability stops recycled polymers from being used where reliability matters. Physical testing cannot be the answer at design time — it is too slow, too late and too expensive per iteration. A software tool can replace the design iteration by treating the lot distribution as the design input: encode the variability, propagate it through verified mechanics, optimise the internal geometry for a chosen reliability instead of a nominal safety factor, and output a printable design plus a lot-acceptance and compensation recipe. That is what AnyRB does; our prototype shows it is computationally cheap, internally verifiable and honest about its limits. The one thing it cannot do is validate itself — so the deliverable includes a rigorous V&V claim ladder and the minimum experimental programme that would turn a good virtual design into a certified one. That programme is small and targeted precisely because the software already knows which uncertainties matter.
 
-## 11. Key sources
+## 11. v0.3 response to the independent review
+
+A detailed, point-by-point response is in [`REVIEW_RESPONSE.md`](REVIEW_RESPONSE.md). The material changes:
+
+1. **Mass audit corrected and mass basis fixed.** Our earlier union sampler was buggy (half-length struts); corrected audit says the analytic mass over-counts the printed union by 5–28 % depending on width, and by ~9.5 % on the shipped design — not 25 %. v0.3 reports the printed union estimate (Halton 60k samples, <0.5 % vs 600k MC) as the headline, uses it for candidate selection, and labels the analytic strut-sum as a conservative upper bound.
+2. **Printability is a constraint**, not a post-hoc badge: neighbour-width ratio ≤1.5 and slenderness ≤30 are enforced in the optimiser; shipped design passes (1.38 and 21.9).
+3. **Known lots keep measurement uncertainty** (default 12 % on E and σy) and the compensation recipe is a lot-specific re-optimisation of all eight width controls, not one global scale.
+4. **The Brief runs an engine feasibility gate** before any AI candidate is drawn; the AI is restricted to the "best of this bracket/lattice family" claim.
+5. **A sustained-load creep/compression advisory bound** is shown (creep factor 2.0, compression factor 0.8). The static design fails that bound (deflection bound 4.0 mm > 2.5 mm), so the app says it is not qualified for sustained load.
+6. **Remaining gaps are explicit:** full union mass inside the search loop, alternative cell/skin families, calibrated MFI proxy, separate tensile/compressive/elongation allowables, spatial material fields, cost/scrap economics, and a physical coupon test. A pre-registered coupon plan is in [`validation/COUPON_TEST_PLAN.md`](validation/COUPON_TEST_PLAN.md).
+
+## 12. Key sources
 
 Full annotated reference databases (35–70 entries each, with evidence grades, verification status, locators and machine-readable JSON) are in [`research/refs/`](research/refs/). The anchors a reviewer should check first:
 

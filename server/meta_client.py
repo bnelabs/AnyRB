@@ -289,6 +289,20 @@ def _effective_mock(mock: bool | None) -> bool:
     return MOCK if mock is None else bool(mock)
 
 
+def local_meta(kind: str, reason: str, mock: bool = False) -> dict:
+    """Provenance for a server-side deterministic decision (e.g. the feasibility gate).
+
+    No model was called: model="fallback", fallback=True. The reason is recorded so
+    the UI can explain *why* (e.g. "family_infeasible").
+    """
+    meta = _meta(kind, "fallback", 0.0, False, True, mock=mock, error=reason)
+    meta["mock_reason"] = reason
+    log_call({"kind": kind, "model": "fallback", "latency_s": 0.0, "cached": False,
+              "fallback": True, "mock": mock, "mock_reason": reason,
+              "error": redact(reason)})
+    return meta
+
+
 def _mock_payload(kind: str, payload: dict, reason: str) -> dict:
     """Deterministic mock/fallback payload + provenance log (never calls the network)."""
     payload = dict(payload)

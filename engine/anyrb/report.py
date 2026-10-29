@@ -26,6 +26,7 @@ from .lattice import (build_lattice, mass_g, widths_from_controls, printability_
 from .materials import Material
 from .mechanics import demands, evaluate, element_utilisation, solid_demands
 from .optimize import (compare_strategies, batch_recipe, acceptance_window,
+                       family_feasibility, sustained_bound,
                        pareto_curve, optimize_robust)
 from .reliability import failure_probability, mode_split, monte_carlo, sensitivity
 from .stl import write_ascii_stl
@@ -79,7 +80,9 @@ def _results_table(results: dict) -> list[dict]:
         r = results.get(key)
         if r is None:
             continue
-        rows.append({"key": key, "label": label, "mass": r.mass_g,
+        rows.append({"key": key, "label": label,
+                     "mass": r.printed_mass_g if getattr(r, "printed_mass_g", None) else r.mass_g,
+                     "mass_analytic": r.mass_g,
                      "pf": r.pf, "rel": 1 - r.pf,
                      "sigma_req": r.sigma_req_MPa, "E_req": r.E_req_MPa})
     return rows
@@ -128,7 +131,7 @@ def fig_pareto(pareto, results) -> str:
         r = results.get(key)
         if r is None:
             continue
-        ax.scatter([1 - r.pf], [r.mass_g], s=70, marker="s",
+        ax.scatter([1 - r.pf], [r.printed_mass_g if getattr(r, "printed_mass_g", None) else r.mass_g], s=70, marker="s",
                    color=PALETTE.get(key, "#888"), zorder=5,
                    label={"uniform": "uniform lattice",
                           "nominal_sf15": "nominal SF1.5",
@@ -289,6 +292,8 @@ def build_report(mat: Material, target_pf: float = 0.01,
     pareto = pareto_curve(mat) if make_pareto else []
     sens = sensitivity(mat, d.sigma_req, d.E_req)
     aw = acceptance_window(mat, robust.controls, target_pf, n_grid=41)
+    sustained = sustained_bound(mat, robust.controls)
+    feasibility = family_feasibility(mat, target_pf)
 
     # batch passport scenarios
     lot_rows = []
@@ -296,11 +301,13 @@ def build_report(mat: Material, target_pf: float = 0.01,
         br = batch_recipe(mat, robust.controls, target_pf,
                           lot_E=fE * mat.E_mean, lot_sy=mat.sy_mean)
         lot_rows.append({"factor": f"E x {fE:.2f}", "scale": br["scale_required"],
+                          "printed_mass_g": br["mass_required_g"],
                           "added": br["added_mass_pct"], "verdict": br["verdict"]})
     for fs in (0.8, 0.9, 1.0):
         br = batch_recipe(mat, robust.controls, target_pf,
                           lot_E=mat.E_mean, lot_sy=fs * mat.sy_mean)
         lot_rows.append({"factor": f"sy x {fs:.2f}", "scale": br["scale_required"],
+                          "printed_mass_g": br["mass_required_g"],
                           "added": br["added_mass_pct"], "verdict": br["verdict"]})
 
     # exports
@@ -327,6 +334,14 @@ def build_report(mat: Material, target_pf: float = 0.01,
         "sensitivity": sens,
         "acceptance_window_pass_fraction": aw["n_pass"] / aw["n_total"],
         "printability": printable,
+        "family_feasibility": feasibility,
+        "sustained_bound": sustained,
+        "mass_basis": {
+            "analytic_upper_bound_g": robust.mass_g,
+            "printed_union_estimate_g": robust.printed_mass_g,
+            "analytic_overcount_pct": 100.0 * (robust.mass_g / robust.printed_mass_g - 1.0),
+            "method": "printed union Halton 60k samples; analytic sums strut volumes (upper bound)",
+        },
         "stl": stl_info,
         "limitations": [
             "In-silico only; no experimental validation was possible in this project.",
@@ -428,8 +443,8 @@ cantilever bracket at 150&nbsp;N &middot; generated {summary['generated_utc'][:1
 
 <div class="cards">
 <div class="kpis">
-  <div class="kpi"><div class="v">{robust.mass_g:.1f} g</div><div class="l">Robust design mass</div>
-    <div class="n">{(1 - robust.mass_g / solid.mass_g) * 100:.0f}% lighter than solid plate</div></div>
+  <div class="kpi"><div class="v">{robust.printed_mass_g:.1f} g</div><div class="l">Robust design mass (printed union estimate)</div>
+    <div class="n">{(1 - robust.printed_mass_g / solid.mass_g) * 100:.0f}% lighter than solid plate &middot; analytic upper bound {robust.mass_g:.1f} g</div></div>
   <div class="kpi"><div class="v">{pct(robust.pf)}</div><div class="l">Probability of failure</div>
     <div class="n">target {pct(target_pf)} across lot distribution</div></div>
   <div class="kpi"><div class="v">{robust.sigma_req_MPa:.1f} MPa &middot; {robust.E_req_MPa / 1000:.2f} GPa</div>
@@ -445,8 +460,12 @@ cantilever bracket at 150&nbsp;N &middot; generated {summary['generated_utc'][:1
 field (thicker near the clamped wall, thinner toward the tip). The optimiser minimised mass subject to
 a reliability target on the <em>batch distribution</em> of a recycled feedstock, not on a single nominal
 material. Compared with the solid plate, the robust design removes
-{(1 - robust.mass_g / solid.mass_g) * 100:.0f}% of the mass; compared with a uniform lattice sized for the same
-reliability it saves {(1 - robust.mass_g / uniform.mass_g) * 100:.0f}%.</p>
+{(1 - robust.printed_mass_g / solid.mass_g) * 100:.0f}% of the printed mass; compared with a uniform lattice sized for the same
+reliability it saves {(1 - robust.printed_mass_g / uniform.printed_mass_g) * 100:.0f}%.</p>
+<p style="font-size:12.5px;color:var(--muted)">Mass basis: the headline is the deterministic union-volume estimate
+(Halton 60k union estimate) of the printed struts + pad. The analytic strut-sum is {robust.mass_g:.1f} g, a conservative upper bound
+({100 * (robust.mass_g / robust.printed_mass_g - 1):.1f}% higher on this design); the old 25% audit figure was traced to a
+union-sampler bug and is retired.</p>
 <img src="{figs['design_robust']}" alt="robust design">
 <div class="cap">Robust design; colour = combined yield/buckling utilisation at the mean material
 (0 = unstressed, 1 = at capacity). The mounting pad is the solid block at left.</div>
@@ -456,11 +475,25 @@ reliability it saves {(1 - robust.mass_g / uniform.mass_g) * 100:.0f}%.</p>
 <tbody>
 <tr><td>Minimum strut width</td><td>{printable['min_width_mm']:.2f} mm</td><td>&ge; 1.0 mm (clip)</td><td>{'PASS' if printable['min_width_mm'] >= 1.0 - 1e-6 else 'FAIL'}</td></tr>
 <tr><td>Maximum strut slenderness L/w</td><td>{printable['max_slenderness']:.1f}</td><td>&le; 30 (guideline)</td><td>{'PASS' if printable['max_slenderness'] <= 30 else 'WARN'}</td></tr>
-<tr><td>Max neighbour width ratio</td><td>{printable['max_neighbour_width_ratio']:.2f}</td><td>&le; 1.5 (guideline)</td><td>{'PASS' if printable['max_neighbour_width_ratio'] <= 1.5 else 'WARN (reported, not enforced)'}</td></tr>
+<tr><td>Max neighbour width ratio</td><td>{printable['max_neighbour_width_ratio']:.2f}</td><td>&le; 1.5 (guideline)</td><td>{'PASS (enforced)' if printable['max_neighbour_width_ratio'] <= 1.5 else 'FAIL (constraint)'}</td></tr>
 </tbody></table>
 <div class="cap">The optimiser is a deterministic multi-start pattern search (six uniform-width starts); it returns a
-local optimum, not a proven global one. The neighbour-ratio guideline is reported rather than enforced so the
-engineer can see the trade-off.</div>
+local optimum inside one bracket/lattice family, not a proven global one. In v0.3 the neighbour-ratio and slenderness limits are part
+of the search constraint set, not a post-hoc report.</div>
+</div>
+
+<h2>1b. What changed in v0.3 (review response)</h2>
+<div class="card">
+<ul style="margin:0;padding-left:18px;font-size:13px">
+<li><strong>Mass basis fixed:</strong> headline design masses are printed union estimates (Halton 60k samples);
+the analytic strut-sum ({robust.mass_g:.1f} g) is a conservative upper bound (+{100 * (robust.mass_g / robust.printed_mass_g - 1):.1f}%). The old 25% figure came from a validator sampler bug and is retired.</li>
+<li><strong>Printability is a constraint:</strong> neighbour-width ratio &le; 1.5 and slenderness &le; 30 are enforced in the optimiser; shipped design: ratio {printable['max_neighbour_width_ratio']:.2f}, slenderness {printable['max_slenderness']:.1f}.</li>
+<li><strong>Known-lot passports keep measurement uncertainty:</strong> default 12% measurement CV on E and sy; a single coupon is not the true lot mean.</li>
+<li><strong>Lot-specific resize:</strong> the passenger recipe uses 8 width multipliers from a second optimisation on the measured lot, not one global scale (the global equivalent is shown for slicer extrusion settings).</li>
+<li><strong>Feasibility gate:</strong> before Design, the engine checks whether the bracket/lattice family can meet the target at the maximum printable width. This material: {'feasible' if feasibility['feasible'] else 'INFEASIBLE'} (minimum achievable P<sub>f</sub> {feasibility['min_achievable_pf']:.2e}).</li>
+<li><strong>Sustained-load advisory (creep / compression bound):</strong> E<sub>req</sub> &times; {sustained['creep_factor']:.1f}, &sigma;<sub>req</sub> / {sustained['compression_factor']:.1f}, deflection &times; {sustained['creep_factor']:.1f}; bound P<sub>f</sub> {sustained['pf_bound']:.2f}, deflection bound {sustained['deflection_bound_mm']:.1f} mm. This static design is <strong>not qualified for sustained load</strong>; the bound is advisory, not the design allowable.</li>
+<li><strong>Family scope:</strong> "best of this bracket/lattice family" — not a general topology optimiser. A pre-registered coupon plan is in validation/COUPON_TEST_PLAN.md; no physical test has been run.</li>
+</ul>
 </div>
 
 <h2>2. Design comparison</h2>
@@ -516,10 +549,13 @@ printer: e.g. reducing CV(E) or sourcing stronger lots.</div>
 <h2>4. Batch passport: compensating the lot you actually received</h2>
 <div class="card">
 <p>Instead of rejecting weak lots, the same software computes how much the internal geometry must be scaled
-for that specific lot to keep the reliability target — a per-batch print recipe. Inputs would be the
-supplier lot data or a cheap melt-viscosity proxy (research/05 describes the proxy models).</p>
-<table><thead><tr><th>Lot (relative to preset mean)</th><th class="num">width scale</th>
-<th class="num">added mass</th><th>verdict</th></tr></thead><tbody>
+for that specific lot to keep the reliability target. In v0.3 the recipe is not one global scale: the
+engine re-optimises the eight width controls on the measured lot (8 width multipliers, reported in the app)
+and keeps a 12% measurement uncertainty in P<sub>f</sub>; the table shows the global-equivalent scale for a
+slicer's extrusion-multiplier setting. Inputs would be supplier lot data or a melt-index / tensile proxy
+(research/05 describes the proxy models; calibration is still required).</p>
+<table><thead><tr><th>Lot (relative to preset mean, measurement CV 12%)</th><th class="num">width scale (global equivalent)</th>
+<th class="num">printed mass</th><th class="num">added mass</th><th>verdict</th></tr></thead><tbody>
 {lot_rows_html}
 </tbody></table>
 <img src="{figs['acceptance']}" alt="acceptance">
@@ -563,7 +599,7 @@ it does not transfer to a single-material printed bracket. AnyRB v0.1 changes th
 the <em>mean demand</em>; it does not claim to reduce the material's own CV.</p></div>
 
 <div class="footer">
-AnyRB v0.1 prototype &middot; reference engine build {summary['generated_utc']} &middot;
+AnyRB v0.3 prototype &middot; reference engine build {summary['generated_utc']} &middot;
 material data: provisional literature-derived presets (research/01) &middot;
 key literature: Georgiou, Sun, Liu &amp; Athanasiou, PNAS 2025, doi:10.1073/pnas.2502613122; Cecon et al., Waste Management 2023;
 Eriksen et al., Waste Management 2019 &middot; full references in <code>research/</code>.

@@ -52,8 +52,8 @@ Keyboard: everything is a real button/input; the stepper, candidates, chips and 
 
 **Real (verbatim v0.1 verified-engine numbers — do not change or round):**
 
-- robust design **50.73 g**, **P_f 0.997 %**, binding mode **Euler buckling**; default uniform design **62.69 g / 0.0082 %**
-- comparison set: solid **111.60 g**, uniform target-sized **60.31 g / 1.00 %**, nominal FoS 1.5 **56.41 g / 0.00064 %**, mean-only **44.34 g / 51.8 %**
+- robust design **46.40 g**, **P_f 0.996 %**, binding mode **Euler buckling**; default uniform design **62.69 g / 0.0082 %**
+- comparison set: solid **111.60 g**, uniform target-sized **53.97 g / 1.00 %**, nominal FoS 1.5 **50.77 g / 0.00064 %**, mean-only **41.11 g / 51.8 %**
 - batch passport: lot **E ×0.8 → width scale 1.10, +8.5 % mass, pass**; **E ×0.5 → reject**; **1.5 ×** print clip
 - printability: min strut **1.18 mm**, slenderness **22.7**, neighbour ratio **1.45**
 - validation: **29 Python tests / 22 JS tests**; seven L0–L2 checks; 94-element frame model; 1,140-triangle STL

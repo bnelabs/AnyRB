@@ -23,6 +23,9 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .contract_v03 import (DEFAULT_MEASUREMENT_CV, FAMILY_SCOPE, MASS_BASIS,
+                           PRINTABILITY_LIMITS)
+
 MAX_TEXT = 6000
 MAX_UPLOAD = 12 * 1024 * 1024
 MAX_IMAGE_PROMPT = 1500
@@ -76,22 +79,55 @@ class PlanIn(BaseModel):
     brief: dict[str, Any] = Field(default_factory=dict)
     baseline: dict[str, Any] = Field(default_factory=dict)
     material: dict[str, Any] = Field(default_factory=dict)
+    # v0.3 (all optional; v0.2 payloads still validate)
+    first_pass: dict[str, Any] = Field(default_factory=dict)
+    feasibility: dict[str, Any] = Field(default_factory=dict)
+    printability_limits: dict[str, Any] = Field(default_factory=dict)
+    family_scope: str = Field(default="", max_length=400)
+    engine: dict[str, Any] = Field(default_factory=dict)
 
 
 class ReviewIn(BaseModel):
+    # v0.2 shape (still accepted)
     brief: dict[str, Any] = Field(default_factory=dict)
     selected: dict[str, Any] = Field(default_factory=dict)
     comparison: Any = Field(default_factory=dict)
     material: dict[str, Any] = Field(default_factory=dict)
     sensitivity: dict[str, Any] = Field(default_factory=dict)
+    # v0.3 shape (all optional); engine-computed facts promoted by the caller
+    facts: dict[str, Any] = Field(default_factory=dict)
+    design: dict[str, Any] = Field(default_factory=dict)
+    engine: dict[str, Any] = Field(default_factory=dict)
+    lot_recipe: dict[str, Any] = Field(default_factory=dict)
+    recipe: dict[str, Any] = Field(default_factory=dict)
+    measurement: dict[str, Any] = Field(default_factory=dict)
+    lot: dict[str, Any] = Field(default_factory=dict)
+    sustained_bound: dict[str, Any] = Field(default_factory=dict)
+    feasibility: dict[str, Any] = Field(default_factory=dict)
+    family_scope: str = Field(default="", max_length=400)
+    target_pf: Optional[float] = None
 
 
 class ProofIn(BaseModel):
+    # v0.2 shape (still accepted)
     brief: dict[str, Any] = Field(default_factory=dict)
     design: dict[str, Any] = Field(default_factory=dict)
     batch_passport: dict[str, Any] = Field(default_factory=dict)
     comparison: Any = Field(default_factory=dict)
     validation: dict[str, Any] = Field(default_factory=dict)
+    # v0.3 shape (all optional)
+    facts: dict[str, Any] = Field(default_factory=dict)
+    selected: dict[str, Any] = Field(default_factory=dict)
+    engine: dict[str, Any] = Field(default_factory=dict)
+    proof: dict[str, Any] = Field(default_factory=dict)
+    lot_recipe: dict[str, Any] = Field(default_factory=dict)
+    recipe: dict[str, Any] = Field(default_factory=dict)
+    measurement: dict[str, Any] = Field(default_factory=dict)
+    lot: dict[str, Any] = Field(default_factory=dict)
+    sustained_bound: dict[str, Any] = Field(default_factory=dict)
+    feasibility: dict[str, Any] = Field(default_factory=dict)
+    family_scope: str = Field(default="", max_length=400)
+    target_pf: Optional[float] = None
 
 
 class ImageIn(BaseModel):
@@ -111,10 +147,30 @@ class BriefTargets(BaseModel):
     mass_cap_g: Optional[float] = Field(default=None, gt=0, le=100000)
     material_key: Literal["rpetg", "rpet", "rhdpe", "rpp"] = "rpetg"
     process: Optional[str] = None
+    # v0.3: measurement uncertainty of the lot data (not the material CV)
+    measurement_cv: float = Field(default=DEFAULT_MEASUREMENT_CV, ge=0.0, le=0.5)
+    measurement_cv_stated: bool = False
     constraints: list[str] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list)
     confidence: Literal["high", "medium", "low", "unknown", "low/medium"] = "medium"
     rationale: str = ""
+
+
+class BriefCompat(BaseModel):
+    """Camel-case brief mirror for the browser client (same values, no new information)."""
+
+    model_config = ConfigDict(extra="allow")
+    partType: str = "cantilever bracket"
+    loadN: float
+    deflLimitMm: float
+    targetPf: float
+    process: Optional[str] = None
+    preset: Optional[str] = None
+    material_key: Optional[str] = None
+    constraints: list[str] = Field(default_factory=list)
+    notes: str = ""
+    massCapG: Optional[float] = None
+    measurementCv: float = DEFAULT_MEASUREMENT_CV
 
 
 class BriefResponse(AIResponse):
@@ -125,11 +181,14 @@ class BriefResponse(AIResponse):
     mass_cap_g: Optional[float] = None
     material_key: str
     process: Optional[str] = None
+    measurement_cv: float = DEFAULT_MEASUREMENT_CV
+    measurement_cv_stated: bool = False
     constraints: list[str] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list)
     confidence: str
     rationale: str
     interpretation: list[str] = Field(default_factory=list)
+    brief: Optional[BriefCompat] = None
 
 
 class LotFields(BaseModel):
@@ -155,6 +214,12 @@ class LotResponse(AIResponse):
     fields_found: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     confidence: str = "low"
+    # v0.3: lot identity + measurement provenance/uncertainty
+    lot_id: Optional[str] = None
+    supplier: Optional[str] = None
+    measurement_source: Optional[str] = None
+    measurement_cv: float = DEFAULT_MEASUREMENT_CV
+    measurement_cv_stated: bool = False
 
 
 class Candidate(BaseModel):
@@ -187,6 +252,11 @@ class Candidate(BaseModel):
 
 class PlanResponse(AIResponse):
     candidates: list[Candidate]
+    family_scope: str = FAMILY_SCOPE
+    printability_limits: dict[str, Any] = Field(default_factory=lambda: dict(PRINTABILITY_LIMITS))
+    feasibility: Optional[dict[str, Any]] = None
+    blocked: bool = False
+    note: str = ""
 
     @field_validator("candidates")
     @classmethod
@@ -201,6 +271,10 @@ class ReviewResponse(AIResponse):
     key_risk: str = Field(default="", max_length=300)
     next_actions: list[str] = Field(min_length=1, max_length=3)
     caveats: list[str] = Field(default_factory=list, max_length=5)
+    family_scope: str = FAMILY_SCOPE
+    mass_basis: str = MASS_BASIS
+    sustained_advisory: str = ""
+    feasibility: Optional[dict[str, Any]] = None
 
 
 class ProofResponse(AIResponse):
@@ -208,6 +282,12 @@ class ProofResponse(AIResponse):
     what_would_change_answer: list[str] = Field(default_factory=list, max_length=5)
     recommended_tests: list[str] = Field(default_factory=list, max_length=5)
     claim_level: str = Field(default="", max_length=240)
+    family_scope: str = FAMILY_SCOPE
+    mass_basis: str = MASS_BASIS
+    sustained_advisory: str = ""
+    feasibility: Optional[dict[str, Any]] = None
+    lot_recipe: Optional[dict[str, Any]] = None
+    measurement: Optional[dict[str, Any]] = None
 
 
 class VoiceResponse(AIResponse):
@@ -253,6 +333,10 @@ class CacheStats(BaseModel):
 class HealthResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
     ok: bool = True
+    version: str = "v0.3"
+    contract_version: str = "v0.3"
+    family_scope: str = FAMILY_SCOPE
+    printability_limits: dict[str, Any] = Field(default_factory=lambda: dict(PRINTABILITY_LIMITS))
     mode: Literal["live", "mock", "offline"] = "mock"
     ai: dict[str, Any] = Field(default_factory=dict)
     validation: Optional[dict[str, Any]] = None

@@ -108,7 +108,7 @@
     <div class="rail-meta" id="session-card">
       <div class="rm-title">Session</div>
       <div class="rm-row"><span>Seed</span><b id="session-seed">20251029</b></div>
-      <div class="rm-row"><span>Engine</span><b id="session-engine">v0.1 · 94 el.</b></div>
+      <div class="rm-row"><span>Engine</span><b id="session-engine">v0.3 · 94 el.</b></div>
       <div class="rm-row"><span>Validation</span><b id="session-valid">—</b></div>
       <div class="rm-claims">Claims rung <b id="session-claims">L0–L1 verified</b></div>
       <button class="btn btn--sm btn--ghost" id="btn-provenance" type="button" style="justify-content:flex-start;padding-left:0">AI provenance <span id="prov-count" class="pill pill--muted" style="height:20px">0 calls</span></button>
@@ -164,6 +164,12 @@
           <span class="a-step" id="act-2" data-state="future"><span class="a-mark"></span>Planning candidate strategies</span>
           <span class="a-step" id="act-3" data-state="future"><span class="a-mark"></span>Running the verified solver</span>
           <span class="a-elapsed" id="activity-elapsed">—</span>
+        </div>
+
+        <div class="card family-gate" id="family-gate" role="alert" hidden>
+          <div class="fg-head"><span class="fg-icon" aria-hidden="true">!</span><div><h3 style="margin:0">Infeasible for this bracket family</h3>
+          <p class="card-sub" style="margin:2px 0 0">Even the widest printable uniform lattice (4.0 mm struts) cannot meet the reliability target with this batch. Design is blocked — no AI candidate is drawn.</p></div></div>
+          <div class="fg-facts" id="family-gate-facts">—</div>
         </div>
 
         <div class="brief-cols">
@@ -257,7 +263,7 @@
       <div class="screen-head">
         <div class="eyebrow">02 · Design</div>
         <h1 id="design-h1">AI proposes. Physics decides.</h1>
-        <p class="deck">Three candidate strategies, each evaluated by the verified engine on your batch distribution. Pick the trade-off you can defend.</p>
+        <p class="deck">Three candidate strategies, each evaluated by the verified engine on your batch distribution. Pick the trade-off you can defend. <span class="family-scope" id="design-family-scope">Designs are the best of this bracket/lattice family.</span></p>
       </div>
       <div class="stack-16">
         <div class="design-hero">
@@ -309,8 +315,26 @@
         </div>
 
         </div>
+        <div class="card optimised-hero" id="optimised-hero">
+          <div class="hero-head">
+            <div>
+              <span class="pill pill--verify"><span class="p-dot"></span>Recommended · engine-optimised</span>
+              <h3 style="margin:10px 0 2px">The design the engine would ship</h3>
+              <p class="card-sub">Final multi-start result, chosen by printed mass with the printability constraint. Separated from the AI priors below.</p>
+            </div>
+            <button class="btn btn--sm" id="btn-select-hero" type="button" aria-pressed="true">Selected</button>
+          </div>
+          <div class="hero-metrics">
+            <div><span class="micro">Printed mass</span><b id="hero-mass">—</b></div>
+            <div><span class="micro">Analytic upper bound</span><b id="hero-ub">—</b></div>
+            <div><span class="micro">P_f across batches</span><b id="hero-pf">—</b></div>
+            <div><span class="micro">Printability</span><b id="hero-print">—</b></div>
+            <div><span class="micro">Governing mode</span><b id="hero-mode">—</b></div>
+          </div>
+        </div>
+
         <div class="candidates-head row-between">
-          <div><h2 style="font-size:26px">Three ways to build it</h2><p class="card-sub" style="margin-top:4px">AI-proposed priors, evaluated by the verified engine. Pick the trade-off you can defend.</p></div>
+          <div><h2 style="font-size:26px">Three AI priors, evaluated as proposed</h2><p class="card-sub" style="margin-top:4px">Each AI prior is evaluated by the verified engine exactly as proposed — no hidden optimisation — so the trade-offs stay distinct. Selecting one runs the optimiser from that prior.</p></div>
           <span class="badge-model" id="plan-badge-design" data-kind="fallback"><span class="b-dot"></span>3 AI-proposed priors</span>
         </div>
         <div class="candidates" id="candidates" aria-label="Candidate designs"></div>
@@ -356,7 +380,7 @@
           <div>
             <div class="eyebrow">03 · Prove</div>
             <h1 id="prove-h1">Qualification you can hand to a review.</h1>
-            <p class="deck">One page that says what the design is, which batches it accepts, and what the model cannot tell you.</p>
+            <p class="deck">One page that says what the design is, which batches it accepts, and what the model cannot tell you. <span class="family-scope" id="prove-family-scope">Scope: best of this bracket/lattice family — not a general topology optimiser.</span></p>
           </div>
           <span class="status-chip" id="prove-status"><span class="p-dot" style="background:currentColor"></span>Qualification pending</span>
         </div>
@@ -368,38 +392,51 @@
             <div class="gauge-svg" id="gauge" role="img" aria-label="Reliability gauge"></div>
             <div class="gauge-facts">
               <div class="gauge-fact"><span>Governing mode</span><b id="gauge-mode">—</b></div>
-              <div class="gauge-fact"><span>Mass</span><b id="gauge-mass">—</b></div>
+              <div class="gauge-fact"><span>Printed mass</span><b id="gauge-mass">—</b></div>
+              <div class="gauge-fact"><span>Analytic upper bound</span><b id="gauge-mass-ub">—</b></div>
               <div class="gauge-fact"><span>Printability</span><b id="gauge-print">—</b></div>
               <div class="gauge-fact"><span>Reliability</span><b id="gauge-rel">—</b></div>
             </div>
           </div>
-          <p class="micro" id="proof-mass-note" style="padding-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">Analytic mass is conservative (strut overlap not unioned; validator F4).</p>
+          <p class="micro" id="proof-mass-note" style="padding-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">Printed mass is the deterministic Halton-QMC union; the analytic figure is shown only as the conservative upper bound. All comparison bars use printed mass.</p>
         </div>
 
         <div class="card" id="passport-card">
           <div class="card-head">
-            <div><h3 style="margin:0">Batch passport</h3><div class="card-sub">Screen an incoming lot against this design.</div></div>
-            <div class="chip-row">
-              <button class="chip" type="button" data-lot="nominal">Nominal lot</button>
-              <button class="chip" type="button" data-lot="weak">Weak lot · E ×0.8</button>
-              <button class="chip" type="button" data-lot="reject">Reject lot · E ×0.5</button>
-            </div>
+            <div><h3 style="margin:0">Known-batch print recipe</h3><div class="card-sub">Measured lot + measurement uncertainty → lot-specific 8-control resize. Not one global scale.</div></div>
+            <span class="badge-model" id="recipe-badge" data-kind="engine"><span class="b-dot"></span>engine-computed</span>
           </div>
-          <div class="passport-inputs">
-            <div class="passport-field">
-              <label for="lot-e-range">Lot mean E · × nominal</label>
-              <div class="pf-row"><input type="range" id="lot-e-range" min="0.5" max="1.3" step="0.01" value="1"><output id="lot-e-out">1.00×</output></div>
-            </div>
-            <div class="passport-field">
-              <label for="lot-sy-range">Lot mean σy · × nominal</label>
-              <div class="pf-row"><input type="range" id="lot-sy-range" min="0.6" max="1.3" step="0.01" value="1"><output id="lot-sy-out">1.00×</output></div>
-            </div>
+          <div class="qc-grid" id="qc-fields">
+            <div class="qc-field"><label for="qc-lot-id">Lot ID</label><input id="qc-lot-id" type="text" placeholder="LOT-2026-014"></div>
+            <div class="qc-field"><label for="qc-supplier">Supplier</label><input id="qc-supplier" type="text" placeholder="Supplier / recycler"></div>
+            <div class="qc-field"><label for="qc-recycled">Recycled content · % <span class="qc-tag">paperwork claim</span></label><input id="qc-recycled" type="number" min="0" max="100" step="1" placeholder="78"></div>
+            <div class="qc-field"><label for="qc-e">Measured lot E · MPa</label><input id="qc-e" type="number" step="10" min="200" max="6000"></div>
+            <div class="qc-field"><label for="qc-sy">Measured lot σy · MPa</label><input id="qc-sy" type="number" step="1" min="5" max="120"></div>
+            <div class="qc-field"><label for="qc-cv">Measurement CV · %</label><input id="qc-cv" type="number" step="1" min="1" max="40" value="12"></div>
           </div>
+          <div class="chip-row" style="margin:10px 0 4px">
+            <button class="chip" type="button" data-lot="nominal">Nominal lot</button>
+            <button class="chip" type="button" data-lot="weak">Weak lot · E ×0.8</button>
+            <button class="chip" type="button" data-lot="reject">Reject lot · E ×0.5</button>
+            <span class="spacer"></span>
+            <button class="btn btn--sm" id="btn-recipe" type="button">Recompute recipe</button>
+          </div>
+          <div class="recipe-grid" id="recipe-multipliers" aria-label="Per-control width multipliers"></div>
+          <div class="recipe-summary" id="recipe-summary">Recompute to see the lot-specific recipe.</div>
           <div class="verdict" id="passport-verdict" data-kind="pass">
             <div class="v-head"><span id="verdict-icon" aria-hidden="true">✓</span><span id="verdict-title">PASS</span></div>
-            <div class="v-body" id="verdict-body">No compensation needed.</div>
+            <div class="v-body" id="verdict-body">Waiting for measured lot data.</div>
           </div>
-          <p class="micro" style="margin-top:10px">Illustrative v0.1 logic; supplier proxies should replace assumed lot means before production decisions.</p>
+          <p class="micro" style="margin-top:10px" id="recipe-note">Global equivalent scale is only a slicer fallback; the recipe above is a lot-specific 8-control resize with measurement uncertainty retained. Recycled-content % is a paperwork claim (not simulated).</p>
+        </div>
+
+        <div class="card advisory" id="sustained-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Sustained load · advisory</h3><div class="card-sub">Creep ×2.0 and compression knock-down ÷0.8 — never the static allowable.</div></div>
+            <span class="badge-model" id="sustained-badge" data-kind="engine"><span class="b-dot"></span>advisory bound</span>
+          </div>
+          <div class="advisory-body" id="sustained-values">—</div>
+          <p class="micro" id="sustained-note" style="margin-top:8px">Advisory only. The static qualification above is unchanged.</p>
         </div>
 
         <div class="card" id="acceptance-card" style="grid-column:1/-1">
@@ -459,7 +496,7 @@
 </div>
 
 <footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.2</span>
+  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.3</span>
   <span class="f-honest">AnyRB is decision support, not certification.</span>
   <span>In-silico only · Literature-derived feedstock · Simulated numbers</span>
 </footer>

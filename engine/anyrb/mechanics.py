@@ -18,7 +18,7 @@ import numpy as np
 
 from .lattice import (DEPTH, F_DESIGN, HEIGHT, LENGTH, NX, NODES_X, NODES_Y,
                       PAD_LEN, PAD_VOLUME, U_LIMIT, Lattice, build_lattice,
-                      mass_g, widths_from_controls)
+                      mass_g, printed_mass_g, widths_from_controls)
 
 N_DOF = 3 * (NODES_X * NODES_Y)
 
@@ -198,7 +198,7 @@ def element_utilisation(lattice: Lattice, widths: np.ndarray,
 
 def evaluate(mat, control_logw: np.ndarray, F: float = F_DESIGN,
              u_lim: float = U_LIMIT, lattice: Lattice | None = None,
-             use_within: bool = False) -> dict:
+             use_within: bool = False, printed: bool = True) -> dict:
     """Full evaluation of a design against a feedstock distribution."""
     from .reliability import failure_probability, mode_split
 
@@ -209,9 +209,12 @@ def evaluate(mat, control_logw: np.ndarray, F: float = F_DESIGN,
     pf = failure_probability(mat, d.sigma_req, d.E_req, level=level)
     modes = mode_split(mat, d.sigma_req, d.E_req, level=level)
     m = mass_g(lattice, widths, mat.rho)
+    m_printed = printed_mass_g(lattice, widths, mat.rho) if printed else None
     return {
         "widths": widths,
         "mass_g": m,
+        "mass_analytic_g": m,
+        "printed_mass_g": m_printed,
         "sigma_req_MPa": d.sigma_req,
         "E_req_MPa": d.E_req,
         "E_req_def_MPa": d.E_req_def,

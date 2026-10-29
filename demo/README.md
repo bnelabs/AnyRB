@@ -25,12 +25,12 @@ Double-click **`../index.html`**. The pill shows **Offline · fallback on** and 
    85 % of variance between lots). *Optional:* click the mic and speak the brief (Muse Voice Transcribe).
 2. **02 · Design** — the engine draws the graded lattice and the AI proposes three candidate strategies
    (purely as parameter priors; the verified FE engine evaluates and ranks them). Pick **Balanced**:
-   ~50.7 g at ~1 % simulated batch failure probability, binding failure mode Euler buckling. The AI
+   ~46.4 g at ~1 % simulated batch failure probability, binding failure mode Euler buckling. The AI
    design memo explains the trade-off; every number in it comes from the engine. Show the mass footnote:
-   analytic 50.73 g vs union/printed estimate ≈40.5 g (conservative).
-3. **03 · Prove** — reliability gauge, batch acceptance window, batch passport (try E ×0.8 → width
-   ×1.10, +8.5 % mass, pass with compensation; E ×0.5 → reject). The scientific-validation card reads
-   **45 PASS / 1 WARN / 0 FAIL (46 independent checks)** with the one known WARN labelled. Muse Spark
+   printed Halton union estimate 46.4 g vs analytic upper bound 50.81 g (+9.5%).
+3. **03 · Prove** — reliability gauge, batch acceptance window, batch passport (try E ×0.85 → 8-control resize, global-equivalent
+   ×1.28, +19.6 % printed mass, conditional; E ×0.5 → reject). The scientific-validation card reads
+   **51 PASS / 2 WARN / 0 FAIL (53 independent checks)** with the two known WARNs labelled. Muse Spark
    writes the qualification narrative; Muse Image provides the labelled concept render. Export the
    qualification report/STL/JSON; open the AI provenance drawer.
 4. **Method & honesty** — claims ladder L0–L1 verified / L2 partial / L4–L6 absent, the "what v0.1 cannot
@@ -40,7 +40,7 @@ Double-click **`../index.html`**. The pill shows **Offline · fallback on** and 
 
 | Real | Illustrative / labelled |
 |---|---|
-| 2-D frame FE, mass, P_f, optimiser, batch passport, acceptance window | printed mass union estimate (validator voxel union; analytic mass is conservative) |
+| 2-D frame FE, mass, P_f, optimiser, batch passport, acceptance window | printed mass union estimate (validator Halton union; analytic mass is conservative) |
 | Meta Spark/Image/Voice/SAM calls in live mode (see `server/evidence/live_calls.json`) | AI-written prose (grounded in engine numbers; may round) |
 | Validation checklist (from `validation/results.json`) | concept render (Muse Image; "not the CAD model") |
 | Offline deterministic assistant (same schemas) | batch acceptance chart is engine-computed; the chart annotation is illustrative |
@@ -50,9 +50,9 @@ Double-click **`../index.html`**. The pill shows **Offline · fallback on** and 
 ```bash
 cd AnyRB
 make test            # 29 engine tests
-make test-server     # 26 backend tests (mock mode)
-node app/tests/run.mjs   # 28 JS engine/UI tests
-make validate        # independent validation: 45 PASS / 1 WARN / 0 FAIL (46 checks)
+make test-server     # 40 backend tests, 1 skipped (mock mode)
+node app/tests/run.mjs   # 33 JS engine/UI tests
+make validate        # independent validation: 51 PASS / 2 WARN / 0 FAIL (53 checks)
 make verify-live     # real Meta calls → server/evidence/live_calls.json (needs server/.env)
 make report && make pdf
 python3 app/build.py # rebuild single-file index.html

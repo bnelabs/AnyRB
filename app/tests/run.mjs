@@ -357,7 +357,8 @@ test('baselines: six strategies, monotone mass/reliability story', () => {
   }
   assert(byKey.solid.mass_g > byKey.robust.mass_g, 'solid heavier than robust');
   assert(byKey.robust.pf <= 0.01, 'robust feasible');
-  checkAbs(byKey.uniform_match.mass_g, byKey.robust.mass_g, 1e-3, 'mass-matched uniform');
+  checkAbs(byKey.uniform_match.printed_mass_g, byKey.robust.printed_mass_g, 0.6, 'printed mass-matched uniform (g)');
+  assert(byKey.uniform_match.printability.pass && byKey.robust.printability.pass, 'both uniforms printable');
   assert(byKey.uniform_match.pf > byKey.uniform.pf, 'mass-matched uniform less reliable than target-sized uniform');
   assert(byKey.mean_only.pf > 0.1, 'mean-only design has large batch failure risk');
 });
@@ -595,6 +596,9 @@ test('v0.2 offline fallbacks validate against the shared response schemas', () =
   assert(AC.validateResponse('review', review).ok, 'review schema');
   assert(AC.validateResponse('proof', proof).ok, 'proof schema');
   assert(AC.validateResponse('voice', AC.fallbackVoice()).ok, 'voice schema');
+  const vf = AC.validationFallback();
+  assert(vf.counts.PASS === 51 && vf.counts.WARN === 2 && vf.counts.FAIL === 0 && vf.total === 53,
+    `validation fallback counts 51/2/0/53, got ${JSON.stringify(vf.counts)} total ${vf.total}`);
   assert(AC.validateResponse('render', AC.fallbackRenderSvg({ facts: { widths_mm: [] } })).ok || true, 'render schema (svg)');
 });
 
@@ -635,6 +639,17 @@ test('v0.2 candidate priors are engine-ranked and feasible-first', () => {
   assert(ranked.every((c) => Number.isFinite(c.mass_g) && c.pf >= 0 && c.pf <= 1), 'engine metrics present');
   assert(ranked.every((c) => c.printability && Number.isFinite(c.printability.minWidth)), 'printability attached');
   assert(AC.pickBestCandidate(ranked) === ranked[0], 'pickBestCandidate');
+  // v0.3: priors stay distinct (evaluated as proposed) and the hero is a separate
+  // engine-optimised design chosen by printed mass.
+  const printed = ranked.map((c) => c.printed_mass_g);
+  assert(Math.max(...printed) - Math.min(...printed) > 2.0, `priors must be distinct: ${printed.map((v) => v.toFixed(2))}`);
+  assert(printed.every((v) => Number.isFinite(v) && v > 0), 'printed masses finite');
+  const hero = AC.recommendedDesign(material, ctx, brief.targetPf);
+  assert(hero.id === 'optimised', 'hero id');
+  assert(Number.isFinite(hero.printed_mass_g) && hero.printed_mass_g > 0, 'hero printed mass');
+  assert(hero.mass_analytic_g > hero.printed_mass_g, 'hero exposes analytic upper bound');
+  assert(hero.printabilityPass, 'hero passable');
+  assert(hero.printed_mass_g <= Math.max(...printed) + 1e-6, 'hero is not heavier than the heaviest feasible prior');
 });
 
 test('v0.2 provenance entries carry the audit fields', () => {
@@ -673,6 +688,100 @@ test('v0.2 normalisers accept the backend response shapes', () => {
   const lotRes = AC.normalizeLotResponse({ material_key: 'rhdpe', E_mean: 950, E_cv: 0.22, sy_mean: 28, sy_cv: 0.17, rho: 0.95, source_label: 'supplier certificate', confidence: 0.86, _meta: { fallback: true } });
   assert(lotRes.lot.E_mean === 950 && lotRes.lot.source.includes('supplier'), 'lot mapped');
   assert(lotRes.fallback === true, 'lot fallback flag');
+});
+
+// ---------------------------------------------------------------------------
+// v0.3 review-response tests (Halton printed mass, printability, feasibility,
+// known-lot recipe, sustained-load advisory)
+// ---------------------------------------------------------------------------
+test('v0.3 printed mass matches the Python Halton-QMC reference (<0.5 %)', () => {
+  const material = DEFAULTS.material;
+  // Python reference values (engine/anyrb/lattice.py, n=60,000 Halton samples).
+  const ref = [
+    { w: 1.0, printed: 33.0888 },
+    { w: 2.0, printed: 55.9081 },
+    { w: 3.0, printed: 75.5722 },
+    { w: 4.0, printed: 92.1566 },
+  ];
+  for (const { w, printed } of ref) {
+    const analysis = E.analyzeLattice(E.uniformDesign(w), { rho: material.rho });
+    const rel = Math.abs(analysis.printed_mass_g - printed) / printed;
+    assert(rel < 0.005, `uniform ${w} mm printed ${analysis.printed_mass_g.toFixed(4)} vs Python ${printed}`);
+    assert(analysis.mass_g > analysis.printed_mass_g, 'analytic mass is an upper bound');
+    assert(Math.abs(analysis.printed_mass_g / analysis.mass_g - 1) < 0.25, 'upper bound within 25 %');
+  }
+  // Fixture robust design: Python printed ≈46.4003 g, analytic 50.8094 g.
+  const fixture = JSON.parse(fs.readFileSync(FIXTURE_URL, 'utf8'));
+  const robustCase = fixture.cases.find((c) => c.name === 'robust_optimised');
+  const mat = fixture.materials[robustCase.material];
+  const robust = E.analyzeLattice(robustCase.controls, { rho: mat.rho });
+  const pythonPrinted = robustCase.printed_mass_g ?? 46.4003;
+  const rel = Math.abs(robust.printed_mass_g - pythonPrinted) / pythonPrinted;
+  assert(rel < 0.005, `robust printed ${robust.printed_mass_g.toFixed(4)} vs Python ${pythonPrinted}`);
+});
+
+test('v0.3 printability constraint matches Python and the optimiser enforces it', () => {
+  const material = DEFAULTS.material;
+  const fixture = JSON.parse(fs.readFileSync(FIXTURE_URL, 'utf8'));
+  const robustCase = fixture.cases.find((c) => c.name === 'robust_optimised');
+  const mat = fixture.materials[robustCase.material];
+  const analysis = E.analyzeLattice(robustCase.controls, { rho: mat.rho });
+  const pr = E.printabilityReport(analysis);
+  assert(pr.pass, `fixture robust geometry must be printable: ${JSON.stringify(pr)}`);
+  assert(Math.abs(pr.max_neighbour_width_ratio - 1.3754074300634593) < 1e-9, 'neighbour ratio matches Python (wrap-around)');
+  assert(Math.abs(pr.max_slenderness - 21.915259138263814) < 1e-9, 'slenderness matches Python');
+  // The shipped optimiser must return a design that passes both advisory caps.
+  const opt = O.robustOptimize(material, O.makeContext(), { targetPf: 0.01 });
+  const optPr = E.printabilityReport(opt.analysis);
+  assert(optPr.pass, 'optimised design printable');
+  assert(optPr.max_neighbour_width_ratio <= 1.5 + 1e-9, `neighbour ratio ${optPr.max_neighbour_width_ratio}`);
+  assert(optPr.max_slenderness <= 30 + 1e-9, `slenderness ${optPr.max_slenderness}`);
+  assert(Number.isFinite(opt.printed_mass_g) && opt.printed_mass_g < opt.mass, 'robust result exposes printed < analytic mass');
+});
+
+test('v0.3 family feasibility gate blocks infeasible briefs', () => {
+  const material = DEFAULTS.material;
+  const ok = E.familyFeasibility(material, { targetPf: 0.01, F: 150, uLim: 2.5 });
+  assert(ok.feasible, 'rPETG 150 N 2.5 mm 1 % is feasible');
+  assert(ok.min_achievable_pf <= 0.01, 'min achievable P_f inside target');
+  assert(ok.max_width_mm === GEOMETRY.wMax, 'gate evaluates widest printable uniform');
+  const weak = E.familyFeasibility(material, { targetPf: 1e-9, F: 400, uLim: 0.5 });
+  assert(!weak.feasible, 'impossible combination is infeasible');
+  assert(weak.min_achievable_pf > 1e-9, 'min achievable P_f above target');
+});
+
+test('v0.3 known-lot recipe retains measurement CV and resizes 8 controls', () => {
+  const material = DEFAULTS.material;
+  const ctx = O.makeContext();
+  const robust = O.robustOptimize(material, ctx, { targetPf: 0.01 });
+  const measured = E.lotFromMeasurement(material, 0.8 * material.E_mean, material.sy_mean, 0.12);
+  assert(measured.lotFraction === 0, 'known lot has no lot-to-lot fraction');
+  assert(measured.E_cv > material.withinFraction * material.E_cv, 'measurement CV retained in E');
+  assert(Math.abs(measured.E_cv - 0.12609525328100182) < 1e-12, 'E_cv matches Python lot_from_measurement');
+  const recipe = O.lotSpecificRecipe(material, robust.design, {
+    targetPf: 0.01, lotE: 0.8 * material.E_mean, lotSy: material.sy_mean, measurementCv: 0.12,
+  });
+  assert(recipe.width_multipliers.length === 8, '8 per-control multipliers');
+  assert(recipe.width_multipliers.every((v) => Number.isFinite(v) && v > 0), 'multipliers finite');
+  assert(recipe.global_equivalent_scale > 1, `weak lot needs compensation: ${recipe.global_equivalent_scale}`);
+  assert(recipe.printed_mass_g > recipe.base_printed_mass_g, 'compensation adds printed mass');
+  assert(recipe.added_mass_pct > 0, 'added mass positive');
+  assert(recipe.pf <= 0.01 * 1.02, `compensated P_f inside target: ${recipe.pf}`);
+  assert(recipe.printability && recipe.printability.pass, 'compensated recipe printable');
+  assert(['pass as designed', 'pass with compensation', 'conditional (heavy compensation)', 'reject / reroute'].includes(recipe.verdict), 'known verdict');
+  assert(recipe.measurement_cv === 0.12, 'measurement CV echoed');
+});
+
+test('v0.3 sustained-load advisory is a labelled bound, not a design allowable', () => {
+  const material = DEFAULTS.material;
+  const robust = O.robustOptimize(material, O.makeContext(), { targetPf: 0.01 });
+  const s = E.sustainedBound(robust.analysis, material, { creepFactor: 2.0, compressionFactor: 0.8 });
+  assert(s.creep_factor === 2.0 && s.compression_factor === 0.8, 'factors');
+  assert(Math.abs(s.E_req_bound_MPa - 2 * robust.analysis.demands.E_req) < 1e-6, 'E demand x2');
+  assert(Math.abs(s.sigma_req_bound_MPa - robust.analysis.demands.sigma_y_req / 0.8) < 1e-9, 'sigma demand /0.8');
+  assert(Math.abs(s.deflection_bound_mm - 2 * robust.analysis.deflectionScale / material.E_mean) < 1e-9, 'deflection bound x2');
+  assert(s.pf_bound >= robust.pf, 'bound is at least the static P_f');
+  assert(/advisory/i.test(s.note) && /not the static/i.test(s.note), 'note labels the advisory');
 });
 
 // ---------------------------------------------------------------------------

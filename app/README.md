@@ -31,7 +31,7 @@ unreachable backend → offline assistant, clearly badged per card and in the to
 
 ```bash
 python3 app/build.py        # inlines app sources -> anyrb/index.html (+ app/standalone.html)
-node app/tests/run.mjs      # 28 tests: engine fixtures, FE checks, v0.2 AI helpers
+node app/tests/run.mjs      # 33 tests: engine fixtures, FE checks, v0.3 AI helpers
 ```
 
 ---
@@ -56,8 +56,8 @@ selected direction with the engine’s deterministic multi-start pattern search.
 **03 · Prove** — reliability gauge (P_f vs target, governing mode, mass, printability),
 batch acceptance window chart (engine-computed), live batch passport (lot mean E / σy →
 required width scale, added mass, pass / compensate / reject), scientific-validation
-checklist reading `validation/results.json` (fallback embedded: **45 PASS / 1 WARN /
-0 FAIL · 46 checks**, L0–L1 achieved, L2 partial), AI qualification memo, Muse Image
+checklist reading `validation/results.json` (fallback embedded: **51 PASS / 2 WARN /
+0 FAIL · 53 checks**, L0–L1 achieved, L2 partial), AI qualification memo, Muse Image
 concept render (labelled “AI illustration — not the CAD model”), exports (qualification
 HTML report, STL, design JSON, AI provenance log), claims ladder and limitations.
 
@@ -79,7 +79,7 @@ grounding for every call.
 | `POST /api/proof/memo` | Muse Spark 1.3 | qualification narrative | templated narrative |
 | `POST /api/voice/transcribe` | Muse Voice | mic brief (MediaRecorder) | offline demo transcript (mic disabled offline) |
 | `POST /api/image/render` | Muse Image 1.0 | illustrative concept render | embedded Muse Image demo render (`app/product_render.js`) |
-| `GET /api/validation` | — | real validation summary | embedded 45/1/0 fallback |
+| `GET /api/validation` | — | real validation summary | embedded 51/2/53 fallback |
 
 Every AI response carries `_meta = {model, latency_s, cached, fallback, grounding, ...}`
 and every card shows a badge from it. **Number grounding:** AI memos may only phrase
@@ -88,10 +88,10 @@ validation counts). The client re-validates every number; ungrounded text falls 
 deterministic template and the provenance row records `fallback`/`grounding`.
 
 **Mass disclosure (validator F4):** the analytic mass counts strut volumes before unioning
-at joints. For the robust design, analytic 50.73 g vs voxel-union estimate ≈ 40.5 g
-(≈20 % lower; analytic ≈25 % conservative). The app reports the conservative analytic
-figure, shows the footnote on Design and Prove, includes it in the exported report/JSON,
-and keeps comparison bars on the same analytic basis.
+at joints. For the robust design, printed Halton-union estimate 46.40 g vs analytic 50.81 g (upper bound,
++9.5 % conservative; corrected v0.3 audit). The app reports the printed union estimate as the
+design mass, shows the analytic upper bound as a footnote, uses printed mass for candidate
+ranking/comparison bars, and includes both in the exported report/JSON.
 
 ---
 
@@ -131,11 +131,11 @@ runs `node --check` on the generated classic script. No external fonts, CDNs or 
 | Quantity | Value |
 |---|---|
 | default uniform 2.0 mm | 62.69 g · P_f 0.0082 % · governing Euler buckling |
-| robust multi-start optimum | **50.73 g · P_f 0.997 %** (analytic mass basis) |
-| comparison | solid 111.60 g · uniform target-sized 60.31 g @1.00 % · nominal FoS1.5 56.41 g · mean-only 44.34 g @51.8 % |
+| robust multi-start optimum | **46.40 g · P_f 0.996 %** (analytic mass basis) |
+| comparison | solid 111.60 g · uniform target-sized 53.97 g @1.00 % · nominal FoS1.5 50.77 g · mean-only 41.11 g @51.8 % |
 | printability | min width 1.18 mm · L/w 22.7 · neighbour ratio 1.45 (all pass) |
 | batch passport at robust design | E ×0.80 → scale 1.10 (+8.5 % mass, pass); E ×0.50 → reject |
-| validation | 45 PASS / 1 WARN / 0 FAIL · 46 checks · L0–L1 verified, L2 partial |
+| validation | 51 PASS / 2 WARN / 0 FAIL · 53 checks · L0–L1 verified, L2 partial |
 | AI verification | live backend: brief/plan/review/proof via Muse Spark (10.8–22.8 s, cached on repeat), Muse Image render, Muse Voice ASR |
 
 Engine fixture cross-check against the canonical Python engine remains exact (deterministic
@@ -159,8 +159,62 @@ fields ≤1e-9 relative, P_f ≤1e-6 absolute).
   class names follow the DESIGN_SPEC component inventory rather than the prototype's
   internal classes because implementation started before `prototype.html` landed. Small
   spacing/hierarchy differences from the prototype remain (noted for the designer).
-- Live AI latency is model-bound (Spark calls 8–25 s; cached ≈1 ms). The engine numbers
+- Live AI latency is model-bound (Spark calls 9–20 s; cached ≈1 ms). The engine numbers
   never wait for AI: canvases and metrics render first, memos/render appear async with
   skeletons and badges. Timeouts 90 s with retry → deterministic fallback.
 - Safari was not machine-verified here (headless evidence is Chrome via CDP); code uses
   broadly supported APIs and guards clipboard/MediaRecorder.
+
+
+---
+
+## v0.3 — response to independent review (JS/UI half)
+
+The Python engine (`engine/anyrb/`) is the reference implementation; the app mirrors it.
+
+1. **Printed mass is the headline mass.** `engine.js` implements the same deterministic
+   **Halton quasi-Monte-Carlo union** (60,000 samples, bases 2/3/5, bbox
+   [-4,154]×[-4,64]×[-5,5], pad [0,10]×[0,60], strut boxes along their full length) as
+   `engine/anyrb/lattice.py::printed_volume_mm3`. JS matches the Python values:
+   w=1 mm 33.0888 g, w=2 mm 55.9081 g, w=3 mm 75.5722 g, w=4 mm 92.1566 g; the shipped
+   robust design 46.40 g printed vs 50.81 g analytic upper bound. `mass_g` remains the
+   analytic upper bound; `printed_mass_g` is displayed/exported and used for final
+   candidate ranking/selection, baselines and passports. The optimisation search still
+   ranks with the fast analytic bound.
+2. **Printability is a hard constraint.** Robust/nominal/mean-only objectives include the
+   same penalty as Python (neighbour width ratio > 1.5, slenderness > 30; weight 80), and
+   final selection/baseline rows require `printability.pass`. The definition is the
+   Python one: ratio over consecutive FE elements **including wrap-around**
+   (`np.roll(widths, 1)`). Ratio/slenderness badges are shown on candidates and Prove.
+3. **Known lot keeps measurement uncertainty.** `E.lotFromMeasurement(material, E, sy,
+   measurementCv=0.12)` combines within-lot and measurement CV in quadrature and sets
+   lot fraction 0 (Python-identical: E_cv 0.126095… for rPETG with CV 12 %).
+4. **Lot-specific resize, not one global scale.** `optimize.lotSpecificRecipe()` optimises
+   all 8 width controls for the measured lot (measurement CV retained), returning the 8
+   width multipliers, `global_equivalent_scale` (slicer fallback only), printed mass and
+   delta, P_f, printability and verdict ∈ pass as designed / pass with compensation /
+   conditional (heavy compensation) / reject–reroute. Prove shows the 8 multipliers, QC
+   record (lot ID, supplier, measurement used + CV, recycled content marked "paperwork
+   claim") and the recipe note.
+5. **Brief feasibility gate.** `E.familyFeasibility()` evaluates the widest printable
+   uniform lattice (4.0 mm) against the target; when infeasible the Brief shows an
+   "Infeasible for this bracket family" banner with the minimum achievable P_f and the
+   Design button is disabled (no AI plan call, no candidate drawn).
+6. **Sustained-load advisory.** `E.sustainedBound()` reports the creep ×2.0 /
+   compression ÷0.8 bound (E_req×2, σy_req÷0.8, deflection×2) with P_f and deflection
+   bounds; labelled advisory only, never the static allowable. If the bound fails, Prove
+   says the part is **not qualified for sustained load** (static result unchanged).
+7. **Family scope & claims.** Every Design/Prove result is labelled "best of this
+   bracket/lattice family"; exports carry the QC record, analytic upper bound, printed
+   mass, printability, sustained advisory, lot recipe and the updated claims ladder.
+8. **Tests.** `node app/tests/run.mjs` → **33 passed** (v0.3: Halton mass vs Python
+   references < 0.5 %, printability wrap definition, feasibility gate, measurement CV,
+   8-control recipe, sustained bound). Fixtures are tolerated if the Lead's regenerated
+   `reference.json` lacks the new fields; when `printed_mass_g` / `printability` are
+   present they are compared directly (tolerance 0.5 % mass, 1e-9 printability).
+
+**Fixture fields requested from the Lead:** `cases[*].printed_mass_g`,
+`cases[*].mass_analytic_g`, `cases[*].printability
+{min_width_mm,max_width_mm,max_slenderness,max_neighbour_width_ratio,out_of_bounds}`;
+optionally a `lot_recipe` fixture for a weak measured lot. The app works without them
+using the Python reference values above.

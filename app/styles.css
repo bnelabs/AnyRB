@@ -810,3 +810,40 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
   .metrics-panel { grid-template-columns: 1fr; }
   .metrics-panel .metric { border-left: 0; border-bottom: 1px solid var(--line); padding-left: 0; }
 }
+
+/* v0.3 review-response additions */
+.family-gate { border: 1px solid #E7C7B5; background: #FDF1EA; padding: 18px 22px; }
+.family-gate .fg-head { display: flex; gap: 12px; align-items: flex-start; }
+.family-gate .fg-icon { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
+.family-gate .fg-facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0 0 38px; font-family: var(--mono); font-size: 12px; color: var(--muted-strong); }
+.family-gate .fg-facts b { color: var(--accent-ink); }
+.family-scope { display: block; margin-top: 8px; font-size: 11.5px; color: var(--muted); font-weight: 500; letter-spacing: 0.01em; }
+.qc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; margin-top: 12px; }
+.qc-field { display: flex; flex-direction: column; gap: 4px; }
+.qc-field label { font-size: 10.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.qc-field input { font: 13px var(--mono); color: var(--ink); background: var(--card-warm); border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; min-width: 0; }
+.qc-field input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.qc-tag { display: inline-block; font-size: 9px; letter-spacing: 0.04em; color: var(--accent-ink); background: var(--accent-soft); border-radius: 99px; padding: 1px 6px; text-transform: none; }
+.recipe-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 7px; margin: 12px 0; }
+.recipe-mult { background: var(--card-warm); border: 1px solid var(--line); border-radius: 10px; padding: 7px 5px; text-align: center; }
+.recipe-mult .rm-k { font-size: 9px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+.recipe-mult .rm-v { font: 600 13px var(--mono); color: var(--ink); margin-top: 2px; }
+.recipe-mult.is-heavy .rm-v { color: var(--accent-ink); }
+.recipe-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; font-size: 12.5px; color: var(--muted-strong); margin: 4px 0 12px; }
+.recipe-summary b { color: var(--ink); font-family: var(--mono); font-weight: 600; }
+.advisory { border-color: #E4DFD3; background: var(--card-warm); }
+.advisory-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; font-size: 13px; color: var(--muted-strong); margin-top: 10px; }
+.advisory-body b { font-family: var(--mono); color: var(--ink); }
+.advisory.is-warn { border-color: #E7C7B5; background: #FDF1EA; }
+.advisory.is-warn .advisory-body b { color: var(--accent-ink); }
+@media (max-width: 1080px) { .recipe-grid { grid-template-columns: repeat(4, 1fr); } .qc-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .recipe-grid { grid-template-columns: repeat(2, 1fr); } .qc-grid { grid-template-columns: 1fr; } .recipe-summary, .advisory-body { grid-template-columns: 1fr; } }
+
+/* v0.3 recommended/optimised hero (separate from AI prior cards) */
+.optimised-hero { border: 1px solid var(--line-strong); background: linear-gradient(180deg, #FFFFFF 0%, #FCFBF7 100%); }
+.optimised-hero .hero-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
+.optimised-hero .hero-head .btn[aria-pressed="true"] { background: var(--verify-soft); color: var(--verify); border-color: var(--verify-soft); }
+.optimised-hero .hero-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 18px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.optimised-hero .hero-metrics .micro { display: block; margin-bottom: 3px; }
+.optimised-hero .hero-metrics b { font: 600 15px var(--mono); color: var(--ink); }
+@media (max-width: 900px) { .optimised-hero .hero-metrics { grid-template-columns: repeat(2, 1fr); } }

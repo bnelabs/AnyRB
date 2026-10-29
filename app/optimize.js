@@ -23,6 +23,11 @@ import { GEOMETRY, DEFAULTS, OPTIMIZER } from './config.js';
 import {
   analyzeLattice,
   analyzeSolid,
+  printabilityReport,
+  printedMassG,
+  lotFromMeasurement,
+  familyFeasibility,
+  sustainedBound,
   probabilityOfFailure,
   pfFromThresholds,
   levelMaterial,
@@ -38,6 +43,24 @@ import {
 
 export const LOGW_MIN = Math.log(GEOMETRY.wMin);
 export const LOGW_MAX = Math.log(GEOMETRY.wMax);
+export { familyFeasibility, sustainedBound, lotFromMeasurement };
+
+// v0.3 printability constraint (advisory manufacturing caps, enforced in search)
+export const PRINT_LIMITS = { neighbour_ratio: 1.5, slenderness: 30.0, penalty: 80.0 };
+export function printabilityPenalty(analysis) {
+  const pr = printabilityReport(analysis);
+  if (!pr) return 0;
+  const ratio = Math.max(0, pr.max_neighbour_width_ratio - PRINT_LIMITS.neighbour_ratio) / 0.5;
+  const slenderness = Math.max(0, pr.max_slenderness - PRINT_LIMITS.slenderness) / PRINT_LIMITS.slenderness;
+  return PRINT_LIMITS.penalty * (ratio + slenderness);
+}
+function printabilityPass(analysis) {
+  const pr = printabilityReport(analysis);
+  return !!(pr && pr.pass);
+}
+function printedMassOf(analysis) {
+  return analysis.printed_mass_g != null ? analysis.printed_mass_g : analysis.mass_g;
+}
 const LOG10 = Math.log(10);
 
 /** Build the context object used by every analysis call. */
@@ -65,15 +88,17 @@ export function robustObjective(materialIn, ctx, targetPf) {
   const material = normalizeMaterial(materialIn);
   return function objective(designIn) {
     const design = clampDesign(designIn);
-    const analysis = analyzeLattice(design, ctx);
+    const analysis = analyzeLattice(design, { ...ctx, printed: false });
     const pf = probabilityOfFailure(analysis, material, 'lot');
     const violation = Math.max(0, (pf - targetPf) / targetPf);
+    const pen = printabilityPenalty(analysis);
     return {
-      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * violation),
+      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * violation + pen),
       mass: analysis.mass_g,
       pf,
       analysis,
       violation,
+      printabilityPenalty: pen,
       design,
     };
   };
@@ -87,16 +112,18 @@ export function deterministicObjective(materialIn, ctx, fos) {
   const material = normalizeMaterial(materialIn);
   return function objective(designIn) {
     const design = clampDesign(designIn);
-    const analysis = analyzeLattice(design, ctx);
+    const analysis = analyzeLattice(design, { ...ctx, printed: false });
     const penY = Math.max(0, (fos * analysis.demands.sigma_y_req) / material.sy_mean - 1);
     const penE = Math.max(0, (fos * analysis.demands.E_req) / material.E_mean - 1);
+    const pen = printabilityPenalty(analysis);
     return {
-      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * (penY + penE)),
+      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * (penY + penE) + pen),
       mass: analysis.mass_g,
       feasible: penY <= 0 && penE <= 0,
       analysis,
       penY,
       penE,
+      printabilityPenalty: pen,
       design,
     };
   };
@@ -246,15 +273,24 @@ function feasibleDeterministicStart(material, ctx, fos) {
 //    score wins (tie-break: lower mass). This removes single-start dependence.
 // ---------------------------------------------------------------------------
 /** Six starts for the robust objective (smallest feasible uniform first). */
+function dedupeWidths(widths) {
+  const out = [];
+  for (const w of widths) {
+    if (!out.some((s) => Math.abs(s - w) < 1e-3)) out.push(w);
+  }
+  return out;
+}
+
+/** Six starts for the robust objective (deduped like the Python engine). */
 export function multiStartWidths(materialIn, ctx, targetPf) {
   const first = Math.exp(feasibleUniformStart(materialIn, ctx, targetPf)[0]);
-  return [first, ...OPTIMIZER.startWidths];
+  return dedupeWidths([first, ...OPTIMIZER.startWidths]);
 }
 
 /** Six starts for the deterministic mean-material objective. */
 export function multiStartWidthsDeterministic(materialIn, ctx, fos) {
   const first = Math.exp(feasibleDeterministicStart(materialIn, ctx, fos)[0]);
-  return [first, ...OPTIMIZER.startWidths];
+  return dedupeWidths([first, ...OPTIMIZER.startWidths]);
 }
 
 function bestOfStarts(results) {
@@ -304,19 +340,35 @@ export function* robustOptimizeGen(materialIn, ctx, opts = {}) {
     const res = step.value;
     const analysis = analyzeLattice(res.design, ctx);
     const pf = probabilityOfFailure(analysis, material, 'lot');
+    const pr = printabilityReport(analysis);
     totalEvals += res.evals;
     const entry = {
       startWidth: w, startDesign, design: res.design, score: res.value,
-      mass: analysis.mass_g, pf, feasible: pf <= targetPf, evals: res.evals,
+      mass: analysis.mass_g,
+      mass_analytic_g: analysis.mass_analytic_g,
+      printed_mass_g: analysis.printed_mass_g,
+      pf,
+      feasible: pf <= targetPf * 1.02 && pr && pr.pass,
+      printability: pr,
+      evals: res.evals,
     };
     results.push(entry);
     yield {
       stage: 'start-done', startIndex: si, startsTotal: total, startWidth: w,
-      mass: entry.mass, pf: entry.pf, feasible: entry.feasible, evals: res.evals,
-      bestMass: Math.min(...results.map((r) => r.mass)),
+      mass: entry.mass, printedMass: entry.printed_mass_g, pf: entry.pf,
+      feasible: entry.feasible, printabilityPass: !!(pr && pr.pass), evals: res.evals,
+      bestMass: Math.min(...results.map((r) => r.printed_mass_g ?? r.mass)),
     };
   }
-  const winner = bestOfStarts(results);
+  // v0.3: final selection among the start solutions uses PRINTED mass and
+  // requires printability pass (search still ranked by the analytic bound).
+  const eligible = results.filter((r) => r.feasible);
+  const pool = (eligible.length ? eligible : results).slice();
+  const winner = pool.slice().sort((a, b) => {
+    const pa = a.printed_mass_g ?? a.mass;
+    const pb = b.printed_mass_g ?? b.mass;
+    return (pa - pb) || (a.mass - b.mass);
+  })[0];
   const analysis = analyzeLattice(winner.design, ctx);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   return {
@@ -324,12 +376,18 @@ export function* robustOptimizeGen(materialIn, ctx, opts = {}) {
     analysis,
     pf,
     mass: analysis.mass_g,
+    mass_analytic_g: analysis.mass_analytic_g,
+    printed_mass_g: analysis.printed_mass_g,
     evals: totalEvals,
     targetPf,
     startDesign: winner.startDesign,
     startWidth: winner.startWidth,
-    starts: summarizeStarts(results),
-    feasible: pf <= targetPf,
+    starts: results.map((r) => ({
+      startWidth: r.startWidth, mass: r.mass, printed_mass_g: r.printed_mass_g,
+      pf: r.pf, feasible: r.feasible, printabilityPass: !!(r.printability && r.printability.pass), evals: r.evals,
+    })),
+    feasible: pf <= targetPf && printabilityPass(analysis),
+    printability: printabilityReport(analysis),
     material,
   };
 }
@@ -367,34 +425,59 @@ export function* nominalOptimizeGen(materialIn, ctx, opts = {}) {
       step = search.next();
     }
     const res = step.value;
-    const evaluation = res.analysis ? objective(res.design) : objective(res.design);
-    const analysis = evaluation.analysis;
+    const analysis = analyzeLattice(res.design, ctx);
+    const d = analysis.demands;
+    const feasibleMean = (fos * d.sigma_y_req <= material.sy_mean * (1 + 1e-3))
+      && (fos * d.E_req <= material.E_mean * (1 + 1e-3));
+    const pr = printabilityReport(analysis);
     totalEvals += res.evals;
     results.push({
       startWidth: w, startDesign, design: res.design, score: res.value,
-      mass: analysis.mass_g, feasible: !!(evaluation.feasible), evals: res.evals,
+      mass: analysis.mass_g,
+      mass_analytic_g: analysis.mass_analytic_g,
+      printed_mass_g: analysis.printed_mass_g,
+      pf: probabilityOfFailure(analysis, material, 'lot'),
+      feasible: !!(feasibleMean && pr && pr.pass),
+      printability: pr,
+      evals: res.evals,
     });
     yield {
       stage: 'start-done', startIndex: si, startsTotal: total, startWidth: w,
-      mass: analysis.mass_g, feasible: !!(evaluation.feasible), evals: res.evals,
+      mass: analysis.mass_g, printedMass: analysis.printed_mass_g,
+      feasible: !!(feasibleMean && pr && pr.pass), evals: res.evals,
     };
   }
-  const winner = bestOfStarts(results);
+  const eligible = results.filter((r) => r.feasible);
+  const pool = (eligible.length ? eligible : results).slice();
+  pool.sort((a, b) => {
+    const pa = a.printed_mass_g ?? a.mass;
+    const pb = b.printed_mass_g ?? b.mass;
+    return (pa - pb) || (a.mass - b.mass) || (a.score - b.score);
+  });
+  const winner = pool[0];
   const analysis = analyzeLattice(winner.design, ctx);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   const feasibleMean = (fos * analysis.demands.sigma_y_req <= material.sy_mean * (1 + 1e-9))
     && (fos * analysis.demands.E_req <= material.E_mean * (1 + 1e-9));
+  const pr = printabilityReport(analysis);
   return {
     design: winner.design,
     analysis,
     pf,
     mass: analysis.mass_g,
+    mass_analytic_g: analysis.mass_analytic_g,
+    printed_mass_g: analysis.printed_mass_g,
     evals: totalEvals,
     fos,
     feasibleMean,
+    printability: pr,
+    printabilityPass: !!(pr && pr.pass),
     targetPf: opts.targetPf ?? DEFAULTS.targetPf,
     startWidth: winner.startWidth,
-    starts: summarizeStarts(results),
+    starts: results.map((r) => ({
+      startWidth: r.startWidth, mass: r.mass, printed_mass_g: r.printed_mass_g,
+      feasible: r.feasible, evals: r.evals,
+    })),
     material,
   };
 }
@@ -420,7 +503,7 @@ export function solidBaseline(materialIn, ctx, targetPf = DEFAULTS.targetPf) {
 export function uniformTargetBaseline(materialIn, ctx, targetPf = DEFAULTS.targetPf) {
   const material = normalizeMaterial(materialIn);
   const pfAt = (lw) => {
-    const analysis = analyzeLattice(uniformDesign(Math.exp(lw)), ctx);
+    const analysis = analyzeLattice(uniformDesign(Math.exp(lw)), { ...ctx, printed: false });
     return { analysis, pf: probabilityOfFailure(analysis, material, 'lot') };
   };
   let lo = LOGW_MIN;
@@ -435,8 +518,8 @@ export function uniformTargetBaseline(materialIn, ctx, targetPf = DEFAULTS.targe
       if (hi - lo < 1e-7) break;
     }
   }
-  const res = pfAt(hi);
-  const row = summarize('uniform', 'Uniform (target-sized)', res.analysis, material, res.pf, targetPf, {
+  const finalAnalysis = analyzeLattice(uniformDesign(Math.exp(hi)), ctx);
+  const row = summarize('uniform', 'Uniform (target-sized)', finalAnalysis, material, probabilityOfFailure(finalAnalysis, material, 'lot'), targetPf, {
     note: 'All control points equal; smallest width meeting the reliability target.',
     design: uniformDesign(Math.exp(hi)),
     feasible,
@@ -448,11 +531,12 @@ export function uniformTargetBaseline(materialIn, ctx, targetPf = DEFAULTS.targe
 /** Uniform lattice whose mass equals a target mass (same-mass comparison). */
 export function uniformMassMatchBaseline(materialIn, ctx, targetMass, targetPf = DEFAULTS.targetPf) {
   const material = normalizeMaterial(materialIn);
-  const analysisAt = (w) => analyzeLattice(uniformDesign(w), ctx);
+  const analysisAt = (w) => analyzeLattice(uniformDesign(w), { ...ctx, printed: false });
+  const fastPrinted = (w) => printedMassG(uniformDesign(w), material.rho, { n: 6000 });
   let lo = LOGW_MIN;
   let hi = LOGW_MAX;
-  const massLo = analysisAt(Math.exp(lo)).mass_g;
-  const massHi = analysisAt(Math.exp(hi)).mass_g;
+  const massLo = fastPrinted(Math.exp(lo));
+  const massHi = fastPrinted(Math.exp(hi));
   const clamped = clamp(targetMass, massLo, massHi);
   if (massLo >= massHi) {
     const a = analysisAt(Math.exp(LOGW_MIN));
@@ -464,14 +548,14 @@ export function uniformMassMatchBaseline(materialIn, ctx, targetMass, targetPf =
   // bisection on mass (monotone increasing with width)
   for (let i = 0; i < OPTIMIZER.uniformBisectionIters; i++) {
     const mid = 0.5 * (lo + hi);
-    if (analysisAt(Math.exp(mid)).mass_g < clamped) lo = mid;
+    if (fastPrinted(Math.exp(mid)) < clamped) lo = mid;
     else hi = mid;
     if (hi - lo < 1e-7) break;
   }
-  const analysis = analysisAt(Math.exp(hi));
+  const analysis = analyzeLattice(uniformDesign(Math.exp(hi)), ctx);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   return summarize('uniform_match', 'Uniform (mass-matched)', analysis, material, pf, targetPf, {
-    note: `Same mass as robust optimum (${clamped.toFixed(2)} g); reliability collapses — the mass/reliability trade-off is steep — very sensitive near the buckling-controlled sizing cliff; illustrative, not a general prediction.`,
+    note: `Same printed mass as robust optimum (${clamped.toFixed(2)} g); reliability collapses — the mass/reliability trade-off is steep — very sensitive near the buckling-controlled sizing cliff; illustrative, not a general prediction.`,
     feasible: pf <= targetPf,
     design: uniformDesign(Math.exp(hi)),
     widthMm: Math.exp(hi),
@@ -511,6 +595,10 @@ function summarize(key, label, analysis, material, pf, targetPf, extra = {}) {
     label,
     design: extra.design ?? analysis.designLogWidth ?? null,
     mass_g: analysis.mass_g,
+    mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
+    printed_mass_g: analysis.printed_mass_g ?? analysis.mass_g,
+    printability: printabilityReport(analysis),
+    family_scope: 'best of this bracket/lattice family',
     pf,
     reliability: 1 - pf,
     feasible: extra.feasible ?? pf <= targetPf,
@@ -558,7 +646,7 @@ export function* compareStrategiesGen(materialIn, ctx, opts = {}) {
   });
 
   yield { stage: 'uniform_match', label: 'Mass-matching the uniform lattice', completed: 3, total: 6 };
-  const uniformMatch = uniformMassMatchBaseline(material, ctx, robust.mass, targetPf);
+  const uniformMatch = uniformMassMatchBaseline(material, ctx, robust.printed_mass_g ?? robust.mass, targetPf);
 
   yield { stage: 'nominal_sf15', label: 'Optimising for the mean material (FoS 1.5)', completed: 4, total: 6 };
   const nominal = nominalBaseline(material, ctx, { targetPf, maxEvals: opts.maxEvals });
@@ -571,12 +659,12 @@ export function* compareStrategiesGen(materialIn, ctx, opts = {}) {
 
   // Pareto: mass vs reliability for the uniform family, plus strategy points.
   const paretoUniform = [];
-  const nSweep = 26;
+  const nSweep = 13;
   for (let i = 0; i < nSweep; i++) {
     const w = GEOMETRY.wMin + ((GEOMETRY.wMax - GEOMETRY.wMin) * i) / (nSweep - 1);
     const a = analyzeLattice(uniformDesign(w), ctx);
     const pf = probabilityOfFailure(a, material, 'lot');
-    paretoUniform.push({ widthMm: w, mass_g: a.mass_g, pf, reliability: 1 - pf });
+    paretoUniform.push({ widthMm: w, mass_g: printedMassOf(a), mass_analytic_g: a.mass_g, pf, reliability: 1 - pf });
   }
   yield { stage: 'done', label: 'Comparison complete', completed: 6, total: 6 };
   return {
@@ -590,6 +678,9 @@ export function* compareStrategiesGen(materialIn, ctx, opts = {}) {
     robust: {
       design: robust.design,
       mass: robust.mass,
+      mass_analytic_g: robust.mass_analytic_g,
+      printed_mass_g: robust.printed_mass_g,
+      printability: robust.printability,
       pf: robust.pf,
       evals: robust.evals,
     },
@@ -624,7 +715,7 @@ export function batchAdaptiveScale(designIn, materialIn, lot, ctx, opts = {}) {
   const lotMaterial = withinLotMaterial(material, lotMeanE, lotMeanSy);
   const pfAtScale = (s) => {
     const scaled = clampDesign(scaleDesign(design, s));
-    const analysis = analyzeLattice(scaled, ctx);
+    const analysis = analyzeLattice(scaled, { ...ctx, printed: false });
     return {
       analysis,
       pf: pfFromThresholds(analysis.demands.sigma_y_req, analysis.demands.E_req, lotMaterial),
@@ -649,7 +740,9 @@ export function batchAdaptiveScale(designIn, materialIn, lot, ctx, opts = {}) {
       best = pfAtScale(hi);
     }
   }
-  const addedMassPct = best ? ((best.analysis.mass_g - base.analysis.mass_g) / base.analysis.mass_g) * 100 : null;
+  const bestPrinted = best ? analyzeLattice(best.analysis.designLogWidth, ctx) : null;
+  const basePrinted = analyzeLattice(base.analysis.designLogWidth, ctx);
+  const addedMassPct = bestPrinted ? ((bestPrinted.printed_mass_g - basePrinted.printed_mass_g) / basePrinted.printed_mass_g) * 100 : null;
   let verdict;
   if (!best) verdict = 'reject';
   else if (best.s <= 1.0 + 1e-9) verdict = 'pass_no_compensation';
@@ -690,6 +783,77 @@ function verdictLabel(verdict) {
     case 'conditional': return 'CONDITIONAL PASS — scale near the limit';
     default: return 'REJECT / REROUTE — cannot compensate within +50 % width';
   }
+}
+
+// ---------------------------------------------------------------------------
+// v0.3: known-lot compensation — 8-control lot-specific resize (not one scale)
+// Mirrors Python `optimize.py::lot_specific_recipe`.
+// ---------------------------------------------------------------------------
+/**
+ * Re-optimise all 8 width controls for a measured lot, keeping the measurement
+ * uncertainty in the reliability distribution. Returns per-control width
+ * multipliers, the global equivalent scale, printed masses, P_f and a verdict.
+ */
+export function lotSpecificRecipe(materialIn, logWidthIn, opts = {}) {
+  const material = normalizeMaterial(materialIn);
+  const targetPf = opts.targetPf ?? DEFAULTS.targetPf;
+  const measurementCv = opts.measurementCv ?? 0.12;
+  const lotE = opts.lotE ?? material.E_mean;
+  const lotSy = opts.lotSy ?? material.sy_mean;
+  const context = {
+    F: opts.F ?? DEFAULTS.F,
+    uLim: opts.uLim ?? GEOMETRY.uLim,
+    rho: material.rho,
+  };
+  const measured = lotFromMeasurement(material, lotE, lotSy, measurementCv);
+  const base = clampDesign(logWidthIn.slice());
+  const evalX = (controls) => {
+    const analysis = analyzeLattice(controls, context, { printed: false });
+    const pf = probabilityOfFailure(analysis, measured, 'within');
+    const pen = printabilityPenalty(analysis);
+    const excess = Math.max(0, (pf - targetPf) / targetPf);
+    return { value: analysis.mass_g * (1 + 100 * excess + pen), analysis, pf, pen };
+  };
+  const search = patternSearchGen(evalX, base, { maxEvals: opts.maxIter ?? 1200, minStep: 0.004 });
+  let step = search.next();
+  while (!step.done) step = search.next();
+  const best = clampDesign(step.value.design);
+  const analysis = analyzeLattice(best, context); // printed mass
+  const baseAnalysis = analyzeLattice(base, context);
+  const scales = best.map((v, i) => Math.exp(v - base[i]));
+  const sorted = scales.slice().sort((a, b) => a - b);
+  const globalScale = sorted[Math.floor(sorted.length / 2)];
+  const pf = probabilityOfFailure(analysis, measured, 'within');
+  const printedMass = analysis.printed_mass_g;
+  const basePrinted = baseAnalysis.printed_mass_g;
+  const addedMassPct = 100 * (printedMass / Math.max(basePrinted, 1e-12) - 1);
+  const pr = printabilityReport(analysis);
+  let verdict;
+  if (pf > targetPf * 1.02) verdict = 'reject / reroute';
+  else if (globalScale <= 1.001) verdict = 'pass as designed';
+  else if (globalScale <= 1.15) verdict = 'pass with compensation';
+  else if (globalScale <= 1.5) verdict = 'conditional (heavy compensation)';
+  else verdict = 'reject / reroute';
+  return {
+    controls: best,
+    width_multipliers: scales,
+    global_equivalent_scale: globalScale,
+    printed_mass_g: printedMass,
+    printed_mass_analytic_g: analysis.mass_g,
+    base_printed_mass_g: basePrinted,
+    added_mass_pct: addedMassPct,
+    pf,
+    verdict,
+    verdict_ok: verdict === 'pass as designed' || verdict === 'pass with compensation',
+    measurement_cv: measurementCv,
+    lot: { lot_E: lotE, lot_sy: lotSy },
+    measured_material: { E_cv: measured.E_cv, sy_cv: measured.sy_cv },
+    printability: pr,
+    printability_pass: !!(pr && pr.pass),
+    analysis,
+    base_analysis: baseAnalysis,
+    note: 'Lot-specific 8-control resize with measurement uncertainty retained (not a single global scale).',
+  };
 }
 
 /**

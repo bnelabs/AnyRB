@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-29T15:00:00+00:00",
+  "generated_utc": "2026-10-29T15:54:06+00:00",
   "material": {
     "id": "rpetg",
     "name": "rPETG (recycled PETG, printed parts)",
@@ -20,21 +20,23 @@
     "name": "Robust optimisation",
     "strategy": "robust",
     "controls": [
-      0.7376747886681098,
-      0.5626747886681097,
-      0.38767478866810984,
-      0.12517478866810983,
-      0.23454978866810983,
-      0.4095497886681098,
-      0.5845497886681099,
-      0.3657997886681098
+      0.7048622886681098,
+      0.6173622886681099,
+      0.3548622886681098,
+      0.17986228866810977,
+      0.17986228866810983,
+      0.44236228866810984,
+      0.5298622886681098,
+      0.42048728866810986
     ],
-    "mass_g": 50.74226843282504,
-    "pf": 0.009833803252807971,
-    "reliability": 0.990166196747192,
-    "sigma_req_MPa": 18.333796871730723,
-    "E_req_MPa": 1687.2558996877779,
-    "u_tip_mean_mm": 2.0086379758187833
+    "mass_g": 50.809428668061415,
+    "printed_mass_g": 46.40025605333333,
+    "mass_analytic_g": 50.809428668061415,
+    "pf": 0.009956387330703032,
+    "reliability": 0.990043612669297,
+    "sigma_req_MPa": 18.80622128676824,
+    "E_req_MPa": 1687.9766194499934,
+    "u_tip_mean_mm": 2.0094959755357067
   },
   "uniform_target_sized": {
     "name": "Uniform lattice (target)",
@@ -50,6 +52,8 @@
       0.6492279466251099
     ],
     "mass_g": 60.318749016337094,
+    "printed_mass_g": 53.97413141333333,
+    "mass_analytic_g": 60.318749016337094,
     "pf": 0.009826446903518415,
     "reliability": 0.9901735530964816,
     "sigma_req_MPa": 14.471040671677411,
@@ -63,18 +67,20 @@
       0.7157997886681099,
       0.7486122886681098,
       0.4095497886681098,
-      0.3220497886681098,
+      0.3657997886681098,
       0.7376747886681098,
       0.7376747886681098,
       0.38767478866810984,
-      0.38767478866810984
+      0.3439247886681098
     ],
-    "mass_g": 56.431073485521914,
-    "pf": 6.372159029710556e-06,
-    "reliability": 0.9999936278409702,
-    "sigma_req_MPa": 13.51718043398251,
-    "E_req_MPa": 1399.585391444582,
-    "u_tip_mean_mm": 1.6661730850530736
+    "mass_g": 56.43064733679817,
+    "printed_mass_g": 50.77227616,
+    "mass_analytic_g": 56.43064733679817,
+    "pf": 6.335722583239445e-06,
+    "reliability": 0.9999936642774168,
+    "sigma_req_MPa": 13.516956350450839,
+    "E_req_MPa": 1399.4239973352467,
+    "u_tip_mean_mm": 1.665980949208627
   },
   "mean_only": {
     "name": "Mean-material design (SF 1.0)",
@@ -90,6 +96,8 @@
       0.3431471805599453
     ],
     "mass_g": 44.38185870186539,
+    "printed_mass_g": 41.11342016,
+    "mass_analytic_g": 44.38185870186539,
     "pf": 0.5116495224201859,
     "reliability": 0.4883504775798141,
     "sigma_req_MPa": 21.861982516081817,
@@ -110,36 +118,61 @@
       1.3862943611198906
     ],
     "mass_g": 111.6,
+    "printed_mass_g": 111.6,
+    "mass_analytic_g": 111.6,
     "pf": 0.0,
     "reliability": 1.0,
     "sigma_req_MPa": 3.5,
     "E_req_MPa": 304.8888888888889,
     "u_tip_mean_mm": 0.36296296296296293
   },
-  "pf_mc": 0.010533333333333334,
-  "pf_mc_stderr": 0.000416780962101642,
-  "p5_margin": 1.0654095538096113,
+  "pf_mc": 0.010633333333333333,
+  "pf_mc_stderr": 0.0004187335181941604,
+  "p5_margin": 1.0649546531247107,
   "robustness_index": 0.8559884916195963,
   "sensitivity": {
-    "base": 0.009833803252807971,
-    "cv_E": 0.022487119456050142,
-    "cv_sy": 0.0,
+    "base": 0.009956387330703032,
+    "cv_E": 0.022634526682255074,
+    "cv_sy": 5.551115123125783e-17,
     "corr": 0.0,
-    "load": 0.5271526213583442,
-    "mean_E": 0.7766704080786746,
-    "mean_sy": 1.6109336087311021e-13,
-    "u_limit": 0.5271526213583442
+    "load": 0.5288735582280766,
+    "mean_E": 0.7778961496729228,
+    "mean_sy": 1.535327420754129e-12,
+    "u_limit": 0.5288735582280766
   },
   "acceptance_window_pass_fraction": 0.5365853658536586,
   "printability": {
-    "min_width_mm": 1.179722162605795,
-    "max_width_mm": 2.0141047193870687,
-    "max_slenderness": 22.699420794458074,
-    "max_neighbour_width_ratio": 1.456507820332621,
+    "min_width_mm": 1.2427942708684527,
+    "max_width_mm": 1.9859795900725021,
+    "max_slenderness": 21.915259138263814,
+    "max_neighbour_width_ratio": 1.3754074300634593,
     "out_of_bounds": false
   },
+  "family_feasibility": {
+    "feasible": true,
+    "min_achievable_pf": 0.0,
+    "sigma_req_MPa": 7.705158584255079,
+    "E_req_MPa": 668.052422193389,
+    "max_width_mm": 4.0,
+    "target_pf": 0.01
+  },
+  "sustained_bound": {
+    "pf_bound": 0.999999903638175,
+    "E_req_bound_MPa": 3375.953238899987,
+    "sigma_req_bound_MPa": 23.507776608460297,
+    "deflection_bound_mm": 4.018991951071413,
+    "creep_factor": 2.0,
+    "compression_factor": 0.8,
+    "note": "Advisory bound: sustained load + compression knock-down; not the design allowables."
+  },
+  "mass_basis": {
+    "analytic_upper_bound_g": 50.809428668061415,
+    "printed_union_estimate_g": 46.40025605333333,
+    "analytic_overcount_pct": 9.50247474854471,
+    "method": "printed union Halton 60k samples; analytic sums strut volumes (upper bound)"
+  },
   "stl": {
-    "path": "reports/robust_design.stl",
+    "path": "/Users/barisnacierzeren/Downloads/Candidate-2/anyrb/reports/robust_design.stl",
     "triangles": 1140,
     "size_bytes": 251825
   },

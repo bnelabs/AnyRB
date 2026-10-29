@@ -30,7 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import ValidationError
 
-from . import meta_client, prompts, schemas
+from . import contract_v03, meta_client, prompts, schemas
 
 PROJECT = Path(__file__).resolve().parent.parent
 INDEX = PROJECT / "index.html"
@@ -43,7 +43,9 @@ MAX_TEXT = schemas.MAX_TEXT
 MAX_UPLOAD = schemas.MAX_UPLOAD
 RATE_LIMIT = int(os.environ.get("ANYRB_RATE_LIMIT_RPM", "120"))
 
-app = FastAPI(title="AnyRB AI", version="0.2",
+APP_VERSION = "0.3"
+
+app = FastAPI(title="AnyRB AI", version=APP_VERSION,
               description="Local FastAPI backend putting Meta AI models in the AnyRB design loop. "
                           "The browser never sees the API key.")
 app.add_middleware(
@@ -180,6 +182,26 @@ def _grounded_or_fallback(kind: str, out: dict, payload: dict, fallback: dict) -
 # ---------------------------------------------------------------------------
 # coercion + validation (first line of defence; schemas are the hard gate)
 # ---------------------------------------------------------------------------
+_PRESET_LABELS = {"rpetg": "rPETG", "rpet": "rPET", "rhdpe": "rHDPE", "rpp": "rPP"}
+
+
+def _brief_compat(brief: dict) -> dict:
+    """Camel-case mirror consumed by the browser client (identical values)."""
+    return {
+        "partType": brief["part_label"],
+        "loadN": brief["load_N"],
+        "deflLimitMm": brief["deflection_limit_mm"],
+        "targetPf": brief["target_pf"],
+        "process": brief.get("process") or "FDM/FFF",
+        "preset": _PRESET_LABELS.get(brief.get("material_key")),
+        "material_key": brief.get("material_key"),
+        "constraints": brief.get("constraints", []),
+        "notes": brief.get("rationale", ""),
+        "massCapG": brief.get("mass_cap_g"),
+        "measurementCv": brief.get("measurement_cv"),
+    }
+
+
 def _coerce_brief(raw: dict, text: str, defaults: dict | None) -> dict:
     fb = prompts.fallback_brief(text, defaults)
     out = dict(fb)
@@ -208,6 +230,23 @@ def _coerce_brief(raw: dict, text: str, defaults: dict | None) -> dict:
             out["missing"] = [_clean_text(m, 40) for m in raw["missing"][:10]]
         if raw.get("confidence") in ("high", "medium", "low"):
             out["confidence"] = raw["confidence"]
+        mcv = _num(raw.get("measurement_cv", raw.get("measurementCv")))
+        if mcv is not None and 0.0 <= mcv <= 0.5:
+            out["measurement_cv"] = round(mcv, 4)
+            stated_flag = raw.get("measurement_cv_stated")
+            if isinstance(stated_flag, bool):
+                out["measurement_cv_stated"] = stated_flag
+            else:
+                fb_cv = float(fb.get("measurement_cv", contract_v03.DEFAULT_MEASUREMENT_CV))
+                out["measurement_cv_stated"] = abs(mcv - fb_cv) > 1e-9
+    if isinstance(defaults, dict):
+        mcv = _num(defaults.get("measurement_cv"))
+        if mcv is not None and 0.0 <= mcv <= 0.5 and "measurement_cv" not in out:
+            out["measurement_cv"] = round(mcv, 4)
+            out["measurement_cv_stated"] = True
+    out.setdefault("measurement_cv", contract_v03.DEFAULT_MEASUREMENT_CV)
+    out["measurement_cv"] = _clamp(out["measurement_cv"], 0.0, 0.5)
+    out.setdefault("measurement_cv_stated", False)
     out["load_N"] = _clamp(out["load_N"] or 150.0, 1.0, 20000.0)
     out["deflection_limit_mm"] = _clamp(out["deflection_limit_mm"] or 2.5, 0.1, 25.0)
     out["target_pf"] = _clamp(out["target_pf"] or 0.01, 0.0001, 0.5)
@@ -237,6 +276,30 @@ def _coerce_lot(raw: dict, text: str) -> dict:
                 out[k] = [_clean_text(x, 120) for x in raw[k][:8] if str(x).strip()]
         if raw.get("confidence") in ("high", "medium", "low"):
             out["confidence"] = raw["confidence"]
+        for k, limit in (("lot_id", 60), ("supplier", 80)):
+            v = raw.get(k)
+            if isinstance(v, str) and v.strip():
+                out[k] = _clean_text(v, limit)
+        src = raw.get("measurement_source")
+        if isinstance(src, str):
+            src = src.strip().lower()
+            if src in ("datasheet", "certificate", "email", "measurement", "unknown"):
+                out["measurement_source"] = src
+        mcv = _num(raw.get("measurement_cv", raw.get("measurementCv")))
+        if mcv is not None and 0.0 < mcv <= 0.5:
+            out["measurement_cv"] = round(mcv, 4)
+            stated_flag = raw.get("measurement_cv_stated")
+            if isinstance(stated_flag, bool):
+                out["measurement_cv_stated"] = stated_flag
+            else:
+                fb_cv = float(fb.get("measurement_cv", contract_v03.DEFAULT_MEASUREMENT_CV))
+                out["measurement_cv_stated"] = abs(mcv - fb_cv) > 1e-9
+    out.setdefault("lot_id", None)
+    out.setdefault("supplier", None)
+    out.setdefault("measurement_source", "unknown")
+    out.setdefault("measurement_cv", contract_v03.DEFAULT_MEASUREMENT_CV)
+    out["measurement_cv"] = _clamp(out["measurement_cv"], 0.0, 0.5)
+    out.setdefault("measurement_cv_stated", False)
     if out.get("material_key") not in prompts.MATERIAL_KEYS:
         out["material_key"] = "unknown"
     return out
@@ -287,6 +350,9 @@ def _coerce_review(raw: dict, payload: dict) -> dict:
         return fb
     if not out["next_actions"]:
         out["next_actions"] = fb["next_actions"]
+    for k in ("family_scope", "mass_basis", "sustained_advisory"):
+        if k in fb:
+            out.setdefault(k, fb[k])
     return out
 
 
@@ -307,6 +373,9 @@ def _coerce_proof(raw: dict, payload: dict) -> dict:
         out["what_would_change_answer"] = fb["what_would_change_answer"]
     if not out["recommended_tests"]:
         out["recommended_tests"] = fb["recommended_tests"]
+    for k in ("family_scope", "mass_basis", "sustained_advisory"):
+        if k in fb:
+            out.setdefault(k, fb[k])
     return out
 
 
@@ -333,9 +402,21 @@ def health() -> dict:
                "last_latency_s": (live_calls[-1].get("latency_s") if live_calls else None),
                "model_latencies": meta_client.model_latencies(),
                "cache": meta_client.cache_stats()},
+        "version": "v0.3",
+        "contract_version": "v0.3",
+        "family_scope": contract_v03.FAMILY_SCOPE,
+        "printability_limits": dict(contract_v03.PRINTABILITY_LIMITS),
         "validation": _validation_summary(),
-        "engine": {"canonical": "python engine 0.1 + JS engine 0.2", "design_target_pf": 0.01},
-        "service": {"name": "anyrb-ai", "version": "0.2",
+        "engine": {"version": "0.3",
+                   "canonical": "python engine 0.3 + JS engine 0.3",
+                   "design_target_pf": 0.01,
+                   "printed_mass": True,
+                   "mass_analytic_upper_bound": True,
+                   "family_feasibility": True,
+                   "lot_specific_recipe": True,
+                   "sustained_bound": True,
+                   "measurement_cv_default": contract_v03.DEFAULT_MEASUREMENT_CV},
+        "service": {"name": "anyrb-ai", "version": "0.3",
                     "port": int(os.environ.get("ANYRB_PORT", "8787"))},
         "cache": meta_client.cache_stats(),
         "session": {"id": meta_client.SESSION_ID, "calls": len(calls),
@@ -363,7 +444,10 @@ def brief_parse(body: schemas.BriefIn, request: Request) -> dict:
         f"load treated as {brief['load_N']} N",
         f"reliability target {100 * brief['target_pf']:.2f}%",
         f"material preset: {brief['material_key']}",
+        f"measurement CV {100 * brief['measurement_cv']:.1f}%"
+        + (" (stated)" if brief.get("measurement_cv_stated") else " (default, editable)"),
     ]
+    brief["brief"] = _brief_compat(brief)
     return _respond(schemas.BriefResponse, brief)
 
 
@@ -387,26 +471,42 @@ def design_plan(body: schemas.PlanIn, request: Request) -> dict:
     _rate_limit(request)
     if not isinstance(body.brief, dict) or not isinstance(body.baseline, dict):
         raise HTTPException(422, "brief and baseline are required objects")
-    payload = {"brief": body.brief, "baseline": body.baseline, "material": body.material}
+    payload = contract_v03.build_plan_payload(body.model_dump())
+    feasibility = payload.get("feasibility") or {}
+    if feasibility.get("feasible") is False:
+        # The engine gate already refuses this family: the AI must not draw candidates.
+        plan = _coerce_plan({}, payload)
+        plan["_meta"] = meta_client.local_meta("plan", "family_infeasible")
+        plan["blocked"] = True
+        plan["feasibility"] = feasibility
+        plan["note"] = ("engine feasibility gate fails: the widest printable uniform lattice "
+                        "cannot meet the target; no AI candidates were proposed (placeholders "
+                        "are returned only for schema compatibility)")
+        return _respond(schemas.PlanResponse, plan)
     out = meta_client.spark_json("plan", prompts.PLAN_SYSTEM, payload,
                                  fallback=lambda: prompts.fallback_plan(payload),
                                  mock=_want_mock(request))
     plan = _coerce_plan(out, payload)
     plan["_meta"] = out.get("_meta")
+    plan["family_scope"] = payload.get("family_scope", "")
+    plan["printability_limits"] = payload.get("printability_limits") or {}
+    plan["feasibility"] = feasibility or None
+    plan["blocked"] = False
+    plan["note"] = ("" if not out.get("_meta", {}).get("fallback")
+                    else "deterministic priors (AI unavailable); engineering evaluation by the verified engine")
     return _respond(schemas.PlanResponse, plan)
 
 
 @app.post("/api/design/review")
 def design_review(body: schemas.ReviewIn, request: Request) -> dict:
     _rate_limit(request)
-    payload = {"brief": body.brief, "selected": body.selected,
-               "comparison": body.comparison, "material": body.material,
-               "sensitivity": body.sensitivity}
+    payload = contract_v03.build_review_payload(body.model_dump())
     out = meta_client.spark_json("review", prompts.REVIEW_SYSTEM, payload,
                                  fallback=lambda: prompts.fallback_review(payload),
                                  mock=_want_mock(request))
     review = _coerce_review(out, payload)
     review["_meta"] = out.get("_meta")
+    review.setdefault("feasibility", payload.get("feasibility"))
     review = _grounded_or_fallback("review", review, payload,
                                    prompts.fallback_review(payload))
     return _respond(schemas.ReviewResponse, review)
@@ -415,14 +515,15 @@ def design_review(body: schemas.ReviewIn, request: Request) -> dict:
 @app.post("/api/proof/memo")
 def proof_memo(body: schemas.ProofIn, request: Request) -> dict:
     _rate_limit(request)
-    payload = {"brief": body.brief, "design": body.design,
-               "batch_passport": body.batch_passport, "comparison": body.comparison,
-               "validation": body.validation}
+    payload = contract_v03.build_proof_payload(body.model_dump())
     out = meta_client.spark_json("proof", prompts.PROOF_SYSTEM, payload,
                                  fallback=lambda: prompts.fallback_proof(payload),
                                  mock=_want_mock(request))
     proof = _coerce_proof(out, payload)
     proof["_meta"] = out.get("_meta")
+    proof.setdefault("feasibility", payload.get("feasibility"))
+    proof.setdefault("lot_recipe", payload.get("lot_recipe"))
+    proof.setdefault("measurement", payload.get("measurement"))
     proof = _grounded_or_fallback("proof", proof, payload,
                                   prompts.fallback_proof(payload))
     return _respond(schemas.ProofResponse, proof)

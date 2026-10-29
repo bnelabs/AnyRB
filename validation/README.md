@@ -1,146 +1,120 @@
-# AnyRB — independent validation package (v0.2, post-fix run)
+# AnyRB — independent validation package (v0.3)
 
-This directory is the **independent scientific validation** of the AnyRB engine. It is
-deliberately separate from `engine/tests/` and `app/tests/`: the frame element is re-implemented
-from the specification, the global system is assembled independently, reliability is re-derived
-with SciPy quadrature / bivariate-normal CDF / \(10^6\)-sample Monte Carlo, the optimiser is
-compared against a brute-force grid, and the STL export is audited geometrically. The engine is
-imported only where a check is explicitly *engine vs independent reference*.
+Independent scientific validation of the AnyRB engine (Python reference + JS app contract). It is
+deliberately separate from `engine/tests/` and `app/tests/`: the frame element is re-implemented from
+the specification, the global system is assembled independently, reliability is re-derived with SciPy
+quadrature / bivariate-normal CDF / Monte-Carlo, the optimiser is compared against a brute-force grid,
+and the mass basis is audited against a high-precision independent union sampler.
 
-The goal is credibility, not a green tick: every check has a **pre-registered tolerance**, a
-reported **observed number** and a **PASS / WARN / FAIL** status. Statuses were not tuned after
-seeing the numbers. The first run found two real engine defects; both were fixed by the Lead and
-re-verified here (see *Defects found and fixed*).
-
-**Current result: 45 PASS · 1 WARN · 0 FAIL (46 independent checks, ~17 s).**
-
----
+**Current result: 51 PASS · 2 WARN · 0 FAIL (53 independent checks, ~33 s).**
+The two WARNs are deliberate and documented: **F4** (analytic mass is a conservative upper bound) and
+**F5** (Halton-QMC printed-union estimate deviates by 0.35% at the W_MIN width w=1 mm; ≤0.1% at the
+shipped designs). No FAIL means the shipped numbers reproduce and the contract holds.
 
 ## Run
 
 ```bash
-cd AnyRB
-make validate                                   # wrapper for the standalone runner
-.venv/bin/python validation/run_validation.py   # standalone, no network, ~17 s
-node app/tests/run.mjs                          # full JS app suite (includes v0.2 app-layer tests)
-.venv/bin/python -m pytest validation/pytest_checks.py -q   # optional CI wrappers
+cd anyrb
+make validate                                        # standalone suite -> results.json + VALIDATION.md + figures
+.venv/bin/python validation/run_validation.py        # equivalent
+.venv/bin/python -m pytest validation/pytest_checks.py -q   # optional CI wrappers (ratchet)
+.venv/bin/python validation/generate_coupon_prereg.py       # re-issue coupon pre-registration (hash changes)
+.venv/bin/python validation/compare_measurements.py --template measurements_template.csv
 ```
 
-The standalone script exits **0** when there is no `FAIL` and **1** otherwise (currently 0:
-one documented WARN remains). It writes:
-
-| Output | Contents |
-|---|---|
-| `validation/results.json` | machine-readable results: one record per check with id, category, claim, method, tolerance, observed value, status, notes, evidence |
-| `validation/VALIDATION.md` | human report: *generated* quotable summary for the app, results table, per-check evidence, claim-ladder mapping, model-form limitations, defect status, recommended engine changes |
-| `validation/figures/*.png` | four figures (reliability convergence, unit-cell stiffness vs width, optimiser grid vs pattern search, mass over-count vs width) |
-| `validation/artifacts/` | regenerated fixture JSON (byte-identical check) and the JS cross-check script |
-| `validation/pytest_checks.py` | pytest wrappers (reads `results.json`; ratchet on known-open defects) |
+Outputs: `validation/results.json` (machine-readable per-check evidence), `validation/VALIDATION.md`
+(generated report with a quotable "For the app" block, model-form bands, limitations, defect status),
+`validation/figures/*.png` (5 figures), `validation/artifacts/` (regenerated fixture, JS cross-check),
+`validation/COUPON_TEST_PLAN.md` + `coupon_predictions.json` + `compare_measurements.py` (L3+ path).
 
 ## How to read a status
 
-- **PASS** — observed within the pre-registered tolerance; the claimed property is verified by an
-  independent method.
-- **WARN** — outside the target tolerance but explained and documented: a known conservative
-  approximation (mass over-count) or a deliberately coarse analytical reference. A WARN is visible
-  on purpose and must be surfaced in the product, not silently converted to PASS.
-- **FAIL** — outside tolerance with no acceptable explanation; the engine must be changed before the
-  corresponding claim stands. The suite exits non-zero.
+- **PASS** — observed within the pre-registered tolerance; verified by an independent method.
+- **WARN** — outside the target tolerance but explained and documented, and therefore surfaced to the
+  product: analytic mass is a design-dependent upper bound (F4); the deterministic printed-union estimate
+  is 0.35% low at the W_MIN width (F5). Neither invalidates the shipped design; both must be disclosed.
+- **FAIL** — no acceptable explanation; the engine must change. The suite exits non-zero (currently 0).
 
-Tolerances were fixed before results were inspected. Changing a tolerance to turn a FAIL into a PASS
-is a validation regression, not a fix. `pytest_checks.py` contains a ratchet: a known defect that is
-listed there must still be FAIL, so removing it from the list without fixing the engine breaks CI.
+Tolerances were fixed before inspecting results; do not tune them to turn a FAIL into a PASS.
+`pytest_checks.py` is a ratchet: known-open defects must still fail until the engine is fixed.
 
----
+## What was verified (51 PASS)
 
-## What was verified (45 PASS)
-
-| Category | What the independent checks establish |
+| Category | Established independently |
 |---|---|
-| **A. Code verification** | Frame element reproduces the axial-bar and Euler–Bernoulli cantilever formulas (≤2e-16); rigid-body translation/rotation produce zero internal force; engine 94-element solve matches an independent assembly (≤1.7e-14); reactions balance force and moment (≤1e-13); bracket symmetry and load-reversal symmetry hold exactly; demands scale linearly with load. |
-| **B. Independent solver** | The same assembled system, solved by minimising potential energy with L-BFGS-B, reproduces the direct-stiffness displacements to 2e-7 relative (uniform and graded designs). |
-| **C. Reliability** | Closed-form \(\Phi_2\) matches SciPy's bivariate-normal CDF (max 1.5e-13 for \(\rho\le0.95\)) and independent double quadrature (3e-15); extreme correlation (\(\rho=0.99/0.999\)) and deep tails are verified against an independent conditional 1-D quadrature (max abs err 2.2e-16; the engine delegates to SciPy for |ρ|>0.9, so this check does not compare SciPy with itself); analytic \(P_f\) agrees with \(10^6\)-sample Monte Carlo (max \|z\| = 1.0) and with \(10^6\) samples from the engine sampler (z = 0.4); Gauss–Legendre order convergence 12→96 points is clean (2e-4 → 2e-15); lognormal moments/CV/correlation recovered; two-level variance split and measured-lot override behave as documented; degenerate zero-variance limits exact. |
-| **D. Optimiser** | A 57×37 brute-force grid of the reduced uniform-width + root-gradient family gives a 53.311 g reference optimum; the production pattern search finds 52.812 g (0.9% better), feasible; 200 random designs cannot beat it by >2%; the shipped 8-parameter robust design is feasible (\(P_f=9.834\times10^{-3}\le10^{-2}\)) and its reported \(P_f\)/mass reproduce independently (≤1e-8 / 1e-10); printability metrics (max neighbour ratio 1.457, slenderness 22.7) are reported, not hidden. |
-| **E. Homogenisation** | Periodic/affine unit-cell frame FE reproduces the analytical pin-jointed X-lattice axial stiffness \(C_{11}=E_s(w/L)(2+1/\sqrt2)\) to 0.15%, is isotropic (\(C_{11}=C_{22}\)), scales as \(w^1\) (fitted exponent 1.000), satisfies Maxwell–Betti symmetry, and is energy/stress consistent; shear stiffness matches the truss estimate within 3.2% (frame action, documented). |
-| **F. Mass/STL** | Independent bilinear width interpolation reproduces the engine widths/mass to machine precision; the 1140-triangle export has a correct strut mesh (F2a) and a correct axis-aligned 10×60×10 wall pad (F2b); signed volume equals the analytic strut+pad sum (2e-11 relative); node-overlap over-count is quantified (F4, the one WARN). |
-| **G. Material model** | rPETG preset moments and log-correlation recovered from 2×10⁶ samples; lot/within/total split identity holds to the rounding of the stored fractions; hierarchical lot→specimen sampling reproduces the total CV; measured-lot path uses the within-lot distribution and does not mutate the preset. |
-| **H. Cross-implementation** | All frozen fixture cases recompute from current engine (≤1e-12); the fixture **regenerates byte-identically**; the JavaScript fixture/engine cross-language tests pass; a live JS cross-check reproduces mass, demands, deflection and \(P_f\) on all five cases (≤1e-6 relative, ≤1e-8 absolute). |
-| **I. Claim scope** | L0 (code verified) and L1 (solution verified) are demonstrated by A–H; L2 is partial (literature-calibrated inputs, not re-derived); L3–L6 remain absent. |
+| **A. Code verification** | Frame element reproduces axial/cantilever closed forms (≤2e-16); rigid-body modes zero force; engine solve matches an independent assembly (≤1.7e-14); equilibrium/symmetry exact; linearity. |
+| **B. Independent solver** | Potential-energy minimisation (L-BFGS-B) reproduces the direct stiffness displacements to ≤2e-7 relative. |
+| **C. Reliability** | φ₂/`P_f` vs SciPy CDF (≤1.5e-13 for ρ≤0.95), independent double quadrature (3e-15), extreme ρ=0.99/0.999 and deep tails vs independent 1-D conditional quadrature (2.2e-16), 10⁶-sample Monte Carlo (max \|z\| 1.0), GL-order convergence, degenerate limits exact. |
+| **D. Optimiser** | Reduced 2-parameter brute-force grid vs production pattern search (production 0.9% better, feasible); 200 random designs cannot beat it by >2%; shipped 8-parameter design feasible and independently reproduced. |
+| **E. Homogenisation** | Periodic unit cell reproduces the analytical stretch-dominated axial stiffness within 0.15%, is isotropic, scales as w¹ (fit 1.000), satisfies Maxwell–Betti; shear within 3.2% of the truss estimate. |
+| **F. Mass / STL** | Mass arithmetic exact; STL strut mesh and axis-aligned pad correct, signed volume exact. **F4**: analytic mass (sums struts, double-counts nodes) is a conservative upper bound: corrected over-count +5.6% (w=1), +12.2% (w=2), +27.9% (w=4), +9.5% shipped robust (analytic 50.81 g vs printed union 46.39 g). **F5**: engine's deterministic Halton-QMC printed mass matches an independent 2e6–10e6-sample MC to −0.35% worst case at w=1 (W_MIN) and ≤0.1% at the shipped designs. |
+| **G. Material model** | Preset moments/CV/correlation recovered; two-level variance identity and hierarchical sampling; measured-lot path uses within-lot distribution. |
+| **H. Cross-implementation** | Fixtures reproduce byte-identically; JS fixture/engine tests pass; live JS↔Python agreement ≤1e-6/≤1e-8. |
+| **J. Model form** | **J1** cell-size/topology band (4×2…14×6 on the same 140×60 envelope): same-width spread u_tip 88%, σ_req 34%, E_req 495%; mass-matched spread u_tip 58%, σ_req 98%, E_req 23% — the 7×3 layout is the product contract. **J2** rigid frame vs pin-jointed truss: tip stiffness ×1.004, σ_req ×1.141, E_req ×0.997 (frame is conservative on strength demand, neutral on global stiffness; real printed joints lie between). |
+| **K. v0.3 features** | **K1** sustained-load bound (creep ×2, compression ×0.8) gives P_f ≈ 1.0 and 4.02 mm bound deflection > 2.5 mm limit — the static design is **not** qualified for sustained load (advisory only). **K2** a known lot with 12% measurement CV keeps scatter (E_cv 0.126; known-lot P_f 0.0082 vs ~1e-16 at 0% CV); lot-specific recipe returns 8 self-consistent multipliers (global scale 1.00, printed 45.96 g, verdict "pass as designed"). **K3** feasibility gate matches independent W_MAX computation: rPETG feasible (P_f ≈ 0 ≤ 1%), synthetic weak material infeasible (min P_f 0.322 > 1%), so design is blocked before candidates are drawn. |
+| **I. Claim scope** | L0/L1 demonstrated; L2 partial; L3 pre-registered only (no data); L4–L6 absent. 15 model-form limitations enumerated and quantified. |
+| **L. Coupon plan** | Frozen blind-prediction package: geometry, material, predicted tip stiffness and first-yield load, uncertainty bands, protocol, acceptance criteria, SHA-256 pre-registration hash; `compare_measurements.py` ingests measured CSVs without editing the pre-registration. **No physical test is claimed.** |
 
-## Defects found and fixed during validation
+## Coupon / bracket pre-registration (L3+ path)
 
-| Defect | Found by | Status |
-|---|---|---|
-| STL wall pad exported as a sheared parallelogram spanning y = −4.93…64.93 mm instead of 0…60 mm | F2b (first run, FAIL) | **FIXED** by Lead: `_pad_triangles` now an axis-aligned 10×60×10 box; F2b re-verified PASS |
-| Fixed 48-point Gauss–Legendre \(\Phi_2\) lost ~3×10⁻⁶ at \(\rho=0.99\) | C1b (first run, WARN) | **FIXED**: SciPy adaptive bivariate CDF for \|ρ\|>0.9 (48-point GL retained for normal ranges); C1b now PASS |
-| Degenerate-marginal combination returned the wrong \(P_f\) when the deterministic term fails | C9 (surfaced during the fix round) | **FIXED**: `failure_probability` combination corrected; C9 exact on all indicator rows |
-| Fixtures needed regeneration after the fixes | H2 | **CLOSED**: fixtures regenerated; H2 byte-identical PASS |
+`COUPON_TEST_PLAN.md` + `coupon_predictions.json` freeze, before any physical test exists:
 
-## The one open WARN — must be surfaced in the product
+| Specimen | Predicted tip stiffness | Predicted first-yield load | Mass basis |
+|---|---|---|---|
+| Coupon 3×2 cells, uniform 2.0 mm, 10 mm pad | 349.4 N/mm (0.43 mm @ 150 N) | 689.7 N | printed 22.0 g (analytic 24.3 g) |
+| Shipped bracket 7×3 robust design | 74.6 N/mm (2.01 mm @ 150 N) | 366.9 N | printed 46.4 g (analytic 50.81 g) |
 
-**F4 — reported mass double-counts strut overlap.** `mass_g` sums strut volumes without subtracting
-node overlap (documented as conservative). Monte-Carlo union volume of the actual box geometry gives
-**+20.2% at w=1 mm, +28.7% at w=2 mm (default), +46.6% at w=4 mm, and +25.2% at the shipped robust
-design**. For the robust design: analytic **40,921 mm³ ≙ 50.7 g** vs printed union
-**32,692 ± 72 mm³ ≙ 40.5 g**. The bias is design-dependent, so absolute mass and mass-based rankings
-shift. The app/report must say *"printed mass ≈ 40.5 g vs analytic 50.7 g (conservative)"* and/or the
-engine should compute a unique union volume (clip overlapping struts) or report
-`nominal_solid_volume` separately. This WARN is kept deliberately until the engine change lands.
+Uncertainty is separated into material lot-to-lot (90% lognormal PI ≈ ×[0.86, 1.16]) and model form
+(cell size J1; frame vs truss J2). Acceptance: stiffness ±25% per specimen, first-yield −25%/+35%,
+90% interval coverage ≥80%; protocol: cantilever fixture, 1 mm/min, ISO 291 conditioning, ISO 7500-1
+calibration, ISO/ASTM 52921 + ASTM F2971 reporting, blinded against the hash. Passing would support L4
+for this geometry/process/material class only — not certification. Reissue predictions only by
+re-running `generate_coupon_prereg.py`; check **L1** flags any drift.
 
-*(Transparency note: `app/tests/run.mjs` currently also contains mid-work v0.2 app-layer tests; during
-handover the full suite reported one failing app-layer schema test unrelated to the engine. The H3
-check is scoped to the JavaScript engine/fixture contract and records the full-suite status in its
-notes.)*
+## Deliberate limitations (what this does NOT validate)
 
-## The one-paragraph scientific statement (reusable in the hackathon README)
+No physical specimen has been tested: the 2-D frame idealisation, joint compliance, layer anisotropy,
+out-of-plane behaviour, plasticity, creep/fatigue, spatial defect statistics and literature-derived
+material distributions are outside these checks. The cell-size and joint bands (J1/J2) are internal
+model-form estimates, not experiments. The sustained-load bound is advisory arithmetic, not a creep
+model. The coupon/bracket package is pre-registered only. Claim level remains **L0–L1 (code/solution
+verification) with partial L2**, not L3–L6; nothing here supports certification, production reliability,
+or ISO/ASTM/UL/PPWR compliance.
 
-> **What we verified.** The AnyRB engine is independently code- and solution-verified: its 2-D
-> frame element and 94-element assembly reproduce closed-form beam theory, rigid-body conditions,
-> equilibrium and symmetry; the closed-form bivariate-lognormal \(P_f\) agrees with independent
-> quadrature, SciPy's bivariate-normal CDF and \(10^6\)-sample Monte Carlo across correlations 0–0.99
-> (including tails and degenerate limits); the deterministic optimiser finds a feasible design
-> within 1% of a brute-force optimum on a reduced problem and its shipped design independently
-> reproduces; the periodic unit cell reproduces the analytical stretch-dominated stiffness scaling;
-> and Python/JavaScript agree on all frozen fixtures, which regenerate byte-identically. Two real
-> defects found by the first validation run (a malformed STL wall pad and a degenerate-marginal
-> \(P_f\) bug) were fixed and re-verified. **What we did not verify:** nothing here is experimental
-> validation. The 2-D frame idealisation, joint compliance, layer anisotropy, out-of-plane behaviour,
-> plasticity, creep/fatigue, spatial defect statistics and the literature-derived material
-> distributions are untested against physical parts. The one open item is the documented mass
-> over-count: reported mass is a **conservative analytic upper bound** (+25% at the shipped design;
-> ~50.7 g analytic vs ~40.5 g printed union), so it must not be presented as printed mass. The claim
-> level is **L0–L1 (code and solution verification) with partial L2**, not L3–L6; these results are
-> decision-support evidence for a design tool, not certification, production reliability, or
-> compliance with ISO/ASTM/UL/PPWR requirements.
-
-## For the demo / UI engineer — fields to read from `results.json`
+## For the demo / UI engineer — fields in `results.json`
 
 | UI need | Field |
 |---|---|
 | Headline counts + runtime | `summary` → `{total, PASS, WARN, FAIL, runtime_s, exit_code}` |
-| "Verified at level L0/L1" badge | `claim_ladder.L0_code_verified.status`, `claim_ladder.L1_solution_verified.status`, `claim_ladder.L2_literature_calibrated_uq.status` |
-| Mass disclosure | `checks[]` where `id == "F4"` → `observed`, `notes`, `evidence.robust.{analytic_mm3, union_mm3, overcount_pct}`, `evidence.by_width` |
-| Model-form limitations list | `model_form_limitations` (11 keys; render in "Method & honesty") |
-| Reproducibility/audit line | `environment.engine_files` (SHA-256 of engine sources), `environment.fixture_sha256` |
-| Figures | `figures` (4 relative paths) |
+| Mass disclosure (must show) | `checks[] id=="F4"` → `observed`, `notes`, `evidence.by_design.robust.{analytic_mm3, union_mm3, printed_engine_mm3, overcount_pct}`; `id=="F5"` for the estimator audit |
+| Model-form bands | `checks[] id=="J1"/"J2"` → `evidence` (bands, ratios) |
+| Sustained-load advisory | `checks[] id=="K1"` → `observed`, `notes` |
+| Claim badge / honesty card | `claim_ladder.L0_code_verified / L1_solution_verified / L2_literature_calibrated_uq / L3_literature_reproduced`; `model_form_limitations` (15 keys) |
+| Audit line | `environment.engine_files` (engine SHA-256), `environment.fixture_sha256` |
+| Figures | `figures` (5 paths) |
+
+Displayed mass must be `printed_mass_g`; `mass_g` is only a conservative upper bound (label it).
 
 ## Reproducibility
 
-- Runtime ≈17 s; no network access.
-- Fixed seeds: 20261029, 7, 11, 42, 101, 2027, 5; deterministic optimiser and fixture.
-- `results.json` records Python/NumPy/SciPy/Matplotlib/Node versions, the SHA-256 of all engine
-  `.py` files and the fixture SHA-256, so a future engine change is detectable.
+- ~33 s, no network; fixed seeds (20261029, 7, 11, 42, 101, 2027, 5, 17, 23).
+- `results.json` records Python/NumPy/SciPy/Matplotlib/Node versions, engine source SHA-256 and fixture
+  SHA-256, so engine drift is detectable.
 - Environment: `anyrb/.venv` (Python 3.15, NumPy 2.5, SciPy 1.18); Node ≥ 20 for the JS checks.
 
 ## Files
 
 ```
 validation/
-├── run_validation.py        # the whole suite (standalone)
-├── pytest_checks.py         # optional pytest wrappers (CI ratchet)
-├── README.md                # this file
-├── results.json             # generated
-├── VALIDATION.md            # generated report (quotable app summary at top)
-├── figures/                 # generated: 4 PNGs
-└── artifacts/               # generated: regenerated fixture, JS cross-check script
+├── run_validation.py              # the suite (53 checks, standalone)
+├── pytest_checks.py               # optional CI ratchet
+├── README.md                      # this file
+├── VALIDATION.md                  # generated report (quotable app summary at top)
+├── results.json                   # generated machine-readable results
+├── figures/                       # generated: 5 PNGs
+├── artifacts/                     # generated: regenerated fixture, JS cross-check, CSV template
+├── COUPON_TEST_PLAN.md            # pre-registered L3+ validation plan
+├── coupon_predictions.json        # frozen blind predictions + SHA-256 pre-registration hash
+├── compare_measurements.py        # measured-CSV -> prediction-error report (no data fabricated)
+└── generate_coupon_prereg.py      # re-issue the pre-registration (new hash)
 ```

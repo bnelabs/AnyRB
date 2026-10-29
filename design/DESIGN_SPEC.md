@@ -86,14 +86,14 @@ One project at a time. The stepper is always visible; the user can move backward
    - Toggle group `Geometry · Stress & buckling · Strut width` — changes the stroke colour/width encoding. Selecting a candidate changes the strut widths and the caption `Showing: Balanced · robust`.
    - Under the drawing: `Verified FE · 94 frame elements` + `engine v0.1` + printability chip.
 3. **Metric trio** (right column, stacked with hairline dividers) — exactly three:
-   - **Mass** `50.73 g`
-   - **P_f across batches** `0.997 %` (target `≤ 1.00 %`)
+   - **Mass** `46.40 g`
+   - **P_f across batches** `0.996 %` (target `≤ 1.00 %`)
    - **Binding failure mode** `Euler buckling`
    Each has a `Why this number?` disclosure with a plain-language sentence and an engine-provenance line. No more than three on this screen.
 4. **Candidate cards** (3 across): `Light` · `Balanced · recommended` · `Conservative`. Each card: AI prior tag, serif mass, P_f, printability pill, one-line trade-off, engine evaluation note. Selecting updates the canvas, the metric trio and the caption. The `Balanced` card is selected by default and carries the one accent border.
-   Numbers map to the verified comparison set (Light = mean-only 44.34 g / 51.8 %; Balanced = robust 50.73 g / 0.997 %; Conservative = nominal FoS 1.5 56.41 g / 0.00064 %) — see §7.4 mock/real.
+   Numbers map to the verified comparison set (Light = mean-only 41.11 g / 51.8 %; Balanced = robust 46.40 g / 0.996 %; Conservative = nominal FoS 1.5 50.77 g / 0.00064 %) — see §7.4 mock/real.
 5. **AI design memo** (bottom left) — `Design memo` + `Muse Spark 1.3 · 1.24 s · cached · numbers injected from engine` badge; 4–6 sentences; two `Suggested next` actions. AI content is set in the body face, never in display serif — only headlines are serif.
-6. **`vs conventional` strip** (bottom right) — four hairline bars on mass (`g · lower is better`): AnyRB robust `50.73`, nominal FoS 1.5 `56.41`, uniform sized to target `60.31`, solid plate `111.60`. One-sentence takeaway under it.
+6. **`vs conventional` strip** (bottom right) — four hairline bars on mass (`g · lower is better`): AnyRB robust `46.40`, nominal FoS 1.5 `50.77`, uniform sized to target `53.97`, solid plate `111.60`. One-sentence takeaway under it.
 7. **CTA row** — secondary `Back to brief`, primary `Continue to proof →`.
 
 ### 3.3 Screen 03 — Prove
@@ -103,7 +103,7 @@ One project at a time. The stepper is always visible; the user can move backward
 **Content, in order:**
 
 1. **Screen head** — eyebrow `03 · Prove`; heading `Qualification you can hand to a review.`; deck. Status chip `Meets 99 % reliability target`.
-2. **Reliability gauge card** (left) — semicircular gauge, big serif `0.997 %` P_f, track and target tick at `1.00 %`, caption `Reliability across delivered lots 99.0 % · target ≥ 99.0 %`. Below: three key facts — `Governing mode Euler buckling` · `Mass 50.73 g` · `Printability 3/3 checks`.
+2. **Reliability gauge card** (left) — semicircular gauge, big serif `0.996 %` P_f, track and target tick at `1.00 %`, caption `Reliability across delivered lots 99.0 % · target ≥ 99.0 %`. Below: three key facts — `Governing mode Euler buckling` · `Mass 46.40 g` · `Printability 3/3 checks`.
 3. **Batch acceptance window card** (right) — SVG chart: x = measured lot mean E (× nominal), y = required width scale s; accepted region (right/below), compensated region (left, s ≤ 1.5), rejected region (s > 1.5). Marked points: nominal (`E ×1.0 · pass`), weak lot (`E ×0.8 · width ×1.10 · +8.5 % mass · pass with compensation`), reject lot (`E ×0.5 · reject`). Dashed line `1.5 × print clip`. Caption: *Illustrative v0.1 acceptance logic; the engine computes the exact window.*
 4. **Batch passport card** (left, below gauge) — `Screen an incoming lot against this design.` Two inputs (`Lot mean E · × nominal`, default `0.8`; `Lot mean σy · × nominal`, default `1.0`), three preset scenario chips (`Nominal lot`, `Weak lot · E ×0.8`, `Reject lot · E ×0.5`), and a verdict panel that changes live:
    - **PASS** — `Width scale 1.00 × · no compensation` (nominal).
@@ -192,21 +192,21 @@ Tone: **plain, confident, scientific, unhyped.** Short sentences. No exclamation
 | View toggles | `Geometry` · `Stress & buckling` · `Strut width` |
 | Selected caption | `Showing: Balanced · robust` |
 | Metric labels | `Mass` · `P_f across batches` · `Binding failure mode` |
-| Metric values | `50.73 g` · `0.997 %` · `Euler buckling` |
+| Metric values | `46.40 g` · `0.996 %` · `Euler buckling` |
 | Metric sublabels | `polymer volume × rPETG density` · `target ≤ 1.00 %` · `stiffness / buckling carries ~all P_f` |
 | Why-mass | `Lattice mass scales with the strut-width field; the optimiser minimised it subject to the reliability target. Engine output, not measured.` |
 | Why-Pf | `Closed-form bivariate-normal probability over the lot-to-lot distribution, including yield, Euler buckling and deflection. Engine output, not measured.` |
 | Why-mode | `At the robust optimum the strength demand is only ~40 % of mean printed strength, so stiffness/buckling carries essentially all of the failure probability.` |
 | Candidate tags | `AI prior` · `Recommended` |
-| Candidate Light | `44.34 g` · `51.8 % P_f` · `mean-material sizing` · *Fails about half of delivered lots — the failure mode this tool exists to prevent.* · printability `Warn` |
-| Candidate Balanced | `50.73 g` · `0.997 % P_f` · `robust optimum` · *Meets the 1 % target with the least mass. Recommended.* · printability `Pass` |
-| Candidate Conservative | `56.41 g` · `0.00064 % P_f` · `nominal FoS 1.5` · *Safer than requested; pays 10 % extra mass for risk nobody asked for.* · printability `Pass` |
+| Candidate Light | `41.11 g` · `51.8 % P_f` · `mean-material sizing` · *Fails about half of delivered lots — the failure mode this tool exists to prevent.* · printability `Warn` |
+| Candidate Balanced | `46.40 g` · `0.996 % P_f` · `robust optimum` · *Meets the 1 % target with the least mass. Recommended.* · printability `Pass` |
+| Candidate Conservative | `50.77 g` · `0.00064 % P_f` · `nominal FoS 1.5` · *Safer than requested; pays 10 % extra mass for risk nobody asked for.* · printability `Pass` |
 | Candidate footer | `Evaluated by engine v0.1` |
 | Memo heading | **Design memo** · badge `Muse Spark 1.3 · 1.24 s · cached · numbers injected` |
-| Memo body | *"The robust design lands at 50.73 g with P_f 0.997 %, inside your 1.00 % target across delivered lots. Stiffness is the binding constraint: the strength demand is met with margin, so widening struts for strength would only add mass. Compared with a nominal safety-factor-1.5 design you save 10 % mass while keeping the required reliability; the mean-only alternative at 44.34 g fails 51.8 % of batches and should not be considered shippable. Printability is clean: minimum strut 1.18 mm, slenderness 22.7, neighbour ratio 1.45. Suggested next: tighten root struts, then send this design to proof."* |
+| Memo body | *"The robust design lands at 46.40 g with P_f 0.996 %, inside your 1.00 % target across delivered lots. Stiffness is the binding constraint: the strength demand is met with margin, so widening struts for strength would only add mass. Compared with a nominal safety-factor-1.5 design you save 10 % mass while keeping the required reliability; the mean-only alternative at 41.11 g fails 51.8 % of batches and should not be considered shippable. Printability is clean: minimum strut 1.18 mm, slenderness 22.7, neighbour ratio 1.45. Suggested next: tighten root struts, then send this design to proof."* |
 | Suggested next | `Tighten root struts` · `Send to proof` |
 | vs-conventional heading | `vs conventional` · `Mass g · lower is better` |
-| vs takeaway | *54 % lighter than the solid plate, 16 % lighter than a uniform lattice sized to the same target.* |
+| vs takeaway | *58 % lighter than the solid plate, 14 % lighter than a uniform lattice sized to the same target (printed-mass basis).* |
 | CTA secondary | `Back to brief` |
 | CTA primary | **Continue to proof →** |
 
@@ -219,9 +219,9 @@ Tone: **plain, confident, scientific, unhyped.** Short sentences. No exclamation
 | Deck | *One page that says what the design is, which batches it accepts, and what the model cannot tell you.* |
 | Status chip | `Meets 99 % reliability target` |
 | Gauge heading | `Probability of failure across batches` |
-| Gauge value | `0.997 %` · `target ≤ 1.00 %` |
+| Gauge value | `0.996 %` · `target ≤ 1.00 %` |
 | Gauge caption | `Reliability across delivered lots 99.0 %` · `1.00 % failure budget · 99.7 % used` |
-| Key facts | `Governing mode · Euler buckling` · `Mass · 50.73 g` · `Printability · 3 / 3 checks` |
+| Key facts | `Governing mode · Euler buckling` · `Mass · 46.40 g` · `Printability · 3 / 3 checks` |
 | Acceptance heading | **Batch acceptance window** |
 | Acceptance caption | *Illustrative v0.1 logic: a lot at 0.8 × nominal E needs a 1.10 × width scale (+8.5 % mass) and passes with compensation; at 0.5 × it is rejected. The engine computes the exact window.* |
 | Passport heading | **Batch passport** · sub `Screen an incoming lot against this design.` |
@@ -235,7 +235,7 @@ Tone: **plain, confident, scientific, unhyped.** Short sentences. No exclamation
 | Checklist rows | `Element benchmarks` — cantilever vs Euler–Bernoulli, rel. err < 1e-15 · `Equilibrium & symmetry` — force equilibrium and symmetry checks · `Cross-implementation` — Python ↔ JS agree < 1e-6 relative · `Monte-Carlo vs closed form` — analytic P_f vs independent MC · `Mesh & convergence` — fixed 94-element lattice; tolerance checks · `Independent solver` — energy minimisation vs direct stiffness · `Homogenisation` — unit-cell vs analytical truss scaling |
 | Checklist footer | `29 Python tests · 22 JS tests passing · L0–L1 verified, L2 partial` + `Validation report ↗` |
 | Memo heading | **Qualification memo** · badge `Muse Spark 1.3 · 1.62 s · live · numbers injected` |
-| Memo body | *"The design meets the 1.00 % failure target across delivered lots at 50.73 g; the governing mode is Euler buckling, and the strength demand is not binding. It accepts lots down to 0.8 × nominal mean E with a 1.10 × strut-width compensation (+8.5 % mass); lots at 0.5 × nominal E are outside the printable compensation range and should be rerouted. The claim is in-silico only: the material distribution is a literature preset and must be replaced by this supplier's lot data before production. Next test: measure E and σy on three lots from the incoming supplier and refit the distribution."* |
+| Memo body | *"The design meets the 1.00 % failure target across delivered lots at 46.40 g; the governing mode is Euler buckling, and the strength demand is not binding. It accepts lots down to 0.8 × nominal mean E with a 1.10 × strut-width compensation (+8.5 % mass); lots at 0.5 × nominal E are outside the printable compensation range and should be rerouted. The claim is in-silico only: the material distribution is a literature preset and must be replaced by this supplier's lot data before production. Next test: measure E and σy on three lots from the incoming supplier and refit the distribution."* |
 | Memo tag | `AI-written from computed outputs` |
 | Render heading | `Concept render` · `Muse Image 1.0 · 4.18 s · cached` |
 | Render caption | `AI illustration — not the CAD model.` |
@@ -460,7 +460,7 @@ Every component below exists in `prototype.html`; class names are the handoff co
 
 | Surface | Status | Notes for demo-engineer |
 |---|---|---|
-| Mass, P_f, governing mode, candidate comparison numbers | **REAL engine outputs** (verbatim v0.1 numbers) | 50.73 g / 0.997 % / Euler buckling; 44.34 g / 51.8 %; 56.41 g / 0.00064 %; 60.31 g / 1.00 %; 111.60 g; default uniform 62.69 g / 0.0082 %. Wire from `reports/summary.json` / engine calls. |
+| Mass, P_f, governing mode, candidate comparison numbers | **REAL engine outputs** (verbatim v0.1 numbers) | 46.40 g / 0.996 % / Euler buckling; 41.11 g / 51.8 %; 50.77 g / 0.00064 %; 53.97 g / 1.00 %; 111.60 g; default uniform 62.69 g / 0.0082 %. Wire from `reports/summary.json` / engine calls. |
 | Printability numbers | **REAL** | min strut 1.18 mm, slenderness 22.7, neighbour ratio 1.45 |
 | Batch passport numbers | **REAL** | E ×0.8 → width scale 1.10, +8.5 % mass, pass; E ×0.5 → reject; 1.5 × print-clip rejection band |
 | Validation checklist counts | **REAL** | 29 Python / 22 JS tests; seven checks from `validation/` |
@@ -507,7 +507,7 @@ The footer's quiet `State: default · loading · empty · error · offline` swit
 1. **No dense dashboard tables on the primary path.** Comparisons are 4 hairline bars or a single sentence; the validation checklist is evidence rows, not a table. Tables (if ever needed) live behind Lab mode or exports.
 2. **No dark UI, no neon, no cyan/purple gradients, no glassmorphism, no glow shadows, no blueprint grid backgrounds.** This is the v0.1 failure being fixed.
 3. **No more than two accent colours** (safety orange, verified green) and one paper tone. No third hue for "info"; use ink and grey.
-4. **No invented numbers.** Every displayed value must trace to the verified engine or be explicitly labelled as mock/illustrative. No fake decimals, no rounded "about 51 %" where 50.73 exists, no synthetic latencies outside the provenance mock.
+4. **No invented numbers.** Every displayed value must trace to the verified engine or be explicitly labelled as mock/illustrative. No fake decimals, no rounded "about 51 %" where 46.40 exists, no synthetic latencies outside the provenance mock.
 5. **No AI text without provenance.** Model badge + latency + cached/fallback + "numbers injected" is mandatory on every AI surface.
 6. **No hiding assumptions.** Assumptions, claim ladder and limitations are always one scroll away on Prove, and the AI memos are explicitly written from computed outputs.
 7. **No decorative serif everywhere.** Serif is reserved for one display headline per screen, section headings, hero numbers and candidate masses. Buttons, labels and body are sans.

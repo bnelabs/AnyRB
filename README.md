@@ -7,6 +7,8 @@ actually have, and get an internal geometry that behaves reliably — plus the p
 
 Built for the **Meta Global AI Developer Hackathon — Indie Developer track, "Push the Frontier"**.
 
+> **v0.3 (review response):** headline masses are now printed union estimates (robust ~46.4 g; analytic 50.8 g upper bound), printability is enforced, known-lot passports keep measurement uncertainty, compensation is an 8-control lot-specific resize, and the Brief runs an engine feasibility gate. Full point-by-point response: [`REVIEW_RESPONSE.md`](REVIEW_RESPONSE.md).
+
 **Repo:** `github.com/bnelabs/AnyRB` (private) · **Product:** AnyRB — Any Recycled Batch.
 Meta models (Muse Spark, Muse Image, Muse Voice Transcribe, SAM 3.1) do the understanding, proposing and
 explaining; a verified physics engine does every number.
@@ -20,8 +22,9 @@ explaining; a verified physics engine does every number.
 - **Research:** `reports/AnyRB_Research_Synthesis.pdf` · `reports/AnyRB_Full_Research_Dossier.pdf` · `research/00–05`
 - **Qualification report:** `reports/AnyRB_Qualification_Report.pdf` (generated per design; `make report`)
 - **Live Meta backend:** `server/` (`API.md`, tests, `evidence/live_calls.json`)
-- **Independent validation:** `validation/VALIDATION.md` + `results.json` (45 PASS / 1 WARN / 0 FAIL)
-- **Audits:** `audit/AUDIT.md`, `audit/REAUDIT.md`, `audit/HACKATHON_AUDIT.md` (final verdict: SHIP)
+- **Independent validation:** `validation/VALIDATION.md` + `results.json` (51 PASS / 2 WARN / 0 FAIL)
+- **Review response:** `REVIEW_RESPONSE.md` (point-by-point) · `V0_3_SPEC.md` (v0.3 contract)
+- **Audits:** `audit/AUDIT.md`, `audit/REAUDIT.md`, `audit/HACKATHON_AUDIT.md` (historical v0.2 audit: SHIP); v0.3 delta audit in `audit/V0_3_AUDIT.md` when complete
 
 ## The 3-minute product
 
@@ -56,8 +59,8 @@ network and for stage safety.
 python3 app/build.py          # → anyrb/index.html (single file) + app/standalone.html
 make test                     # 29 engine tests (~20 s), includes Python↔JS cross-check
 make test-server              # AI backend tests in mock mode
-node app/tests/run.mjs        # 28 JS engine/UI tests
-make validate                 # independent scientific validation suite (45 PASS / 1 WARN / 0 FAIL)
+node app/tests/run.mjs        # 33 JS engine/UI tests
+make validate                 # independent scientific validation suite (51 PASS / 2 WARN / 0 FAIL)
 make verify-live              # real Meta calls → server/evidence/live_calls.json
 make report                   # regenerate qualification report + STL
 make pdf                      # rebuild PDF deliverables
@@ -67,9 +70,9 @@ make pdf                      # rebuild PDF deliverables
 
 | Model | Role | Endpoint | Observed latency |
 |---|---|---|---|
-| **Muse Spark 1.3 Contributor** | brief parser, lot-datasheet extractor, design proposer, design reviewer, qualification narrative | `/api/brief/parse`, `/api/lot/parse`, `/api/design/plan`, `/api/design/review`, `/api/proof/memo` | 8–25 s measured |
-| **Muse Voice Transcribe 1.0** | hands-free design brief | `/api/voice/transcribe` | ~3.7 s |
-| **Muse Image 1.0** | illustrative product render | `/api/image/render` | ~12–19 s |
+| **Muse Spark 1.3 Contributor** | brief parser, lot-datasheet extractor, design proposer, design reviewer, qualification narrative | `/api/brief/parse`, `/api/lot/parse`, `/api/design/plan`, `/api/design/review`, `/api/proof/memo` | 9–20 s measured (v0.3 live pass) |
+| **Muse Voice Transcribe 1.0** | hands-free design brief | `/api/voice/transcribe` | ~3.6 s |
+| **Muse Image 1.0** | illustrative product render | `/api/image/render` | ~12–20 s |
 | **SAM 3.1** | optional existing-part photo segmentation | `/api/photo/segment` | optional |
 
 **AI safety/grounding rules:** the browser never sees the key; every model response is JSON-schema
@@ -86,12 +89,14 @@ that the verified engine evaluates and ranks. The AI may phrase numbers; it may 
   and independent quadrature.
 - Deterministic multi-start pattern-search optimiser (mass minimisation subject to P_f ≤ target), with
   six baseline strategies (solid, uniform, mass-matched, nominal FoS 1.5, mean-only, robust).
-- Batch passport: per-lot width-scale compensation and acceptance window.
-- Independent validation suite: **45 PASS / 1 WARN / 0 FAIL** — including a re-implemented frame element,
+- Batch passport: lot-specific 8-control resize + global-equivalent slicer scale, measurement CV retained, acceptance window, and a QC record (lot identity, supplier, measurement, recycled-content paperwork claim).
+- Independent validation suite: **51 PASS / 2 WARN / 0 FAIL** — including a re-implemented frame element, corrected full-length union sampling, Halton-QMC vs 2e6-sample Monte Carlo, cell-size and pin-joint model-form bands, coupon pre-registration,
   an energy-minimisation solver, 1e6-sample Monte-Carlo checks, periodic unit-cell homogenisation,
-  optimiser brute-force comparison, and STL geometry audit. The single WARN is a *known, quantified*
-  conservatism: analytic strut-volume mass over-counts overlap at joints (robust design: analytic 50.7 g
-  vs union estimate ≈40.5 g, ~25 % conservative). See [`validation/VALIDATION.md`](validation/VALIDATION.md).
+  optimiser brute-force comparison, and STL geometry audit. The two WARNs are *known, quantified*
+  items: analytic strut-sum is an upper bound (robust design: analytic 50.8 g vs printed union
+  estimate 46.4 g, +9.5 % conservative; the old 25 %/40.5 g figure came from a validator sampler bug and is retired).
+  The Halton printed-union estimate itself is audited against independent Monte Carlo (F5): ≤0.1 % on the shipped
+  designs, worst 0.35 % at w=1 mm — the second documented WARN. See [`validation/VALIDATION.md`](validation/VALIDATION.md).
 
 ## Honest limits (also on the Prove screen)
 
@@ -113,7 +118,9 @@ AnyRB/
 ├── engine/                     ← canonical Python engine + 29 tests + fixtures
 ├── research/                   ← cited dossiers 00–05 + machine-readable references
 ├── reports/                    ← qualification report, STL, PDFs
-├── audit/                      ← independent audit + re-audit + hackathon audit (verdict: SHIP, no blockers)
+├── audit/                      ← historical v0.2 audits (SHIP) + v0.3 delta audit
+├── REVIEW_RESPONSE.md          ← point-by-point reply to the external review
+├── V0_3_SPEC.md                ← shared v0.3 response contract
 ├── PRODUCT_V2.md               ← product/IA/AI requirements
 ├── HACKATHON.md                ← submission pack: models, demo script, checklist
 ├── REPORT.md                   ← research synthesis (the scientific answer, cited)

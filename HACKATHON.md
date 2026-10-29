@@ -7,6 +7,14 @@
 > give it the batch you actually have, and it designs internal geometry that behaves reliably. Meta models
 > act as the design partner; a verified physics engine does the math.*
 
+## v0.3 review-response highlights
+
+- Printed/union mass is the headline (~46.4 g robust; analytic 50.8 g is a conservative upper bound).
+- Printability (neighbour ratio ≤1.5, slenderness ≤30) is enforced in the optimiser.
+- Known-lot passports retain 12 % measurement uncertainty; compensation is an 8-control lot-specific resize.
+- Brief runs an engine feasibility gate before any AI candidate is drawn; sustained-load creep bound is shown as an advisory.
+- Full point-by-point response: `REVIEW_RESPONSE.md`; coupon pre-registration: `validation/COUPON_TEST_PLAN.md`.
+
 ## Why this is a frontier problem
 
 Recycled plastics are cheap and required by regulation, but their mechanical properties swing wildly from
@@ -21,9 +29,9 @@ it usable by a designer instead of a CAE expert.
 
 | Model | Role in AnyRB | Endpoint | Verified latency |
 |---|---|---|---|
-| **Muse Spark 1.3 Contributor** | brief parser, lot-datasheet extractor, design proposer, design reviewer, qualification narrative | `/api/brief/parse`, `/api/lot/parse`, `/api/design/plan`, `/api/design/review`, `/api/proof/memo` | 8–25 s measured (reasoning model) |
-| **Muse Image 1.0** | illustrative product render for the design card | `/api/image/render` | 12–19 s (WebP 1600² → image data URL) |
-| **Muse Voice Transcribe 1.0** | hands-free design brief | `/api/voice/transcribe` | ~3.7 s (exact transcript) |
+| **Muse Spark 1.3 Contributor** | brief parser, lot-datasheet extractor, design proposer, design reviewer, qualification narrative | `/api/brief/parse`, `/api/lot/parse`, `/api/design/plan`, `/api/design/review`, `/api/proof/memo` | 9–20 s measured (v0.3 live pass; reasoning model) |
+| **Muse Image 1.0** | illustrative product render for the design card | `/api/image/render` | ~19 s (WebP 1600² → image data URL) |
+| **Muse Voice Transcribe 1.0** | hands-free design brief | `/api/voice/transcribe` | ~3.6 s (exact transcript) |
 | **SAM 3.1** (optional) | segment an existing part photo for the brief | `/api/photo/segment` | tested, optional |
 
 Everything is cached on disk and logged for provenance. If the network or API fails, a deterministic
@@ -51,12 +59,12 @@ The browser never sees the API key; it stays in a local server process.
    1 % failure risk, under 60 g, recycled PETG."* Show the transcript, then Muse Spark's structured
    understanding card. Paste a supplier datasheet; Spark extracts E, σy, CVs with provenance.
 3. **0:55–1:35 — Design (AI proposes, physics disposes).** Show three AI-proposed candidates; the verified
-   engine ranks them. Pick the balanced one and optimise: 62.7 g → 50.7 g at ~1 % failure probability.
+   engine ranks them. Pick the balanced one and optimise: 62.7 g → 46.4 g at ~1 % failure probability.
    Show the lattice, the binding failure mode and the AI memo.
 4. **1:35–2:10 — Prove.** Batch passport: a lot with 80 % of nominal E needs a 1.10× width scale (+8.5 % mass)
    and passes; a 50 %-E lot is rejected. Scientific validation checklist (L0–L1 verified, L2 partial, no
    physical tests). Muse Spark writes the qualification narrative; Muse Image renders the illustrative product.
-5. **2:10–2:40 — Why it matters.** 54 % lighter than a solid plate at the same simulated risk; 16 % lighter than
+5. **2:10–2:40 — Why it matters.** 58 % lighter than a solid plate at the same simulated risk; 14 % lighter than
    a uniform lattice; conventional FoS-1.5 over-pays. The claim ladder and minimum validation programme
    (T1/T2/T3) are on screen: decision support, not certification.
 6. **2:40–3:00 — Close.** "Recycled plastic is not a second-class material. It's a distribution. AnyRB
@@ -89,12 +97,12 @@ Tests: `make test` (engine, 29) · `make test-server` (API, mock) · `node app/t
 No physical testing was performed. Material distributions are literature-derived and must be replaced by
 user lot data. The mechanics is a linear-elastic 2-D frame idealisation (no plasticity, creep, fatigue, layer
 anisotropy, out-of-plane behaviour, joint detail or print defects). The optimiser is a multi-start local
-search. Reported mass counts strut volumes before unioning at joints (analytic 50.7 g vs ≈40.5 g union
-estimate for the robust design), so mass figures are conservative. AI text is grounded in engine outputs but
+search. All displayed/exported design masses are printed union estimates (robust design 46.4 g); the
+analytic strut-sum (50.8 g) is a conservative upper bound (+9.5 %). The old 25 %/≈40.5 g figure
+came from a validator sampler bug and is retired. AI text is grounded in engine outputs but
 is explanatory, not analytical. The product is decision-support software and does not certify any part or
 material.
 
-**Independent validation (46 checks):** 45 PASS / 1 WARN / 0 FAIL — re-implemented frame element, energy
+**Independent validation (53 checks):** 51 PASS / 2 WARN / 0 FAIL — re-implemented frame element, energy
 minimisation vs direct stiffness, SciPy/quad/1e6-MC reliability cross-checks, periodic unit-cell
-homogenisation, brute-force optimiser comparison, STL geometry audit; the WARN is the mass-overlap
-conservatism above. See `validation/VALIDATION.md`.
+homogenisation, brute-force optimiser comparison, STL geometry audit; the two WARNs are the analytic mass upper bound and the Halton printed-estimate tolerance at minimum width. See `validation/VALIDATION.md`.

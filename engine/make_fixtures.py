@@ -15,7 +15,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from anyrb.lattice import (build_lattice, widths_from_controls, uniform_controls,
+from anyrb.lattice import (build_lattice, widths_from_controls, uniform_controls, printability_report,
                               NX, NY, PAD_LEN, CELL, DEPTH, HEIGHT, LENGTH,
                               W_MIN, W_MAX, U_LIMIT, F_DESIGN)
 from anyrb.materials import PRESETS
@@ -50,6 +50,9 @@ for name, mat_key, controls in designs:
         "controls": np.asarray(controls, float).tolist(),
         "widths_mm": r["widths"].tolist(),
         "mass_g": r["mass_g"],
+        "mass_analytic_g": r["mass_analytic_g"],
+        "printed_mass_g": r["printed_mass_g"],
+        "printability": printability_report(lat, r["widths"]),
         "sigma_req_MPa": r["sigma_req_MPa"],
         "E_req_MPa": r["E_req_MPa"],
         "E_req_def_MPa": r["E_req_def_MPa"],
@@ -79,6 +82,9 @@ cases.append({
     "controls": np.asarray(robust.controls, float).tolist(),
     "widths_mm": r["widths"].tolist(),
     "mass_g": r["mass_g"],
+    "mass_analytic_g": r["mass_analytic_g"],
+    "printed_mass_g": r["printed_mass_g"],
+    "printability": printability_report(lat, r["widths"]),
     "sigma_req_MPa": r["sigma_req_MPa"],
     "E_req_MPa": r["E_req_MPa"],
     "E_req_def_MPa": r["E_req_def_MPa"],

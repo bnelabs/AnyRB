@@ -256,27 +256,27 @@ function clampWidth(w) {
 /** Build the three deterministic design priors from a first-pass feasibility width. */
 export function fallbackPlan(brief, material, ctx) {
   const targetPf = brief.targetPf ?? DEFAULTS.targetPf;
-  const feasible = O.feasibleUniformStart(material, ctx, targetPf);
-  const w0 = Math.exp(feasible[0]);
-  const d = 0.34;
+  // Deterministic engine-backed priors for the offline assistant: the verified
+  // multi-start optimum gives the balanced direction; light/conservative scale
+  // it to expose the mass-vs-reliability trade-off. Every candidate is still
+  // evaluated and ranked by the engine (printed mass + printability gate).
+  const opt = O.robustOptimize(material, ctx, { targetPf });
+  const widths = E.designWidths(opt.design);
+  const scaled = (s) => widths.map((w) => clampWidth(w * s));
   const candidates = [
-    {
-      id: 'light', ...CANDIDATE_META.light,
-      controlWidthsMm: Array.from({ length: 8 }, () => clampWidth(w0 - 0.06)),
-    },
-    {
-      id: 'balanced', ...CANDIDATE_META.balanced,
-      controlWidthsMm: [
-        clampWidth(w0 + d), clampWidth(w0 + d * 0.45), clampWidth(w0 + 0.04), clampWidth(w0 - d * 0.4),
-        clampWidth(w0 + d * 0.8), clampWidth(w0 + d * 0.3), clampWidth(w0), clampWidth(w0 - d * 0.55),
-      ],
-    },
-    {
-      id: 'conservative', ...CANDIDATE_META.conservative,
-      controlWidthsMm: Array.from({ length: 8 }, () => clampWidth(w0 + d * 1.15)),
-    },
+    { id: 'light', ...CANDIDATE_META.light, controlWidthsMm: scaled(0.94) },
+    { id: 'balanced', ...CANDIDATE_META.balanced, controlWidthsMm: widths.map((w) => clampWidth(w)) },
+    { id: 'conservative', ...CANDIDATE_META.conservative, controlWidthsMm: scaled(1.14) },
   ];
-  return { candidates, model: OFFLINE_MODEL, fallback: true, targetPf, firstPassWidthMm: w0, note: 'Deterministic priors from a first-pass feasibility solve.' };
+  return {
+    candidates,
+    model: OFFLINE_MODEL,
+    fallback: true,
+    targetPf,
+    firstPassWidthMm: Math.exp(O.feasibleUniformStart(material, ctx, targetPf)[0]),
+    basePrintedMassG: opt.printed_mass_g,
+    note: 'Deterministic priors from the verified multi-start optimum (± width scale).',
+  };
 }
 
 function coerceControlWidths(raw) {
@@ -329,21 +329,31 @@ export function normalizePlan(raw) {
 /** Evaluate one prior with the verified engine. */
 export function evaluateCandidate(candidate, material, ctx, targetPf) {
   const logWidth = candidate.controlWidthsMm.map((w) => Math.log(clampWidth(w)));
-  const analysis = E.analyzeLattice(logWidth, ctx);
+  const analysis = E.analyzeLattice(logWidth, ctx); // computes printed/union mass
   const pf = E.probabilityOfFailure(analysis, material, 'lot');
   const modes = E.failureModes(analysis, material, 'lot');
   const printability = E.printabilityReport(analysis);
-  const feasible = pf <= targetPf + 1e-12;
+  const printedMass = analysis.printed_mass_g ?? analysis.mass_g;
+  const printabilityPass = !!(printability && printability.pass);
+  // v0.3: candidate ranking uses PRINTED mass and requires printability pass.
+  const feasible = pf <= targetPf + 1e-12 && printabilityPass;
   const violation = Math.max(0, (pf - targetPf) / targetPf);
-  const score = feasible ? analysis.mass_g : analysis.mass_g * (1 + 100 * violation);
+  const printPenalty = printability
+    ? 80 * (Math.max(0, printability.max_neighbour_width_ratio - 1.5) / 0.5
+      + Math.max(0, printability.max_slenderness - 30) / 30)
+    : 0;
+  const score = feasible ? printedMass : printedMass * (1 + 100 * violation + printPenalty);
   return {
     ...candidate,
     logWidth,
     analysis,
-    mass_g: analysis.mass_g,
+    mass_g: printedMass,
+    mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
+    printed_mass_g: printedMass,
     pf,
     reliability: 1 - pf,
     feasible,
+    printabilityPass,
     score,
     governing: modes.governingLabel,
     printability,
@@ -352,7 +362,6 @@ export function evaluateCandidate(candidate, material, ctx, targetPf) {
     deflection_mm: analysis.deflectionScale / material.E_mean,
   };
 }
-
 /**
  * Optimise each AI prior with the verified engine, then rank.
  * The AI proposes starting points; the physics returns the final mass/P_f.
@@ -368,36 +377,57 @@ export function optimizeAndRankCandidates(candidates, material, ctx, targetPf) {
       while (!step.done) step = search.next();
       if (step.value && step.value.design) logWidth = step.value.design;
     } catch (err) { /* keep the prior */ }
-    const analysis = E.analyzeLattice(logWidth, ctx);
-    const pf = E.probabilityOfFailure(analysis, material, 'lot');
-    const modes = E.failureModes(analysis, material, 'lot');
-    const printability = E.printabilityReport(analysis);
-    const feasible = pf <= targetPf + 1e-12;
-    const violation = Math.max(0, (pf - targetPf) / targetPf);
-    const score = feasible ? analysis.mass_g : analysis.mass_g * (1 + 100 * violation);
-    return {
-      ...candidate,
-      logWidth,
-      analysis,
-      mass_g: analysis.mass_g,
-      pf,
-      reliability: 1 - pf,
-      feasible,
-      score,
-      governing: modes.governingLabel,
-      printability,
-      sigma_y_req: analysis.demands.sigma_y_req,
-      E_req: analysis.demands.E_req,
-      deflection_mm: analysis.deflectionScale / material.E_mean,
-      optimisedFromPrior: true,
-    };
+    // v0.3: re-evaluate through the printed-mass/printability path so candidate
+    // cards show printed mass, analytic upper bound and the printability gate.
+    const widths = E.designWidths(logWidth).map((w) => clampWidth(w));
+    const evaluated = evaluateCandidate({ ...candidate, controlWidthsMm: widths }, material, ctx, targetPf);
+    return { ...evaluated, logWidth, optimisedFromPrior: true, priorId: candidate.id };
   });
   optimised.sort((a, b) => {
     if (a.feasible !== b.feasible) return a.feasible ? -1 : 1;
     if (Math.abs(a.score - b.score) > 1e-9) return a.score - b.score;
-    return a.mass_g - b.mass_g;
+    return a.printed_mass_g - b.printed_mass_g;
   });
   return optimised.map((c, i) => ({ ...c, rank: i + 1 }));
+}
+
+/**
+ * v0.3 hero design: the final engine-optimised result (multi-start pattern search),
+ * chosen by printed mass with the printability gate. Kept SEPARATE from the three
+ * AI priors so the Design screen shows defensible trade-offs instead of copies.
+ */
+export function recommendedDesign(materialIn, ctx, targetPf) {
+  const material = materialIn;
+  const opt = O.robustOptimize(material, ctx, { targetPf });
+  const analysis = opt.analysis;
+  const printability = E.printabilityReport(analysis);
+  const printed = analysis.printed_mass_g ?? analysis.mass_g;
+  const feasible = opt.pf <= targetPf * 1.02 && !!(printability && printability.pass);
+  return {
+    id: 'optimised',
+    name: 'Engine-optimised',
+    strategy: 'multi-start robust pattern search',
+    rationale: `Final engine-optimised design (multi-start pattern search): ${printed.toFixed(2)} g printed, chosen by printed mass with the printability constraint.`,
+    tagline: 'Recommended',
+    logWidth: opt.design,
+    controlWidthsMm: E.designWidths(opt.design).map((w) => clampWidth(w)),
+    analysis,
+    printed_mass_g: printed,
+    mass_g: printed,
+    mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
+    pf: opt.pf,
+    reliability: 1 - opt.pf,
+    feasible,
+    printabilityPass: !!(printability && printability.pass),
+    score: printed,
+    governing: E.failureModes(analysis, material, 'lot').governingLabel,
+    printability,
+    sigma_y_req: analysis.demands.sigma_y_req,
+    E_req: analysis.demands.E_req,
+    deflection_mm: analysis.deflectionScale / material.E_mean,
+    starts: opt.starts || [],
+    isOptimised: true,
+  };
 }
 
 /** Engine-rank candidates: feasible first by mass, then by penalty score. */
@@ -441,9 +471,9 @@ export function fallbackDesignReview(payload) {
 export function fallbackProofMemo(payload) {
   const f = payload && payload.facts ? payload.facts : payload || {};
   const memo = [
-    `Qualification narrative: the selected design (${num(f.mass_g, 2)} g) meets a ${pct(f.target_pf, 2)} batch reliability target with a closed-form P_f of ${pct(f.pf, 3)} (${f.feasible ? 'pass' : 'fail'}).`,
+    `Qualification narrative: the selected design (${num(f.mass_g, 2)} g printed mass; analytic upper bound ${num(f.mass_analytic_upper_bound_g, 2)} g) meets a ${pct(f.target_pf, 2)} batch reliability target with a closed-form P_f of ${pct(f.pf, 3)} (${f.feasible ? 'pass' : 'fail'}).`,
     `The governing mode is ${f.governing_mode || 'not computed'}; the material demand is ${num(f.sigma_y_req_mpa, 2)} MPa at yield and ${num(f.E_req_mpa, 0)} MPa stiffness.`,
-    `The batch acceptance window shows the lot-mean envelope in which the design stays inside the target; the passport translates a measured lot into a uniform width scale.`,
+    `The batch acceptance window shows the lot-mean envelope in which the design stays inside the target; the known-lot passport re-optimises all ${(() => (Array.isArray(f.widths_mm) ? f.widths_mm.length : 8))()} width controls for the measured lot with measurement uncertainty retained (${num(f.measurement_cv, 2)} CV).`,
     `Key risk: feedstock distribution assumptions from literature-derived presets — replace them with the supplier's own lot data before production.`,
     `Recommended next test: measure lot E and σy on printed ISO 527-2 specimens from the incoming batch and re-run the passport.`,
   ].join(' ');
@@ -776,23 +806,24 @@ export function makeProvenance(entry = {}) {
 // robust design: 32,692 mm³ union vs 40,921 mm³ analytic (≈ 20 % lower printed).
 // We report the CONSERVATIVE analytic figure everywhere; this footnote keeps it honest.
 // ---------------------------------------------------------------------------
+// v0.3 mass basis: analytic mass is a conservative UPPER BOUND; the displayed
+// design mass is the deterministic printed/union (Halton QMC) mass.
 export const MASS_UNION = {
-  analyticMassG: 50.73,
-  unionMassG: 40.54,
-  analyticVolumeMm3: 40921,
-  unionVolumeMm3: 32692,
-  unionRatio: 32692 / 40921,
-  validatorNote: 'Validator F4: analytic mass counts strut volumes before unioning at joints; voxel-union estimate is ~20 % lower.',
+  analyticMassG: 50.78,
+  unionMassG: 46.40,
+  unionRatio: 46.40 / 50.78,
+  note: 'Halton QMC union, 60,000 samples — matches the Python reference within 0.5 %.',
+  validatorNote: 'Validator F4 (fixed v0.3): analytic mass double-counts strut overlap; at the shipped robust design analytic 50.78 g vs printed union ≈46.40 g (+9.4 % upper bound). The app reports printed mass; analytic is shown as the upper bound only.',
 };
-export function massDisclosure(analyticMassG) {
-  const mass = Number.isFinite(analyticMassG) ? analyticMassG : MASS_UNION.analyticMassG;
-  const union = mass * MASS_UNION.unionRatio;
-  const pct = (1 - MASS_UNION.unionRatio) * 100;
+export function massDisclosure(printedMassG) {
+  const printed = Number.isFinite(printedMassG) ? printedMassG : MASS_UNION.unionMassG;
+  const upper = printed / MASS_UNION.unionRatio;
+  const pct = (upper / printed - 1) * 100;
   return {
-    analytic_g: round2(mass, 2),
-    union_estimate_g: round2(union, 1),
-    difference_pct: round2(pct, 0),
-    note: `Analytic mass counts strut volumes before unioning at joints; the union/printed estimate is ≈${round2(union, 1)} g (about ${round2(pct, 0)} % lower). We report the conservative figure. Comparison bars use the same analytic basis.`,
+    printed_g: round2(printed, 2),
+    analytic_upper_bound_g: round2(upper, 2),
+    upper_bound_pct: round2(pct, 1),
+    note: `Displayed mass is the deterministic printed/union estimate (Halton QMC); the analytic upper bound is ≈${round2(upper, 2)} g (about ${round2(pct, 1)} % higher because strut overlap is counted twice). Comparison bars use printed mass.`,
     sample_union_g: MASS_UNION.unionMassG,
   };
 }
@@ -804,16 +835,16 @@ export function validationFallback() {
   return {
     source: 'embedded fallback (validation/results.json not available)',
     generated: null,
-    counts: { PASS: 45, WARN: 1, FAIL: 0 },
-    total: 46,
-    runtime_s: 12.6,
+    counts: { PASS: 51, WARN: 2, FAIL: 0 },
+    total: 53,
+    runtime_s: null,
     checks: [
       { id: 'A', title: 'FE element benchmarks', detail: 'A1–A7: axial, cantilever, rigid body, independent assembly, equilibrium, symmetry, linearity — 8/8 pass', status: 'pass' },
       { id: 'B', title: 'Independent solver', detail: 'Energy-minimisation cross-check of the assembled system — 2/2 pass', status: 'pass' },
       { id: 'C', title: 'Reliability closed form', detail: 'Closed-form bivariate P_f vs SciPy, high-precision quadrature and Monte-Carlo — 10/10 pass', status: 'pass' },
       { id: 'D', title: 'Optimiser robustness', detail: 'Brute-force grid + independent random search find no better feasible design — 5/5 pass', status: 'pass' },
       { id: 'E', title: 'Homogenisation check', detail: 'Periodic unit-cell energy/stress vs analytical truss scaling — 6/6 pass', status: 'pass' },
-      { id: 'F', title: 'Mass & STL audit', detail: 'Joint-overlap mass over-count (known, conservative): analytic 40,921 mm³ vs 32,692 mm³ union (+25.2 % at the robust design)', status: 'warn' },
+      { id: 'F', title: 'Mass & STL audit', detail: 'Corrected F4 joint-overlap mass over-count (known, conservative, analytic is the upper bound) + F5 Halton printed-mass estimator WARN (60k QMC vs 600k MC) — both quantified', status: 'warn' },
       { id: 'G', title: 'Material-model audit', detail: 'Lognormal moments, correlation, two-level variance decomposition — 4/4 pass', status: 'pass' },
       { id: 'H', title: 'Cross-implementation', detail: 'Python ↔ JS fixture agreement — 4/4 pass', status: 'pass' },
       { id: 'I', title: 'Claim scope', detail: 'Number-grounding and claims-ladder audit — 2/2 pass', status: 'pass' },
@@ -826,7 +857,7 @@ export function validationFallback() {
       { id: 'L4–L6', level: 'Component / system / certified', status: 'absent', text: 'No coupon or full-bracket experiments, no certification. Decision support only.' },
     ],
     modelFormLimitations: {
-      massOvercount: 'Reported mass double-counts strut overlap (F4): +20.2 % at w=1, +28.7 % at w=2, +46.6 % at w=4; shipped robust design +25.2 % (union 32,692 mm³ vs analytic 40,921 mm³).',
+      massOvercount: 'Analytic mass double-counts strut overlap by definition and is reported only as an upper bound (corrected F4). The Halton 60k printed-mass estimate is within 0.5 % of a 600k-sample MC (F5 WARN: deterministic QMC noise, quantified).',
       buckling: 'Euler buckling with pinned–pinned effective length; no combined axial–bending interaction.',
       joints: 'Printed node/joint compliance and local stress concentrations are not modelled; rigid joints assumed.',
       noExperiments: 'No physical specimens were tested; nothing here is experimental validation.',
@@ -840,32 +871,37 @@ export function validationFallback() {
 export function buildDesignMemoPayload({ brief, selected, comparison }) {
   const a = selected.analysis;
   const print = selected.printability || {};
+  const printed = selected.printed_mass_g ?? selected.mass_g ?? a.printed_mass_g ?? a.mass_g;
+  const analytic = selected.mass_analytic_g ?? a.mass_analytic_g ?? a.mass_g;
   const facts = {
-    mass_g: round2(a.mass_g),
+    mass_g: round2(printed, 2),
+    printed_mass_g: round2(printed, 2),
+    mass_analytic_upper_bound_g: round2(analytic, 2),
+    analytic_upper_bound_pct: round2((analytic / printed - 1) * 100, 1),
     pf: selected.pf,
     pf_pct: round2(selected.pf * 100, 3),
     target_pf: brief.targetPf,
     target_pct: round2(brief.targetPf * 100, 2),
     reliability_pct: round2((1 - selected.pf) * 100, 3),
     feasible: selected.feasible,
+    printability_pass: selected.printabilityPass ?? !!(print.pass),
     pf_floor_pct: 0.001,
     governing_mode: selected.governing,
     sigma_y_req_mpa: round2(selected.sigma_y_req, 2),
     E_req_mpa: round2(selected.E_req, 0),
-    min_width_mm: round2(print.minWidth, 2),
-    max_slenderness: round2(print.maxSlenderness, 1),
-    neighbour_ratio: round2(print.maxNeighbourRatio, 2),
+    min_width_mm: round2(print.min_width_mm ?? print.minWidth, 2),
+    max_slenderness: round2(print.max_slenderness ?? print.maxSlenderness, 1),
+    neighbour_ratio: round2(print.max_neighbour_width_ratio ?? print.maxNeighbourRatio, 2),
     printability_warn: !!(print.warnNeighbour || print.warnSlenderness),
     load_n: brief.loadN,
     deflection_limit_mm: brief.deflLimitMm,
     deflection_mm: round2(selected.deflection_mm, 2),
     part_type: brief.partType,
     process: brief.process,
-    mass_union_g: massDisclosure(round2(a.mass_g, 2)).union_estimate_g,
-    mass_union_diff_pct: massDisclosure(round2(a.mass_g, 2)).difference_pct,
     widths_mm: (selected.controlWidthsMm || []).map((w) => round2(w, 2)),
     conventional_mass_g: comparison && comparison.conventional ? round2(comparison.conventional.mass_g, 1) : null,
     conventional_pf_pct: comparison && comparison.conventional ? round2(comparison.conventional.pf * 100, 2) : null,
+    family_scope: 'best of this bracket/lattice family',
   };
   return { facts, target_pf: brief.targetPf, design: { control_widths_mm: facts.widths_mm } };
 }
@@ -873,23 +909,47 @@ export function buildDesignMemoPayload({ brief, selected, comparison }) {
 export function buildProofPayload({ brief, selected, proof, validation }) {
   const base = buildDesignMemoPayload({ brief, selected });
   const f = base.facts;
-  const mass = massDisclosure(f.mass_g);
+  const disclosure = massDisclosure(f.mass_g);
   const counts = validation && validation.counts
     ? { PASS: validation.counts.PASS, WARN: validation.counts.WARN, FAIL: validation.counts.FAIL }
     : { PASS: 45, WARN: 1, FAIL: 0 };
   const total = validation && (validation.total || validation.countsTotal) ? (validation.total || validation.countsTotal) : 46;
+  const sustained = proof && proof.sustained ? proof.sustained : null;
+  const recipe = proof && proof.recipe ? proof.recipe : null;
   return {
     facts: {
       ...f,
-      mass_union_g: mass.union_estimate_g,
-      mass_union_diff_pct: mass.difference_pct,
-      accepted_lot_scale: proof && proof.passport && proof.passport.scale ? round2(proof.passport.scale, 3) : null,
-      acceptance_window_slope: null,
+      mass_analytic_upper_bound_g: disclosure.analytic_upper_bound_g,
+      analytic_upper_bound_pct: disclosure.upper_bound_pct,
       validation_passed: counts.PASS,
       validation_warn: counts.WARN,
       validation_total: total,
+      family_scope: 'best of this bracket/lattice family',
+      sustained_pf_bound: sustained ? round2(sustained.pf_bound, 6) : null,
+      sustained_deflection_bound_mm: sustained ? round2(sustained.deflection_bound_mm, 2) : null,
+      sustained_qualified: sustained ? sustained.pf_bound <= (brief.targetPf ?? 0.01) : null,
+      recipe_global_scale: recipe ? round2(recipe.global_equivalent_scale, 3) : null,
+      recipe_added_mass_pct: recipe ? round2(recipe.added_mass_pct, 2) : null,
+      recipe_pf: recipe ? round2(recipe.pf, 6) : null,
+      recipe_verdict: recipe ? recipe.verdict : null,
+      measurement_cv: recipe ? recipe.measurement_cv : null,
     },
     validation: { counts, total },
+    sustained: sustained ? {
+      pf_bound: round2(sustained.pf_bound, 6),
+      E_req_bound_MPa: round2(sustained.E_req_bound_MPa, 1),
+      sigma_req_bound_MPa: round2(sustained.sigma_req_bound_MPa, 2),
+      deflection_bound_mm: round2(sustained.deflection_bound_mm, 2),
+      qualified: sustained.pf_bound <= (brief.targetPf ?? 0.01),
+    } : null,
+    recipe: recipe ? {
+      width_multipliers: recipe.width_multipliers.map((v) => round2(v, 3)),
+      global_equivalent_scale: round2(recipe.global_equivalent_scale, 3),
+      added_mass_pct: round2(recipe.added_mass_pct, 2),
+      pf: round2(recipe.pf, 6),
+      verdict: recipe.verdict,
+      measurement_cv: recipe.measurement_cv,
+    } : null,
     proof: proof || null,
   };
 }
@@ -912,10 +972,10 @@ export function claimsLadderFromValidation(validation) {
 /** Claims ladder shown in the UI (honest wording, fixed copy). */
 export function claimsLadder() {
   return [
-    { level: 'Verified', text: 'FE element benchmarks, closed-form reliability vs SciPy/quadrature/Monte-Carlo, mass and STL audits', tone: 'green' },
-    { level: 'Supported', text: 'Batch-distribution reliability and robust design *under the stated model assumptions*', tone: 'ink' },
-    { level: 'Illustrative', text: 'Batch passport compensation and acceptance windows (v0.1 logic, needs supplier calibration)', tone: 'amber' },
-    { level: 'Not claimed', text: 'Physical part performance, certification, fatigue, creep, out-of-plane or layer-normal strength', tone: 'muted' },
+    { level: 'Verified', text: 'FE element benchmarks, closed-form reliability vs SciPy/quadrature/Monte-Carlo, printed-mass/STL audits, printability and 8-control lot-resize checks', tone: 'green' },
+    { level: 'Supported', text: 'Batch-distribution reliability and robust design under the stated model assumptions — best of this bracket/lattice family', tone: 'ink' },
+    { level: 'Illustrative', text: 'Known-lot compensation, sustained-load advisory and acceptance windows (v0.1 logic; needs supplier calibration)', tone: 'amber' },
+    { level: 'Not claimed', text: 'Physical part performance, certification, fatigue/creep validation, out-of-plane or layer-normal strength, general topology optimality', tone: 'muted' },
   ];
 }
 

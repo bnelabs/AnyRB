@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-29T17:32:42+0300",
+ "generated": "2026-10-29T18:59:55+0300",
  "base_url": "https://api.meta.ai/v1",
  "models": {
   "spark": "muse-spark-1.3-contributor",
@@ -10,10 +10,17 @@
  },
  "reasoning_effort": "low",
  "mode": "live",
- "session_id": "ebf493e4b163",
+ "session_id": "3eb9c9411aee",
  "engine": {
-  "canonical": "python engine 0.1 + JS engine 0.2",
-  "design_target_pf": 0.01
+  "version": "0.3",
+  "canonical": "python engine 0.3 + JS engine 0.3",
+  "design_target_pf": 0.01,
+  "printed_mass": true,
+  "mass_analytic_upper_bound": true,
+  "family_feasibility": true,
+  "lot_specific_recipe": true,
+  "sustained_bound": true,
+  "measurement_cv_default": 0.12
  },
  "calls": [
   {
@@ -30,28 +37,28 @@
    "tokens": {},
    "grounding": null,
    "summary": {},
-   "response_hash": "91c5fa0039ee44b8"
+   "response_hash": "28f41c0440b0db5d"
   },
   {
    "endpoint": "POST /api/brief/parse",
    "status": 200,
    "ok": true,
    "required": true,
-   "wall_s": 10.55,
+   "wall_s": 9.84,
    "model": "muse-spark-1.3-contributor",
-   "latency_s": 10.544,
+   "latency_s": 9.834,
    "cached": false,
    "fallback": false,
    "mock": false,
    "tokens": {
-    "completion_tokens": 888,
-    "prompt_tokens": 396,
-    "total_tokens": 1284,
+    "completion_tokens": 856,
+    "prompt_tokens": 462,
+    "total_tokens": 1318,
     "completion_tokens_details": {
-     "reasoning_tokens": 780
+     "reasoning_tokens": 736
     },
     "prompt_tokens_details": {
-     "cached_tokens": 369
+     "cached_tokens": 0
     }
    },
    "grounding": null,
@@ -65,28 +72,28 @@
     "process": "printed",
     "confidence": "high"
    },
-   "response_hash": "a0b5e36382ed99b5"
+   "response_hash": "5f8457de65990af7"
   },
   {
    "endpoint": "POST /api/lot/parse",
    "status": 200,
    "ok": true,
    "required": true,
-   "wall_s": 10.34,
+   "wall_s": 11.57,
    "model": "muse-spark-1.3-contributor",
-   "latency_s": 10.337,
+   "latency_s": 11.564,
    "cached": false,
    "fallback": false,
    "mock": false,
    "tokens": {
-    "completion_tokens": 815,
-    "prompt_tokens": 335,
-    "total_tokens": 1150,
+    "completion_tokens": 1078,
+    "prompt_tokens": 414,
+    "total_tokens": 1492,
     "completion_tokens_details": {
-     "reasoning_tokens": 705
+     "reasoning_tokens": 874
     },
     "prompt_tokens_details": {
-     "cached_tokens": 241
+     "cached_tokens": 0
     }
    },
    "grounding": null,
@@ -100,28 +107,28 @@
     "rho": 0.95,
     "source_label": "Recycled rHDPE lot 2026-31 from MRF North"
    },
-   "response_hash": "601f3eb950efecec"
+   "response_hash": "f774175b6fe43625"
   },
   {
    "endpoint": "POST /api/design/plan",
    "status": 200,
    "ok": true,
    "required": true,
-   "wall_s": 17.96,
+   "wall_s": 13.73,
    "model": "muse-spark-1.3-contributor",
-   "latency_s": 17.951,
+   "latency_s": 13.716,
    "cached": false,
    "fallback": false,
    "mock": false,
    "tokens": {
-    "completion_tokens": 1688,
-    "prompt_tokens": 503,
-    "total_tokens": 2191,
+    "completion_tokens": 1258,
+    "prompt_tokens": 764,
+    "total_tokens": 2022,
     "completion_tokens_details": {
-     "reasoning_tokens": 1426
+     "reasoning_tokens": 1012
     },
     "prompt_tokens_details": {
-     "cached_tokens": 497
+     "cached_tokens": 0
     }
    },
    "grounding": null,
@@ -129,96 +136,67 @@
     "candidates": [
      {
       "id": "A",
-      "name": "Wall Reinforced Heavy",
+      "name": "Wall Heavy Graded",
       "widths_mm": [
-       3.2,
+       3.5,
        2.8,
        2.2,
        1.8,
        3.2,
-       2.8,
-       2.2,
-       1.8
+       2.6,
+       2.0,
+       1.6
       ]
      },
      {
       "id": "B",
-      "name": "Graded Balanced Design",
+      "name": "Balanced Taper Lattice",
       "widths_mm": [
-       2.6,
+       2.8,
        2.2,
        1.8,
        1.4,
        2.6,
-       2.2,
-       1.8,
-       1.4
+       2.0,
+       1.6,
+       1.2
       ]
      },
      {
       "id": "C",
       "name": "Light Tip Taper",
       "widths_mm": [
-       2.0,
-       1.6,
-       1.3,
+       2.2,
+       1.8,
+       1.4,
        1.0,
        2.0,
        1.6,
-       1.3,
+       1.2,
        1.0
       ]
      }
     ]
    },
-   "response_hash": "718898724ae9530f"
+   "response_hash": "4d42ce2cd1326c6b"
   },
   {
    "endpoint": "POST /api/design/review",
    "status": 200,
    "ok": true,
    "required": true,
-   "wall_s": 13.04,
+   "wall_s": 19.33,
    "model": "muse-spark-1.3-contributor",
-   "latency_s": 13.033,
+   "latency_s": 19.316,
    "cached": false,
    "fallback": false,
    "mock": false,
    "tokens": {
-    "completion_tokens": 1290,
-    "prompt_tokens": 558,
-    "total_tokens": 1848,
+    "completion_tokens": 1883,
+    "prompt_tokens": 1091,
+    "total_tokens": 2974,
     "completion_tokens_details": {
-     "reasoning_tokens": 1076
-    },
-    "prompt_tokens_details": {
-     "cached_tokens": 497
-    }
-   },
-   "grounding": true,
-   "summary": {
-    "memo": "Shelf bracket robust design at 50.73 g meets under 60 g and 0.00997 pf vs 0.01 target. Binding mode stiffness/buckling with E_req 1688.1 MPa, sigma_req 18.34 MPa, p5 margin 1.215. ",
-    "key_risk": "E variation (E_cv 0.1) may cause deflection exceedance under 147.15 N load"
-   },
-   "response_hash": "411c515c596b18f3"
-  },
-  {
-   "endpoint": "POST /api/proof/memo",
-   "status": 200,
-   "ok": true,
-   "required": true,
-   "wall_s": 24.65,
-   "model": "muse-spark-1.3-contributor",
-   "latency_s": 24.643,
-   "cached": false,
-   "fallback": false,
-   "mock": false,
-   "tokens": {
-    "completion_tokens": 2704,
-    "prompt_tokens": 565,
-    "total_tokens": 3269,
-    "completion_tokens_details": {
-     "reasoning_tokens": 2340
+     "reasoning_tokens": 1685
     },
     "prompt_tokens_details": {
      "cached_tokens": 0
@@ -226,19 +204,48 @@
    },
    "grounding": true,
    "summary": {
-    "memo": "shelf bracket for 147.15 load_N with 2.5 deflection_limit_mm governed by stiffness/buckling. Robust mass_g 50.73 meets 60 mass_cap_g with pf 0.00997 against 0.01 target_pf, sigma_r",
+    "memo": "Shelf bracket lattice meets 0.01 Pf target at 0.00997 Pf, governed by stiffness/buckling for 147.15 N and 2.5 mm limit. Analytic upper-bound mass 50.73 g under 60 g cap. Printable:",
+    "key_risk": "Stiffness/buckling governs; E variability and 12% measurement uncertainty drive Pf"
+   },
+   "response_hash": "57c56d8d967231f9"
+  },
+  {
+   "endpoint": "POST /api/proof/memo",
+   "status": 200,
+   "ok": true,
+   "required": true,
+   "wall_s": 14.52,
+   "model": "muse-spark-1.3-contributor",
+   "latency_s": 14.509,
+   "cached": false,
+   "fallback": false,
+   "mock": false,
+   "tokens": {
+    "completion_tokens": 1480,
+    "prompt_tokens": 1059,
+    "total_tokens": 2539,
+    "completion_tokens_details": {
+     "reasoning_tokens": 1204
+    },
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   },
+   "grounding": true,
+   "summary": {
+    "memo": "shelf bracket 147.15 N, 2.5 mm limit, target P_f 0.01, cap 60.0 g. Analytic upper bound 50.73 g, P_f 0.00997, governing stiffness/buckling, E_req 1688.1 MPa sigma_req 18.34 MPa. Lo",
     "claim_level": "L0-L1 verified, L2 partial, L4-L6 absent"
    },
-   "response_hash": "9abba1b1cf9fd2a4"
+   "response_hash": "af5b5a423329ba03"
   },
   {
    "endpoint": "POST /api/voice/transcribe",
    "status": 200,
    "ok": true,
    "required": true,
-   "wall_s": 3.99,
+   "wall_s": 3.58,
    "model": "muse-voice-transcribe-1.0",
-   "latency_s": 3.982,
+   "latency_s": 3.57,
    "cached": false,
    "fallback": false,
    "mock": false,
@@ -247,18 +254,18 @@
    },
    "grounding": null,
    "summary": {
-    "transcript": "Design a wall mounted shelf bracket for recycled PETG that carries 15 kilograms with 1% failure risk and stays under 60 grams."
+    "transcript": "design a wall mounted shelf bracket for recycled PETG that carries 15 kilograms kilograms with 1% failure risk and stays under 60 grams."
    },
-   "response_hash": "21f5f290f163896b"
+   "response_hash": "1020e4110289699e"
   },
   {
    "endpoint": "POST /api/image/render",
    "status": 200,
    "ok": true,
    "required": true,
-   "wall_s": 19.34,
+   "wall_s": 19.11,
    "model": "muse-image-1.0",
-   "latency_s": 19.337,
+   "latency_s": 19.101,
    "cached": false,
    "fallback": false,
    "mock": false,
@@ -267,23 +274,23 @@
    "summary": {
     "illustrative": true,
     "label": "AI illustration \u2014 not the CAD model",
-    "image_data_url_len": 291663,
+    "image_data_url_len": 318051,
     "image_mime": "image/jpeg",
     "image_size": [
      1280,
      1280
     ]
    },
-   "response_hash": "094d5a6956c38ede"
+   "response_hash": "4c719b7629e74cc2"
   },
   {
    "endpoint": "POST /api/photo/segment",
    "status": 200,
    "ok": true,
    "required": false,
-   "wall_s": 1.48,
+   "wall_s": 2.14,
    "model": "sam-3.1",
-   "latency_s": 1.46,
+   "latency_s": 2.089,
    "cached": false,
    "fallback": false,
    "mock": false,
@@ -310,14 +317,14 @@
    "fallback": false,
    "mock": false,
    "tokens": {
-    "completion_tokens": 888,
-    "prompt_tokens": 396,
-    "total_tokens": 1284,
+    "completion_tokens": 856,
+    "prompt_tokens": 462,
+    "total_tokens": 1318,
     "completion_tokens_details": {
-     "reasoning_tokens": 780
+     "reasoning_tokens": 736
     },
     "prompt_tokens_details": {
-     "cached_tokens": 369
+     "cached_tokens": 0
     }
    },
    "grounding": null,
@@ -331,7 +338,7 @@
     "process": "printed",
     "confidence": "high"
    },
-   "response_hash": "e5cddc35ddce8282"
+   "response_hash": "f4ef3fa95fa61d14"
   },
   {
    "endpoint": "cached lot/parse",
@@ -345,14 +352,14 @@
    "fallback": false,
    "mock": false,
    "tokens": {
-    "completion_tokens": 815,
-    "prompt_tokens": 335,
-    "total_tokens": 1150,
+    "completion_tokens": 1078,
+    "prompt_tokens": 414,
+    "total_tokens": 1492,
     "completion_tokens_details": {
-     "reasoning_tokens": 705
+     "reasoning_tokens": 874
     },
     "prompt_tokens_details": {
-     "cached_tokens": 241
+     "cached_tokens": 0
     }
    },
    "grounding": null,
@@ -366,7 +373,7 @@
     "rho": 0.95,
     "source_label": "Recycled rHDPE lot 2026-31 from MRF North"
    },
-   "response_hash": "a154f3d7e1fe770c"
+   "response_hash": "5ce96bb6d691b2cc"
   },
   {
    "endpoint": "cached design/plan",
@@ -380,14 +387,14 @@
    "fallback": false,
    "mock": false,
    "tokens": {
-    "completion_tokens": 1688,
-    "prompt_tokens": 503,
-    "total_tokens": 2191,
+    "completion_tokens": 1258,
+    "prompt_tokens": 764,
+    "total_tokens": 2022,
     "completion_tokens_details": {
-     "reasoning_tokens": 1426
+     "reasoning_tokens": 1012
     },
     "prompt_tokens_details": {
-     "cached_tokens": 497
+     "cached_tokens": 0
     }
    },
    "grounding": null,
@@ -395,49 +402,49 @@
     "candidates": [
      {
       "id": "A",
-      "name": "Wall Reinforced Heavy",
+      "name": "Wall Heavy Graded",
       "widths_mm": [
-       3.2,
+       3.5,
        2.8,
        2.2,
        1.8,
        3.2,
-       2.8,
-       2.2,
-       1.8
+       2.6,
+       2.0,
+       1.6
       ]
      },
      {
       "id": "B",
-      "name": "Graded Balanced Design",
+      "name": "Balanced Taper Lattice",
       "widths_mm": [
-       2.6,
+       2.8,
        2.2,
        1.8,
        1.4,
        2.6,
-       2.2,
-       1.8,
-       1.4
+       2.0,
+       1.6,
+       1.2
       ]
      },
      {
       "id": "C",
       "name": "Light Tip Taper",
       "widths_mm": [
-       2.0,
-       1.6,
-       1.3,
+       2.2,
+       1.8,
+       1.4,
        1.0,
        2.0,
        1.6,
-       1.3,
+       1.2,
        1.0
       ]
      }
     ]
    },
-   "response_hash": "5a2fcbba6543dd13"
+   "response_hash": "9c45c8fe02c4a795"
   },
   {
    "endpoint": "cached image/render",
@@ -455,14 +462,14 @@
    "summary": {
     "illustrative": true,
     "label": "AI illustration \u2014 not the CAD model",
-    "image_data_url_len": 291663,
+    "image_data_url_len": 318051,
     "image_mime": "image/jpeg",
     "image_size": [
      1280,
      1280
     ]
    },
-   "response_hash": "5bca8dba4eee311d"
+   "response_hash": "4f901b26fcaa8603"
   },
   {
    "endpoint": "cached voice/transcribe",
@@ -480,9 +487,9 @@
    },
    "grounding": null,
    "summary": {
-    "transcript": "Design a wall mounted shelf bracket for recycled PETG that carries 15 kilograms with 1% failure risk and stays under 60 grams."
+    "transcript": "design a wall mounted shelf bracket for recycled PETG that carries 15 kilograms kilograms with 1% failure risk and stays under 60 grams."
    },
-   "response_hash": "72ae1a7451a89b35"
+   "response_hash": "299087374d7af161"
   }
  ],
  "provenance": {
@@ -510,9 +517,9 @@
    }
   },
   "cache": {
-   "entries": 9,
-   "bytes": 304401,
-   "dir": "server/cache"
+   "entries": 8,
+   "bytes": 329319,
+   "dir": "/Users/barisnacierzeren/Downloads/Candidate-2/anyrb/server/cache"
   }
  },
  "totals": {
@@ -520,7 +527,7 @@
   "fallbacks": 0,
   "cached": 0,
   "cache_hits_on_second_pass": 5,
-  "wall_s": 101.36
+  "wall_s": 93.83
  },
  "notes": "Live calls executed in-process with the real Meta key from server/.env; the key is never included here. `cache_check` entries are the identical requests replayed after cache warm-up. Evidence file generated by server/verify_live.py."
 }

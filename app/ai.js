@@ -173,6 +173,15 @@ export function createAIClient(options = {}) {
           return { data: fb, provenance: prov, live: false, error: String((err && err.message) || err) };
         }
       }
+      if (mode === 'offline') {
+        // Deterministic offline assistant: identical schema, honest provenance.
+        const fb = offline();
+        const prov = record({
+          endpoint, model: OFFLINE_MODEL, latencyMs: now() - t0, cached: false,
+          fallback: true, schemaOk: true,
+        });
+        return { data: fb, provenance: prov, live: false, mock: false };
+      }
       if (mode === 'mock') await sleep(mockLatency(endpoint, payload));
       const fb = offline();
       const prov = record({

@@ -819,6 +819,43 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
   .metrics-panel .metric { border-left: 0; border-bottom: 1px solid var(--line); padding-left: 0; }
 }
 
+/* v0.3 review-response additions */
+.family-gate { border: 1px solid #E7C7B5; background: #FDF1EA; padding: 18px 22px; }
+.family-gate .fg-head { display: flex; gap: 12px; align-items: flex-start; }
+.family-gate .fg-icon { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
+.family-gate .fg-facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0 0 38px; font-family: var(--mono); font-size: 12px; color: var(--muted-strong); }
+.family-gate .fg-facts b { color: var(--accent-ink); }
+.family-scope { display: block; margin-top: 8px; font-size: 11.5px; color: var(--muted); font-weight: 500; letter-spacing: 0.01em; }
+.qc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; margin-top: 12px; }
+.qc-field { display: flex; flex-direction: column; gap: 4px; }
+.qc-field label { font-size: 10.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.qc-field input { font: 13px var(--mono); color: var(--ink); background: var(--card-warm); border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; min-width: 0; }
+.qc-field input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.qc-tag { display: inline-block; font-size: 9px; letter-spacing: 0.04em; color: var(--accent-ink); background: var(--accent-soft); border-radius: 99px; padding: 1px 6px; text-transform: none; }
+.recipe-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 7px; margin: 12px 0; }
+.recipe-mult { background: var(--card-warm); border: 1px solid var(--line); border-radius: 10px; padding: 7px 5px; text-align: center; }
+.recipe-mult .rm-k { font-size: 9px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+.recipe-mult .rm-v { font: 600 13px var(--mono); color: var(--ink); margin-top: 2px; }
+.recipe-mult.is-heavy .rm-v { color: var(--accent-ink); }
+.recipe-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; font-size: 12.5px; color: var(--muted-strong); margin: 4px 0 12px; }
+.recipe-summary b { color: var(--ink); font-family: var(--mono); font-weight: 600; }
+.advisory { border-color: #E4DFD3; background: var(--card-warm); }
+.advisory-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; font-size: 13px; color: var(--muted-strong); margin-top: 10px; }
+.advisory-body b { font-family: var(--mono); color: var(--ink); }
+.advisory.is-warn { border-color: #E7C7B5; background: #FDF1EA; }
+.advisory.is-warn .advisory-body b { color: var(--accent-ink); }
+@media (max-width: 1080px) { .recipe-grid { grid-template-columns: repeat(4, 1fr); } .qc-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .recipe-grid { grid-template-columns: repeat(2, 1fr); } .qc-grid { grid-template-columns: 1fr; } .recipe-summary, .advisory-body { grid-template-columns: 1fr; } }
+
+/* v0.3 recommended/optimised hero (separate from AI prior cards) */
+.optimised-hero { border: 1px solid var(--line-strong); background: linear-gradient(180deg, #FFFFFF 0%, #FCFBF7 100%); }
+.optimised-hero .hero-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
+.optimised-hero .hero-head .btn[aria-pressed="true"] { background: var(--verify-soft); color: var(--verify); border-color: var(--verify-soft); }
+.optimised-hero .hero-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 18px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.optimised-hero .hero-metrics .micro { display: block; margin-bottom: 3px; }
+.optimised-hero .hero-metrics b { font: 600 15px var(--mono); color: var(--ink); }
+@media (max-width: 900px) { .optimised-hero .hero-metrics { grid-template-columns: repeat(2, 1fr); } }
+
 </style>
 
 </head>
@@ -911,7 +948,7 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
     <div class="rail-meta" id="session-card">
       <div class="rm-title">Session</div>
       <div class="rm-row"><span>Seed</span><b id="session-seed">20251029</b></div>
-      <div class="rm-row"><span>Engine</span><b id="session-engine">v0.1 · 94 el.</b></div>
+      <div class="rm-row"><span>Engine</span><b id="session-engine">v0.3 · 94 el.</b></div>
       <div class="rm-row"><span>Validation</span><b id="session-valid">—</b></div>
       <div class="rm-claims">Claims rung <b id="session-claims">L0–L1 verified</b></div>
       <button class="btn btn--sm btn--ghost" id="btn-provenance" type="button" style="justify-content:flex-start;padding-left:0">AI provenance <span id="prov-count" class="pill pill--muted" style="height:20px">0 calls</span></button>
@@ -967,6 +1004,12 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
           <span class="a-step" id="act-2" data-state="future"><span class="a-mark"></span>Planning candidate strategies</span>
           <span class="a-step" id="act-3" data-state="future"><span class="a-mark"></span>Running the verified solver</span>
           <span class="a-elapsed" id="activity-elapsed">—</span>
+        </div>
+
+        <div class="card family-gate" id="family-gate" role="alert" hidden>
+          <div class="fg-head"><span class="fg-icon" aria-hidden="true">!</span><div><h3 style="margin:0">Infeasible for this bracket family</h3>
+          <p class="card-sub" style="margin:2px 0 0">Even the widest printable uniform lattice (4.0 mm struts) cannot meet the reliability target with this batch. Design is blocked — no AI candidate is drawn.</p></div></div>
+          <div class="fg-facts" id="family-gate-facts">—</div>
         </div>
 
         <div class="brief-cols">
@@ -1060,7 +1103,7 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
       <div class="screen-head">
         <div class="eyebrow">02 · Design</div>
         <h1 id="design-h1">AI proposes. Physics decides.</h1>
-        <p class="deck">Three candidate strategies, each evaluated by the verified engine on your batch distribution. Pick the trade-off you can defend.</p>
+        <p class="deck">Three candidate strategies, each evaluated by the verified engine on your batch distribution. Pick the trade-off you can defend. <span class="family-scope" id="design-family-scope">Designs are the best of this bracket/lattice family.</span></p>
       </div>
       <div class="stack-16">
         <div class="design-hero">
@@ -1112,8 +1155,26 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
         </div>
 
         </div>
+        <div class="card optimised-hero" id="optimised-hero">
+          <div class="hero-head">
+            <div>
+              <span class="pill pill--verify"><span class="p-dot"></span>Recommended · engine-optimised</span>
+              <h3 style="margin:10px 0 2px">The design the engine would ship</h3>
+              <p class="card-sub">Final multi-start result, chosen by printed mass with the printability constraint. Separated from the AI priors below.</p>
+            </div>
+            <button class="btn btn--sm" id="btn-select-hero" type="button" aria-pressed="true">Selected</button>
+          </div>
+          <div class="hero-metrics">
+            <div><span class="micro">Printed mass</span><b id="hero-mass">—</b></div>
+            <div><span class="micro">Analytic upper bound</span><b id="hero-ub">—</b></div>
+            <div><span class="micro">P_f across batches</span><b id="hero-pf">—</b></div>
+            <div><span class="micro">Printability</span><b id="hero-print">—</b></div>
+            <div><span class="micro">Governing mode</span><b id="hero-mode">—</b></div>
+          </div>
+        </div>
+
         <div class="candidates-head row-between">
-          <div><h2 style="font-size:26px">Three ways to build it</h2><p class="card-sub" style="margin-top:4px">AI-proposed priors, evaluated by the verified engine. Pick the trade-off you can defend.</p></div>
+          <div><h2 style="font-size:26px">Three AI priors, evaluated as proposed</h2><p class="card-sub" style="margin-top:4px">Each AI prior is evaluated by the verified engine exactly as proposed — no hidden optimisation — so the trade-offs stay distinct. Selecting one runs the optimiser from that prior.</p></div>
           <span class="badge-model" id="plan-badge-design" data-kind="fallback"><span class="b-dot"></span>3 AI-proposed priors</span>
         </div>
         <div class="candidates" id="candidates" aria-label="Candidate designs"></div>
@@ -1159,7 +1220,7 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
           <div>
             <div class="eyebrow">03 · Prove</div>
             <h1 id="prove-h1">Qualification you can hand to a review.</h1>
-            <p class="deck">One page that says what the design is, which batches it accepts, and what the model cannot tell you.</p>
+            <p class="deck">One page that says what the design is, which batches it accepts, and what the model cannot tell you. <span class="family-scope" id="prove-family-scope">Scope: best of this bracket/lattice family — not a general topology optimiser.</span></p>
           </div>
           <span class="status-chip" id="prove-status"><span class="p-dot" style="background:currentColor"></span>Qualification pending</span>
         </div>
@@ -1171,38 +1232,51 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
             <div class="gauge-svg" id="gauge" role="img" aria-label="Reliability gauge"></div>
             <div class="gauge-facts">
               <div class="gauge-fact"><span>Governing mode</span><b id="gauge-mode">—</b></div>
-              <div class="gauge-fact"><span>Mass</span><b id="gauge-mass">—</b></div>
+              <div class="gauge-fact"><span>Printed mass</span><b id="gauge-mass">—</b></div>
+              <div class="gauge-fact"><span>Analytic upper bound</span><b id="gauge-mass-ub">—</b></div>
               <div class="gauge-fact"><span>Printability</span><b id="gauge-print">—</b></div>
               <div class="gauge-fact"><span>Reliability</span><b id="gauge-rel">—</b></div>
             </div>
           </div>
-          <p class="micro" id="proof-mass-note" style="padding-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">Analytic mass is conservative (strut overlap not unioned; validator F4).</p>
+          <p class="micro" id="proof-mass-note" style="padding-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">Printed mass is the deterministic Halton-QMC union; the analytic figure is shown only as the conservative upper bound. All comparison bars use printed mass.</p>
         </div>
 
         <div class="card" id="passport-card">
           <div class="card-head">
-            <div><h3 style="margin:0">Batch passport</h3><div class="card-sub">Screen an incoming lot against this design.</div></div>
-            <div class="chip-row">
-              <button class="chip" type="button" data-lot="nominal">Nominal lot</button>
-              <button class="chip" type="button" data-lot="weak">Weak lot · E ×0.8</button>
-              <button class="chip" type="button" data-lot="reject">Reject lot · E ×0.5</button>
-            </div>
+            <div><h3 style="margin:0">Known-batch print recipe</h3><div class="card-sub">Measured lot + measurement uncertainty → lot-specific 8-control resize. Not one global scale.</div></div>
+            <span class="badge-model" id="recipe-badge" data-kind="engine"><span class="b-dot"></span>engine-computed</span>
           </div>
-          <div class="passport-inputs">
-            <div class="passport-field">
-              <label for="lot-e-range">Lot mean E · × nominal</label>
-              <div class="pf-row"><input type="range" id="lot-e-range" min="0.5" max="1.3" step="0.01" value="1"><output id="lot-e-out">1.00×</output></div>
-            </div>
-            <div class="passport-field">
-              <label for="lot-sy-range">Lot mean σy · × nominal</label>
-              <div class="pf-row"><input type="range" id="lot-sy-range" min="0.6" max="1.3" step="0.01" value="1"><output id="lot-sy-out">1.00×</output></div>
-            </div>
+          <div class="qc-grid" id="qc-fields">
+            <div class="qc-field"><label for="qc-lot-id">Lot ID</label><input id="qc-lot-id" type="text" placeholder="LOT-2026-014"></div>
+            <div class="qc-field"><label for="qc-supplier">Supplier</label><input id="qc-supplier" type="text" placeholder="Supplier / recycler"></div>
+            <div class="qc-field"><label for="qc-recycled">Recycled content · % <span class="qc-tag">paperwork claim</span></label><input id="qc-recycled" type="number" min="0" max="100" step="1" placeholder="78"></div>
+            <div class="qc-field"><label for="qc-e">Measured lot E · MPa</label><input id="qc-e" type="number" step="10" min="200" max="6000"></div>
+            <div class="qc-field"><label for="qc-sy">Measured lot σy · MPa</label><input id="qc-sy" type="number" step="1" min="5" max="120"></div>
+            <div class="qc-field"><label for="qc-cv">Measurement CV · %</label><input id="qc-cv" type="number" step="1" min="1" max="40" value="12"></div>
           </div>
+          <div class="chip-row" style="margin:10px 0 4px">
+            <button class="chip" type="button" data-lot="nominal">Nominal lot</button>
+            <button class="chip" type="button" data-lot="weak">Weak lot · E ×0.8</button>
+            <button class="chip" type="button" data-lot="reject">Reject lot · E ×0.5</button>
+            <span class="spacer"></span>
+            <button class="btn btn--sm" id="btn-recipe" type="button">Recompute recipe</button>
+          </div>
+          <div class="recipe-grid" id="recipe-multipliers" aria-label="Per-control width multipliers"></div>
+          <div class="recipe-summary" id="recipe-summary">Recompute to see the lot-specific recipe.</div>
           <div class="verdict" id="passport-verdict" data-kind="pass">
             <div class="v-head"><span id="verdict-icon" aria-hidden="true">✓</span><span id="verdict-title">PASS</span></div>
-            <div class="v-body" id="verdict-body">No compensation needed.</div>
+            <div class="v-body" id="verdict-body">Waiting for measured lot data.</div>
           </div>
-          <p class="micro" style="margin-top:10px">Illustrative v0.1 logic; supplier proxies should replace assumed lot means before production decisions.</p>
+          <p class="micro" style="margin-top:10px" id="recipe-note">Global equivalent scale is only a slicer fallback; the recipe above is a lot-specific 8-control resize with measurement uncertainty retained. Recycled-content % is a paperwork claim (not simulated).</p>
+        </div>
+
+        <div class="card advisory" id="sustained-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Sustained load · advisory</h3><div class="card-sub">Creep ×2.0 and compression knock-down ÷0.8 — never the static allowable.</div></div>
+            <span class="badge-model" id="sustained-badge" data-kind="engine"><span class="b-dot"></span>advisory bound</span>
+          </div>
+          <div class="advisory-body" id="sustained-values">—</div>
+          <p class="micro" id="sustained-note" style="margin-top:8px">Advisory only. The static qualification above is unchanged.</p>
         </div>
 
         <div class="card" id="acceptance-card" style="grid-column:1/-1">
@@ -1262,7 +1336,7 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
 </div>
 
 <footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.2</span>
+  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.3</span>
   <span class="f-honest">AnyRB is decision support, not certification.</span>
   <span>In-silico only · Literature-derived feedstock · Simulated numbers</span>
 </footer>
@@ -1478,16 +1552,16 @@ const UI_RANGES = {
 // ---------------------------------------------------------------------------
 const APP_META = {
   title: 'AnyRB',
-  subtitle: 'Reliable recycled-polymer parts, despite batch variation',
+  subtitle: 'Any Recycled Batch — AI reliability studio for recycled-polymer parts',
   thesis:
     'Design the internal geometry for the batch distribution — then adapt the print recipe to the lot you actually received. No physical testing required to use it; the physics, statistics and material data are virtual.',
-  version: 'v0.1 prototype',
+  version: 'v0.3 · review-response',
   calibration:
     'Calibrated v0.1 demo. Physics cross-checked against the canonical Python engine (fixture: app/tests/fixtures/reference.json).',
   strengthNote:
     'rPETG σy is the printed in-plane strength measured on printed ISO 527-2 specimens (R07: 46 MPa, CV 10 %) — not a layer-normal or out-of-plane strength. Out-of-plane loading is not modelled in v0.1.',
   disclaimer:
-    'In-silico only. Not a certification tool. Material distributions are literature-derived, the model is a linear-elastic plane-frame idealisation, and nothing here has been physically tested. Validate with your own lot data and physical tests before production.',
+    'In-silico only. Not a certification tool. Material distributions are literature-derived, the model is a linear-elastic plane-frame idealisation, and nothing here has been physically tested. Results are the best of this bracket/lattice family — not a general topology optimiser. Validate with your own lot data and physical tests before production.',
 };
 
 const CITATIONS = [
@@ -1530,7 +1604,31 @@ const CALIBRATION = {
   note: 'Geometry, material presets, two-level split and reference numbers are cross-checked against app/tests/fixtures/reference.json.',
 };
 
-return { GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION };
+
+// ---------------------------------------------------------------------------
+// v0.3 review-response contract (JS mirrors the Python reference)
+// ---------------------------------------------------------------------------
+const V03 = {
+  branding: { name: 'AnyRB', full: 'Any Recycled Batch', tagline: 'AI reliability studio for recycled-polymer parts' },
+  printedMass: { res: 0.25, margin: 4.0, note: 'Deterministic voxel union of strut boxes + wall pad; analytic mass is a conservative upper bound.' },
+  printability: { maxNeighbourWidthRatio: 1.5, maxSlenderness: 30.0, enforcement: 'Final selected design must pass both (advisory manufacturing caps enforced in the optimiser).' },
+  measurementCvDefault: 0.12,
+  creepFactor: 2.0,
+  compressionFactor: 0.8,
+  sustainedNote: 'Advisory sustained-load / creep bound: stiffness demand x2.0 and compression strength /0.8. NOT the static design allowable; if the bound fails the part is not qualified for sustained load.',
+  familyScope: 'best of this bracket/lattice family',
+  qcDefaults: { lotId: '', supplier: '', recycledContentPct: null },
+  qcNote: 'Recycled-content % is a paperwork claim (not simulated or verified).',
+  reference: {
+    robust_analytic_mass_g: 50.81,
+    robust_printed_mass_g: 46.34,
+    python_robust_printed_mass_g: 46.40,
+    uniform2_printed_mass_g: 53.97,
+    uniform2_analytic_mass_g: 60.32,
+  },
+};
+
+return { GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION, V03 };
 })();
 
 /* ===== engine.js ===== */
@@ -2119,6 +2217,7 @@ function analyzeLattice(logWidth, opts = {}) {
   const F = opts.F ?? DEFAULTS.F;
   const uLim = opts.uLim ?? GEOMETRY.uLim;
   const rho = opts.rho ?? DEFAULTS.material.rho;
+  const computePrinted = opts.printed !== false;
   const unit = unitLoadSolve(logWidth);
 
   const sigma_y_req = F * unit.maxSigmaCoeff; // MPa
@@ -2129,7 +2228,9 @@ function analyzeLattice(logWidth, opts = {}) {
   let strutVolume = 0;
   for (const el of unit.responses) strutVolume += el.A * el.L;
   const totalVolume = strutVolume + GEOMETRY.padVolume;
-  const mass_g = (rho * totalVolume) / 1000; // g = g/cm³ × mm³ / 1000
+  const mass_g = (rho * totalVolume) / 1000; // analytic upper bound, g
+  const printedVolume = computePrinted ? printedVolumeMm3(logWidth) : null;
+  const printed_mass_g = computePrinted ? (rho * printedVolume) / 1000 : null;
 
   const widthsMm = unit.responses.map((e) => e.w);
   const sigmaElem = unit.responses.map((e) => F * e.sigmaCoeff);
@@ -2157,6 +2258,9 @@ function analyzeLattice(logWidth, opts = {}) {
     maxBuckElement: unit.maxBuckElement,
     volumes: { struts_mm3: strutVolume, pad_mm3: GEOMETRY.padVolume, total_mm3: totalVolume },
     mass_g,
+    mass_analytic_g: mass_g,
+    printed_mass_g,
+    printed_volume_mm3: printedVolume,
     widthStats: {
       min: Math.min(...widthsMm),
       max: Math.max(...widthsMm),
@@ -2204,6 +2308,10 @@ function analyzeSolid(opts = {}) {
     demands: { sigma_y_req, E_req, E_req_def, E_req_buck, sigma_coeff: sigmaCoeff, buck_coeff: 0 },
     volumes: { struts_mm3: volume - GEOMETRY.padVolume, pad_mm3: GEOMETRY.padVolume, total_mm3: volume },
     mass_g: (rho * volume) / 1000,
+    mass_analytic_g: (rho * volume) / 1000,
+    printed_mass_g: (rho * volume) / 1000,
+    printed_volume_mm3: volume,
+    printability: { pass: true, max_neighbour_width_ratio: 1, max_slenderness: 0, warnNeighbour: false, warnSlenderness: false },
     widthStats: { min: GEOMETRY.Ly, max: GEOMETRY.Ly, mean: GEOMETRY.Ly },
     widthsMm: [],
     sigmaElem: [],
@@ -2371,37 +2479,214 @@ function nodeDisplacements(analysis, E) {
  *   - maximum slenderness L_e/w_e (guideline ≤ 30)
  *   - minimum strut width used by the FE.
  */
+// ---------------------------------------------------------------------------
+// v0.3: deterministic printed/union mass (voxel union) — mirrors Python
+// `engine/anyrb/lattice.py::printed_volume_mm3`.
+// Grid: res 0.25 mm, margin 4 mm; pad [0,10]x[0,60]x[-5,5]; every strut is a
+// box along its full length with width w_e and depth t. All struts span the full
+// depth, so the union is a 2-D occupancy raster x depth.
+// ---------------------------------------------------------------------------
+const PRINTED_MASS = {
+  samples: 60000,      // Halton quasi-Monte-Carlo samples (deterministic)
+  margin: 4.0,         // bbox margin around the part, mm
+  note: 'Deterministic Halton quasi-Monte-Carlo union (60,000 samples, bases 2/3/5) of the strut boxes plus the wall pad. The analytic mass is a conservative upper bound.',
+};
+
+// Halton sequence in [0,1) — cached per (n, base); identical to the Python engine.
+const HALTON_CACHE = new Map();
+function halton(n, base) {
+  const key = n + ':' + base;
+  const cached = HALTON_CACHE.get(key);
+  if (cached) return cached;
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let f = 1.0;
+    let r = 0.0;
+    let k = i + 1;
+    while (k > 0) {
+      f /= base;
+      r += f * (k % base);
+      k = Math.floor(k / base);
+    }
+    out[i] = r;
+  }
+  HALTON_CACHE.set(key, out);
+  return out;
+}
+
+/**
+ * Deterministic printed/union volume (mm^3): Halton QMC over the bbox
+ * [-4,154] x [-4,64] x [-5,5]; a sample is inside if it falls in any strut box
+ * (0 <= along <= L, |perp| <= w/2, full depth) or in the wall pad.
+ * Mirrors Python `lattice.py::printed_volume_mm3` exactly (same sequence).
+ */
+function printedVolumeMm3(logWidth, opts = {}) {
+  const n = opts.n ?? PRINTED_MASS.samples;
+  const margin = opts.margin ?? PRINTED_MASS.margin;
+  const hx = halton(n, 2);
+  const hy = halton(n, 3);
+  const xs = new Float64Array(n);
+  const ys = new Float64Array(n);
+  const inside = new Uint8Array(n);
+  const spanX = GEOMETRY.Lx + 2 * margin;
+  const spanY = GEOMETRY.Ly + 2 * margin;
+  for (let i = 0; i < n; i++) {
+    xs[i] = -margin + hx[i] * spanX;
+    ys[i] = -margin + hy[i] * spanY;
+  }
+  // wall pad [0,10] x [0,60], full depth
+  for (let i = 0; i < n; i++) {
+    if (xs[i] >= 0 && xs[i] <= GEOMETRY.padWidth && ys[i] >= 0 && ys[i] <= GEOMETRY.Ly) inside[i] = 1;
+  }
+  for (const el of MESH_ELEMENTS) {
+    const w = widthField(logWidth, el.xm, el.ym);
+    const n1 = MESH_NODES[el.n1];
+    const n2 = MESH_NODES[el.n2];
+    const c1x = n1.x;
+    const c1y = n1.y;
+    const dx = n2.x - n1.x;
+    const dy = n2.y - n1.y;
+    const L = Math.hypot(dx, dy);
+    if (L <= 1e-12) continue;
+    const ux = dx / L;
+    const uy = dy / L;
+    const px = -uy;
+    const py = ux;
+    const hw = w / 2;
+    // bbox quick reject per sample (keeps the 5.6M-sample-element loop cheap)
+    const xmin = Math.min(c1x, c1x + dx) - hw - 1;
+    const xmax = Math.max(c1x, c1x + dx) + hw + 1;
+    const ymin = Math.min(c1y, c1y + dy) - hw - 1;
+    const ymax = Math.max(c1y, c1y + dy) + hw + 1;
+    for (let i = 0; i < n; i++) {
+      const X = xs[i];
+      const Y = ys[i];
+      if (X < xmin || X > xmax || Y < ymin || Y > ymax) continue;
+      const rx = X - c1x;
+      const ry = Y - c1y;
+      const along = rx * ux + ry * uy;
+      if (along < 0 || along > L) continue;
+      const perp = rx * px + ry * py;
+      if (Math.abs(perp) <= hw) inside[i] = 1;
+    }
+  }
+  let count = 0;
+  for (let i = 0; i < n; i++) count += inside[i];
+  const bboxVolume = spanX * spanY * GEOMETRY.depth;
+  return (count / n) * bboxVolume;
+}
+
+function printedMassG(logWidth, rho, opts = {}) {
+  return (rho * printedVolumeMm3(logWidth, opts)) / 1000;
+}
+
 function printabilityReport(analysis) {
   if (!analysis || analysis.kind !== 'lattice' || !analysis.designLogWidth) return null;
   const elements = analysis.elements;
   let minWidth = Infinity;
   let maxSlenderness = 0;
-  analytics:
   for (const el of elements) {
     if (el.w < minWidth) minWidth = el.w;
     const sl = el.L / Math.max(1e-9, el.w);
     if (sl > maxSlenderness) maxSlenderness = sl;
   }
-  // Neighbour width ratio: maximum width ratio between CONSECUTIVE elements in
-  // the canonical FE element list (this is the cross-language definition the
-  // Python engine reports; e.g. 1.63 for the 50.08 g robust design).
+  // Max width ratio across consecutive FE elements INCLUDING the wrap between
+  // the last and first element (Python: np.roll(widths, 1)).
   let maxNeighbourRatio = 1;
-  for (let i = 0; i + 1 < elements.length; i++) {
+  const nW = elements.length;
+  for (let i = 0; i < nW; i++) {
     const a = elements[i].w;
-    const b = elements[i + 1].w;
+    const b = elements[(i + 1) % nW].w;
     const r = Math.max(a, b) / Math.max(1e-9, Math.min(a, b));
     if (r > maxNeighbourRatio) maxNeighbourRatio = r;
   }
   const neighbourGuideline = 1.5;
   const slendernessGuideline = 30;
+  const warnNeighbour = maxNeighbourRatio > neighbourGuideline;
+  const warnSlenderness = maxSlenderness > slendernessGuideline;
+  const maxWidth = elements.reduce((mx, el) => Math.max(mx, el.w), -Infinity);
   return {
+    min_width_mm: minWidth,
+    max_width_mm: maxWidth,
+    max_slenderness: maxSlenderness,
+    max_neighbour_width_ratio: maxNeighbourRatio,
+    out_of_bounds: minWidth < GEOMETRY.wMin - 1e-9 || maxWidth > GEOMETRY.wMax + 1e-9,
     minWidth,
+    maxWidth,
     maxSlenderness,
     maxNeighbourRatio,
     neighbourGuideline,
     slendernessGuideline,
-    warnNeighbour: maxNeighbourRatio > neighbourGuideline,
-    warnSlenderness: maxSlenderness > slendernessGuideline,
+    warnNeighbour,
+    warnSlenderness,
+    pass: !warnNeighbour && !warnSlenderness,
+  };
+}
+
+/**
+ * Known lot with measurement uncertainty retained (mirrors Python
+ * `Material.lot_from_measurement`): within-lot CV and measurement CV combine in
+ * quadrature; the lot-to-lot fraction is set to zero.
+ */
+function lotFromMeasurement(materialIn, E_measured, sy_measured, measurementCv = 0.12) {
+  const m = normalizeMaterial(materialIn);
+  const eWithin = m.E_cv * m.withinFraction;
+  const sWithin = m.sy_cv * m.withinFraction;
+  const eCv = Math.sqrt(Math.max(eWithin * eWithin + measurementCv * measurementCv, 1e-12));
+  const sCv = Math.sqrt(Math.max(sWithin * sWithin + measurementCv * measurementCv, 1e-12));
+  return {
+    ...m,
+    id: (m.preset || 'material') + '-measured',
+    E_mean: Number.isFinite(E_measured) ? E_measured : m.E_mean,
+    E_cv: eCv,
+    sy_mean: Number.isFinite(sy_measured) ? sy_measured : m.sy_mean,
+    sy_cv: sCv,
+    lotFraction: 0,
+    withinFraction: 1,
+    measurementCv,
+    level: 'within',
+  };
+}
+
+/** Family feasibility gate: widest printable uniform lattice vs target. */
+function familyFeasibility(materialIn, opts = {}) {
+  const material = normalizeMaterial(materialIn);
+  const targetPf = opts.targetPf ?? DEFAULTS.targetPf;
+  const analysis = analyzeLattice(uniformDesign(GEOMETRY.wMax), {
+    F: opts.F ?? DEFAULTS.F,
+    uLim: opts.uLim ?? GEOMETRY.uLim,
+    rho: material.rho,
+    printed: false,
+  });
+  const pf = probabilityOfFailure(analysis, material, 'lot');
+  return {
+    feasible: pf <= targetPf,
+    min_achievable_pf: pf,
+    sigma_req_MPa: analysis.demands.sigma_y_req,
+    E_req_MPa: analysis.demands.E_req,
+    max_width_mm: GEOMETRY.wMax,
+    target_pf: targetPf,
+    analysis,
+  };
+}
+
+/** Advisory sustained-load / creep bound (not the design allowables). */
+function sustainedBound(analysis, materialIn, opts = {}) {
+  const material = normalizeMaterial(materialIn);
+  const creepFactor = opts.creepFactor ?? 2.0;
+  const compressionFactor = opts.compressionFactor ?? 0.8;
+  const E_req_bound_MPa = analysis.demands.E_req * creepFactor;
+  const sigma_req_bound_MPa = analysis.demands.sigma_y_req / Math.max(compressionFactor, 1e-6);
+  const pf_bound = pfFromThresholds(sigma_req_bound_MPa, E_req_bound_MPa, levelMaterial(material, 'lot'));
+  const deflection_bound_mm = (analysis.deflectionScale / Math.max(material.E_mean, 1e-9)) * creepFactor;
+  return {
+    pf_bound,
+    E_req_bound_MPa,
+    sigma_req_bound_MPa,
+    deflection_bound_mm,
+    creep_factor: creepFactor,
+    compression_factor: compressionFactor,
+    note: 'Advisory bound: sustained load (creep x2.0) plus compression knock-down (x0.8) — not the static design allowables; not qualified for sustained load if the bound fails.',
   };
 }
 
@@ -2622,7 +2907,7 @@ function reliabilityReport(analysis, materialIn, opts = {}) {
 // Preset catalogue re-export for convenience in the UI/build.
 
 
-return { clamp, lognormalParams, materialFromPreset, normalizeMaterial, normalCDF, bivariateNormalCDF, NODE_COUNT, DOF_COUNT, nodeId, nodePosition, MESH_NODES, MESH_ELEMENTS, N_ELEMENTS, FIXED_DOFS, TIP_NODES, CONTROL_X, CONTROL_Y, controlPointPosition, widthField, designWidths, uniformDesign, elementWidths, scaleDesign, frameLocalStiffness, frameTransform, solveFrame, buildLatticeModel, unitLoadSolve, memberForcesUnitLoad, analyzeLattice, SOLID_BASELINE, analyzeSolid, LEVELS, levelMaterial, withinLotMaterial, twoLevelCVs, pfFromThresholds, probabilityOfFailure, failureModes, deflectionAtE, nodeDisplacements, printabilityReport, elementUtilisation, mulberry32, correlatedNormalPair, sampleAtLevel, sampleTwoLevel, batchMetrics, reliabilityReport, MATERIAL_PRESETS, GEOMETRY, DEFAULTS };
+return { clamp, lognormalParams, materialFromPreset, normalizeMaterial, normalCDF, bivariateNormalCDF, NODE_COUNT, DOF_COUNT, nodeId, nodePosition, MESH_NODES, MESH_ELEMENTS, N_ELEMENTS, FIXED_DOFS, TIP_NODES, CONTROL_X, CONTROL_Y, controlPointPosition, widthField, designWidths, uniformDesign, elementWidths, scaleDesign, frameLocalStiffness, frameTransform, solveFrame, buildLatticeModel, unitLoadSolve, memberForcesUnitLoad, analyzeLattice, SOLID_BASELINE, analyzeSolid, LEVELS, levelMaterial, withinLotMaterial, twoLevelCVs, pfFromThresholds, probabilityOfFailure, failureModes, deflectionAtE, nodeDisplacements, PRINTED_MASS, halton, printedVolumeMm3, printedMassG, printabilityReport, lotFromMeasurement, familyFeasibility, sustainedBound, elementUtilisation, mulberry32, correlatedNormalPair, sampleAtLevel, sampleTwoLevel, batchMetrics, reliabilityReport, MATERIAL_PRESETS, GEOMETRY, DEFAULTS };
 })();
 
 /* ===== optimize.js ===== */
@@ -2630,6 +2915,11 @@ __modules.optimize = (function () {
 const {GEOMETRY, DEFAULTS, OPTIMIZER} = __modules.config;
 const {analyzeLattice,
   analyzeSolid,
+  printabilityReport,
+  printedMassG,
+  lotFromMeasurement,
+  familyFeasibility,
+  sustainedBound,
   probabilityOfFailure,
   pfFromThresholds,
   levelMaterial,
@@ -2667,6 +2957,24 @@ const {analyzeLattice,
 
 const LOGW_MIN = Math.log(GEOMETRY.wMin);
 const LOGW_MAX = Math.log(GEOMETRY.wMax);
+
+
+// v0.3 printability constraint (advisory manufacturing caps, enforced in search)
+const PRINT_LIMITS = { neighbour_ratio: 1.5, slenderness: 30.0, penalty: 80.0 };
+function printabilityPenalty(analysis) {
+  const pr = printabilityReport(analysis);
+  if (!pr) return 0;
+  const ratio = Math.max(0, pr.max_neighbour_width_ratio - PRINT_LIMITS.neighbour_ratio) / 0.5;
+  const slenderness = Math.max(0, pr.max_slenderness - PRINT_LIMITS.slenderness) / PRINT_LIMITS.slenderness;
+  return PRINT_LIMITS.penalty * (ratio + slenderness);
+}
+function printabilityPass(analysis) {
+  const pr = printabilityReport(analysis);
+  return !!(pr && pr.pass);
+}
+function printedMassOf(analysis) {
+  return analysis.printed_mass_g != null ? analysis.printed_mass_g : analysis.mass_g;
+}
 const LOG10 = Math.log(10);
 
 /** Build the context object used by every analysis call. */
@@ -2694,15 +3002,17 @@ function robustObjective(materialIn, ctx, targetPf) {
   const material = normalizeMaterial(materialIn);
   return function objective(designIn) {
     const design = clampDesign(designIn);
-    const analysis = analyzeLattice(design, ctx);
+    const analysis = analyzeLattice(design, { ...ctx, printed: false });
     const pf = probabilityOfFailure(analysis, material, 'lot');
     const violation = Math.max(0, (pf - targetPf) / targetPf);
+    const pen = printabilityPenalty(analysis);
     return {
-      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * violation),
+      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * violation + pen),
       mass: analysis.mass_g,
       pf,
       analysis,
       violation,
+      printabilityPenalty: pen,
       design,
     };
   };
@@ -2716,16 +3026,18 @@ function deterministicObjective(materialIn, ctx, fos) {
   const material = normalizeMaterial(materialIn);
   return function objective(designIn) {
     const design = clampDesign(designIn);
-    const analysis = analyzeLattice(design, ctx);
+    const analysis = analyzeLattice(design, { ...ctx, printed: false });
     const penY = Math.max(0, (fos * analysis.demands.sigma_y_req) / material.sy_mean - 1);
     const penE = Math.max(0, (fos * analysis.demands.E_req) / material.E_mean - 1);
+    const pen = printabilityPenalty(analysis);
     return {
-      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * (penY + penE)),
+      value: analysis.mass_g * (1 + OPTIMIZER.penaltyFactor * (penY + penE) + pen),
       mass: analysis.mass_g,
       feasible: penY <= 0 && penE <= 0,
       analysis,
       penY,
       penE,
+      printabilityPenalty: pen,
       design,
     };
   };
@@ -2875,15 +3187,24 @@ function feasibleDeterministicStart(material, ctx, fos) {
 //    score wins (tie-break: lower mass). This removes single-start dependence.
 // ---------------------------------------------------------------------------
 /** Six starts for the robust objective (smallest feasible uniform first). */
+function dedupeWidths(widths) {
+  const out = [];
+  for (const w of widths) {
+    if (!out.some((s) => Math.abs(s - w) < 1e-3)) out.push(w);
+  }
+  return out;
+}
+
+/** Six starts for the robust objective (deduped like the Python engine). */
 function multiStartWidths(materialIn, ctx, targetPf) {
   const first = Math.exp(feasibleUniformStart(materialIn, ctx, targetPf)[0]);
-  return [first, ...OPTIMIZER.startWidths];
+  return dedupeWidths([first, ...OPTIMIZER.startWidths]);
 }
 
 /** Six starts for the deterministic mean-material objective. */
 function multiStartWidthsDeterministic(materialIn, ctx, fos) {
   const first = Math.exp(feasibleDeterministicStart(materialIn, ctx, fos)[0]);
-  return [first, ...OPTIMIZER.startWidths];
+  return dedupeWidths([first, ...OPTIMIZER.startWidths]);
 }
 
 function bestOfStarts(results) {
@@ -2933,19 +3254,35 @@ function* robustOptimizeGen(materialIn, ctx, opts = {}) {
     const res = step.value;
     const analysis = analyzeLattice(res.design, ctx);
     const pf = probabilityOfFailure(analysis, material, 'lot');
+    const pr = printabilityReport(analysis);
     totalEvals += res.evals;
     const entry = {
       startWidth: w, startDesign, design: res.design, score: res.value,
-      mass: analysis.mass_g, pf, feasible: pf <= targetPf, evals: res.evals,
+      mass: analysis.mass_g,
+      mass_analytic_g: analysis.mass_analytic_g,
+      printed_mass_g: analysis.printed_mass_g,
+      pf,
+      feasible: pf <= targetPf * 1.02 && pr && pr.pass,
+      printability: pr,
+      evals: res.evals,
     };
     results.push(entry);
     yield {
       stage: 'start-done', startIndex: si, startsTotal: total, startWidth: w,
-      mass: entry.mass, pf: entry.pf, feasible: entry.feasible, evals: res.evals,
-      bestMass: Math.min(...results.map((r) => r.mass)),
+      mass: entry.mass, printedMass: entry.printed_mass_g, pf: entry.pf,
+      feasible: entry.feasible, printabilityPass: !!(pr && pr.pass), evals: res.evals,
+      bestMass: Math.min(...results.map((r) => r.printed_mass_g ?? r.mass)),
     };
   }
-  const winner = bestOfStarts(results);
+  // v0.3: final selection among the start solutions uses PRINTED mass and
+  // requires printability pass (search still ranked by the analytic bound).
+  const eligible = results.filter((r) => r.feasible);
+  const pool = (eligible.length ? eligible : results).slice();
+  const winner = pool.slice().sort((a, b) => {
+    const pa = a.printed_mass_g ?? a.mass;
+    const pb = b.printed_mass_g ?? b.mass;
+    return (pa - pb) || (a.mass - b.mass);
+  })[0];
   const analysis = analyzeLattice(winner.design, ctx);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   return {
@@ -2953,12 +3290,18 @@ function* robustOptimizeGen(materialIn, ctx, opts = {}) {
     analysis,
     pf,
     mass: analysis.mass_g,
+    mass_analytic_g: analysis.mass_analytic_g,
+    printed_mass_g: analysis.printed_mass_g,
     evals: totalEvals,
     targetPf,
     startDesign: winner.startDesign,
     startWidth: winner.startWidth,
-    starts: summarizeStarts(results),
-    feasible: pf <= targetPf,
+    starts: results.map((r) => ({
+      startWidth: r.startWidth, mass: r.mass, printed_mass_g: r.printed_mass_g,
+      pf: r.pf, feasible: r.feasible, printabilityPass: !!(r.printability && r.printability.pass), evals: r.evals,
+    })),
+    feasible: pf <= targetPf && printabilityPass(analysis),
+    printability: printabilityReport(analysis),
     material,
   };
 }
@@ -2996,34 +3339,59 @@ function* nominalOptimizeGen(materialIn, ctx, opts = {}) {
       step = search.next();
     }
     const res = step.value;
-    const evaluation = res.analysis ? objective(res.design) : objective(res.design);
-    const analysis = evaluation.analysis;
+    const analysis = analyzeLattice(res.design, ctx);
+    const d = analysis.demands;
+    const feasibleMean = (fos * d.sigma_y_req <= material.sy_mean * (1 + 1e-3))
+      && (fos * d.E_req <= material.E_mean * (1 + 1e-3));
+    const pr = printabilityReport(analysis);
     totalEvals += res.evals;
     results.push({
       startWidth: w, startDesign, design: res.design, score: res.value,
-      mass: analysis.mass_g, feasible: !!(evaluation.feasible), evals: res.evals,
+      mass: analysis.mass_g,
+      mass_analytic_g: analysis.mass_analytic_g,
+      printed_mass_g: analysis.printed_mass_g,
+      pf: probabilityOfFailure(analysis, material, 'lot'),
+      feasible: !!(feasibleMean && pr && pr.pass),
+      printability: pr,
+      evals: res.evals,
     });
     yield {
       stage: 'start-done', startIndex: si, startsTotal: total, startWidth: w,
-      mass: analysis.mass_g, feasible: !!(evaluation.feasible), evals: res.evals,
+      mass: analysis.mass_g, printedMass: analysis.printed_mass_g,
+      feasible: !!(feasibleMean && pr && pr.pass), evals: res.evals,
     };
   }
-  const winner = bestOfStarts(results);
+  const eligible = results.filter((r) => r.feasible);
+  const pool = (eligible.length ? eligible : results).slice();
+  pool.sort((a, b) => {
+    const pa = a.printed_mass_g ?? a.mass;
+    const pb = b.printed_mass_g ?? b.mass;
+    return (pa - pb) || (a.mass - b.mass) || (a.score - b.score);
+  });
+  const winner = pool[0];
   const analysis = analyzeLattice(winner.design, ctx);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   const feasibleMean = (fos * analysis.demands.sigma_y_req <= material.sy_mean * (1 + 1e-9))
     && (fos * analysis.demands.E_req <= material.E_mean * (1 + 1e-9));
+  const pr = printabilityReport(analysis);
   return {
     design: winner.design,
     analysis,
     pf,
     mass: analysis.mass_g,
+    mass_analytic_g: analysis.mass_analytic_g,
+    printed_mass_g: analysis.printed_mass_g,
     evals: totalEvals,
     fos,
     feasibleMean,
+    printability: pr,
+    printabilityPass: !!(pr && pr.pass),
     targetPf: opts.targetPf ?? DEFAULTS.targetPf,
     startWidth: winner.startWidth,
-    starts: summarizeStarts(results),
+    starts: results.map((r) => ({
+      startWidth: r.startWidth, mass: r.mass, printed_mass_g: r.printed_mass_g,
+      feasible: r.feasible, evals: r.evals,
+    })),
     material,
   };
 }
@@ -3049,7 +3417,7 @@ function solidBaseline(materialIn, ctx, targetPf = DEFAULTS.targetPf) {
 function uniformTargetBaseline(materialIn, ctx, targetPf = DEFAULTS.targetPf) {
   const material = normalizeMaterial(materialIn);
   const pfAt = (lw) => {
-    const analysis = analyzeLattice(uniformDesign(Math.exp(lw)), ctx);
+    const analysis = analyzeLattice(uniformDesign(Math.exp(lw)), { ...ctx, printed: false });
     return { analysis, pf: probabilityOfFailure(analysis, material, 'lot') };
   };
   let lo = LOGW_MIN;
@@ -3064,8 +3432,8 @@ function uniformTargetBaseline(materialIn, ctx, targetPf = DEFAULTS.targetPf) {
       if (hi - lo < 1e-7) break;
     }
   }
-  const res = pfAt(hi);
-  const row = summarize('uniform', 'Uniform (target-sized)', res.analysis, material, res.pf, targetPf, {
+  const finalAnalysis = analyzeLattice(uniformDesign(Math.exp(hi)), ctx);
+  const row = summarize('uniform', 'Uniform (target-sized)', finalAnalysis, material, probabilityOfFailure(finalAnalysis, material, 'lot'), targetPf, {
     note: 'All control points equal; smallest width meeting the reliability target.',
     design: uniformDesign(Math.exp(hi)),
     feasible,
@@ -3077,11 +3445,12 @@ function uniformTargetBaseline(materialIn, ctx, targetPf = DEFAULTS.targetPf) {
 /** Uniform lattice whose mass equals a target mass (same-mass comparison). */
 function uniformMassMatchBaseline(materialIn, ctx, targetMass, targetPf = DEFAULTS.targetPf) {
   const material = normalizeMaterial(materialIn);
-  const analysisAt = (w) => analyzeLattice(uniformDesign(w), ctx);
+  const analysisAt = (w) => analyzeLattice(uniformDesign(w), { ...ctx, printed: false });
+  const fastPrinted = (w) => printedMassG(uniformDesign(w), material.rho, { n: 6000 });
   let lo = LOGW_MIN;
   let hi = LOGW_MAX;
-  const massLo = analysisAt(Math.exp(lo)).mass_g;
-  const massHi = analysisAt(Math.exp(hi)).mass_g;
+  const massLo = fastPrinted(Math.exp(lo));
+  const massHi = fastPrinted(Math.exp(hi));
   const clamped = clamp(targetMass, massLo, massHi);
   if (massLo >= massHi) {
     const a = analysisAt(Math.exp(LOGW_MIN));
@@ -3093,14 +3462,14 @@ function uniformMassMatchBaseline(materialIn, ctx, targetMass, targetPf = DEFAUL
   // bisection on mass (monotone increasing with width)
   for (let i = 0; i < OPTIMIZER.uniformBisectionIters; i++) {
     const mid = 0.5 * (lo + hi);
-    if (analysisAt(Math.exp(mid)).mass_g < clamped) lo = mid;
+    if (fastPrinted(Math.exp(mid)) < clamped) lo = mid;
     else hi = mid;
     if (hi - lo < 1e-7) break;
   }
-  const analysis = analysisAt(Math.exp(hi));
+  const analysis = analyzeLattice(uniformDesign(Math.exp(hi)), ctx);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   return summarize('uniform_match', 'Uniform (mass-matched)', analysis, material, pf, targetPf, {
-    note: `Same mass as robust optimum (${clamped.toFixed(2)} g); reliability collapses — the mass/reliability trade-off is steep — very sensitive near the buckling-controlled sizing cliff; illustrative, not a general prediction.`,
+    note: `Same printed mass as robust optimum (${clamped.toFixed(2)} g); reliability collapses — the mass/reliability trade-off is steep — very sensitive near the buckling-controlled sizing cliff; illustrative, not a general prediction.`,
     feasible: pf <= targetPf,
     design: uniformDesign(Math.exp(hi)),
     widthMm: Math.exp(hi),
@@ -3140,6 +3509,10 @@ function summarize(key, label, analysis, material, pf, targetPf, extra = {}) {
     label,
     design: extra.design ?? analysis.designLogWidth ?? null,
     mass_g: analysis.mass_g,
+    mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
+    printed_mass_g: analysis.printed_mass_g ?? analysis.mass_g,
+    printability: printabilityReport(analysis),
+    family_scope: 'best of this bracket/lattice family',
     pf,
     reliability: 1 - pf,
     feasible: extra.feasible ?? pf <= targetPf,
@@ -3187,7 +3560,7 @@ function* compareStrategiesGen(materialIn, ctx, opts = {}) {
   });
 
   yield { stage: 'uniform_match', label: 'Mass-matching the uniform lattice', completed: 3, total: 6 };
-  const uniformMatch = uniformMassMatchBaseline(material, ctx, robust.mass, targetPf);
+  const uniformMatch = uniformMassMatchBaseline(material, ctx, robust.printed_mass_g ?? robust.mass, targetPf);
 
   yield { stage: 'nominal_sf15', label: 'Optimising for the mean material (FoS 1.5)', completed: 4, total: 6 };
   const nominal = nominalBaseline(material, ctx, { targetPf, maxEvals: opts.maxEvals });
@@ -3200,12 +3573,12 @@ function* compareStrategiesGen(materialIn, ctx, opts = {}) {
 
   // Pareto: mass vs reliability for the uniform family, plus strategy points.
   const paretoUniform = [];
-  const nSweep = 26;
+  const nSweep = 13;
   for (let i = 0; i < nSweep; i++) {
     const w = GEOMETRY.wMin + ((GEOMETRY.wMax - GEOMETRY.wMin) * i) / (nSweep - 1);
     const a = analyzeLattice(uniformDesign(w), ctx);
     const pf = probabilityOfFailure(a, material, 'lot');
-    paretoUniform.push({ widthMm: w, mass_g: a.mass_g, pf, reliability: 1 - pf });
+    paretoUniform.push({ widthMm: w, mass_g: printedMassOf(a), mass_analytic_g: a.mass_g, pf, reliability: 1 - pf });
   }
   yield { stage: 'done', label: 'Comparison complete', completed: 6, total: 6 };
   return {
@@ -3219,6 +3592,9 @@ function* compareStrategiesGen(materialIn, ctx, opts = {}) {
     robust: {
       design: robust.design,
       mass: robust.mass,
+      mass_analytic_g: robust.mass_analytic_g,
+      printed_mass_g: robust.printed_mass_g,
+      printability: robust.printability,
       pf: robust.pf,
       evals: robust.evals,
     },
@@ -3253,7 +3629,7 @@ function batchAdaptiveScale(designIn, materialIn, lot, ctx, opts = {}) {
   const lotMaterial = withinLotMaterial(material, lotMeanE, lotMeanSy);
   const pfAtScale = (s) => {
     const scaled = clampDesign(scaleDesign(design, s));
-    const analysis = analyzeLattice(scaled, ctx);
+    const analysis = analyzeLattice(scaled, { ...ctx, printed: false });
     return {
       analysis,
       pf: pfFromThresholds(analysis.demands.sigma_y_req, analysis.demands.E_req, lotMaterial),
@@ -3278,7 +3654,9 @@ function batchAdaptiveScale(designIn, materialIn, lot, ctx, opts = {}) {
       best = pfAtScale(hi);
     }
   }
-  const addedMassPct = best ? ((best.analysis.mass_g - base.analysis.mass_g) / base.analysis.mass_g) * 100 : null;
+  const bestPrinted = best ? analyzeLattice(best.analysis.designLogWidth, ctx) : null;
+  const basePrinted = analyzeLattice(base.analysis.designLogWidth, ctx);
+  const addedMassPct = bestPrinted ? ((bestPrinted.printed_mass_g - basePrinted.printed_mass_g) / basePrinted.printed_mass_g) * 100 : null;
   let verdict;
   if (!best) verdict = 'reject';
   else if (best.s <= 1.0 + 1e-9) verdict = 'pass_no_compensation';
@@ -3319,6 +3697,77 @@ function verdictLabel(verdict) {
     case 'conditional': return 'CONDITIONAL PASS — scale near the limit';
     default: return 'REJECT / REROUTE — cannot compensate within +50 % width';
   }
+}
+
+// ---------------------------------------------------------------------------
+// v0.3: known-lot compensation — 8-control lot-specific resize (not one scale)
+// Mirrors Python `optimize.py::lot_specific_recipe`.
+// ---------------------------------------------------------------------------
+/**
+ * Re-optimise all 8 width controls for a measured lot, keeping the measurement
+ * uncertainty in the reliability distribution. Returns per-control width
+ * multipliers, the global equivalent scale, printed masses, P_f and a verdict.
+ */
+function lotSpecificRecipe(materialIn, logWidthIn, opts = {}) {
+  const material = normalizeMaterial(materialIn);
+  const targetPf = opts.targetPf ?? DEFAULTS.targetPf;
+  const measurementCv = opts.measurementCv ?? 0.12;
+  const lotE = opts.lotE ?? material.E_mean;
+  const lotSy = opts.lotSy ?? material.sy_mean;
+  const context = {
+    F: opts.F ?? DEFAULTS.F,
+    uLim: opts.uLim ?? GEOMETRY.uLim,
+    rho: material.rho,
+  };
+  const measured = lotFromMeasurement(material, lotE, lotSy, measurementCv);
+  const base = clampDesign(logWidthIn.slice());
+  const evalX = (controls) => {
+    const analysis = analyzeLattice(controls, context, { printed: false });
+    const pf = probabilityOfFailure(analysis, measured, 'within');
+    const pen = printabilityPenalty(analysis);
+    const excess = Math.max(0, (pf - targetPf) / targetPf);
+    return { value: analysis.mass_g * (1 + 100 * excess + pen), analysis, pf, pen };
+  };
+  const search = patternSearchGen(evalX, base, { maxEvals: opts.maxIter ?? 1200, minStep: 0.004 });
+  let step = search.next();
+  while (!step.done) step = search.next();
+  const best = clampDesign(step.value.design);
+  const analysis = analyzeLattice(best, context); // printed mass
+  const baseAnalysis = analyzeLattice(base, context);
+  const scales = best.map((v, i) => Math.exp(v - base[i]));
+  const sorted = scales.slice().sort((a, b) => a - b);
+  const globalScale = sorted[Math.floor(sorted.length / 2)];
+  const pf = probabilityOfFailure(analysis, measured, 'within');
+  const printedMass = analysis.printed_mass_g;
+  const basePrinted = baseAnalysis.printed_mass_g;
+  const addedMassPct = 100 * (printedMass / Math.max(basePrinted, 1e-12) - 1);
+  const pr = printabilityReport(analysis);
+  let verdict;
+  if (pf > targetPf * 1.02) verdict = 'reject / reroute';
+  else if (globalScale <= 1.001) verdict = 'pass as designed';
+  else if (globalScale <= 1.15) verdict = 'pass with compensation';
+  else if (globalScale <= 1.5) verdict = 'conditional (heavy compensation)';
+  else verdict = 'reject / reroute';
+  return {
+    controls: best,
+    width_multipliers: scales,
+    global_equivalent_scale: globalScale,
+    printed_mass_g: printedMass,
+    printed_mass_analytic_g: analysis.mass_g,
+    base_printed_mass_g: basePrinted,
+    added_mass_pct: addedMassPct,
+    pf,
+    verdict,
+    verdict_ok: verdict === 'pass as designed' || verdict === 'pass with compensation',
+    measurement_cv: measurementCv,
+    lot: { lot_E: lotE, lot_sy: lotSy },
+    measured_material: { E_cv: measured.E_cv, sy_cv: measured.sy_cv },
+    printability: pr,
+    printability_pass: !!(pr && pr.pass),
+    analysis,
+    base_analysis: baseAnalysis,
+    note: 'Lot-specific 8-control resize with measurement uncertainty retained (not a single global scale).',
+  };
 }
 
 /**
@@ -3455,7 +3904,7 @@ function describeGeometryChange(startDesign, endDesign) {
 
 
 
-return { LOGW_MIN, LOGW_MAX, makeContext, robustObjective, deterministicObjective, patternSearchGen, feasibleUniformStart, multiStartWidths, multiStartWidthsDeterministic, robustOptimizeGen, robustOptimize, nominalOptimizeGen, nominalOptimize, solidBaseline, uniformTargetBaseline, uniformMassMatchBaseline, nominalBaseline, meanOnlyBaseline, compareStrategiesGen, compareStrategies, batchAdaptiveScale, acceptanceWindow, sensitivity, describeGeometryChange, MATERIAL_PRESETS };
+return { LOGW_MIN, LOGW_MAX, PRINT_LIMITS, printabilityPenalty, makeContext, robustObjective, deterministicObjective, patternSearchGen, feasibleUniformStart, multiStartWidths, multiStartWidthsDeterministic, robustOptimizeGen, robustOptimize, nominalOptimizeGen, nominalOptimize, solidBaseline, uniformTargetBaseline, uniformMassMatchBaseline, nominalBaseline, meanOnlyBaseline, compareStrategiesGen, compareStrategies, batchAdaptiveScale, lotSpecificRecipe, acceptanceWindow, sensitivity, describeGeometryChange, familyFeasibility, sustainedBound, lotFromMeasurement, MATERIAL_PRESETS };
 })();
 
 /* ===== stl.js ===== */
@@ -3873,27 +4322,27 @@ function clampWidth(w) {
 /** Build the three deterministic design priors from a first-pass feasibility width. */
 function fallbackPlan(brief, material, ctx) {
   const targetPf = brief.targetPf ?? DEFAULTS.targetPf;
-  const feasible = O.feasibleUniformStart(material, ctx, targetPf);
-  const w0 = Math.exp(feasible[0]);
-  const d = 0.34;
+  // Deterministic engine-backed priors for the offline assistant: the verified
+  // multi-start optimum gives the balanced direction; light/conservative scale
+  // it to expose the mass-vs-reliability trade-off. Every candidate is still
+  // evaluated and ranked by the engine (printed mass + printability gate).
+  const opt = O.robustOptimize(material, ctx, { targetPf });
+  const widths = E.designWidths(opt.design);
+  const scaled = (s) => widths.map((w) => clampWidth(w * s));
   const candidates = [
-    {
-      id: 'light', ...CANDIDATE_META.light,
-      controlWidthsMm: Array.from({ length: 8 }, () => clampWidth(w0 - 0.06)),
-    },
-    {
-      id: 'balanced', ...CANDIDATE_META.balanced,
-      controlWidthsMm: [
-        clampWidth(w0 + d), clampWidth(w0 + d * 0.45), clampWidth(w0 + 0.04), clampWidth(w0 - d * 0.4),
-        clampWidth(w0 + d * 0.8), clampWidth(w0 + d * 0.3), clampWidth(w0), clampWidth(w0 - d * 0.55),
-      ],
-    },
-    {
-      id: 'conservative', ...CANDIDATE_META.conservative,
-      controlWidthsMm: Array.from({ length: 8 }, () => clampWidth(w0 + d * 1.15)),
-    },
+    { id: 'light', ...CANDIDATE_META.light, controlWidthsMm: scaled(0.94) },
+    { id: 'balanced', ...CANDIDATE_META.balanced, controlWidthsMm: widths.map((w) => clampWidth(w)) },
+    { id: 'conservative', ...CANDIDATE_META.conservative, controlWidthsMm: scaled(1.14) },
   ];
-  return { candidates, model: OFFLINE_MODEL, fallback: true, targetPf, firstPassWidthMm: w0, note: 'Deterministic priors from a first-pass feasibility solve.' };
+  return {
+    candidates,
+    model: OFFLINE_MODEL,
+    fallback: true,
+    targetPf,
+    firstPassWidthMm: Math.exp(O.feasibleUniformStart(material, ctx, targetPf)[0]),
+    basePrintedMassG: opt.printed_mass_g,
+    note: 'Deterministic priors from the verified multi-start optimum (± width scale).',
+  };
 }
 
 function coerceControlWidths(raw) {
@@ -3946,21 +4395,31 @@ function normalizePlan(raw) {
 /** Evaluate one prior with the verified engine. */
 function evaluateCandidate(candidate, material, ctx, targetPf) {
   const logWidth = candidate.controlWidthsMm.map((w) => Math.log(clampWidth(w)));
-  const analysis = E.analyzeLattice(logWidth, ctx);
+  const analysis = E.analyzeLattice(logWidth, ctx); // computes printed/union mass
   const pf = E.probabilityOfFailure(analysis, material, 'lot');
   const modes = E.failureModes(analysis, material, 'lot');
   const printability = E.printabilityReport(analysis);
-  const feasible = pf <= targetPf + 1e-12;
+  const printedMass = analysis.printed_mass_g ?? analysis.mass_g;
+  const printabilityPass = !!(printability && printability.pass);
+  // v0.3: candidate ranking uses PRINTED mass and requires printability pass.
+  const feasible = pf <= targetPf + 1e-12 && printabilityPass;
   const violation = Math.max(0, (pf - targetPf) / targetPf);
-  const score = feasible ? analysis.mass_g : analysis.mass_g * (1 + 100 * violation);
+  const printPenalty = printability
+    ? 80 * (Math.max(0, printability.max_neighbour_width_ratio - 1.5) / 0.5
+      + Math.max(0, printability.max_slenderness - 30) / 30)
+    : 0;
+  const score = feasible ? printedMass : printedMass * (1 + 100 * violation + printPenalty);
   return {
     ...candidate,
     logWidth,
     analysis,
-    mass_g: analysis.mass_g,
+    mass_g: printedMass,
+    mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
+    printed_mass_g: printedMass,
     pf,
     reliability: 1 - pf,
     feasible,
+    printabilityPass,
     score,
     governing: modes.governingLabel,
     printability,
@@ -3969,7 +4428,6 @@ function evaluateCandidate(candidate, material, ctx, targetPf) {
     deflection_mm: analysis.deflectionScale / material.E_mean,
   };
 }
-
 /**
  * Optimise each AI prior with the verified engine, then rank.
  * The AI proposes starting points; the physics returns the final mass/P_f.
@@ -3985,36 +4443,57 @@ function optimizeAndRankCandidates(candidates, material, ctx, targetPf) {
       while (!step.done) step = search.next();
       if (step.value && step.value.design) logWidth = step.value.design;
     } catch (err) { /* keep the prior */ }
-    const analysis = E.analyzeLattice(logWidth, ctx);
-    const pf = E.probabilityOfFailure(analysis, material, 'lot');
-    const modes = E.failureModes(analysis, material, 'lot');
-    const printability = E.printabilityReport(analysis);
-    const feasible = pf <= targetPf + 1e-12;
-    const violation = Math.max(0, (pf - targetPf) / targetPf);
-    const score = feasible ? analysis.mass_g : analysis.mass_g * (1 + 100 * violation);
-    return {
-      ...candidate,
-      logWidth,
-      analysis,
-      mass_g: analysis.mass_g,
-      pf,
-      reliability: 1 - pf,
-      feasible,
-      score,
-      governing: modes.governingLabel,
-      printability,
-      sigma_y_req: analysis.demands.sigma_y_req,
-      E_req: analysis.demands.E_req,
-      deflection_mm: analysis.deflectionScale / material.E_mean,
-      optimisedFromPrior: true,
-    };
+    // v0.3: re-evaluate through the printed-mass/printability path so candidate
+    // cards show printed mass, analytic upper bound and the printability gate.
+    const widths = E.designWidths(logWidth).map((w) => clampWidth(w));
+    const evaluated = evaluateCandidate({ ...candidate, controlWidthsMm: widths }, material, ctx, targetPf);
+    return { ...evaluated, logWidth, optimisedFromPrior: true, priorId: candidate.id };
   });
   optimised.sort((a, b) => {
     if (a.feasible !== b.feasible) return a.feasible ? -1 : 1;
     if (Math.abs(a.score - b.score) > 1e-9) return a.score - b.score;
-    return a.mass_g - b.mass_g;
+    return a.printed_mass_g - b.printed_mass_g;
   });
   return optimised.map((c, i) => ({ ...c, rank: i + 1 }));
+}
+
+/**
+ * v0.3 hero design: the final engine-optimised result (multi-start pattern search),
+ * chosen by printed mass with the printability gate. Kept SEPARATE from the three
+ * AI priors so the Design screen shows defensible trade-offs instead of copies.
+ */
+function recommendedDesign(materialIn, ctx, targetPf) {
+  const material = materialIn;
+  const opt = O.robustOptimize(material, ctx, { targetPf });
+  const analysis = opt.analysis;
+  const printability = E.printabilityReport(analysis);
+  const printed = analysis.printed_mass_g ?? analysis.mass_g;
+  const feasible = opt.pf <= targetPf * 1.02 && !!(printability && printability.pass);
+  return {
+    id: 'optimised',
+    name: 'Engine-optimised',
+    strategy: 'multi-start robust pattern search',
+    rationale: `Final engine-optimised design (multi-start pattern search): ${printed.toFixed(2)} g printed, chosen by printed mass with the printability constraint.`,
+    tagline: 'Recommended',
+    logWidth: opt.design,
+    controlWidthsMm: E.designWidths(opt.design).map((w) => clampWidth(w)),
+    analysis,
+    printed_mass_g: printed,
+    mass_g: printed,
+    mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
+    pf: opt.pf,
+    reliability: 1 - opt.pf,
+    feasible,
+    printabilityPass: !!(printability && printability.pass),
+    score: printed,
+    governing: E.failureModes(analysis, material, 'lot').governingLabel,
+    printability,
+    sigma_y_req: analysis.demands.sigma_y_req,
+    E_req: analysis.demands.E_req,
+    deflection_mm: analysis.deflectionScale / material.E_mean,
+    starts: opt.starts || [],
+    isOptimised: true,
+  };
 }
 
 /** Engine-rank candidates: feasible first by mass, then by penalty score. */
@@ -4058,9 +4537,9 @@ function fallbackDesignReview(payload) {
 function fallbackProofMemo(payload) {
   const f = payload && payload.facts ? payload.facts : payload || {};
   const memo = [
-    `Qualification narrative: the selected design (${num(f.mass_g, 2)} g) meets a ${pct(f.target_pf, 2)} batch reliability target with a closed-form P_f of ${pct(f.pf, 3)} (${f.feasible ? 'pass' : 'fail'}).`,
+    `Qualification narrative: the selected design (${num(f.mass_g, 2)} g printed mass; analytic upper bound ${num(f.mass_analytic_upper_bound_g, 2)} g) meets a ${pct(f.target_pf, 2)} batch reliability target with a closed-form P_f of ${pct(f.pf, 3)} (${f.feasible ? 'pass' : 'fail'}).`,
     `The governing mode is ${f.governing_mode || 'not computed'}; the material demand is ${num(f.sigma_y_req_mpa, 2)} MPa at yield and ${num(f.E_req_mpa, 0)} MPa stiffness.`,
-    `The batch acceptance window shows the lot-mean envelope in which the design stays inside the target; the passport translates a measured lot into a uniform width scale.`,
+    `The batch acceptance window shows the lot-mean envelope in which the design stays inside the target; the known-lot passport re-optimises all ${(() => (Array.isArray(f.widths_mm) ? f.widths_mm.length : 8))()} width controls for the measured lot with measurement uncertainty retained (${num(f.measurement_cv, 2)} CV).`,
     `Key risk: feedstock distribution assumptions from literature-derived presets — replace them with the supplier's own lot data before production.`,
     `Recommended next test: measure lot E and σy on printed ISO 527-2 specimens from the incoming batch and re-run the passport.`,
   ].join(' ');
@@ -4393,23 +4872,24 @@ function makeProvenance(entry = {}) {
 // robust design: 32,692 mm³ union vs 40,921 mm³ analytic (≈ 20 % lower printed).
 // We report the CONSERVATIVE analytic figure everywhere; this footnote keeps it honest.
 // ---------------------------------------------------------------------------
+// v0.3 mass basis: analytic mass is a conservative UPPER BOUND; the displayed
+// design mass is the deterministic printed/union (Halton QMC) mass.
 const MASS_UNION = {
-  analyticMassG: 50.73,
-  unionMassG: 40.54,
-  analyticVolumeMm3: 40921,
-  unionVolumeMm3: 32692,
-  unionRatio: 32692 / 40921,
-  validatorNote: 'Validator F4: analytic mass counts strut volumes before unioning at joints; voxel-union estimate is ~20 % lower.',
+  analyticMassG: 50.78,
+  unionMassG: 46.40,
+  unionRatio: 46.40 / 50.78,
+  note: 'Halton QMC union, 60,000 samples — matches the Python reference within 0.5 %.',
+  validatorNote: 'Validator F4 (fixed v0.3): analytic mass double-counts strut overlap; at the shipped robust design analytic 50.78 g vs printed union ≈46.40 g (+9.4 % upper bound). The app reports printed mass; analytic is shown as the upper bound only.',
 };
-function massDisclosure(analyticMassG) {
-  const mass = Number.isFinite(analyticMassG) ? analyticMassG : MASS_UNION.analyticMassG;
-  const union = mass * MASS_UNION.unionRatio;
-  const pct = (1 - MASS_UNION.unionRatio) * 100;
+function massDisclosure(printedMassG) {
+  const printed = Number.isFinite(printedMassG) ? printedMassG : MASS_UNION.unionMassG;
+  const upper = printed / MASS_UNION.unionRatio;
+  const pct = (upper / printed - 1) * 100;
   return {
-    analytic_g: round2(mass, 2),
-    union_estimate_g: round2(union, 1),
-    difference_pct: round2(pct, 0),
-    note: `Analytic mass counts strut volumes before unioning at joints; the union/printed estimate is ≈${round2(union, 1)} g (about ${round2(pct, 0)} % lower). We report the conservative figure. Comparison bars use the same analytic basis.`,
+    printed_g: round2(printed, 2),
+    analytic_upper_bound_g: round2(upper, 2),
+    upper_bound_pct: round2(pct, 1),
+    note: `Displayed mass is the deterministic printed/union estimate (Halton QMC); the analytic upper bound is ≈${round2(upper, 2)} g (about ${round2(pct, 1)} % higher because strut overlap is counted twice). Comparison bars use printed mass.`,
     sample_union_g: MASS_UNION.unionMassG,
   };
 }
@@ -4421,16 +4901,16 @@ function validationFallback() {
   return {
     source: 'embedded fallback (validation/results.json not available)',
     generated: null,
-    counts: { PASS: 45, WARN: 1, FAIL: 0 },
-    total: 46,
-    runtime_s: 12.6,
+    counts: { PASS: 51, WARN: 2, FAIL: 0 },
+    total: 53,
+    runtime_s: null,
     checks: [
       { id: 'A', title: 'FE element benchmarks', detail: 'A1–A7: axial, cantilever, rigid body, independent assembly, equilibrium, symmetry, linearity — 8/8 pass', status: 'pass' },
       { id: 'B', title: 'Independent solver', detail: 'Energy-minimisation cross-check of the assembled system — 2/2 pass', status: 'pass' },
       { id: 'C', title: 'Reliability closed form', detail: 'Closed-form bivariate P_f vs SciPy, high-precision quadrature and Monte-Carlo — 10/10 pass', status: 'pass' },
       { id: 'D', title: 'Optimiser robustness', detail: 'Brute-force grid + independent random search find no better feasible design — 5/5 pass', status: 'pass' },
       { id: 'E', title: 'Homogenisation check', detail: 'Periodic unit-cell energy/stress vs analytical truss scaling — 6/6 pass', status: 'pass' },
-      { id: 'F', title: 'Mass & STL audit', detail: 'Joint-overlap mass over-count (known, conservative): analytic 40,921 mm³ vs 32,692 mm³ union (+25.2 % at the robust design)', status: 'warn' },
+      { id: 'F', title: 'Mass & STL audit', detail: 'Corrected F4 joint-overlap mass over-count (known, conservative, analytic is the upper bound) + F5 Halton printed-mass estimator WARN (60k QMC vs 600k MC) — both quantified', status: 'warn' },
       { id: 'G', title: 'Material-model audit', detail: 'Lognormal moments, correlation, two-level variance decomposition — 4/4 pass', status: 'pass' },
       { id: 'H', title: 'Cross-implementation', detail: 'Python ↔ JS fixture agreement — 4/4 pass', status: 'pass' },
       { id: 'I', title: 'Claim scope', detail: 'Number-grounding and claims-ladder audit — 2/2 pass', status: 'pass' },
@@ -4443,7 +4923,7 @@ function validationFallback() {
       { id: 'L4–L6', level: 'Component / system / certified', status: 'absent', text: 'No coupon or full-bracket experiments, no certification. Decision support only.' },
     ],
     modelFormLimitations: {
-      massOvercount: 'Reported mass double-counts strut overlap (F4): +20.2 % at w=1, +28.7 % at w=2, +46.6 % at w=4; shipped robust design +25.2 % (union 32,692 mm³ vs analytic 40,921 mm³).',
+      massOvercount: 'Analytic mass double-counts strut overlap by definition and is reported only as an upper bound (corrected F4). The Halton 60k printed-mass estimate is within 0.5 % of a 600k-sample MC (F5 WARN: deterministic QMC noise, quantified).',
       buckling: 'Euler buckling with pinned–pinned effective length; no combined axial–bending interaction.',
       joints: 'Printed node/joint compliance and local stress concentrations are not modelled; rigid joints assumed.',
       noExperiments: 'No physical specimens were tested; nothing here is experimental validation.',
@@ -4457,32 +4937,37 @@ function validationFallback() {
 function buildDesignMemoPayload({ brief, selected, comparison }) {
   const a = selected.analysis;
   const print = selected.printability || {};
+  const printed = selected.printed_mass_g ?? selected.mass_g ?? a.printed_mass_g ?? a.mass_g;
+  const analytic = selected.mass_analytic_g ?? a.mass_analytic_g ?? a.mass_g;
   const facts = {
-    mass_g: round2(a.mass_g),
+    mass_g: round2(printed, 2),
+    printed_mass_g: round2(printed, 2),
+    mass_analytic_upper_bound_g: round2(analytic, 2),
+    analytic_upper_bound_pct: round2((analytic / printed - 1) * 100, 1),
     pf: selected.pf,
     pf_pct: round2(selected.pf * 100, 3),
     target_pf: brief.targetPf,
     target_pct: round2(brief.targetPf * 100, 2),
     reliability_pct: round2((1 - selected.pf) * 100, 3),
     feasible: selected.feasible,
+    printability_pass: selected.printabilityPass ?? !!(print.pass),
     pf_floor_pct: 0.001,
     governing_mode: selected.governing,
     sigma_y_req_mpa: round2(selected.sigma_y_req, 2),
     E_req_mpa: round2(selected.E_req, 0),
-    min_width_mm: round2(print.minWidth, 2),
-    max_slenderness: round2(print.maxSlenderness, 1),
-    neighbour_ratio: round2(print.maxNeighbourRatio, 2),
+    min_width_mm: round2(print.min_width_mm ?? print.minWidth, 2),
+    max_slenderness: round2(print.max_slenderness ?? print.maxSlenderness, 1),
+    neighbour_ratio: round2(print.max_neighbour_width_ratio ?? print.maxNeighbourRatio, 2),
     printability_warn: !!(print.warnNeighbour || print.warnSlenderness),
     load_n: brief.loadN,
     deflection_limit_mm: brief.deflLimitMm,
     deflection_mm: round2(selected.deflection_mm, 2),
     part_type: brief.partType,
     process: brief.process,
-    mass_union_g: massDisclosure(round2(a.mass_g, 2)).union_estimate_g,
-    mass_union_diff_pct: massDisclosure(round2(a.mass_g, 2)).difference_pct,
     widths_mm: (selected.controlWidthsMm || []).map((w) => round2(w, 2)),
     conventional_mass_g: comparison && comparison.conventional ? round2(comparison.conventional.mass_g, 1) : null,
     conventional_pf_pct: comparison && comparison.conventional ? round2(comparison.conventional.pf * 100, 2) : null,
+    family_scope: 'best of this bracket/lattice family',
   };
   return { facts, target_pf: brief.targetPf, design: { control_widths_mm: facts.widths_mm } };
 }
@@ -4490,23 +4975,47 @@ function buildDesignMemoPayload({ brief, selected, comparison }) {
 function buildProofPayload({ brief, selected, proof, validation }) {
   const base = buildDesignMemoPayload({ brief, selected });
   const f = base.facts;
-  const mass = massDisclosure(f.mass_g);
+  const disclosure = massDisclosure(f.mass_g);
   const counts = validation && validation.counts
     ? { PASS: validation.counts.PASS, WARN: validation.counts.WARN, FAIL: validation.counts.FAIL }
     : { PASS: 45, WARN: 1, FAIL: 0 };
   const total = validation && (validation.total || validation.countsTotal) ? (validation.total || validation.countsTotal) : 46;
+  const sustained = proof && proof.sustained ? proof.sustained : null;
+  const recipe = proof && proof.recipe ? proof.recipe : null;
   return {
     facts: {
       ...f,
-      mass_union_g: mass.union_estimate_g,
-      mass_union_diff_pct: mass.difference_pct,
-      accepted_lot_scale: proof && proof.passport && proof.passport.scale ? round2(proof.passport.scale, 3) : null,
-      acceptance_window_slope: null,
+      mass_analytic_upper_bound_g: disclosure.analytic_upper_bound_g,
+      analytic_upper_bound_pct: disclosure.upper_bound_pct,
       validation_passed: counts.PASS,
       validation_warn: counts.WARN,
       validation_total: total,
+      family_scope: 'best of this bracket/lattice family',
+      sustained_pf_bound: sustained ? round2(sustained.pf_bound, 6) : null,
+      sustained_deflection_bound_mm: sustained ? round2(sustained.deflection_bound_mm, 2) : null,
+      sustained_qualified: sustained ? sustained.pf_bound <= (brief.targetPf ?? 0.01) : null,
+      recipe_global_scale: recipe ? round2(recipe.global_equivalent_scale, 3) : null,
+      recipe_added_mass_pct: recipe ? round2(recipe.added_mass_pct, 2) : null,
+      recipe_pf: recipe ? round2(recipe.pf, 6) : null,
+      recipe_verdict: recipe ? recipe.verdict : null,
+      measurement_cv: recipe ? recipe.measurement_cv : null,
     },
     validation: { counts, total },
+    sustained: sustained ? {
+      pf_bound: round2(sustained.pf_bound, 6),
+      E_req_bound_MPa: round2(sustained.E_req_bound_MPa, 1),
+      sigma_req_bound_MPa: round2(sustained.sigma_req_bound_MPa, 2),
+      deflection_bound_mm: round2(sustained.deflection_bound_mm, 2),
+      qualified: sustained.pf_bound <= (brief.targetPf ?? 0.01),
+    } : null,
+    recipe: recipe ? {
+      width_multipliers: recipe.width_multipliers.map((v) => round2(v, 3)),
+      global_equivalent_scale: round2(recipe.global_equivalent_scale, 3),
+      added_mass_pct: round2(recipe.added_mass_pct, 2),
+      pf: round2(recipe.pf, 6),
+      verdict: recipe.verdict,
+      measurement_cv: recipe.measurement_cv,
+    } : null,
     proof: proof || null,
   };
 }
@@ -4529,10 +5038,10 @@ function claimsLadderFromValidation(validation) {
 /** Claims ladder shown in the UI (honest wording, fixed copy). */
 function claimsLadder() {
   return [
-    { level: 'Verified', text: 'FE element benchmarks, closed-form reliability vs SciPy/quadrature/Monte-Carlo, mass and STL audits', tone: 'green' },
-    { level: 'Supported', text: 'Batch-distribution reliability and robust design *under the stated model assumptions*', tone: 'ink' },
-    { level: 'Illustrative', text: 'Batch passport compensation and acceptance windows (v0.1 logic, needs supplier calibration)', tone: 'amber' },
-    { level: 'Not claimed', text: 'Physical part performance, certification, fatigue, creep, out-of-plane or layer-normal strength', tone: 'muted' },
+    { level: 'Verified', text: 'FE element benchmarks, closed-form reliability vs SciPy/quadrature/Monte-Carlo, printed-mass/STL audits, printability and 8-control lot-resize checks', tone: 'green' },
+    { level: 'Supported', text: 'Batch-distribution reliability and robust design under the stated model assumptions — best of this bracket/lattice family', tone: 'ink' },
+    { level: 'Illustrative', text: 'Known-lot compensation, sustained-load advisory and acceptance windows (v0.1 logic; needs supplier calibration)', tone: 'amber' },
+    { level: 'Not claimed', text: 'Physical part performance, certification, fatigue/creep validation, out-of-plane or layer-normal strength, general topology optimality', tone: 'muted' },
   ];
 }
 
@@ -4546,7 +5055,7 @@ const round2 = (v, d = 2) => {
 // Re-export a couple of engine helpers for the UI layer (no duplication).
 
 
-return { OFFLINE_MODEL, OFFLINE_NOTE, EXAMPLE_BRIEFS, materialFromLot, presetLot, BRIEF_LIMITS, coerceBrief, serverBrief, parseBriefTextHeuristics, fallbackBrief, parseLotTextHeuristics, CANDIDATE_META, fallbackPlan, normalizePlan, evaluateCandidate, optimizeAndRankCandidates, evaluateAndRankCandidates, pickBestCandidate, fallbackDesignReview, fallbackProofMemo, fallbackRenderSvg, fallbackVoice, extractNumbers, flattenNumbers, numberIsGrounded, validateGrounding, sanitizeMemo, normalizeBriefResponse, normalizeLotResponse, normalizeReviewResponse, normalizeProofResponse, normalizeVoiceResponse, normalizeRenderResponse, validateResponse, makeProvenance, MASS_UNION, massDisclosure, validationFallback, buildDesignMemoPayload, buildProofPayload, claimsLadderFromValidation, claimsLadder, round2, engine: E, optimise: O };
+return { OFFLINE_MODEL, OFFLINE_NOTE, EXAMPLE_BRIEFS, materialFromLot, presetLot, BRIEF_LIMITS, coerceBrief, serverBrief, parseBriefTextHeuristics, fallbackBrief, parseLotTextHeuristics, CANDIDATE_META, fallbackPlan, normalizePlan, evaluateCandidate, optimizeAndRankCandidates, recommendedDesign, evaluateAndRankCandidates, pickBestCandidate, fallbackDesignReview, fallbackProofMemo, fallbackRenderSvg, fallbackVoice, extractNumbers, flattenNumbers, numberIsGrounded, validateGrounding, sanitizeMemo, normalizeBriefResponse, normalizeLotResponse, normalizeReviewResponse, normalizeProofResponse, normalizeVoiceResponse, normalizeRenderResponse, validateResponse, makeProvenance, MASS_UNION, massDisclosure, validationFallback, buildDesignMemoPayload, buildProofPayload, claimsLadderFromValidation, claimsLadder, round2, engine: E, optimise: O };
 })();
 
 /* ===== ai.js ===== */
@@ -4725,6 +5234,15 @@ function createAIClient(options = {}) {
           return { data: fb, provenance: prov, live: false, error: String((err && err.message) || err) };
         }
       }
+      if (mode === 'offline') {
+        // Deterministic offline assistant: identical schema, honest provenance.
+        const fb = offline();
+        const prov = record({
+          endpoint, model: OFFLINE_MODEL, latencyMs: now() - t0, cached: false,
+          fallback: true, schemaOk: true,
+        });
+        return { data: fb, provenance: prov, live: false, mock: false };
+      }
       if (mode === 'mock') await sleep(mockLatency(endpoint, payload));
       const fb = offline();
       const prov = record({
@@ -4894,7 +5412,7 @@ return { PRODUCT_RENDER_DATA_URL, PRODUCT_RENDER_LABEL, PRODUCT_RENDER_MODEL };
 
 /* ===== ui.js ===== */
 __modules.ui = (function () {
-const {GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META,} = __modules.config;
+const {GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META, V03,} = __modules.config;
 const E = __modules.engine;
 const O = __modules.optimize;
 const {buildBinarySTL, stlFileName} = __modules.stl;
@@ -4902,7 +5420,7 @@ const AC = __modules.aicore;
 const {createAIClient} = __modules.ai;
 const {PRODUCT_RENDER_DATA_URL, PRODUCT_RENDER_LABEL, PRODUCT_RENDER_MODEL} = __modules.product_render;
 /**
- * AnyRB v0.2 — UI controller.
+ * AnyRB v0.3 — UI controller (review-response release).
  *
  * Three-step AI studio: 01 Brief → 02 Design → 03 Prove.
  * The verified engine (engine.js / optimize.js) does every number; the AI layer
@@ -4999,7 +5517,8 @@ const state = {
   plan: null,
   planMeta: { model: null, fallback: true },
   candidates: [],
-  selectedId: null,
+  hero: null,
+  selectedId: 'optimised',
   comparison: null,
   optimized: null,
   proof: null,
@@ -5008,6 +5527,7 @@ const state = {
   lab: false,
   busy: false,
   passport: { e: 1, sy: 1, adapt: null },
+  qc: { lotId: '', supplier: '', recycledPct: null, e: null, sy: null, cv: V03.measurementCvDefault * 100 },
   ai: null,
   aiMode: 'detecting',
   aiCalls: [],
@@ -5022,7 +5542,10 @@ ai.onChange((snap) => {
 });
 
 const ctx = () => O.makeContext({ F: state.brief.loadN, uLim: state.brief.deflLimitMm, rho: state.material.rho });
-const selectedCandidate = () => state.candidates.find((c) => c.id === state.selectedId) || state.candidates[0] || null;
+const selectedCandidate = () => {
+  if (state.selectedId === 'optimised' && state.hero) return state.hero;
+  return state.candidates.find((c) => c.id === state.selectedId) || state.hero || state.candidates[0] || null;
+};
 
 // ---------------------------------------------------------------------------
 // Persistence
@@ -5149,7 +5672,7 @@ function renderProject() {
   const seed = $('#session-seed');
   if (seed) seed.textContent = String(DEFAULTS.seed);
   const engine = $('#session-engine');
-  if (engine) engine.textContent = `v0.1 · ${E.N_ELEMENTS} el.`;
+  if (engine) engine.textContent = `v0.3 · ${E.N_ELEMENTS} el.`;
   const valid = $('#session-valid');
   if (valid) {
     const v = state.validation || {};
@@ -5177,6 +5700,7 @@ function renderBriefMeta() {
   const parts = ['Draft saved locally', `session ${DEFAULTS.seed}`];
   parts.push(state.aiMode === 'live' ? 'Meta models live' : state.aiMode === 'mock' ? 'simulated Meta models' : 'offline assistant');
   m.textContent = parts.join(' · ');
+  renderFeasibility();
 }
 function renderUnderstanding() {
   const host = $('#understanding-fields');
@@ -5251,6 +5775,7 @@ function renderLot() {
       : `<span class="p-dot"></span>${esc(state.lotMeta.model || 'Verified preset')}`;
     badge.className = 'pill ' + (state.lotMeta.fallback ? 'pill--fallback' : 'pill--verify');
   }
+  renderFeasibility();
 }
 function renderPresetMenu() {
   const host = $('#preset-menu');
@@ -5327,6 +5852,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function runDesignFlow() {
   if (state.busy) return;
+  if (state.feasibility && !state.feasibility.feasible) {
+    toast('Infeasible for this bracket/lattice family — Design is blocked', 'err');
+    renderFeasibility();
+    return;
+  }
   const t0 = performance.now();
   setBusy(true);
   setActivity(['running', 'future', 'future']);
@@ -5350,18 +5880,19 @@ async function runDesignFlow() {
     setActivity(['done', 'done', 'running'], performance.now() - t0);
     await sleep(70);
 
-    const ranked = AC.optimizeAndRankCandidates(plan.candidates, state.material, ctx(), state.brief.targetPf);
-    state.candidates = ranked;
-    const best = AC.pickBestCandidate(ranked);
-    state.selectedId = best ? best.id : null;
+    // Priors are evaluated exactly as proposed (no hidden optimisation) so the
+    // three trade-offs stay distinct; the optimiser result is the separate hero.
+    state.candidates = AC.evaluateAndRankCandidates(plan.candidates, state.material, ctx(), state.brief.targetPf);
+    state.hero = AC.recommendedDesign(state.material, ctx(), state.brief.targetPf);
+    state.selectedId = 'optimised';
     state.comparison = buildComparisonStrip();
     setActivity(['done', 'done', 'done'], performance.now() - t0);
     renderDesign();
-    renderDesignMemo(best);
+    renderDesignMemo(state.hero);
     state.maxStep = 'design';
     setStep('design', { force: true });
     persist();
-    toast(`3 AI priors optimised by the engine · v0.1 · ${((performance.now() - t0) / 1000).toFixed(2)} s`);
+    toast(`3 AI priors evaluated as proposed · optimised design ${nf(state.hero.printed_mass_g, 2)} g printed · ${((performance.now() - t0) / 1000).toFixed(2)} s`);
   } catch (err) {
     console.error(err);
     showAIError(err);
@@ -5372,14 +5903,17 @@ async function runDesignFlow() {
   }
 }
 
+function printedOf(row) {
+  return row && (row.printed_mass_g != null ? row.printed_mass_g : row.mass_g);
+}
 function buildComparisonStrip() {
   const material = state.material;
   const c = ctx();
   const solid = O.solidBaseline(material, c, state.brief.targetPf);
   const uniform = O.uniformTargetBaseline(material, c, state.brief.targetPf);
   return {
-    solid: { mass_g: solid.mass_g, pf: solid.pf, label: 'Solid plate' },
-    uniform: { mass_g: uniform.mass_g, pf: uniform.pf, label: 'Uniform · target-sized' },
+    solid: { mass_g: printedOf(solid), mass_analytic_g: solid.mass_g, pf: solid.pf, label: 'Solid plate' },
+    uniform: { mass_g: printedOf(uniform), mass_analytic_g: uniform.mass_g, pf: uniform.pf, label: 'Uniform · target-sized' },
     nominal: null,
     meanOnly: null,
   };
@@ -5389,12 +5923,14 @@ function selectCandidate(id) {
   if (id === state.selectedId) return;
   state.selectedId = id;
   renderCandidates();
+  renderHero();
   renderMetrics();
   renderLattice();
+  renderVsStrip();
   const c = selectedCandidate();
   if (c) {
     renderDesignMemo(c);
-    toast(`${c.name} selected · engine output applied`);
+    toast(id === 'optimised' ? 'Engine-optimised design selected' : `${c.name} prior selected · proof will optimise it`);
     persist();
   }
 }
@@ -5403,13 +5939,15 @@ function renderDesign() {
   const c = selectedCandidate();
   if (!c) return;
   renderCandidates();
+  renderHero();
   renderMetrics();
   renderLattice();
   renderVsStrip();
   const preset = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
   $('#viz-meta').textContent = `${GEOMETRY.Lx} × ${GEOMETRY.Ly} × ${GEOMETRY.depth} mm · ${preset.label} · ${nf(state.brief.loadN, 0)} N tip load`;
   const cap = $('#viz-caption-text');
-  if (cap) cap.textContent = `Showing: ${c.name} · ${c.feasible ? 'meets target' : 'below target'} · engine-ranked #${c.rank}`;
+  const rankLabel = Number.isFinite(c.rank) ? `engine-ranked #${c.rank}` : 'engine-optimised';
+  if (cap) cap.textContent = `Showing: ${c.name} · ${c.feasible ? 'meets target' : 'below target'} · ${rankLabel}`;
   setStep('design');
 }
 function renderCandidates() {
@@ -5418,32 +5956,55 @@ function renderCandidates() {
   host.innerHTML = '';
   state.candidates.forEach((c) => {
     const print = c.printability || {};
-    const warn = print.warnNeighbour || print.warnSlenderness;
+    const printPass = c.printabilityPass ?? !!(print.pass);
+    const ratio = print.max_neighbour_width_ratio ?? print.maxNeighbourRatio ?? 1;
+    const slen = print.max_slenderness ?? print.maxSlenderness ?? 0;
     const recommended = c.rank === 1 && c.feasible;
     const btn = el(`
-      <button class="candidate" type="button" aria-pressed="${c.id === state.selectedId}" data-id="${esc(c.id)}" aria-label="${esc(c.name)} candidate: ${nf(c.mass_g, 2)} grams, probability of failure ${fmtPf(c.pf)}, ${warn ? 'printability warning' : 'printability pass'}">
+      <button class="candidate" type="button" aria-pressed="${c.id === state.selectedId}" data-id="${esc(c.id)}" aria-label="${esc(c.name)} candidate: ${nf(c.mass_g, 2)} grams printed mass, probability of failure ${fmtPf(c.pf)}, ${printPass ? 'printability pass' : 'printability warning'}">
         <div class="c-tags">
           <span class="pill pill--muted">AI prior</span>
           ${recommended ? '<span class="pill pill--verify"><span class="p-dot"></span>Recommended</span>' : ''}
+          ${printPass ? '' : '<span class="pill pill--accent">printability warn</span>'}
         </div>
         <div class="c-name">${esc(c.name)}</div>
-        <div class="c-mass">${nf(c.mass_g, 2)} <span class="u">g</span></div>
+        <div class="c-mass">${nf(c.mass_g, 2)} <span class="u">g</span> <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">printed</span></div>
         <div class="c-pf">P_f ${fmtPf(c.pf)} <span style="color:var(--muted)">· target ${fmtPf(state.brief.targetPf)}</span></div>
         <div class="c-tradeoff">${esc(c.rationale || AC.CANDIDATE_META[c.id]?.rationale || '')}</div>
         <div class="c-engine">
-          <span class="c-print pill ${warn ? 'pill--accent' : 'pill--verify'}" style="height:22px">${warn ? ICONS.warn + ' printability warn' : 'printability pass'}</span>
-          <span>engine v0.1</span>
+          <span class="c-print pill ${printPass ? 'pill--verify' : 'pill--accent'}" style="height:22px">${printPass ? 'print pass' : ICONS.warn + ' print warn'} · w-ratio ${nf(ratio, 2)} · L/w ${nf(slen, 1)}</span>
         </div>
+        <div class="micro" style="margin-top:6px">AI prior · engine-evaluated as proposed · analytic UB ${nf(c.mass_analytic_g ?? 0, 2)} g<br>Selecting it runs the optimiser from this prior</div>
       </button>`);
     btn.addEventListener('click', () => selectCandidate(c.id));
     host.appendChild(btn);
   });
 }
+function renderHero() {
+  const h = state.hero;
+  const card = $('#optimised-hero');
+  if (!card) return;
+  if (!h) { card.hidden = true; return; }
+  card.hidden = false;
+  const print = h.printability || {};
+  $('#hero-mass').textContent = `${nf(h.printed_mass_g, 2)} g`;
+  $('#hero-ub').textContent = `${nf(h.mass_analytic_g, 2)} g`;
+  $('#hero-pf').textContent = fmtPf(h.pf);
+  $('#hero-print').textContent = `${h.printabilityPass ? 'pass' : 'warn'} · ratio ${nf(print.max_neighbour_width_ratio, 2)} · L/w ${nf(print.max_slenderness, 1)}`;
+  $('#hero-mode').textContent = h.governing || '—';
+  const btn = $('#btn-select-hero');
+  if (btn) {
+    const active = state.selectedId === 'optimised';
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.textContent = active ? 'Selected' : 'Use optimised design';
+    btn.dataset.id = 'optimised';
+  }
+}
 function renderMetrics() {
   const c = selectedCandidate();
   if (!c) return;
   $('#metric-mass-value').innerHTML = `${nf(c.mass_g, 2)} <span class="m-unit">g</span>`;
-  $('#metric-mass-sub').textContent = 'polymer volume × density';
+  $('#metric-mass-sub').textContent = `printed union mass · analytic upper bound ${nf(c.mass_analytic_g ?? 0, 2)} g`;
   const pfEl = $('#metric-pf-value');
   pfEl.textContent = fmtPf(c.pf);
   pfEl.className = 'm-value ' + (c.pf <= state.brief.targetPf ? 'is-good' : 'is-warn');
@@ -5451,18 +6012,25 @@ function renderMetrics() {
   const modeEl = $('#metric-mode-value');
   modeEl.textContent = c.governing || '—';
   $('#metric-mode-sub').textContent = 'whichever failure mode carries the probability';
+  const print = c.printability || {};
+  const badge = $('#metric-print-badge');
+  if (badge) {
+    const pass = c.printabilityPass ?? !!(print.pass);
+    badge.className = 'pill ' + (pass ? 'pill--verify' : 'pill--accent');
+    badge.textContent = `${pass ? 'printability pass' : 'printability warn'} · ratio ${nf(print.max_neighbour_width_ratio ?? print.maxNeighbourRatio, 2)} · L/w ${nf(print.max_slenderness ?? print.maxSlenderness, 1)}`;
+  }
   renderMassFootnotes();
 }
 function renderMassFootnotes() {
   const c = selectedCandidate();
   const proving = state.proof && state.step === 'prove';
-  const mass = proving ? state.proof.optimizedAnalysis.mass_g : (c ? c.mass_g : null);
+  const mass = proving ? (state.proof.optimizedAnalysis.printed_mass_g ?? state.proof.optimizedAnalysis.mass_g) : (c ? c.mass_g : null);
   if (mass == null) return;
   const d = AC.massDisclosure(mass);
   const designNote = $('#mass-footnote');
   if (designNote) designNote.textContent = d.note;
   const proofNote = $('#proof-mass-note');
-  if (proofNote) proofNote.textContent = `Analytic mass ${d.analytic_g} g (conservative) — ${d.note}`;
+  if (proofNote) proofNote.textContent = `Printed mass ${nf(d.printed_g, 2)} g · analytic upper bound ${nf(d.analytic_upper_bound_g, 2)} g (+${nf(d.upper_bound_pct, 1)}%) — ${d.note}`;
 }
 
 function renderVsStrip() {
@@ -5486,7 +6054,7 @@ function renderVsStrip() {
   const parts = [];
   if (solid && solid.mass_g > c.mass_g) parts.push(`${((1 - c.mass_g / solid.mass_g) * 100).toFixed(0)} % lighter than the solid plate`);
   if (uniform && uniform.mass_g > c.mass_g) parts.push(`${((1 - c.mass_g / uniform.mass_g) * 100).toFixed(0)} % lighter than a uniform lattice sized to the same target`);
-  $('#vs-takeaway').textContent = (parts.length ? parts.join(' · ') + '. ' : '') + 'All bars use the same analytic mass basis (conservative; strut overlap not unioned).';
+  $('#vs-takeaway').textContent = (parts.length ? parts.join(' · ') + '. ' : '') + 'All bars use printed mass (solid = exact).';
 }
 
 function renderDesignMemo(c) {
@@ -5678,17 +6246,50 @@ async function runProofFlow() {
       meanOnly: { mass_g: row('mean_only').mass_g, pf: row('mean_only').pf, label: 'Mean-only' },
       rows: comparison.rows,
     };
+    const sustained = E.sustainedBound(bestAnalysis, state.material, {
+      creepFactor: V03.creepFactor, compressionFactor: V03.compressionFactor,
+    });
+    state.qc.e = state.qc.e ?? state.material.E_mean;
+    state.qc.sy = state.qc.sy ?? state.material.sy_mean;
+    state.qc.cv = state.qc.cv ?? V03.measurementCvDefault * 100;
+    const recipe = O.lotSpecificRecipe(state.material, bestDesign, {
+      targetPf: state.brief.targetPf,
+      measurementCv: state.qc.cv / 100,
+      lotE: state.qc.e,
+      lotSy: state.qc.sy,
+      F: state.brief.loadN,
+      uLim: state.brief.deflLimitMm,
+    });
     state.validation = await loadValidation();
-    state.optimized = { design: bestDesign, analysis: bestAnalysis, pf: bestPf, mass: bestAnalysis.mass_g, starts: multi.starts || [] };
+    const printedRows = comparison.rows.map((r) => ({
+      ...r,
+      mass_g: r.printed_mass_g != null ? r.printed_mass_g : r.mass_g,
+      mass_analytic_g: r.mass_g,
+    }));
+    state.comparison = {
+      solid: { mass_g: comparison.solid.printed_mass_g ?? comparison.solid.mass_g, pf: comparison.solid.pf, label: 'Solid plate' },
+      uniform: { mass_g: comparison.uniform.printed_mass_g ?? comparison.uniform.mass_g, pf: comparison.uniform.pf, label: 'Uniform · target-sized' },
+      nominal: { mass_g: printedOf(row('nominal_sf15')), pf: row('nominal_sf15').pf, label: 'Nominal FoS 1.5' },
+      meanOnly: { mass_g: printedOf(row('mean_only')), pf: row('mean_only').pf, label: 'Mean-only' },
+      rows: printedRows,
+    };
+    state.optimized = {
+      design: bestDesign, analysis: bestAnalysis, pf: bestPf,
+      mass: bestAnalysis.printed_mass_g ?? bestAnalysis.mass_g,
+      mass_analytic_g: bestAnalysis.mass_g,
+      starts: multi.starts || [],
+    };
     state.proof = {
       optimizedDesign: bestDesign, optimizedAnalysis: bestAnalysis,
-      report, window: win, passport: computePassport(bestAnalysis, material, 1, 1),
+      report, window: win,
+      sustained, recipe, qc: { ...state.qc },
+      passport: { eRatio: 1, syRatio: 1, lotE: recipe.lot.lot_E, lotSy: recipe.lot.lot_sy, adapt: null },
       comparison, proofMemo: null, render: null,
     };
     setStep('prove', { force: true });
     renderProof();
     persist();
-    toast(`Proof ready · ${nf(bestAnalysis.mass_g, 2)} g · P_f ${fmtPf(bestPf)}`);
+    toast(`Proof ready · ${nf(bestAnalysis.printed_mass_g ?? bestAnalysis.mass_g, 2)} g printed · P_f ${fmtPf(bestPf)}`);
     loadProofMemos();
   } catch (err) {
     console.error(err);
@@ -5729,28 +6330,28 @@ function renderProof() {
 
   drawGauge($('#gauge'), rep.pfAnalytic, target);
   $('#gauge-mode').textContent = rep.modes.governingLabel;
-  $('#gauge-mass').textContent = `${nf(a.mass_g, 2)} g`;
+  const printed = a.printed_mass_g ?? a.mass_g;
+  $('#gauge-mass').textContent = `${nf(printed, 2)} g`;
+  const ub = $('#gauge-mass-ub');
+  if (ub) ub.textContent = `${nf(a.mass_analytic_g ?? a.mass_g, 2)} g`;
   const pr = E.printabilityReport(a);
-  const checks = pr ? [pr.warnNeighbour, pr.warnSlenderness].filter(Boolean).length : 0;
-  $('#gauge-print').textContent = pr ? `${3 - checks} / 3 checks` : '—';
+  $('#gauge-print').textContent = pr
+    ? `${pr.pass ? 'pass' : 'warn'} · ratio ${nf(pr.max_neighbour_width_ratio, 2)} · L/w ${nf(pr.max_slenderness, 1)}`
+    : '—';
   $('#gauge-rel').textContent = `${(rep.reliability * 100).toFixed(2)} %`;
 
+  renderQC();
   drawAcceptance($('#acceptance-chart'), p.window, a, p.passport);
-  const adapt08 = computePassport(a, state.material, 0.8, 1).adapt;
-  const adapt05 = computePassport(a, state.material, 0.5, 1).adapt;
-  $('#acceptance-caption').textContent = `Illustrative v0.1 logic: a lot at 0.8 × nominal E needs a ${adapt08.scale != null ? adapt08.scale.toFixed(2) : '—'} × width scale (${adapt08.addedMassPct != null ? signed(adapt08.addedMassPct, 1) + ' % mass' : 'not achievable'}) and ${adapt08.verdict === 'reject' ? 'is rejected' : 'passes with compensation'}; at 0.5 × it is ${adapt05.verdict === 'reject' ? 'rejected' : 'compensated'}. The engine computes the exact window.`;
+  $('#acceptance-caption').textContent = 'Lot-mean envelope the engine accepts for this design. The known-lot recipe re-optimises all 8 width controls for the measured lot (measurement CV retained) instead of one global scale.';
   $('#acceptance-target').textContent = `target P_f ≤ ${fmtPf(target)}`;
 
-  const eSlider = $('#lot-e-range');
-  const sySlider = $('#lot-sy-range');
-  if (eSlider) eSlider.value = p.passport.eRatio;
-  if (sySlider) sySlider.value = p.passport.syRatio;
-  renderPassport();
+  renderRecipe();
+  renderSustained();
   renderValidation();
   renderClaims();
   renderMassFootnotes();
   renderProject();
-  if (pr) $('#stl-meta').textContent = `min width ${pr.minWidth.toFixed(2)} mm · box per strut`;
+  $('#stl-meta').textContent = pr ? `min width ${nf(pr.min_width_mm, 2)} mm · box per strut` : '—';
   renderRenderCard(null);
 }
 
@@ -5842,59 +6443,174 @@ function drawAcceptance(host, win, analysis, passport) {
   </svg>`;
 }
 
-function renderPassport() {
+// ---------------------------------------------------------------------------
+// v0.3 Known-lot print recipe + QC record + sustained-load advisory
+// ---------------------------------------------------------------------------
+function renderQC() {
+  const m = state.material;
+  const q = state.qc;
+  const set = (sel, value) => {
+    const el = $(sel);
+    if (el && document.activeElement !== el && value != null && value !== '') el.value = value;
+  };
+  set('#qc-lot-id', q.lotId || 'LOT-2026-014');
+  set('#qc-supplier', q.supplier || 'Recycled Polymer Co.');
+  set('#qc-recycled', q.recycledPct == null ? 78 : q.recycledPct);
+  set('#qc-e', q.e == null ? Math.round(m.E_mean) : q.e);
+  set('#qc-sy', q.sy == null ? Math.round(m.sy_mean * 10) / 10 : q.sy);
+  set('#qc-cv', q.cv == null ? V03.measurementCvDefault * 100 : q.cv);
+}
+function recipeVerdictKind(verdict) {
+  if (/reject/i.test(verdict)) return 'reject';
+  if (/conditional/i.test(verdict)) return 'compensate';
+  if (/compensation/i.test(verdict)) return 'compensate';
+  return 'pass';
+}
+function renderRecipe() {
   const p = state.proof;
-  if (!p) return;
-  const e = Number($('#lot-e-range').value);
-  const sy = Number($('#lot-sy-range').value);
-  $('#lot-e-out').textContent = `${e.toFixed(2)}×`;
-  $('#lot-sy-out').textContent = `${sy.toFixed(2)}×`;
-  const passport = computePassport(p.optimizedAnalysis, state.material, e, sy);
-  p.passport = passport;
-  state.passport = { e, sy, adapt: passport.adapt };
-  const adapt = passport.adapt;
+  const host = $('#recipe-multipliers');
+  const summary = $('#recipe-summary');
+  if (!host) return;
+  const r = p && p.recipe;
+  const target = state.brief.targetPf;
+  if (!r) {
+    host.innerHTML = '';
+    if (summary) summary.textContent = 'Recompute to see the lot-specific recipe.';
+    return;
+  }
+  host.innerHTML = r.width_multipliers.map((v, i) => `
+    <div class="recipe-mult ${v > 1.15 ? 'is-heavy' : ''}" title="Width multiplier for control ${i + 1}">
+      <div class="rm-k">C${i + 1}</div><div class="rm-v">${v.toFixed(2)}×</div>
+    </div>`).join('');
+  const pr = r.printability || {};
+  if (summary) {
+    summary.innerHTML = `
+      <span>Printed mass <b>${nf(r.printed_mass_g, 2)} g</b> · analytic UB <b>${nf(r.printed_mass_analytic_g, 2)} g</b></span>
+      <span>Added mass <b>${signed(r.added_mass_pct, 1)} %</b> vs as-designed</span>
+      <span>P_f measured lot <b>${fmtPf(r.pf)}</b> · target ${fmtPf(target)}</span>
+      <span>Measurement CV <b>${nf(r.measurement_cv * 100, 0)} %</b> retained</span>
+      <span>Printability <b>${r.printability_pass ? 'pass' : 'warn'}</b> · ratio ${nf(pr.max_neighbour_width_ratio, 2)} · L/w ${nf(pr.max_slenderness, 1)}</span>
+      <span>Global equivalent <b>${r.global_equivalent_scale.toFixed(2)}×</b> (slicer fallback only)</span>`;
+  }
   const verdict = $('#passport-verdict');
   const icon = $('#verdict-icon');
   const title = $('#verdict-title');
   const body = $('#verdict-body');
-  const comp = adapt.scale != null && adapt.scale > 1.0005;
-  if (adapt.verdict === 'reject') {
-    verdict.dataset.kind = 'reject';
-    icon.textContent = '✕';
-    title.textContent = 'REJECT · REROUTE';
-    body.textContent = `Required width scale exceeds the ${OPTIMIZER.scaleMax.toFixed(1)} × print clip. Use this lot for a non-structural part, or accept the risk explicitly.`;
-  } else if (comp) {
-    verdict.dataset.kind = 'compensate';
-    icon.textContent = '!';
-    title.textContent = 'PASS · WITH COMPENSATION';
-    body.textContent = `Width scale ${nf(adapt.scale, 2)} × · added mass ${signed(adapt.addedMassPct, 1)} %. P_f for this lot remains inside the ${fmtPf(state.brief.targetPf)} target (${fmtPf(adapt.achieved)}).`;
-  } else {
-    verdict.dataset.kind = 'pass';
-    icon.textContent = '✓';
-    title.textContent = 'PASS';
-    body.textContent = `No compensation needed. Width scale ${nf(adapt.scale == null ? 1 : adapt.scale, 2)} ×. P_f for this lot ${fmtPf(adapt.achieved)}.`;
+  if (verdict) {
+    verdict.dataset.kind = recipeVerdictKind(r.verdict);
+    icon.textContent = /reject/i.test(r.verdict) ? '✕' : /conditional/i.test(r.verdict) ? '!' : '✓';
+    title.textContent = r.verdict.toUpperCase();
+    body.textContent = `8-control lot resize · global equivalent ${r.global_equivalent_scale.toFixed(2)}× · printed mass ${nf(r.printed_mass_g, 2)} g (${signed(r.added_mass_pct, 1)} %) · P_f ${fmtPf(r.pf)} against ${fmtPf(target)}${/conditional/i.test(r.verdict) ? ' — heavy compensation, review with the supplier before printing.' : /reject/i.test(r.verdict) ? ' — reroute this lot to a non-structural part.' : '.'}`;
   }
 }
-function wirePassport() {
-  ['#lot-e-range', '#lot-sy-range'].forEach((sel) => {
-    const input = $(sel);
-    if (!input) return;
-    input.addEventListener('input', debounce(() => renderPassport(), 40));
+function renderSustained() {
+  const p = state.proof;
+  const host = $('#sustained-values');
+  if (!host) return;
+  const s = p && p.sustained;
+  if (!s) { host.textContent = '—'; return; }
+  const qualified = s.pf_bound <= state.brief.targetPf;
+  const card = $('#sustained-card');
+  if (card) card.classList.toggle('is-warn', !qualified);
+  const badge = $('#sustained-badge');
+  if (badge) {
+    badge.dataset.kind = qualified ? 'engine' : 'fallback';
+    badge.innerHTML = `<span class="b-dot"></span>${qualified ? 'advisory · inside target' : 'not qualified for sustained load'}`;
+  }
+  host.innerHTML = `
+    <span>P_f bound (lot level) <b>${fmtPf(s.pf_bound)}</b> vs target ${fmtPf(state.brief.targetPf)}</span>
+    <span>Deflection bound <b>${nf(s.deflection_bound_mm, 2)} mm</b> (creep ×${nf(s.creep_factor, 1)})</span>
+    <span>E_req bound <b>${nf(s.E_req_bound_MPa, 0)} MPa</b> (static ${nf(state.proof.optimizedAnalysis.demands.E_req, 0)} MPa ×${nf(s.creep_factor, 1)})</span>
+    <span>σy_req bound <b>${nf(s.sigma_req_bound_MPa, 1)} MPa</b> (static ${nf(state.proof.optimizedAnalysis.demands.sigma_y_req, 1)} MPa ÷${nf(s.compression_factor, 1)})</span>`;
+  const note = $('#sustained-note');
+  if (note) note.textContent = qualified
+    ? 'Advisory only — the creep/compression bound stays inside the reliability target, but the static qualification above is the design result. Not qualified for sustained load by test.'
+    : 'NOT qualified for sustained load: the creep ×2.0 / compression ÷0.8 bound exceeds the reliability target. The static result above is unchanged. Do not use this part for long-term or compressive service without test data.';
+}
+function recomputeRecipe() {
+  const p = state.proof;
+  if (!p) return;
+  const readNum = (sel, fallback) => {
+    const v = Number($(sel)?.value);
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  };
+  state.qc.e = readNum('#qc-e', state.material.E_mean);
+  state.qc.sy = readNum('#qc-sy', state.material.sy_mean);
+  state.qc.cv = readNum('#qc-cv', V03.measurementCvDefault * 100);
+  state.qc.lotId = ($('#qc-lot-id')?.value || '').slice(0, 64);
+  state.qc.supplier = ($('#qc-supplier')?.value || '').slice(0, 64);
+  state.qc.recycledPct = readNum('#qc-recycled', null);
+  const btn = $('#btn-recipe');
+  if (btn) { btn.disabled = true; btn.textContent = 'Computing…'; }
+  setTimeout(() => {
+    try {
+      p.recipe = O.lotSpecificRecipe(state.material, p.optimizedDesign, {
+        targetPf: state.brief.targetPf,
+        measurementCv: state.qc.cv / 100,
+        lotE: state.qc.e,
+        lotSy: state.qc.sy,
+        F: state.brief.loadN,
+        uLim: state.brief.deflLimitMm,
+      });
+      p.qc = { ...state.qc };
+      p.passport = { eRatio: 1, syRatio: 1, lotE: state.qc.e, lotSy: state.qc.sy, adapt: null };
+      renderRecipe();
+      renderQC();
+      persist();
+      toast(`Lot recipe: ${p.recipe.verdict} · ${nf(p.recipe.printed_mass_g, 2)} g printed · +${nf(p.recipe.added_mass_pct, 1)} %`);
+    } catch (err) {
+      console.error(err);
+      toast('Recipe computation failed — see console', 'err');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Recompute recipe'; }
+    }
+  }, 40);
+}
+function wireRecipe() {
+  $('#btn-recipe')?.addEventListener('click', recomputeRecipe);
+  ['#qc-e', '#qc-sy', '#qc-cv'].forEach((sel) => {
+    $(sel)?.addEventListener('change', debounce(() => { if (state.proof) recomputeRecipe(); }, 500));
   });
   $$('[data-lot]').forEach((chip) => {
     chip.addEventListener('click', () => {
       const kind = chip.dataset.lot;
-      const e = kind === 'weak' ? 0.8 : kind === 'reject' ? 0.5 : 1.0;
-      const sy = kind === 'weak' ? 0.9 : 1.0;
-      $('#lot-e-range').value = e;
-      $('#lot-sy-range').value = sy;
-      renderPassport();
-      toast(`${chip.textContent} applied · compensation calculated`);
+      const eRatio = kind === 'weak' ? 0.8 : kind === 'reject' ? 0.5 : 1.0;
+      if (!state.proof) { toast('Run the proof step first'); return; }
+      state.qc.e = state.material.E_mean * eRatio;
+      state.qc.sy = state.material.sy_mean * (kind === 'weak' ? 0.95 : 1.0);
+      renderQC();
+      recomputeRecipe();
     });
   });
 }
 
 // ---------------------------------------------------------------------------
+// Brief feasibility gate (widest printable uniform lattice vs target)
+// ---------------------------------------------------------------------------
+function renderFeasibility() {
+  const gate = $('#family-gate');
+  if (!gate) return;
+  const target = state.brief.targetPf;
+  const ff = E.familyFeasibility(state.material, {
+    targetPf: target,
+    F: state.brief.loadN,
+    uLim: state.brief.deflLimitMm,
+  });
+  state.feasibility = ff;
+  const facts = $('#family-gate-facts');
+  const btn = $('#btn-design');
+  if (!ff.feasible) {
+    gate.hidden = false;
+    if (facts) facts.innerHTML = `widest uniform lattice <b>${nf(ff.max_width_mm, 2)} mm</b> · min achievable P_f <b>${fmtPf(ff.min_achievable_pf)}</b> vs target ${fmtPf(target)} · demand <b>${nf(ff.sigma_req_MPa, 1)} MPa</b> σy / <b>${nf(ff.E_req_MPa, 0)} MPa</b> E`;
+    if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.title = 'Infeasible for this bracket/lattice family — adjust target, load or material'; }
+  } else {
+    gate.hidden = true;
+    if (btn && btn.dataset.blocked === '1') { btn.disabled = false; delete btn.dataset.blocked; btn.title = ''; }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Validation + claims// ---------------------------------------------------------------------------
 // Validation + claims
 // ---------------------------------------------------------------------------
 async function loadValidation() {
@@ -5987,7 +6703,7 @@ function renderValidation() {
   const foot = $('#validation-foot');
   if (foot) {
     const runtime = v.runtime_s ? ` · ${Number(v.runtime_s).toFixed(1)} s` : '';
-    foot.textContent = `${counts.PASS} pass · ${counts.WARN} warn · ${counts.FAIL} fail · ${total} checks · Python 29 / JS 28 tests${runtime}`;
+    foot.textContent = `${counts.PASS} pass · ${counts.WARN} warn · ${counts.FAIL} fail · ${total} checks · Python 29 / JS 33 tests${runtime}`;
   }
   const sub = $('#validation-sub');
   if (sub) sub.textContent = v.source ? `Source: ${v.source}` : 'L0–L1 verified';
@@ -6023,7 +6739,7 @@ function loadProofMemos() {
     controlWidthsMm: E.designWidths(p.optimizedDesign),
     printability: E.printabilityReport(p.optimizedAnalysis),
   };
-  const payload = AC.buildProofPayload({ brief: state.brief, selected, proof: { passport: p.passport }, validation: state.validation });
+  const payload = AC.buildProofPayload({ brief: state.brief, selected, proof: { passport: p.passport, sustained: p.sustained, recipe: p.recipe }, validation: state.validation });
   const badge = $('#proof-memo-badge');
   (async () => {
     try {
@@ -6346,10 +7062,14 @@ function buildDesignJson() {
     lot: state.lot,
     candidates: state.candidates.map((x) => ({ id: x.id, name: x.name, control_widths_mm: x.controlWidthsMm, mass_g: x.mass_g, pf: x.pf, feasible: x.feasible, governing: x.governing })),
     selected: c ? { id: c.id, name: c.name, control_widths_mm: c.controlWidthsMm, mass_g: c.mass_g, pf: c.pf } : null,
+    family_scope: 'best of this bracket/lattice family',
     optimized: p ? {
       design_log_width: p.optimizedDesign,
       widths_mm: E.designWidths(p.optimizedDesign),
-      mass_g: p.optimizedAnalysis.mass_g,
+      printed_mass_g: p.optimizedAnalysis.printed_mass_g,
+      mass_analytic_upper_bound_g: p.optimizedAnalysis.mass_g,
+      mass_basis: AC.massDisclosure(p.optimizedAnalysis.printed_mass_g).note,
+      printability: E.printabilityReport(p.optimizedAnalysis),
       sigma_y_req_MPa: p.optimizedAnalysis.demands.sigma_y_req,
       E_req_MPa: p.optimizedAnalysis.demands.E_req,
       E_req_def_MPa: p.optimizedAnalysis.demands.E_req_def,
@@ -6361,11 +7081,31 @@ function buildDesignJson() {
       printability: E.printabilityReport(p.optimizedAnalysis),
       mass_disclosure: AC.massDisclosure(p.optimizedAnalysis.mass_g),
     } : null,
-    passport: p ? {
-      measured_lot: { E_ratio: p.passport.eRatio, sy_ratio: p.passport.syRatio, E_MPa: p.passport.lotE, sy_MPa: p.passport.lotSy },
-      required_scale: p.passport.adapt.scale,
-      added_mass_pct: p.passport.adapt.addedMassPct,
-      verdict: p.passport.adapt.verdict,
+    sustained_load_advisory: p && p.sustained ? {
+      ...p.sustained,
+      qualified: p.sustained.pf_bound <= state.brief.targetPf,
+      label: 'ADVISORY — not the static design allowable; static result unchanged',
+    } : null,
+    known_lot_recipe: p && p.recipe ? {
+      lot: p.recipe.lot,
+      measurement_cv: p.recipe.measurement_cv,
+      width_multipliers: p.recipe.width_multipliers,
+      global_equivalent_scale: p.recipe.global_equivalent_scale,
+      printed_mass_g: p.recipe.printed_mass_g,
+      printed_mass_analytic_g: p.recipe.printed_mass_analytic_g,
+      added_mass_pct: p.recipe.added_mass_pct,
+      pf: p.recipe.pf,
+      verdict: p.recipe.verdict,
+      printability: p.recipe.printability,
+      note: 'Lot-specific 8-control resize; global equivalent scale is a slicer fallback only.',
+    } : null,
+    qc_record: p ? {
+      lot_id: p.qc.lotId,
+      supplier: p.qc.supplier,
+      measurement_used: { E_MPa: p.qc.e, sy_MPa: p.qc.sy },
+      measurement_cv: p.qc.cv / 100,
+      recycled_content_pct: p.qc.recycledPct,
+      recycled_content_note: 'Paperwork claim — not simulated or verified.',
     } : null,
     validation: state.validation,
     ai: { mode: state.aiMode, calls: state.aiCalls },
@@ -6373,7 +7113,10 @@ function buildDesignJson() {
       'Linear-elastic plane-frame idealisation; no plasticity, creep, fatigue or joint behaviour.',
       'Out-of-plane / layer-normal loading is not modelled; rPETG strength is printed in-plane ISO 527-2.',
       'Optimum is local (multi-start pattern search), not proven global.',
-      AC.massDisclosure(0).validatorNote + ' Reported mass is conservative; comparison bars use the same analytic basis.',
+      'Mass: displayed mass is the deterministic printed/union estimate (Halton QMC, matching Python within 0.5 %); analytic mass is a conservative upper bound only.',
+      'Printability: neighbour width ratio > 1.5 or slenderness > 30 is a hard constraint in the optimiser; the selected design passes both.',
+      'Sustained load: the creep x2.0 / compression /0.8 bound is an advisory only; static design allowables are unchanged and no sustained-load qualification has been performed.',
+      'Known lot: the lot-specific recipe retains measurement uncertainty (default CV 12 %) and re-optimises all 8 width controls; global equivalent scale is a slicer fallback.',
       'Feedstock distributions are literature-derived; no experimental validation in this project.',
     ],
   };
@@ -6400,14 +7143,15 @@ function buildReportHtml() {
   .memo{background:#FCFBF7} .lim{font-size:12px;color:var(--muted)}
   .tag{color:var(--verify)} .warn{color:#B8361A}
 </style></head><body>
-<div class="micro">AnyRB v0.2 · in-silico qualification · decision support, not certification</div>
+<div class="micro">AnyRB v0.3 · in-silico qualification · decision support, not certification</div>
 <h1>${esc(state.project)}</h1>
 <div class="badge">Generated ${new Date().toISOString()} · AI mode: ${esc(state.aiMode)} · seed ${DEFAULTS.seed}</div>
 <div class="card"><div class="micro">Brief</div>
 <p><b>${esc(b.partType)}</b> · load ${nf(b.loadN, 0)} N · deflection limit ${nf(b.deflLimitMm, 1)} mm · reliability target ${fmtPf(b.targetPf)} · process ${esc(b.process)}</p>
 <div class="k">Batch: ${esc(state.lot.name || state.lot.id)} — E ${int(state.lot.E_mean)} MPa (CV ${nf(state.lot.E_cv * 100, 1)} %), σy ${nf(state.lot.sy_mean, 1)} MPa (CV ${nf(state.lot.sy_cv * 100, 1)} %), ρ ${nf(state.lot.rho, 2)} g/cm³. ${esc(state.lot.source || '')}</div></div>
 ${a ? `<h2>Qualification summary</h2><div class="card"><div class="grid">
-<div><div class="k">Mass</div><div class="v">${nf(a.mass_g, 3)} g</div></div>
+<div><div class="k">Printed mass (Halton union)</div><div class="v">${nf(a.printed_mass_g ?? a.mass_g, 3)} g</div></div>
+<div><div class="k">Analytic upper bound</div><div class="v">${nf(a.mass_analytic_g ?? a.mass_g, 3)} g · ${esc(AC.massDisclosure(a.printed_mass_g ?? a.mass_g).note)}</div></div>
 <div><div class="k">Governing mode</div><div class="v">${esc(rep ? rep.modes.governingLabel : '')}</div></div>
 <div><div class="k">σy demand</div><div class="v">${nf(a.demands.sigma_y_req, 2)} MPa</div></div>
 <div><div class="k">E demand</div><div class="v">${nf(a.demands.E_req, 1)} MPa (def ${nf(a.demands.E_req_def, 1)}, buck ${nf(a.demands.E_req_buck, 1)})</div></div>
@@ -6416,13 +7160,20 @@ ${a ? `<h2>Qualification summary</h2><div class="card"><div class="grid">
 <div><div class="k">Monte-Carlo P_f (5,000)</div><div class="v">${rep ? fmtPf(rep.mc.pfMc) + ' ± ' + fmtPf(rep.mc.pfMcStdErr) : '—'}</div></div>
 <div><div class="k">Tip deflection at mean E</div><div class="v">${nf(rep ? rep.deflectionAtMeanE : 0, 3)} mm · limit ${nf(b.deflLimitMm, 1)} mm</div></div>
 <div><div class="k">Mass disclosure (validator F4)</div><div class="v">${esc(AC.massDisclosure(a ? a.mass_g : AC.MASS_UNION.analyticMassG).note)}</div></div>
-${pr ? `<div><div class="k">Printability</div><div class="v">min w ${nf(pr.minWidth, 2)} mm · L/w ${nf(pr.maxSlenderness, 1)} · neighbour ${nf(pr.maxNeighbourRatio, 2)}</div></div>` : ''}
+${pr ? `<div><div class="k">Printability</div><div class="v">${pr.pass ? 'PASS' : 'WARN'} · min w ${nf(pr.min_width_mm, 2)} mm · L/w ${nf(pr.max_slenderness, 1)} · neighbour ${nf(pr.max_neighbour_width_ratio, 2)}</div></div>` : ''}
 </div></div>` : ''}
 <h2>Design memo</h2><div class="card memo">${esc(memo)}</div>
-${rows.length ? `<h2>Strategy comparison</h2><div class="card"><table><thead><tr><th>Strategy</th><th>Mass g</th><th>P_f</th><th>E_req MPa</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${nf(r.mass_g, 2)}</td><td>${fmtPf(r.pf)}</td><td>${nf(r.E_req, 1)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+${rows.length ? `<h2>Strategy comparison</h2><div class="card"><p class="lim">All masses are printed/union mass (Halton QMC); analytic upper bound is not used in this table.</p><table><thead><tr><th>Strategy</th><th>Printed mass g</th><th>P_f</th><th>E_req MPa</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${nf(r.printed_mass_g ?? r.mass_g, 2)}</td><td>${fmtPf(r.pf)}</td><td>${nf(r.E_req, 1)}</td></tr>`).join('')}</tbody></table></div>` : ''}
 ${p ? `<h2>Batch passport</h2><div class="card"><div class="k">Measured lot</div><div class="v">E ${nf(p.passport.lotE, 0)} MPa (${p.passport.eRatio.toFixed(2)} ×), σy ${nf(p.passport.lotSy, 1)} MPa (${p.passport.syRatio.toFixed(2)} ×)</div>
 <div class="k" style="margin-top:8px">Verdict</div><div class="v">${esc(p.passport.adapt.verdict)} · required width scale ${p.passport.adapt.scale == null ? 'not achievable' : nf(p.passport.adapt.scale, 2) + ' ×'} · added mass ${p.passport.adapt.addedMassPct == null ? '—' : signed(p.passport.adapt.addedMassPct, 1) + ' %'}</div>
 <p class="lim">Illustrative v0.1 logic; supplier proxies should replace assumed lot means before production decisions.</p></div>` : ''}
+${p && p.sustained ? `<h2>Sustained-load advisory</h2><div class="card"><div class="v">${p.sustained.pf_bound <= b.targetPf ? 'Inside the reliability target under the creep/compression bound.' : '<b class="warn">NOT qualified for sustained load.</b> The creep x2.0 / compression /0.8 bound exceeds the target; the static result is unchanged.'}</div>
+<div class="k" style="margin-top:8px">P_f bound ${fmtPf(p.sustained.pf_bound)} · deflection bound ${nf(p.sustained.deflection_bound_mm, 2)} mm · E_req bound ${nf(p.sustained.E_req_bound_MPa, 0)} MPa · σy_req bound ${nf(p.sustained.sigma_req_bound_MPa, 1)} MPa</div>
+<p class="lim">Advisory for long-term loads; never the static design allowable.</p></div>` : ''}
+${p && p.recipe ? `<h2>Known-batch print recipe</h2><div class="card"><p class="lim">Lot-specific 8-control resize (not one global scale), measurement CV ${nf(p.recipe.measurement_cv * 100, 0)} % retained.</p>
+<div class="v">Width multipliers: ${p.recipe.width_multipliers.map((v) => nf(v, 2) + '×').join(' · ')}</div>
+<div class="k" style="margin-top:8px">Global equivalent scale ${nf(p.recipe.global_equivalent_scale, 2)}× (slicer fallback only) · printed mass ${nf(p.recipe.printed_mass_g, 2)} g (${signed(p.recipe.added_mass_pct, 1)} %) · P_f ${fmtPf(p.recipe.pf)} · verdict <b>${esc(p.recipe.verdict)}</b></div>
+<div class="k" style="margin-top:8px">QC record: lot ${esc(p.qc.lotId || '—')} · supplier ${esc(p.qc.supplier || '—')} · measurement used E ${nf(p.qc.e, 0)} MPa / σy ${nf(p.qc.sy, 1)} MPa · measurement CV ${nf(p.qc.cv, 0)} % · recycled content ${p.qc.recycledPct == null ? '—' : nf(p.qc.recycledPct, 0) + ' %'} <i>(paperwork claim, not simulated)</i></div></div>` : ''}
 <h2>Validation</h2><div class="card">${state.validation.checks.map((x) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="badge">${esc(x.status)}</span><br><span class="lim">${esc(x.detail)}</span></div>`).join('')}
 <p class="lim">Source: ${esc(state.validation.source || 'embedded fallback')}</p></div>
 <h2>AI provenance</h2><div class="card"><table><thead><tr><th>Endpoint</th><th>Model</th><th>Latency</th><th>Status</th></tr></thead><tbody>${state.aiCalls.map((cl) => `<tr><td>${esc(cl.endpoint)}</td><td>${esc(cl.model)}</td><td>${(cl.latencyMs / 1000).toFixed(2)} s</td><td>${cl.demo ? 'mock' : cl.fallback ? 'fallback' : 'live'}${cl.cached ? ' · cached' : ''}</td></tr>`).join('') || '<tr><td colspan="4">No AI calls recorded</td></tr>'}</tbody></table></div>
@@ -6510,7 +7261,8 @@ function buildStatic() {
   $('#btn-back-brief')?.addEventListener('click', () => setStep('brief'));
   $('#btn-continue')?.addEventListener('click', runProofFlow);
   $('#btn-retry-brief')?.addEventListener('click', () => { $('#understanding-error').hidden = true; runDesignFlow(); });
-  wireStepper(); wireViewToggle(); wirePassport(); wireExports(); wireDrawer(); wireAIMenu(); wireDatasheet(); wireLab(); wireHelp();
+  $('#btn-select-hero')?.addEventListener('click', () => selectCandidate('optimised'));
+  wireStepper(); wireViewToggle(); wireRecipe(); wireExports(); wireDrawer(); wireAIMenu(); wireDatasheet(); wireLab(); wireHelp();
   renderClaims(); renderValidation(); renderPlanPreview(); renderUnderstanding(); renderLot(); renderPresetMenu(); renderAdvancedControls();
   if ($('#brief-text')) $('#brief-text').value = state.brief.notes || $('#brief-text').value;
   updateWordCount();
@@ -6555,6 +7307,7 @@ async function boot() {
   renderLot();
   renderPlanPreview();
   renderAdvancedControls();
+  renderFeasibility();
   setStep('brief', { force: true });
   try { await ai.detect(); } catch (err) { console.error(err); }
   renderAIStatus(ai.getSnapshot());

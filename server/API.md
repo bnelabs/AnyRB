@@ -44,7 +44,7 @@ Response: `{"candidates":[{"id":"A","name":"Conservative","strategy":"...","widt
 Request:
 ```json
 {"brief": {...},
- "selected": {"mass_g": 50.73, "pf": 0.00997, "sigma_req_MPa": 18.34, "E_req_MPa": 1688.1,
+ "selected": {"mass_g": 46.40, "pf": 0.00997, "sigma_req_MPa": 18.34, "E_req_MPa": 1688.1,
               "binding_mode": "stiffness/buckling", "p5_margin": 1.215,
               "mass_cap_g": 60, "printability": {"min_width_mm":1.18,"max_slenderness":22.7,"neighbour_ratio":1.45}},
  "comparison": [{"strategy":"solid","mass_g":111.6,"pf":0.0}, ...],
@@ -61,7 +61,7 @@ Response: `{"memo":"…","what_would_change_answer":["…"],"recommended_tests":
 Fields: `audio` = recorded blob (WAV or WebM/Opus; backend normalises). Response: `{"transcript":"…","duration_s":9.7,"_meta":{...}}`.
 
 ## POST /api/image/render
-Request: `{"prompt":"optional custom prompt","design":{"mass_g":50.73}}`. Response: `{"image_data_url":"data:image/png;base64,…"|null,"illustrative":true,"label":"AI illustration — not the CAD model","_meta":...}`.
+Request: `{"prompt":"optional custom prompt","design":{"mass_g":46.40}}`. Response: `{"image_data_url":"data:image/png;base64,…"|null,"illustrative":true,"label":"AI illustration — not the CAD model","_meta":...}`.
 The app displays it only with the "AI illustration" label.
 
 ## POST /api/photo/segment  (multipart)
@@ -195,3 +195,172 @@ always 404 — the key and cache are never exposed.
    returned text is then guaranteed to be grounded in that payload.
 5. On 429/413/422, show the JSON `message`; on timeout, retry once then use the local
    deterministic assistant and label it.
+
+---
+
+# v0.3 changes — engine-refusable AI, family scope, measurement uncertainty
+
+Contract version **v0.3** (`GET /api/health` → `version: "v0.3"`, `contract_version: "v0.3"`).
+All changes are additive: a v0.2 client keeps working, new fields are optional on input.
+The design principle: the AI may only phrase decisions the **verified engine can refuse**;
+it never computes performance numbers, never claims topology optimality, and never certifies.
+
+## GET /api/health — v0.3 fields
+
+```json
+{"ok": true, "version": "v0.3", "contract_version": "v0.3",
+ "family_scope": "best of this bracket/lattice family (7x3 X-braced cantilever bracket, 8 log-width control points) — not a general topology optimiser",
+ "printability_limits": {"max_neighbour_width_ratio": 1.5, "max_slenderness": 30.0},
+ "engine": {"version": "0.3", "printed_mass": true, "mass_analytic_upper_bound": true,
+            "family_feasibility": true, "lot_specific_recipe": true,
+            "sustained_bound": true, "measurement_cv_default": 0.12},
+ "service": {"name": "anyrb-ai", "version": "0.3"}}
+```
+
+The existing `mode` / `ai` / `cache` / `session` / `model_latencies` fields are unchanged.
+
+## POST /api/brief/parse — measurement uncertainty
+
+Response adds (all optional in the old response):
+
+```json
+{"measurement_cv": 0.12, "measurement_cv_stated": false,
+ "brief": {"partType": "cantilever bracket", "loadN": 147.15, "deflLimitMm": 2.5,
+           "targetPf": 0.01, "preset": "rPETG", "process": "FDM/FFF",
+           "massCapG": 60.0, "measurementCv": 0.12, "constraints": [], "notes": "…"}}
+```
+
+* `measurement_cv` — uncertainty of the **measurement/lot data**, a fraction in `[0, 0.5]`,
+  default **0.12** (12 %). It is retained in lot-level `P_f` by the engine (a single coupon
+  must not zero the uncertainty). The AI only fills it when the brief states one
+  ("measurement uncertainty 15 %"); a *material* CV is never treated as measurement uncertainty.
+* `measurement_cv_stated` — `true` only if the user stated it (otherwise the default applies).
+* `brief` — camel-case mirror for the browser client (identical values). Input `defaults`
+  may carry `measurement_cv` to override the default explicitly.
+
+## POST /api/lot/parse — lot identity + measurement provenance
+
+Response adds:
+
+```json
+{"lot_id": "2026-31", "supplier": "Recyclex GmbH",
+ "measurement_source": "datasheet|certificate|email|measurement|unknown",
+ "measurement_cv": 0.08, "measurement_cv_stated": true}
+```
+
+`lot_id`/`supplier` are `null` when absent; `measurement_cv` defaults to `0.12`
+(`measurement_cv_stated: false`). The model must not invent these values.
+
+## POST /api/design/plan — family scope, printability, feasibility gate
+
+Request (v0.2 keys still accepted; all new keys optional):
+
+```json
+{"brief": {...},
+ "first_pass": {"feasible_uniform_width_mm": 2.4, "material": {...}, "feasibility": {...}},
+ "baseline": {"uniform_width_mm": 2.0, ...},          // v0.2 equivalent, still accepted
+ "material": {...},
+ "feasibility": {"feasible": true, "min_achievable_pf": 0.0002, "target_pf": 0.01},
+ "printability_limits": {"max_neighbour_width_ratio": 1.5, "max_slenderness": 30.0},
+ "family_scope": "optional override (defaults to the standard family scope)"}
+```
+
+Response adds:
+
+```json
+{"family_scope": "best of this bracket/lattice family (…) — not a general topology optimiser",
+ "printability_limits": {"max_neighbour_width_ratio": 1.5, "max_slenderness": 30.0},
+ "feasibility": {"feasible": true, "min_achievable_pf": 0.0002, "target_pf": 0.01},
+ "blocked": false, "note": ""}
+```
+
+`candidates` keeps exactly three `{id,name,strategy,width_priors_mm[8],width_priors[8],why,risk}`.
+Prompt contract stated to the model: candidates are *priors* the engine re-evaluates and can
+refuse; they must respect printability (neighbour width ratio ≤ 1.5, slenderness ≤ 30) and the
+engine feasibility gate; the model must never claim topology optimality or invent performance.
+
+**Infeasible family (engine gate):** if the request carries
+`feasibility: {feasible: false, ...}` the server **does not call the AI**. It returns HTTP 200
+with `blocked: true`, `_meta.model: "fallback"`, `_meta.mock_reason: "family_infeasible"`,
+`note` explaining the gate, and three deterministic placeholder candidates solely for schema
+compatibility. The UI should block Design before calling; this is the server-side backstop.
+
+## POST /api/design/review and /api/proof/memo — engine-fact payload
+
+The server normalises both the **v0.2** shape (`brief`/`selected`/`comparison`/`material`/
+`sensitivity`; `brief`/`design`/`batch_passport`/`comparison`/`validation`) and the **v0.3**
+shape into one canonical payload. v0.3 requests may send any of:
+
+```json
+{"facts": {"printed_mass_g": 46.0, "mass_analytic_g": 50.73, "pf": 0.00997,
+           "target_pf": 0.01, "governing_mode": "stiffness/buckling",
+           "sigma_y_req_mpa": 18.34, "E_req_mpa": 1688.0, "deflection_mm": 2.01,
+           "min_width_mm": 1.18, "max_slenderness": 22.7, "neighbour_ratio": 1.45,
+           "load_n": 147.15, "deflection_limit_mm": 2.5, "feasible": true},
+ "design": {"control_widths_mm": [2.0, "...", 8 values], "printability": {...}},
+ "brief": {...},
+ "lot_recipe": {"width_multipliers": [8 numbers], "global_equivalent_scale": 1.0994,
+                "added_mass_pct": 8.5, "printed_mass_g": 49.5,
+                "base_printed_mass_g": 46.0, "verdict": "pass with compensation",
+                "measurement_cv": 0.15, "lot_id": "2026-31", "supplier": "…",
+                "measurement_source": "certificate", "printability": {...}},
+ "measurement": {"cv": 0.15, "lot_id": "2026-31", "supplier": "…",
+                 "measurement_source": "certificate"},
+ "sustained_bound": {"pf_bound": 0.04, "deflection_bound_mm": 4.0,
+                     "creep_factor": 2.0, "compression_factor": 0.8},
+ "feasibility": {"feasible": true, "min_achievable_pf": 0.0002, "target_pf": 0.01},
+ "validation": {"counts": {"PASS": 24, "WARN": 2, "FAIL": 0}, "total": 26},
+ "proof": {"lot_recipe": {...}, "sustained_bound": {...}, "passport": {...}},
+ "batch_passport": {...}}                 // v0.2 wording, mapped to lot_recipe
+```
+
+Canonical blocks the model sees (and the grounding gate checks): `family_scope`, `brief`,
+`design` (with `printed_mass_g`, `mass_analytic_g`, `mass_basis`, `pf`, `governing_mode`,
+`printability`), `printability_limits`, `lot_recipe`, `measurement`, `sustained_bound`,
+`feasibility`, `comparison`, `material`, `sensitivity`, `validation`.
+
+Response additions (existing `memo`/`key_risk`/`next_actions`/`caveats` and
+`memo`/`what_would_change_answer`/`recommended_tests`/`claim_level` unchanged):
+
+```json
+{"family_scope": "best of this bracket/lattice family …",
+ "mass_basis": "printed_mass_g is the reported mass …; mass_analytic_g is an upper bound …",
+ "sustained_advisory": "not qualified for sustained load (advisory)" | "" | "sustained-load bound is advisory only",
+ "feasibility": {"feasible": true, ...},
+ "lot_recipe": {...}, "measurement": {...}          // proof only
+}
+```
+
+Prompt/number rules enforced (and regression-tested):
+
+1. Cite **`design.printed_mass_g`** for mass comparisons; `mass_analytic_g` is an **upper
+   bound** and must be labelled as such if mentioned. Old payloads without a printed mass are
+   phrased "analytic mass … (upper bound; printed mass not supplied)".
+2. Printability is a constraint: neighbour width ratio (≤ 1.5) and slenderness (≤ 30) are
+   discussed against those limits.
+3. A lot-specific recipe is described by its 8 width multipliers, global-equivalent scale and
+   added mass — not as one global scale.
+4. Measurement CV is stated as retained in the lot reliability.
+5. The sustained-load/creep bound is **advisory only**; if it fails the text says the part is
+   "not qualified for sustained load" and that the static result is unchanged.
+6. Scope is always "best of this bracket/lattice family", never a topology optimum or
+   certification claim.
+7. Every number in the text must exist in the request-derived canonical payload; otherwise the
+   deterministic memo is returned with `_meta.fallback: true` and `_meta.grounding.ok: false`.
+
+## Backward compatibility
+
+| Client payload | v0.3 server |
+|---|---|
+| v0.2 review/proof request keys | accepted, normalised (printed mass absent → analytic labelled upper bound; measurement CV defaults to 0.12) |
+| v0.2 brief/lot response consumers | all old fields still present; new fields additive |
+| app `first_pass` plan payload | accepted and mapped to `baseline`/`material` |
+| `?mock=1` / `X-AnyRB-Mock` | unchanged |
+
+## Testing / evidence
+
+40 mock-mode pytest tests (no live model calls) cover the new fields, the feasibility gate,
+grounding accept/reject on the v0.3 payload, both payload generations, prompt rules and the
+health contract. Seeded `reports` on disk (evidence/live_calls.json) are from the v0.2-era live
+pass; re-run `python server/verify_live.py` with a key to refresh them (old payloads still
+accepted by these endpoints).
