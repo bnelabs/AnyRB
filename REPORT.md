@@ -217,7 +217,7 @@ All three are small precisely because the software already knows which uncertain
 **Independent validation suite (v0.3)** — a separate 53-check suite was written by a validator who did not
 write the engine, using independent methods wherever possible (re-implemented frame element, energy
 minimisation vs direct stiffness, SciPy/quad/Monte-Carlo reliability cross-checks, periodic unit-cell
-homogenisation, brute-force optimiser comparison, STL geometry audit). Result: **51 PASS / 2 WARN / 0 FAIL**
+homogenisation, brute-force optimiser comparison, STL geometry audit). Result: **56 PASS / 2 WARN / 0 FAIL**
 (12.6 s). The suite found and the team fixed three genuine defects before this report was frozen:
 (1) the fixed-grid bivariate-normal quadrature lost accuracy at extreme correlations (|ρ|>0.9), now
 1e-15-accurate via a SciPy adaptive path; (2) the degenerate-marginal combination returned the wrong value
@@ -278,7 +278,8 @@ A detailed, point-by-point response is in [`REVIEW_RESPONSE.md`](REVIEW_RESPONSE
 3. **Known lots keep measurement uncertainty** (default 12 % on E and σy) and the compensation recipe is a lot-specific re-optimisation of all eight width controls, not one global scale.
 4. **The Brief runs an engine feasibility gate** before any AI candidate is drawn; the AI is restricted to the "best of this bracket/lattice family" claim.
 5. **A sustained-load creep/compression advisory bound** is shown (creep factor 2.0, compression factor 0.8). The static design fails that bound (deflection bound 4.0 mm > 2.5 mm), so the app says it is not qualified for sustained load.
-6. **Remaining gaps are explicit:** full union mass inside the search loop, alternative cell/skin families, calibrated MFI proxy, separate tensile/compressive/elongation allowables, spatial material fields, cost/scrap economics, and a physical coupon test. A pre-registered coupon plan is in [`validation/COUPON_TEST_PLAN.md`](validation/COUPON_TEST_PLAN.md).
+6. **v0.4 remaining-gap fixes:** printed-process gate (IM/compression presets are contrast-only and blocked for printed design), a marginal elongation/brittle-lot screen with a conservative add-on bound (not folded into headline P_f; E-elongation correlation assumed), a final union-mass polish stage, and quantified correlation/lot-split assumption bounds. Plant proxy calibration, cost/reject economics and alternative part families remain roadmap.
+7. **Remaining gaps are explicit:** full union mass inside the search loop, alternative cell/skin families, calibrated MFI proxy, separate tensile/compressive/elongation allowables, spatial material fields, cost/scrap economics, and a physical coupon test. A pre-registered coupon plan is in [`validation/COUPON_TEST_PLAN.md`](validation/COUPON_TEST_PLAN.md).
 
 ## 12. Key sources
 

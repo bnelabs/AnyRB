@@ -3,7 +3,7 @@
 **Status: PRE-REGISTERED. No physical test has been performed. No measured data exists in this repository.**
 Every number below is a *model prediction* frozen before testing; the machine-readable package is
 [`coupon_predictions.json`](coupon_predictions.json) with pre-registration hash
-`sha256:70fa40dc1a11f53995a42b34508dbb09b3bba60d0ab808a8fbad9d879da51c43`
+`sha256:641825c85beec59c147e258c89ee9e373e99b036c83edeeedd9aad7a0abe51e5`
 (over the canonical payload without the hash field; verified by check L1 in `run_validation.py`).
 
 ## Why this plan exists
@@ -24,7 +24,8 @@ design decision, and here is exactly what testing would change."*
 | Predicted tip stiffness | **349.4 N/mm** (tip deflection 0.43 mm at 150 N, E = 2100 MPa) | **74.6 N/mm** (tip deflection 2.01 mm at 150 N) |
 | Predicted first-yield load | **689.7 N** (σy = 46 MPa) | **366.9 N** |
 | Mass basis | printed union 22.0 g (analytic upper bound 24.3 g) | printed union 46.4 g (analytic upper bound 50.81 g) |
-| 90% material prediction interval | stiffness ×[0.86, 1.16]; first-yield ×[0.86, 1.16] | same factors |
+| Predicted peak tensile strain / brittle screen | **0.476%** strain demand at 150 N vs elongation 4.0% CV 0.20 → marginal `pf_brittle` ≈ 0 | **0.896%** strain demand at 150 N, marginal `pf_brittle` ≈ 3e-16 (add-on bound 0.00996; joint three-property probability not claimed) |
+| 90% material prediction interval | stiffness ×[0.86, 1.16]; first-yield ×[0.86, 1.16]; elongation 4.0% ×[0.86, 1.16] | same factors |
 | Model-form band | cell-size band from J1 (not transferred blindly) | frame vs pin-jointed truss: tip stiffness ×1.004; strength demand ×1.14 (J2) |
 
 Uncertainty sources are separated deliberately: **material lot-to-lot** (90% lognormal prediction
@@ -42,6 +43,10 @@ into a single fudge factor.
    compliance.
 4. **Loading:** quasi-static, 1 mm/min; load to 150 N (design load) for stiffness, then continue to
    first yield (load–deflection slope break). Do not exceed the fixture range.
+5. **Elongation / brittle screen:** printed tensile coupons per ISO 527-2 practice (n = 5 per lot,
+   same build orientation matrix) to measure elongation at break. This tests the brittle-lot prior
+   (rPETG 4.0% mean, CV 0.20); a brittle lot must be shown with the marginal `pf_brittle` add-on,
+   never folded silently into the headline two-property P_f.
 5. **Calibration:** load cell to ISO 7500-1 class 1 or better; displacement reference calibrated.
 6. **Blinding:** this plan and `coupon_predictions.json` (hash above) are frozen before testing; no model
    tuning is permitted between testing and the first comparison report.
@@ -55,13 +60,15 @@ into a single fudge factor.
 |---|---|
 | Tip stiffness per specimen | within **±25%** of the frozen prediction for ≥ 4/5 specimens per lot; lot mean within ±15% |
 | First-yield load per specimen | within **−25% / +35%** of the frozen prediction for ≥ 4/5 specimens per lot |
+| Elongation / brittle | measured elongation at break within the printed-elongation prior band (rPETG 4.0% ×[0.86, 1.16]); lot-to-lot spread comparable to the assumed CV 0.20 |
 | Interval coverage | the 90% material prediction interval contains ≥ 80% of specimen values across lots |
 | Ranking | coupon vs bracket rank order preserved |
 | Failure action | report the discrepancy and calibrate an explicit model-discrepancy term; **never** absorb it into the material modulus or edit the pre-registration |
 
 ## What passing would and would not establish
 
-Passing would support **L4 (component validation)** for this geometry, process and material class only,
+Passing would also test the brittle-screen prior and give the first measured elongation distribution for
+this printed recyclate. Passing would support **L4 (component validation)** for this geometry, process and material class only,
 and would justify L2→L3 evidence for the material model. It would **not** certify the product, establish
 production reliability, qualify sustained/creep loading (the K1 advisory bound fails the static allowable),
 or satisfy ISO/ASTM/UL/PPWR compliance requirements. Failing would be equally informative: it converts the

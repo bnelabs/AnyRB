@@ -78,6 +78,14 @@ export function normalizeMaterial(material = {}) {
     0, 2,
   );
   out.level = out.level || null;
+  // v0.4 printed-process + elongation/brittle screen fields
+  out.process = out.process || out.print_process || 'FDM/FFF';
+  out.printProcessOk = out.printProcessOk ?? out.print_process_ok
+    ?? /FDM|FFF/i.test(String(out.process));
+  const elongMean = out.elongationMean ?? out.elongation_mean ?? (out.preset === 'rPETG' ? 4.0 : NaN);
+  out.elongationMean = Number.isFinite(elongMean) && elongMean > 0 ? elongMean : NaN;
+  out.elongationCv = clamp(out.elongationCv ?? out.elongation_cv ?? 0, 0, 2);
+  out.corrEElong = out.corrEElong ?? out.corr_E_elong ?? -0.25;
   return out;
 }
 
@@ -996,6 +1004,7 @@ export function lotFromMeasurement(materialIn, E_measured, sy_measured, measurem
   const m = normalizeMaterial(materialIn);
   const eWithin = m.E_cv * m.withinFraction;
   const sWithin = m.sy_cv * m.withinFraction;
+  const elongWithin = m.elongationCv * m.withinFraction;
   const eCv = Math.sqrt(Math.max(eWithin * eWithin + measurementCv * measurementCv, 1e-12));
   const sCv = Math.sqrt(Math.max(sWithin * sWithin + measurementCv * measurementCv, 1e-12));
   return {
@@ -1005,6 +1014,9 @@ export function lotFromMeasurement(materialIn, E_measured, sy_measured, measurem
     E_cv: eCv,
     sy_mean: Number.isFinite(sy_measured) ? sy_measured : m.sy_mean,
     sy_cv: sCv,
+    elongationCv: Number.isFinite(m.elongationMean)
+      ? Math.sqrt(Math.max(elongWithin * elongWithin + measurementCv * measurementCv, 1e-12))
+      : m.elongationCv,
     lotFraction: 0,
     withinFraction: 1,
     measurementCv,
@@ -1012,10 +1024,87 @@ export function lotFromMeasurement(materialIn, E_measured, sy_measured, measurem
   };
 }
 
+/**
+ * Marginal brittle-lot screen: P(elongation-at-break < strain demand), exactly
+ * mirroring Python `reliability.failure_probability_elongation`.
+ * Reported SEPARATELY from the headline two-property P_f (corr assumed -0.25).
+ */
+export function failureProbabilityElongation(materialIn, strainDemand, level = 'lot') {
+  const m = normalizeMaterial(materialIn);
+  if (!Number.isFinite(m.elongationMean) || m.elongationMean <= 0) return NaN;
+  const f = level === 'within' ? m.withinFraction : level === 'total' ? 1.0 : m.lotFraction;
+  const cv = m.elongationCv * f;
+  const mean = m.elongationMean / 100;
+  const demand = Math.max(strainDemand, 1e-12);
+  if (cv <= 0) return demand >= mean ? 1 : 0;
+  const p = lognormalParams(mean, cv);
+  return clamp(normalCDF((Math.log(demand) - p.mu) / p.sigma), 0, 1);
+}
+
+/**
+ * Assumption sensitivity (mirrors Python `reliability.assumption_bounds`):
+ * corr(lnE, lnσy) 0.30/0.70 and lot-vs-within split 75/95 %.
+ */
+export function assumptionBounds(materialIn, sigmaReq, Ereq, level = 'lot') {
+  const m = normalizeMaterial(materialIn);
+  const corrRange = [0.30, 0.70].map((corr) => ({
+    corr,
+    pf: pfFromThresholds(sigmaReq, Ereq, levelMaterial({ ...m, corr }, level)),
+  }));
+  const splitRange = [0.75, 0.95].map((lotFraction) => ({
+    lotFraction,
+    pf: pfFromThresholds(sigmaReq, Ereq, levelMaterial({
+      ...m,
+      lotFraction,
+      withinFraction: Math.sqrt(Math.max(1 - lotFraction * lotFraction, 0)),
+    }, level)),
+  }));
+  const vals = corrRange.concat(splitRange).map((x) => x.pf);
+  return {
+    corr_range: corrRange,
+    split_range: splitRange,
+    pf_min: Math.min(...vals),
+    pf_max: Math.max(...vals),
+    note: 'Unmeasured assumptions (correlation and lot/within split) — assumption sensitivity, not validation.',
+  };
+}
+
+/** Brittle-lot fields attached to an analysed design (Python `evaluate` fields). */
+export function brittleScreen(analysis, materialIn, level = 'lot') {
+  const m = normalizeMaterial(materialIn);
+  const pf = probabilityOfFailure(analysis, m, level);
+  const strainReq = analysis.demands.sigma_y_req / Math.max(m.E_mean, 1e-9);
+  const pfBrittle = failureProbabilityElongation(m, strainReq, level);
+  return {
+    strain_req: strainReq,
+    strain_req_pct: strainReq * 100,
+    elongation_mean_pct: m.elongationMean,
+    elongation_cv: m.elongationCv,
+    corr_E_elong_assumed: m.corrEElong,
+    pf_brittle: pfBrittle,
+    pf_brittle_bound: Number.isFinite(pfBrittle) ? pf + pfBrittle : pf,
+    brittle_ok: Number.isFinite(pfBrittle) ? pfBrittle <= 0.01 : null,
+    brittle_included_in_headline: false,
+    note: 'Marginal brittle-lot screen; conservative ADD-ON, not included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25).',
+  };
+}
+
 /** Family feasibility gate: widest printable uniform lattice vs target. */
 export function familyFeasibility(materialIn, opts = {}) {
   const material = normalizeMaterial(materialIn);
   const targetPf = opts.targetPf ?? DEFAULTS.targetPf;
+  if (!material.printProcessOk) {
+    return {
+      feasible: false,
+      process_ok: false,
+      reason: 'process_mismatch',
+      detail: `material data is for '${material.process}', not FDM/FFF; a printed lattice cannot use moulded-property data`,
+      min_achievable_pf: null,
+      max_width_mm: GEOMETRY.wMax,
+      target_pf: targetPf,
+      material,
+    };
+  }
   const analysis = analyzeLattice(uniformDesign(GEOMETRY.wMax), {
     F: opts.F ?? DEFAULTS.F,
     uLim: opts.uLim ?? GEOMETRY.uLim,
@@ -1030,6 +1119,7 @@ export function familyFeasibility(materialIn, opts = {}) {
     E_req_MPa: analysis.demands.E_req,
     max_width_mm: GEOMETRY.wMax,
     target_pf: targetPf,
+    process_ok: true,
     analysis,
   };
 }

@@ -61,6 +61,11 @@ export function materialFromLot(lot, fallbackKey = DEFAULTS.preset) {
     corr: l.corr ?? base.corr,
     lotFraction: l.lotFraction ?? base.lotFraction,
     withinFraction: l.withinFraction ?? base.withinFraction,
+    process: l.process ?? base.process,
+    printProcessOk: l.printProcessOk ?? base.printProcessOk,
+    elongationMean: l.elongationMean ?? base.elongationMean,
+    elongationCv: l.elongationCv ?? base.elongationCv,
+    corrEElong: l.corrEElong ?? base.corrEElong,
   });
 }
 
@@ -79,6 +84,12 @@ export function presetLot(key) {
     corr: p.corr,
     lotFraction: p.lotFraction,
     withinFraction: p.withinFraction,
+    process: p.process,
+    printProcessOk: p.printProcessOk,
+    processNote: p.processNote,
+    elongationMean: p.elongationMean,
+    elongationCv: p.elongationCv,
+    corrEElong: p.corrEElong ?? -0.25,
     note: p.note,
   };
 }
@@ -343,6 +354,7 @@ export function evaluateCandidate(candidate, material, ctx, targetPf) {
       + Math.max(0, printability.max_slenderness - 30) / 30)
     : 0;
   const score = feasible ? printedMass : printedMass * (1 + 100 * violation + printPenalty);
+  const brittle = E.brittleScreen(analysis, material, 'lot');
   return {
     ...candidate,
     logWidth,
@@ -350,6 +362,15 @@ export function evaluateCandidate(candidate, material, ctx, targetPf) {
     mass_g: printedMass,
     mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
     printed_mass_g: printedMass,
+    strain_req: brittle.strain_req,
+    strain_req_pct: brittle.strain_req_pct,
+    elongation_mean_pct: brittle.elongation_mean_pct,
+    elongation_cv: brittle.elongation_cv,
+    pf_brittle: brittle.pf_brittle,
+    pf_brittle_bound: brittle.pf_brittle_bound,
+    brittle_ok: brittle.brittle_ok,
+    brittle_included_in_headline: brittle.brittle_included_in_headline,
+    brittle_note: brittle.note,
     pf,
     reliability: 1 - pf,
     feasible,
@@ -403,6 +424,8 @@ export function recommendedDesign(materialIn, ctx, targetPf) {
   const printability = E.printabilityReport(analysis);
   const printed = analysis.printed_mass_g ?? analysis.mass_g;
   const feasible = opt.pf <= targetPf * 1.02 && !!(printability && printability.pass);
+  const brittle = E.brittleScreen(analysis, material, 'lot');
+  const assumptions = E.assumptionBounds(material, analysis.demands.sigma_y_req, analysis.demands.E_req, 'lot');
   return {
     id: 'optimised',
     name: 'Engine-optimised',
@@ -422,6 +445,20 @@ export function recommendedDesign(materialIn, ctx, targetPf) {
     score: printed,
     governing: E.failureModes(analysis, material, 'lot').governingLabel,
     printability,
+    strain_req: brittle.strain_req,
+    strain_req_pct: brittle.strain_req_pct,
+    elongation_mean_pct: brittle.elongation_mean_pct,
+    elongation_cv: brittle.elongation_cv,
+    pf_brittle: brittle.pf_brittle,
+    pf_brittle_bound: brittle.pf_brittle_bound,
+    brittle_ok: brittle.brittle_ok,
+    brittle_included_in_headline: brittle.brittle_included_in_headline,
+    brittle_note: brittle.note,
+    assumptions,
+    union_polished: !!opt.union_polished,
+    union_evals: opt.union_evals || 0,
+    union_before_printed_g: opt.union_before_printed_g,
+    union_after_printed_g: opt.union_after_printed_g,
     sigma_y_req: analysis.demands.sigma_y_req,
     E_req: analysis.demands.E_req,
     deflection_mm: analysis.deflectionScale / material.E_mean,
@@ -835,8 +872,8 @@ export function validationFallback() {
   return {
     source: 'embedded fallback (validation/results.json not available)',
     generated: null,
-    counts: { PASS: 51, WARN: 2, FAIL: 0 },
-    total: 53,
+    counts: { PASS: 56, WARN: 2, FAIL: 0 },
+    total: 58,
     runtime_s: null,
     checks: [
       { id: 'A', title: 'FE element benchmarks', detail: 'A1–A7: axial, cantilever, rigid body, independent assembly, equilibrium, symmetry, linearity — 8/8 pass', status: 'pass' },
@@ -902,6 +939,13 @@ export function buildDesignMemoPayload({ brief, selected, comparison }) {
     conventional_mass_g: comparison && comparison.conventional ? round2(comparison.conventional.mass_g, 1) : null,
     conventional_pf_pct: comparison && comparison.conventional ? round2(comparison.conventional.pf * 100, 2) : null,
     family_scope: 'best of this bracket/lattice family',
+    strain_req_pct: round2(selected.strain_req_pct, 2),
+    elongation_mean_pct: round2(selected.elongation_mean_pct, 2),
+    elongation_cv: round2(selected.elongation_cv, 3),
+    pf_brittle: selected.pf_brittle,
+    pf_brittle_bound: selected.pf_brittle_bound,
+    brittle_ok: selected.brittle_ok,
+    brittle_note: 'Marginal brittle-lot screen; conservative add-on, NOT included in the headline P_f (E-elongation correlation assumed).',
   };
   return { facts, target_pf: brief.targetPf, design: { control_widths_mm: facts.widths_mm } };
 }
@@ -928,6 +972,16 @@ export function buildProofPayload({ brief, selected, proof, validation }) {
       sustained_pf_bound: sustained ? round2(sustained.pf_bound, 6) : null,
       sustained_deflection_bound_mm: sustained ? round2(sustained.deflection_bound_mm, 2) : null,
       sustained_qualified: sustained ? sustained.pf_bound <= (brief.targetPf ?? 0.01) : null,
+      strain_req_pct: proof && proof.brittle ? round2(proof.brittle.strain_req_pct, 2) : null,
+      elongation_mean_pct: proof && proof.brittle ? round2(proof.brittle.elongation_mean_pct, 2) : null,
+      elongation_cv: proof && proof.brittle ? round2(proof.brittle.elongation_cv, 3) : null,
+      pf_brittle: proof && proof.brittle ? proof.brittle.pf_brittle : null,
+      pf_brittle_bound: proof && proof.brittle ? proof.brittle.pf_brittle_bound : null,
+      brittle_ok: proof && proof.brittle ? proof.brittle.brittle_ok : null,
+      assumption_pf_min: proof && proof.assumptions ? proof.assumptions.pf_min : null,
+      assumption_pf_max: proof && proof.assumptions ? proof.assumptions.pf_max : null,
+      union_polished: proof && typeof proof.union_polished === 'boolean' ? proof.union_polished : null,
+      union_evals: proof && proof.union_evals != null ? proof.union_evals : null,
       recipe_global_scale: recipe ? round2(recipe.global_equivalent_scale, 3) : null,
       recipe_added_mass_pct: recipe ? round2(recipe.added_mass_pct, 2) : null,
       recipe_pf: recipe ? round2(recipe.pf, 6) : null,
@@ -935,6 +989,24 @@ export function buildProofPayload({ brief, selected, proof, validation }) {
       measurement_cv: recipe ? recipe.measurement_cv : null,
     },
     validation: { counts, total },
+    brittle: proof && proof.brittle ? {
+      strain_req_pct: round2(proof.brittle.strain_req_pct, 2),
+      elongation_mean_pct: round2(proof.brittle.elongation_mean_pct, 2),
+      elongation_cv: round2(proof.brittle.elongation_cv, 3),
+      pf_brittle: proof.brittle.pf_brittle,
+      pf_brittle_bound: proof.brittle.pf_brittle_bound,
+      brittle_ok: proof.brittle.brittle_ok,
+      included_in_headline: false,
+      corr_E_elong_assumed: -0.25,
+      note: proof.brittle.note,
+    } : null,
+    assumptions: proof && proof.assumptions ? proof.assumptions : null,
+    union_polish: proof ? {
+      polished: !!proof.union_polished,
+      evals: proof.union_evals || 0,
+      before_printed_g: proof.union_before_printed_g ?? null,
+      after_printed_g: proof.union_after_printed_g ?? null,
+    } : null,
     sustained: sustained ? {
       pf_bound: round2(sustained.pf_bound, 6),
       E_req_bound_MPa: round2(sustained.E_req_bound_MPa, 1),

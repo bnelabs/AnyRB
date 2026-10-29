@@ -31,7 +31,7 @@ unreachable backend → offline assistant, clearly badged per card and in the to
 
 ```bash
 python3 app/build.py        # inlines app sources -> anyrb/index.html (+ app/standalone.html)
-node app/tests/run.mjs      # 33 tests: engine fixtures, FE checks, v0.3 AI helpers
+node app/tests/run.mjs      # 37 tests: engine fixtures, FE checks, v0.3 AI helpers
 ```
 
 ---
@@ -56,8 +56,8 @@ selected direction with the engine’s deterministic multi-start pattern search.
 **03 · Prove** — reliability gauge (P_f vs target, governing mode, mass, printability),
 batch acceptance window chart (engine-computed), live batch passport (lot mean E / σy →
 required width scale, added mass, pass / compensate / reject), scientific-validation
-checklist reading `validation/results.json` (fallback embedded: **51 PASS / 2 WARN /
-0 FAIL · 53 checks**, L0–L1 achieved, L2 partial), AI qualification memo, Muse Image
+checklist reading `validation/results.json` (fallback embedded: **56 PASS / 2 WARN /
+0 FAIL · 58 checks**, L0–L1 achieved, L2 partial), AI qualification memo, Muse Image
 concept render (labelled “AI illustration — not the CAD model”), exports (qualification
 HTML report, STL, design JSON, AI provenance log), claims ladder and limitations.
 
@@ -79,7 +79,7 @@ grounding for every call.
 | `POST /api/proof/memo` | Muse Spark 1.3 | qualification narrative | templated narrative |
 | `POST /api/voice/transcribe` | Muse Voice | mic brief (MediaRecorder) | offline demo transcript (mic disabled offline) |
 | `POST /api/image/render` | Muse Image 1.0 | illustrative concept render | embedded Muse Image demo render (`app/product_render.js`) |
-| `GET /api/validation` | — | real validation summary | embedded 51/2/53 fallback |
+| `GET /api/validation` | — | real validation summary | embedded 56/2/58 fallback |
 
 Every AI response carries `_meta = {model, latency_s, cached, fallback, grounding, ...}`
 and every card shows a badge from it. **Number grounding:** AI memos may only phrase
@@ -135,7 +135,7 @@ runs `node --check` on the generated classic script. No external fonts, CDNs or 
 | comparison | solid 111.60 g · uniform target-sized 53.97 g @1.00 % · nominal FoS1.5 50.77 g · mean-only 41.11 g @51.8 % |
 | printability | min width 1.24 mm · L/w 21.9 · neighbour ratio 1.38 (pass; limits enforced) |
 | batch passport at robust design | E ×0.90 → global-equivalent 1.15 (+14.9 % printed mass, conditional); E ×0.50 → reject; 8-control resize, 12 % measurement CV retained |
-| validation | 51 PASS / 2 WARN / 0 FAIL · 53 checks · L0–L1 verified, L2 partial |
+| validation | 56 PASS / 2 WARN / 0 FAIL · 58 checks · L0–L1 verified, L2 partial |
 | AI verification | live backend: brief/plan/review/proof via Muse Spark (10.8–22.8 s, cached on repeat), Muse Image render, Muse Voice ASR |
 
 Engine fixture cross-check against the canonical Python engine remains exact (deterministic
@@ -218,3 +218,39 @@ The Python engine (`engine/anyrb/`) is the reference implementation; the app mir
 {min_width_mm,max_width_mm,max_slenderness,max_neighbour_width_ratio,out_of_bounds}`;
 optionally a `lot_recipe` fixture for a weak measured lot. The app works without them
 using the Python reference values above.
+
+
+---
+
+## v0.4 — remaining-gaps release (second review)
+
+All JS mirrors the Python reference (`engine/anyrb/`); no physics objective change.
+
+1. **Printed-process gate.** Presets carry `process`, `printProcessOk` (FDM/FFF only) and
+   printed elongation. `E.familyFeasibility` returns
+   `{feasible:false, process_ok:false, reason:"process_mismatch", detail}` for moulded-data
+   presets (rPET, rHDPE, rPP), and the Brief shows a clear “material data is injection/
+   compression — not valid for a printed lattice” banner, disables Design and never calls
+   the AI plan. Presets remain visible with a “contrast only” label; rPETG is the valid default.
+2. **Brittle-lot screen.** `E.failureProbabilityElongation` is the marginal lognormal
+   P(elongation-at-break < strain demand), lot/within split identical to Python.
+   `E.brittleScreen` adds `strain_req`, `elongation_mean_pct`, `elongation_cv`,
+   `pf_brittle`, `pf_brittle_bound` and `brittle_ok`. Design/Prove show a card explicitly
+   labelled **NOT in headline P_f**, with the E–elongation correlation (−0.25) flagged as an
+   assumption. Exports carry the screen; the design objective is unchanged.
+3. **Union-mass final polish.** After multi-start selection, a short local pattern search
+   (≤90 evals) minimises the 10k-sample Halton printed mass subject to P_f + printability,
+   then checks the final 60k estimate; accepted only if printed mass improves by ≥0.1 %.
+   `union_polished`, `union_evals`, pre/post printed masses are exposed and reported; the
+   global search still ranks with the analytic bound (disclosed).
+4. **Assumption bounds.** `E.assumptionBounds` varies corr(lnE, lnσy) 0.30/0.70 and the
+   lot-vs-within split 75/95 % and reports the P_f range. Prove shows a compact band labelled
+   “assumption sensitivity, not validation”.
+5. **QC/lot record.** Existing lot ID / supplier / measurement used / measurement CV /
+   recycled-content fields stay; optional MFI, density and tensile-row fields are recorded for
+   traceability only and explicitly marked “not used — no calibrated proxy” (E and σy are the
+   only simulation inputs). Exports/report include the record, the “paperwork claim” note, and
+   a design-stage statement that no delivered lot exists unless lot fields are filled.
+6. **Validation fallback** remains 56 PASS / 2 WARN / 0 FAIL · 58 checks (live reads
+   `/api/validation`). Tests: process gate, brittle constants vs Python, union polish
+   improvement/no-regression + runtime, assumption bounds, plus the existing engine/hero suite.

@@ -1,22 +1,23 @@
-# AnyRB independent validation report (v0.3)
+# AnyRB independent validation report (v0.4)
 
-Generated: 2026-10-29T16:07:04+00:00 · Suite runtime 32.2 s · Python 3.15.2 · NumPy 2.5.4 · SciPy 1.18.1 · Matplotlib 3.11.2
+Generated: 2026-10-29T20:12:08+00:00 · Suite runtime 62.6 s · Python 3.15.2 · NumPy 2.5.4 · SciPy 1.18.1 · Matplotlib 3.11.2
 
 **Independent** means: the frame element is re-implemented here, the global stiffness matrix is assembled here, reliability is re-derived with SciPy quadrature/CDF/Monte-Carlo, and the optimiser is checked against a brute-force grid. The engine is imported only where a check is explicitly *engine vs independent*. The suite is reproducible with `cd AnyRB && .venv/bin/python validation/run_validation.py`.
 
 ## For the app — quotable summary (generated)
 
-- **Validation:** 51 PASS, 2 WARN, 0 FAIL across 53 independent checks (runtime 32 s, reproducible with `make validate`).
+- **Validation:** 56 PASS, 2 WARN, 0 FAIL across 58 independent checks (runtime 63 s, reproducible with `make validate`).
 - **Claim level:** L0 (code verified) and L1 (solution verified) are demonstrated; L2 is partial; L3 is pre-registered only (coupon plan, no data); L4-L6 absent.
 - **WARN F4:** corrected analytic over-count (of printed union): w=1: +5.6%, w=2: +12.2%, w=4: +27.9%; shipped robust +9.5% (analytic 50.81 g vs printed union 46.39 g, independent MC +/-0.04 g); engine Halton printed 46.40 g
 - **WARN F5:** max |dev| 0.35% (worst uniform_w1); uniform_w1: -0.35%; uniform_w2: +0.10%; uniform_w4: -0.04%; robust: +0.01%; uniform_target: -0.08%; nominal_sf15: +0.04%; mean_only: +0.04%
 - **Mass basis:** display `printed_mass_g` (deterministic Halton-QMC union). F5 audits it against independent Monte Carlo: ≤0.1% deviation at the shipped designs, 0.35% worst case at w=1 mm (W_MIN) — a documented WARN. Label analytic `mass_g` strictly as a conservative upper bound (F4 WARN).
+- **v0.4 disclosures:** brittle-lot screen is a *marginal add-on* (`pf_brittle` shown separately; `pf_brittle_bound = pf + pf_brittle`, joint three-property probability NOT claimed); the P_f range over corr 0.30/0.70 and lot split 75/95% is assumption sensitivity, not validation; only FDM/FFF material data may enter the printed-bracket model (non-printed presets are contrast-only and design is blocked); the final design mass is selected on the printed union after a recorded polish step.
 
 ## Summary
 
 | PASS | WARN | FAIL | total |
 |---|---|---|---|
-| 51 | 2 | 0 | 53 |
+| 56 | 2 | 0 | 58 |
 
 Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN** = outside the target tolerance but explained and documented (a known conservative approximation or a deliberately coarse analytical reference); it must be surfaced, not hidden. **FAIL** = outside tolerance without an acceptable explanation; the engine must be changed before the claim stands. Tolerances were fixed before the numbers were inspected and were not tuned to pass.
 
@@ -49,8 +50,8 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | C7 | C | Two-level variance decomposition and hierarchical sampling | Parameter identity + 2000 lots x 500 within-lot specimens | CV^2 identity <= 1e-6 (fractions rounded to 5 dp); sigma^2 identity <= 1e-4; hierarchical CV rel <= 2% | param identity 6.9e-08, sigma^2 identity 1.3e-05, hierarchical CV 0.0994 vs 0.1 (-6.13e-03) | **PASS** |
 | C8 | C | Measured-lot override changes the distribution level correctly | Semantics + P_f for measured lot 2300 MPa / 50 MPa against robust-design demands | exact semantics; known-lot P_f < 1e-3 and lot-level equals within-level (zero lot CV) | semantics=True, P_f known 7.22e-16, lot-level 0.00e+00 | **PASS** |
 | C9 | C | Degenerate (zero-variance) marginal and extreme-threshold limits | Constructed degenerate Material; compare P_f to deterministic indicator; extreme demands | exact indicator match <= 1e-15; finite results for extreme demands | degenerate ok=True, extreme sum=1.000000 | **PASS** |
-| D1 | D | Brute-force grid baseline on the reduced 2-parameter family | 2109 evaluations of anyrb.evaluate (~3.7 s) | grid must contain feasible designs | best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346 | **PASS** |
-| D2 | D | Production pattern search vs brute-force grid (2 parameters) | 4 deterministic starts x up to 1500 evals (~0.8 s) via an 8-D wrapper | feasible (P_f <= target) and mass <= grid best * 1.01 | mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40 | **PASS** |
+| D1 | D | Brute-force grid baseline on the reduced 2-parameter family | 2109 evaluations of anyrb.evaluate (~5.1 s) | grid must contain feasible designs | best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346 | **PASS** |
+| D2 | D | Production pattern search vs brute-force grid (2 parameters) | 4 deterministic starts x up to 1500 evals (~1.1 s) via an 8-D wrapper | feasible (P_f <= target) and mass <= grid best * 1.01 | mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40 | **PASS** |
 | D3 | D | 200 random designs cannot beat the optimiser by > 2% | 200 uniform random (w0, g) designs vs the fixed optimiser result | no feasible random design lighter than 0.98 x optimiser mass | random best 56.161 g (feasible 134/200) vs 53.311 g | **PASS** |
 | D4 | D | Shipped robust design is feasible and independently reproducible | Recompute demands with independent assembly; P_f via SciPy bivariate normal; mass from widths | pf <= target; |pf_diff| <= 1e-8; mass rel diff <= 1e-10; widths in bounds | reported pf 0.009956 vs independent 0.009956; mass 50.809 g vs independent 50.809 g; widths [1.24,1.99] mm; target 0.01 | **PASS** |
 | D5 | D | Printability metrics are reported, not silently rejected | Engine printability_report vs manual recomputation on the robust design | values match <= 1e-12; out_of_bounds False | min/max width 1.24/1.99 mm, slenderness 21.92 (limit 30), neighbour ratio 1.375 (limit 1.5), out_of_bounds False | **PASS** |
@@ -71,17 +72,22 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | G3 | G | Hierarchical lot->specimen sampling reproduces total CV | Draw lot means with CV_lot then specimens with CV_within; estimate total CV | relative error <= 1% | total CV 0.1003 vs 0.1 (+2.74e-03) | **PASS** |
 | G4 | G | Measured-lot path uses within-lot distribution | Compare lot_pass_probability with failure_probability(level='within') | exact equality; input material not mutated | 4.947828e-06 vs 4.947828e-06 | **PASS** |
 | H1 | H | Frozen fixtures reproduce from the current Python engine | 5 cases in app/tests/fixtures/reference.json | deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12 | max rel 0.00e+00 (), max \|dP_f\| 0.00e+00 | **PASS** |
-| H2 | H | Frozen fixture regenerates byte-identically | Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1) | byte-identical files | identical (31538 vs 31538 bytes); regenerated at artifacts/reference_regenerated.json | **PASS** |
-| H3 | H | JavaScript engine/fixture cross-language tests pass | node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency | filtered engine/fixture tests: exit 0 and 0 failures | 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 12.8 s | **PASS** |
+| H2 | H | Frozen fixture regenerates byte-identically | Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1) | byte-identical files | identical (32601 vs 32601 bytes); regenerated at artifacts/reference_regenerated.json | **PASS** |
+| H3 | H | JavaScript engine/fixture cross-language tests pass | node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency | filtered engine/fixture tests: exit 0 and 0 failures | 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 22.5 s | **PASS** |
 | H4 | H | Live JavaScript vs Python cross-implementation agreement | node ESM cross-check script computing all five cases in app/engine.js | deterministic fields rel <= 1e-6; P_f abs <= 1e-8 | max rel 4.77e-14 (uniform_w1.5:sigma_req_MPa), max \|dP_f\| 1.07e-13 over 5 cases | **PASS** |
 | J1 | J | Cell-size / topology model-form band on the fixed 140x60 envelope | Independent frame solver on generalised lattices with the same bilinear log-width field; same-width and mass-matched (analytic strut volume matched to 7x3) comparisons | 7x3 generic model reproduces engine demands <=1e-9; report the spread as a model-form band (no pass/fail target) | 7x3 vs engine rel 4.7e-15; same-width spread: u_tip 88%, sigma_req 34%, E_req 495%; mass-matched spread: u_tip 58%, sigma_req 98%, E_req 23% | **PASS** |
 | J2 | J | Joint-stiffness / topology model-form: rigid frame vs pin-jointed truss | 2-DOF/node pin-jointed truss solver vs the rigid-joint frame; tip stiffness, sigma_req and E_req ratios | report the ratio band; frame demands should not be below the pin-jointed idealisation | stiffness frame/truss 1.004; sigma_req frame/truss 1.141; E_req frame/truss 0.997 | **PASS** |
 | K1 | K | Sustained-load / creep advisory bound (compression x0.8, creep x2.0) | Independent recomputation of E_req*2, sigma_req/0.8, its P_f and deflection bound vs engine sustained_bound() | engine vs independent rel diff <=1e-12; P_f_bound > P_f_static; deflection_bound > u_lim | static P_f 0.0100; bound P_f 1.000000 (>=1 means essentially certain); E_req_bound 3376 MPa; sigma_req_bound 23.51 MPa; deflection_bound 4.02 mm (> 2.5 limit) | **PASS** |
 | K2 | K | Measured lot keeps 12% measurement uncertainty; lot-specific resize recipe is consistent | Engine lot_from_measurement + lot_specific_recipe vs independent P_f recomputation from the returned controls | measurement CV retained (E_cv > 0.05); known-lot P_f > 0; recipe feasible and self-consistent <=1e-12 | E_cv(12% meas) 0.1261, known-lot P_f 0.0082 (vs 7.8e-16 at 0% meas CV); recipe P_f 0.0098, global scale 1.000, printed mass 45.96 g, verdict 'pass as designed' | **PASS** |
 | K3 | K | Family feasibility gate blocks infeasible material/family before design | Engine family_feasibility() vs independent uniform-W_MAX demands and P_f, for rPETG and a synthetic weak material | feasible iff P_f(W_MAX) <= target; both cases must match independent computation <=1e-12 | rPETG: feasible=True, min P_f 0.00e+00; weak material: feasible=False, min P_f 0.322 | **PASS** |
-| L1 | L | Frozen coupon/bracket predictions, protocol and comparison tool are pre-registered | COUPON_TEST_PLAN.md + coupon_predictions.json (hash) + compare_measurements.py; predictions recomputed from current engine/model | files exist, pre-registration hash matches canonical payload, predictions reproduce <=1e-9, tool template parses | hash OK; bracket prediction recompute rel 0.0e+00, coupon 0.0e+00; compare tool OK | **PASS** |
-| I1 | I | Claim-ladder mapping (L0-L2) updated by this validation | Mapping of A-H results onto the dossier-05 claim ladder | documentation consistent with evidence (no over-claim) | L0 achieved, L1 achieved, L2 partial, L3 pre-registered only, L4-L6 absent | **PASS** |
-| I2 | I | Model-form limitations are enumerated and quantified where possible | Limitations register compiled from PRODUCT_SPEC §7, REPORT §6 and checks A-H | all known major limitations listed | 16 limitations documented | **PASS** |
+| L1 | L | Frozen coupon/bracket predictions, protocol and comparison tool are pre-registered | COUPON_TEST_PLAN.md + coupon_predictions.json (hash) + compare_measurements.py; predictions recomputed from current engine/model | files exist, pre-registration hash matches canonical payload, stiffness/first-yield/strain/brittle predictions reproduce <=1e-9, tool template parses | hash OK; bracket prediction recompute rel 0.0e+00, coupon 0.0e+00; compare tool OK | **PASS** |
+| K4 | K | Printed-process gate: only FDM/FFF data may enter the printed-bracket model | Engine family_feasibility and Material.print_process_ok vs independent process-string classification (rPETG FDM vs rPET/rHDPE/rPP IM/compression) | rPETG process_ok/feasible true; all non-printed presets process_ok=false, feasible=false, reason=process_mismatch, min_pf=None; print_process_ok probes all correct | rPETG process_ok/feasible=True/True; rpet(IM): process_ok=False, feasible=False, reason=process_mismatch; rhdpe(IM/compression): process_ok=False, feasible=False, reason=process_mismatch; rpp(IM): process_ok=False, feasible=False, reason=process_mismatch; probes correct=True | **PASS** |
+| K5 | K | Elongation / brittle-lot screen verified as a marginal conservative add-on | Independent scipy.stats.lognorm / direct normal CDF at lot and within levels, monotonicity, zero-CV and NaN limits, evaluate() strain_req consistency, add-on bound arithmetic | max |engine - independent| <= 1e-12; monotone; degenerate limits exact; strain_req == sigma_req/E_mean; pf_brittle_bound == pf + pf_brittle | max abs err 5.6e-16; monotone=True; degenerate 0/1; strain_req 0.896% == sigma_req/E_mean; pf_brittle 2.78e-16; headline pf 0.00996 + brittle = bound 0.00996; known lot 12% meas CV: elongation CV 0.1428 (expected 0.1428) | **PASS** |
+| K6 | K | Union-mass final polish is recorded, bounded and correctly accepted/declined | Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime | final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s | pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 5.1 s; 60k-vs-independent-union +0.01%; mode=declined | **PASS** |
+| K7 | K | Assumption bounds are computed correctly and labelled as assumption sensitivity, not validation | Engine assumption_bounds vs independent SciPy closed-form P_f at each assumption setting | engine vs independent <= 1e-12; pf_min/pf_max match the four settings; split monotone | corr 0.30/0.70 -> 0.00996/0.00996 (insensitive=True); split 75/95% -> 0.00200/0.01201; range [0.00200, 0.01201], max err 3.1e-17 | **PASS** |
+| K8 | K | Design-stage report and app export carry the v0.4 disclosures | reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit) | all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports) | fields_ok=True, html_ok=True, app_lot_identity=True, report validation 56P/2W/0F of 58; stale vs current results=False | **PASS** |
+| I1 | I | Claim-ladder mapping (L0-L2) updated by this validation | Mapping of A-L results onto the dossier-05 claim ladder | documentation consistent with evidence (no over-claim) | L0 achieved, L1 achieved, L2 partial, L3 pre-registered only, L4-L6 absent | **PASS** |
+| I2 | I | Model-form limitations are enumerated and quantified where possible | Limitations register compiled from PRODUCT_SPEC §7, REPORT §6 and checks A-H | all known major limitations listed | 19 limitations documented | **PASS** |
 
 ## A. FE element benchmarks, rigid body, equilibrium, symmetry
 
@@ -241,14 +247,14 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 ### D1 — Brute-force grid baseline on the reduced 2-parameter family [PASS]
 
 - **Claim:** A 57x37 grid establishes the reference optimum of the uniform-width + root-gradient family
-- **Method:** 2109 evaluations of anyrb.evaluate (~3.7 s)
+- **Method:** 2109 evaluations of anyrb.evaluate (~5.1 s)
 - **Tolerance:** grid must contain feasible designs
 - **Observed:** best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346
 
 ### D2 — Production pattern search vs brute-force grid (2 parameters) [PASS]
 
 - **Claim:** Deterministic engine pattern_search finds a feasible design within +1% of the grid optimum
-- **Method:** 4 deterministic starts x up to 1500 evals (~0.8 s) via an 8-D wrapper
+- **Method:** 4 deterministic starts x up to 1500 evals (~1.1 s) via an 8-D wrapper
 - **Tolerance:** feasible (P_f <= target) and mass <= grid best * 1.01
 - **Observed:** mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40
 
@@ -416,15 +422,15 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 - **Claim:** The fixture generator's deterministic output is exactly the committed reference.json
 - **Method:** Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1)
 - **Tolerance:** byte-identical files
-- **Observed:** identical (31538 vs 31538 bytes); regenerated at artifacts/reference_regenerated.json
+- **Observed:** identical (32601 vs 32601 bytes); regenerated at artifacts/reference_regenerated.json
 
 ### H3 — JavaScript engine/fixture cross-language tests pass [PASS]
 
 - **Claim:** The JS engine reproduces the frozen fixtures; full app suite reported informationally
 - **Method:** node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency
 - **Tolerance:** filtered engine/fixture tests: exit 0 and 0 failures
-- **Observed:** 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 12.8 s
-- **Notes:** Full app suite: 33 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.
+- **Observed:** 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 22.5 s
+- **Notes:** Full app suite: 37 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.
 
 ### H4 — Live JavaScript vs Python cross-implementation agreement [PASS]
 
@@ -438,18 +444,18 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 ### I1 — Claim-ladder mapping (L0-L2) updated by this validation [PASS]
 
 - **Claim:** L0 and L1 are demonstrated by independent checks; L2 is partial; L3+ remain absent
-- **Method:** Mapping of A-H results onto the dossier-05 claim ladder
+- **Method:** Mapping of A-L results onto the dossier-05 claim ladder
 - **Tolerance:** documentation consistent with evidence (no over-claim)
 - **Observed:** L0 achieved, L1 achieved, L2 partial, L3 pre-registered only, L4-L6 absent
 - **Notes:** Every user-facing number should carry its level; this suite raises L0/L1 confidence only.
-- **Evidence:** `{"L0_code_verified": {"status": "achieved", "evidence": "A1-A7 (element benchmarks, rigid body, equilibrium, symmetry, independent assembly, linearity)"}, "L1_solution_verified": {"status": "achieved", "evidence": "B (energy-minimisation cross-check), C1-C5 (reliability quadrature/MC convergence), D1-D3 (optimiser vs brute force), E (periodic cell energy/stress consistency), F4/F5 (mass basis audited), H (counts/determinism), J/K (model-form bands and v0.3 features)"}, "L2_literature_calibrated_uq": {"status": "partial", "evidence": "rPETG preset moments/correlation verified internally (G); literature provenance not independently re-derived here"}, "L3_literature_reproduced": {"status": "pre-registered, no data", "evidence": "coupon/bracket blind predictions, protocol and acceptance criteria frozen and hashed (L1); no measurements have been made"}, "L4_component_validated": {"status": "absent", "evidence": "no coupon experiments exist"}, "L5_system_validated": {"status": "absent", "evidence": "no full-bracket experiments exist"}, "L6_certified": {"status": "out of scope", "evidence": "not a certification tool"}}`
+- **Evidence:** `{"L0_code_verified": {"status": "achieved", "evidence": "A1-A7 (element benchmarks, rigid body, equilibrium, symmetry, independent assembly, linearity)"}, "L1_solution_verified": {"status": "achieved", "evidence": "B (energy-minimisation cross-check), C1-C5 (reliability quadrature/MC convergence), D1-D3 (optimiser vs brute force), E (periodic cell energy/stress consistency), F4/F5 (mass basis audited), H (counts/determinism), J/K (model-form bands and v0.3/v0.4 features: K4 process gate, K5 brittle marginal, K6 union polish, K7 assumption bounds, K8 report disclosures)"}, "L2_literature_calibrated_uq": {"status": "partial", "evidence": "rPETG preset moments/correlation verified internally (G); literature provenance not independently re-derived here"}, "L3_literature_reproduced": {"status": "pre-registered, no data", "evidence": "coupon/bracket blind predictions (stiffness, first-yield, strain, brittle marginal), protocol and acceptance criteria frozen and hashed (L1); no measurements have been made"}, "L4_component_validated": {"status": "absent", "evidence": "no coupon experiments exist"}, "L5_system_validated": {"status": "absent", "evidence": "no full-bracket experiments exist"} …`
 
 ### I2 — Model-form limitations are enumerated and quantified where possible [PASS]
 
 - **Claim:** The report states what the checks do NOT validate, including the mass over-count quantified in F4
 - **Method:** Limitations register compiled from PRODUCT_SPEC §7, REPORT §6 and checks A-H
 - **Tolerance:** all known major limitations listed
-- **Observed:** 16 limitations documented
+- **Observed:** 19 limitations documented
 - **Evidence:** `{"no_experiments": "No physical specimens were tested; nothing here is experimental validation.", "frame_vs_part": "The 2-D plane-frame idealisation omits 3-D load paths, out-of-plane bending/buckling and plate action.", "joints": "Printed node/joint compliance and local stress concentrations are not modelled; rigid joints assumed.", "anisotropy": "Layer-adhesion/road-direction anisotropy is not modelled (measured printed in-plane strength used).", "plasticity": "Linear elasticity only; no yield plateau, strain localisation, or failure criterion beyond first yield.", "time_dependence": "Creep, fatigue, UV and thermal ageing are not modelled.", "spatial_scatter": "Material scatter is batch-uniform, not spatial; print-defect statistics absent.", "buckling_model": "Euler buckling with pinned-pinned effective length; no combined axial-bending interaction.", "material_provenance": "Feedstock distributions are literature-derived priors, not the user's measured lots.", "mass_overcount": "Analytic mass is a conservative upper bound (F4): it double-counts strut overlap. Corrected over-count of the printed union: +5.6% at w=1 mm, +12.2% at w=2 mm, +27.9% at w=4 mm; shipped robust design +9.5 …`
 
 ## J. Model-form: cell size, topology, joint stiffness
@@ -498,13 +504,56 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 - **Observed:** rPETG: feasible=True, min P_f 0.00e+00; weak material: feasible=False, min P_f 0.322
 - **Notes:** The infeasible case is a synthetic stress-test material (E=700 MPa, sy=14 MPa), not a feedstock record. The gate is a pre-design refusal, not an optimisation result.
 
+### K4 — Printed-process gate: only FDM/FFF data may enter the printed-bracket model [PASS]
+
+- **Claim:** Non-printed presets are contrast-only: family_feasibility must refuse them with process_mismatch before any design
+- **Method:** Engine family_feasibility and Material.print_process_ok vs independent process-string classification (rPETG FDM vs rPET/rHDPE/rPP IM/compression)
+- **Tolerance:** rPETG process_ok/feasible true; all non-printed presets process_ok=false, feasible=false, reason=process_mismatch, min_pf=None; print_process_ok probes all correct
+- **Observed:** rPETG process_ok/feasible=True/True; rpet(IM): process_ok=False, feasible=False, reason=process_mismatch; rhdpe(IM/compression): process_ok=False, feasible=False, reason=process_mismatch; rpp(IM): process_ok=False, feasible=False, reason=process_mismatch; probes correct=True
+- **Notes:** This is a claim gate, not a mechanical check: moulded/injection data cannot represent a printed lattice. rPETG is the only printable preset in the library; the others remain visible as labelled contrast only.
+- **Evidence:** `{"rpetg": {"process": "FDM/FFF", "process_ok": true, "feasible": true, "min_achievable_pf": 0.0}, "nonprintable": {"rpet": {"process": "IM", "process_ok": false, "feasible": false, "reason": "process_mismatch", "engine_process_ok": false}, "rhdpe": {"process": "IM/compression", "process_ok": false, "feasible": false, "reason": "process_mismatch", "engine_process_ok": false}, "rpp": {"process": "IM", "process_ok": false, "feasible": false, "reason": "process_mismatch", "engine_process_ok": false}}, "probes_ok": true}`
+
+### K5 — Elongation / brittle-lot screen verified as a marginal conservative add-on [PASS]
+
+- **Claim:** The brittle screen is a one-property lognormal marginal; it does NOT claim a joint three-property probability (E-elongation correlation assumed, not measured)
+- **Method:** Independent scipy.stats.lognorm / direct normal CDF at lot and within levels, monotonicity, zero-CV and NaN limits, evaluate() strain_req consistency, add-on bound arithmetic
+- **Tolerance:** max |engine - independent| <= 1e-12; monotone; degenerate limits exact; strain_req == sigma_req/E_mean; pf_brittle_bound == pf + pf_brittle
+- **Observed:** max abs err 5.6e-16; monotone=True; degenerate 0/1; strain_req 0.896% == sigma_req/E_mean; pf_brittle 2.78e-16; headline pf 0.00996 + brittle = bound 0.00996; known lot 12% meas CV: elongation CV 0.1428 (expected 0.1428)
+- **Notes:** The three-property joint probability is intentionally NOT claimed. If E and elongation were negatively correlated as assumed (-0.25), the true joint failure probability could differ from the reported add-on bound; the bound is labelled conservative and shown separately from the headline two-property P_f in every report.
+- **Evidence:** `{"max_abs_err": 5.551115123125783e-16, "strain_req": 0.008955343469889637, "pf_brittle": 2.7755575615628914e-16, "pf_brittle_bound": 0.009956387330703309, "headline_pf": 0.009956387330703032, "measured_lot_elongation_cv": 0.1428287492068736, "requested_demands": [0.001, 0.002, 0.004, 0.0089553, 0.012, 0.02, 0.04], "engine_values": [0.0, 0.0, 0.0, 2.7755575615628914e-16, 4.206490711311517e-11, 0.00010807524159223147, 0.5364227338586437]}`
+
+### K6 — Union-mass final polish is recorded, bounded and correctly accepted/declined [PASS]
+
+- **Claim:** Multi-start ranks analytic mass; the short local polish minimises printed Halton mass subject to target P_f and printability; acceptance requires a genuine 60k printed-mass improvement
+- **Method:** Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime
+- **Tolerance:** final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s
+- **Observed:** pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 5.1 s; 60k-vs-independent-union +0.01%; mode=declined
+- **Notes:** The global search still ranks with the analytic upper bound (disclosed); only the final selection/polish uses the printed union. The default rPETG design correctly declines the polish when no compliant improvement exists.
+- **Evidence:** `{"pre_polish_printed_g": 46.40025605333333, "final_printed_g": 46.40025605333333, "relative_change_pct": 0.0, "union_polished": false, "union_evals": 0, "runtime_s": 5.114994916017167, "final_pf": 0.009956387330703032, "printability": {"min_width_mm": 1.2427942708684527, "max_width_mm": 1.9859795900725021, "max_slenderness": 21.915259138263814, "max_neighbour_width_ratio": 1.3754074300634593, "out_of_bounds": false}, "printed_vs_independent_union_pct": 0.012012736372124522, "decline_check": {"candidate_printed_g": 46.42023989333333, "candidate_pf": 0.009985892444542066, "would_accept": false, "improve": false, "printability": {"min_width_mm": 1.2121095709900265, "max_width_mm": 2.074794865235298, "max_slenderness": 21.335241624351426, "max_neighbour_width_ratio": 1.4231384137242973, "out_of_bounds": false}}}`
+
+### K7 — Assumption bounds are computed correctly and labelled as assumption sensitivity, not validation [PASS]
+
+- **Claim:** P_f is re-evaluated for corr(lnE,ln sy)=0.30/0.70 and lot-vs-within variance split 75/95%; this is a sensitivity band on unmeasured assumptions
+- **Method:** Engine assumption_bounds vs independent SciPy closed-form P_f at each assumption setting
+- **Tolerance:** engine vs independent <= 1e-12; pf_min/pf_max match the four settings; split monotone
+- **Observed:** corr 0.30/0.70 -> 0.00996/0.00996 (insensitive=True); split 75/95% -> 0.00200/0.01201; range [0.00200, 0.01201], max err 3.1e-17
+- **Notes:** These are unmeasured assumptions: no recyclate dataset gives the lnE-ln sy correlation or the lot/within variance split. The bound is reported as a range, not as validation. For this stiffness-governed design the correlation has no effect; the split moves P_f by ~6x, which is the dominant assumption exposure.
+
+### K8 — Design-stage report and app export carry the v0.4 disclosures [PASS]
+
+- **Claim:** Report summary/HTML must contain the brittle screen, assumption bounds, process compatibility, validation counts and the no-delivered-lot statement; app Prove export carries lot identity
+- **Method:** reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit)
+- **Tolerance:** all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports)
+- **Observed:** fields_ok=True, html_ok=True, app_lot_identity=True, report validation 56P/2W/0F of 58; stale vs current results=False
+- **Notes:** Reports are generated artifacts: if validation counts are stale, run `make report` after the validation suite (the check then flips to PASS). The no-lot statement is required because the design-stage report is generic; the app Prove export carries lot ID, supplier, measurement source/CV and recycled-content %.
+
 ## L. Coupon pre-registration (L3+ path; no physical data)
 
 ### L1 — Frozen coupon/bracket predictions, protocol and comparison tool are pre-registered [PASS]
 
 - **Claim:** The L3+ path is a pre-registered, blind prediction package: no physical test exists, so this check only verifies integrity and reproducibility of the frozen artifacts
 - **Method:** COUPON_TEST_PLAN.md + coupon_predictions.json (hash) + compare_measurements.py; predictions recomputed from current engine/model
-- **Tolerance:** files exist, pre-registration hash matches canonical payload, predictions reproduce <=1e-9, tool template parses
+- **Tolerance:** files exist, pre-registration hash matches canonical payload, stiffness/first-yield/strain/brittle predictions reproduce <=1e-9, tool template parses
 - **Observed:** hash OK; bracket prediction recompute rel 0.0e+00, coupon 0.0e+00; compare tool OK
 - **Notes:** Status is L3-path *pre-registration*, not L3/L4 evidence: no measurements have been made. The hash freezes geometry, material, predictions, uncertainty bands and acceptance criteria before any test. If the engine changes, the L1 check will flag the prediction drift and the pre-registration must be explicitly reissued (never silently re-tuned).
 
@@ -513,9 +562,9 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | Level | Status | Evidence from this suite |
 |---|---|---|
 | L0 code verified | achieved | A1-A7 (element benchmarks, rigid body, equilibrium, symmetry, independent assembly, linearity) |
-| L1 solution verified | achieved | B (energy-minimisation cross-check), C1-C5 (reliability quadrature/MC convergence), D1-D3 (optimiser vs brute force), E (periodic cell energy/stress consistency), F4/F5 (mass basis audited), H (counts/determinism), J/K (model-form bands and v0.3 features) |
+| L1 solution verified | achieved | B (energy-minimisation cross-check), C1-C5 (reliability quadrature/MC convergence), D1-D3 (optimiser vs brute force), E (periodic cell energy/stress consistency), F4/F5 (mass basis audited), H (counts/determinism), J/K (model-form bands and v0.3/v0.4 features: K4 process gate, K5 brittle marginal, K6 union polish, K7 assumption bounds, K8 report disclosures) |
 | L2 literature calibrated uq | partial | rPETG preset moments/correlation verified internally (G); literature provenance not independently re-derived here |
-| L3 literature reproduced | pre-registered, no data | coupon/bracket blind predictions, protocol and acceptance criteria frozen and hashed (L1); no measurements have been made |
+| L3 literature reproduced | pre-registered, no data | coupon/bracket blind predictions (stiffness, first-yield, strain, brittle marginal), protocol and acceptance criteria frozen and hashed (L1); no measurements have been made |
 | L4 component validated | absent | no coupon experiments exist |
 | L5 system validated | absent | no full-bracket experiments exist |
 | L6 certified | out of scope | not a certification tool |
@@ -537,6 +586,9 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 - **joint model form:** Rigid-frame idealisation vs pin-jointed truss: tip stiffness differs by only 0.4%, but frame demands are 14% (strength) and 9% (stiffness) higher (J2); real printed joints lie between these bounds.
 - **sustained load:** Sustained-load/creep advisory bound fails the static allowable: bound P_f ~1.0 and bound deflection ~4.0 mm > 2.5 mm limit (K1). The static design is NOT qualified for sustained load.
 - **coupon not tested:** The coupon/bracket plan is pre-registered only (L1); no physical measurements exist. Claim level remains L0-L1, L2 partial, L3 pre-registered.
+- **brittle screen marginal:** The brittle-lot screen is a one-property lognormal marginal (pf_brittle) reported as a conservative add-on; the joint three-property probability is NOT claimed because the E-elongation correlation (-0.25) is assumed (K5).
+- **assumption bounds not validation:** The reported P_f range over corr 0.30/0.70 and lot split 75/95% is sensitivity to unmeasured assumptions, not validation; the split is the dominant exposure (~6x P_f swing on the shipped design, K7).
+- **process gate scope:** Only FDM/FFF material data may enter the printed-bracket model; moulded/injection presets are contrast-only and design is blocked (K4). This is a claim gate, not a mechanical validation of printed-part properties.
 - **printed union discretisation:** The deterministic 60k-point Halton printed-union estimate deviates from an independent 10M-sample Monte Carlo by <=0.1% at the shipped designs but by 0.35% at w=1 mm (W_MIN) — beyond the documented 0.3% claim (F5 WARN). Analytic mass is a deliberate upper bound (F4 WARN).
 
 ### What this suite verifies
@@ -551,11 +603,13 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 8. The corrected mass basis is audited: analytic mass is a conservative upper bound (+5.6% at w=1 to +28.0% at w=4 mm of the printed union; +9.5% at the shipped robust design) while the engine's Halton-QMC printed mass matches an independent 2e6-sample Monte Carlo to <0.3% (F4/F5).
 9. Model-form bands are quantified: cell-count choice (4x2-14x6) changes tip deflection by ~58% and strength demand by ~98% at matched mass (J1); rigid-frame vs pin-jointed truss differs by 0.4% in tip stiffness but frame demands are ~14% (strength) and ~9% (stiffness) higher (J2).
 10. v0.3 behaviours are independently checked: sustained-load/creep advisory bound is harsher than the static allowable and fails it (K1); a 12% measurement CV is retained (known-lot P_f ~0.8%, not zero) and the lot-specific recipe is self-consistent (K2); the family feasibility gate matches an independent W_MAX computation for feasible and infeasible materials (K3).
-11. The coupon/bracket blind-prediction package is pre-registered and hash-frozen; no physical test has been performed or is claimed (L1).
+11. The coupon/bracket blind-prediction package is pre-registered and hash-frozen, including stiffness, first-yield, strain and brittle-marginal predictions; no physical test has been performed or is claimed (L1).
+12. v0.4 additions are independently checked: the printed-process gate refuses IM/compression presets and lets only FDM/FFF data through (K4); the brittle-lot screen matches an independent lognormal marginal, is monotone, handles zero-CV/NaN limits and keeps the headline two-property P_f separate (K5); the union-mass polish is recorded, bounded, printable and correctly declined when there is no compliant improvement (K6); assumption bounds over corr 0.30/0.70 and lot split 75/95% match independent closed-form P_f and are reported as assumption sensitivity, not validation (K7); the report/export disclosures are present (K8).
+13. The design-stage report explicitly states that no delivered lot was supplied, while the app Prove export carries lot ID, supplier, measurement source/CV and recycled-content % as a paperwork claim (K8).
 
 ### What this suite does NOT verify
 
-It does not validate the model against any physical part. No tensile, lattice-coupon or bracket experiment exists; the 2-D frame idealisation, joint compliance, layer anisotropy, out-of-plane behaviour, plasticity, creep/fatigue, spatial defect statistics and the literature-derived material distributions are outside the scope of these checks. The sustained-load bound is an advisory calculation, not a creep model; the cell-size and joint bands are internal model-form estimates, not experiments. The coupon/bracket plan is pre-registered only (L3 path), with no measurements. The claim level remains L0–L1 (code/solution verification) with partial L2 (literature-calibrated UQ), **not** L3–L6. No statement here supports certification, production reliability, or compliance with ISO/ASTM/UL/PPWR requirements.
+It does not validate the model against any physical part. No tensile, lattice-coupon or bracket experiment exists; the 2-D frame idealisation, joint compliance, layer anisotropy, out-of-plane behaviour, plasticity, creep/fatigue, spatial defect statistics and the literature-derived material distributions are outside the scope of these checks. The sustained-load bound is an advisory calculation, not a creep model; the cell-size and joint bands are internal model-form estimates, not experiments. The brittle screen is a one-property marginal, not a joint three-property probability; the assumption bounds are sensitivity to unmeasured values; the process gate is a claim-scope restriction, not a printed-part validation. The coupon/bracket plan is pre-registered only (L3 path), with no measurements. The claim level remains L0–L1 (code/solution verification) with partial L2 (literature-calibrated UQ), **not** L3–L6. No statement here supports certification, production reliability, or compliance with ISO/ASTM/UL/PPWR requirements.
 
 ## Figures
 
@@ -564,12 +618,13 @@ It does not validate the model against any physical part. No tensile, lattice-co
 - `figures/02_unit_cell_stiffness_vs_width.png`
 - `figures/04_mass_overlap_vs_width.png`
 - `figures/05_model_form_bands.png`
+- `figures/06_v04_features.png`
 
 ## Environment and reproducibility
 
 - Python 3.15.2, NumPy 2.5.4, SciPy 1.18.1, Matplotlib 3.11.2, Node v26.12.1
-- Engine file SHA-256: `63f46d6cb50d28ea5c753d07fd8455f7`
-- Fixture SHA-256: `ebbebefa70e2a33885d0a4d94f3ff835`
+- Engine file SHA-256: `8ce01b68e6522735c0a3ce2cd4e44467`
+- Fixture SHA-256: `82b48a676a397ec8a5e94cdd1c767d84`
 - Seeds are fixed (20261029, 7, 11, 42, 101, 2027, 5); no network access is used by the suite.
 
 ## Model-form bands (J1/J2) — how to use them
@@ -596,11 +651,14 @@ It does not validate the model against any physical part. No tensile, lattice-co
 | Fixed 48-point GL loss at rho=0.99 | C1b | **FIXED**: adaptive SciPy path for |rho|>0.9; C1b PASS (independent 1-D quadrature) |
 | Degenerate-marginal P_f combination | C9 | **FIXED**: corrected combination; C9 exact |
 | Engine printed/union mass method changed to deterministic Halton QMC | v0.3 | **AUDITED**: F5 WARN — ≤0.1% vs independent MC at shipped designs, 0.35% at w=1 mm (W_MIN); analytic remains a labelled upper bound (F4 WARN) |
+| Generated report validation counts lag the suite after each check-set change | K8 | **OPEN (WARN, by design)**: run `make report` after validation; the check then flips to PASS. Report content (brittle, assumptions, process, no-lot statement) is present. |
 
 ## Recommended engine/product changes (not applied — validator scope)
 
 1. **Mass labels (F4, WARN):** keep `printed_mass_g` as every displayed/exported mass (already the v0.3 contract) and label `mass_g` strictly as a conservative analytic upper bound. No further engine change is requested for the union estimator at the shipped designs (F5: ≤0.1% vs independent Monte Carlo). If a W_MIN-width design is ever shown as a headline mass, increase the Halton sample count (60k -> ~240k) or surface the documented 0.35% W_MIN tolerance.
 2. **Sustained-load UI (K1):** the bound P_f is ~1.0 and bound deflection ~4.0 mm > 2.5 mm; the proof screen must say the part is not qualified for sustained load and keep the static result unchanged.
 3. **Model-form disclosure (J1/J2):** surface the cell-count and frame-vs-truss bands wherever absolute numbers are shown; avoid implying the lattice family is a general topology optimiser.
-4. **Coupon path (L1):** re-issue the pre-registration (new hash) if the engine changes; never tune predictions after measurements.
+4. **Coupon path (L1):** re-issue the pre-registration (new hash) if the engine changes; never tune predictions after measurements. The v0.4 package now also freezes strain-demand and brittle-marginal predictions plus an ISO 527-2 elongation coupon test.
+5. **Report freshness (K8):** generated reports embed the last validation counts. Run `make report` after every validation run; K8 remains WARN until the report's counts match `validation/results.json`.
+6. **Brittle screen (K5):** keep `pf_brittle` / `pf_brittle_bound` visually separate from the headline two-property P_f and never present the add-on bound as a joint probability; the E-elongation correlation is assumed.
 

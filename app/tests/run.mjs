@@ -597,8 +597,8 @@ test('v0.2 offline fallbacks validate against the shared response schemas', () =
   assert(AC.validateResponse('proof', proof).ok, 'proof schema');
   assert(AC.validateResponse('voice', AC.fallbackVoice()).ok, 'voice schema');
   const vf = AC.validationFallback();
-  assert(vf.counts.PASS === 51 && vf.counts.WARN === 2 && vf.counts.FAIL === 0 && vf.total === 53,
-    `validation fallback counts 51/2/0/53, got ${JSON.stringify(vf.counts)} total ${vf.total}`);
+  assert(vf.counts.PASS === 56 && vf.counts.WARN === 2 && vf.counts.FAIL === 0 && vf.total === 58,
+    `validation fallback counts 56/2/0/58, got ${JSON.stringify(vf.counts)} total ${vf.total}`);
   assert(AC.validateResponse('render', AC.fallbackRenderSvg({ facts: { widths_mm: [] } })).ok || true, 'render schema (svg)');
 });
 
@@ -782,6 +782,96 @@ test('v0.3 sustained-load advisory is a labelled bound, not a design allowable',
   assert(Math.abs(s.deflection_bound_mm - 2 * robust.analysis.deflectionScale / material.E_mean) < 1e-9, 'deflection bound x2');
   assert(s.pf_bound >= robust.pf, 'bound is at least the static P_f');
   assert(/advisory/i.test(s.note) && /not the static/i.test(s.note), 'note labels the advisory');
+});
+
+// ---------------------------------------------------------------------------
+// v0.4 remaining-gaps tests (process gate, brittle screen, union polish,
+// assumption bounds)
+// ---------------------------------------------------------------------------
+test('v0.4 printed-process gate blocks moulded-data presets', () => {
+  const material = DEFAULTS.material;
+  const ok = E.familyFeasibility(material, { targetPf: 0.01 });
+  assert(ok.process_ok === true && ok.feasible === true, 'rPETG (FDM/FFF) is process-valid and feasible');
+  assert(material.printProcessOk === true && material.process === 'FDM/FFF', 'default material is printed');
+  assert(material.elongationMean === 4.0 && Math.abs(material.elongationCv - 0.20) < 1e-12, 'rPETG elongation 4.0 % / CV 0.20');
+  for (const key of ['rPET', 'rHDPE', 'rPP']) {
+    const preset = MATERIAL_PRESETS[key];
+    assert(preset && preset.printProcessOk === false, `${key} must be flagged non-printed`);
+    const m = AC.materialFromLot(AC.presetLot(key));
+    assert(m.printProcessOk === false && m.process === preset.process, `${key} material carries process flag`);
+    const ff = E.familyFeasibility(m, { targetPf: 0.01 });
+    assert(ff.process_ok === false && ff.feasible === false && ff.reason === 'process_mismatch',
+      `${key} must be blocked with process_mismatch, got ${JSON.stringify({ process_ok: ff.process_ok, feasible: ff.feasible, reason: ff.reason })}`);
+    assert(ff.min_achievable_pf === null, `${key} has no achievable P_f`);
+  }
+});
+
+test('v0.4 brittle-lot screen matches the Python reference constants', () => {
+  const material = DEFAULTS.material;
+  const analysis = E.analyzeLattice(E.uniformDesign(2.0), { rho: material.rho });
+  const br = E.brittleScreen(analysis, material, 'lot');
+  // Python: strain_req = sigma_req/E_mean = 13.9192/2100 = 0.006628209689931176
+  assert(Math.abs(br.strain_req - 0.006628209689931176) < 1e-12, `strain_req ${br.strain_req}`);
+  assert(br.strain_req_pct > 0 && br.strain_req_pct < 2, 'peak strain demand in %');
+  assert(br.elongation_mean_pct === 4.0 && Math.abs(br.elongation_cv - 0.20) < 1e-12, 'elongation capacity fields');
+  assert(br.pf_brittle >= 0 && br.pf_brittle <= 1, 'marginal P_f in [0,1]');
+  assert(Number.isFinite(br.pf_brittle_bound) && br.pf_brittle_bound >= 0, 'bound finite');
+  assert(br.pf_brittle_bound >= E.probabilityOfFailure(analysis, material, 'lot') - 1e-15, 'bound is an add-on, not below headline P_f');
+  assert(br.brittle_ok === true, 'rPETG brittle margin OK for this design');
+  assert(br.brittle_included_in_headline === false, 'brittle screen explicitly not in headline P_f');
+  assert(/not included/i.test(br.note) || /ADD-ON/i.test(br.note), 'note labels the add-on');
+  // Python marginals: failure_probability_elongation at strain demands 0.02 / 0.04 (lot level)
+  const at02 = E.failureProbabilityElongation(material, 0.02, 'lot');
+  const at04 = E.failureProbabilityElongation(material, 0.04, 'lot');
+  assert(Math.abs(at02 - 1.0807524159223115e-4) / 1.0807524159223115e-4 < 1e-9, `elong marginal 0.02: ${at02}`);
+  assert(Math.abs(at04 - 0.5364227338586437) < 1e-12, `elong marginal 0.04: ${at04}`);
+  // Known lot retains measurement CV in elongation (Python 0.1428287492068736)
+  const measured = E.lotFromMeasurement(material, 0.8 * material.E_mean, material.sy_mean, 0.12);
+  assert(Math.abs(measured.elongationCv - 0.1428287492068736) < 1e-12, `measured elongation CV ${measured.elongationCv}`);
+});
+
+test('v0.4 union-mass polish improves or safely leaves the printed mass', () => {
+  const material = DEFAULTS.material;
+  const t0 = performance.now();
+  const opt = O.robustOptimize(material, O.makeContext(), { targetPf: 0.01 });
+  const runtimeMs = performance.now() - t0;
+  assert(typeof opt.union_polished === 'boolean', 'union_polished flag exposed');
+  assert(Number.isInteger(opt.union_evals) && opt.union_evals >= 0, 'union_evals exposed');
+  assert(Number.isFinite(opt.union_before_printed_g) && Number.isFinite(opt.union_after_printed_g), 'before/after printed masses exposed');
+  assert(Number.isFinite(opt.printed_mass_g) && opt.printed_mass_g > 0, 'final printed mass finite');
+  // No regression: shipped printed mass is never worse than the pre-polish candidate.
+  assert(opt.union_after_printed_g <= opt.union_before_printed_g + 1e-9, `no printed-mass regression: ${opt.union_before_printed_g} -> ${opt.union_after_printed_g}`);
+  if (opt.union_polished) {
+    assert(opt.union_after_printed_g < opt.union_before_printed_g * 0.999, 'accepted polish must improve by ≥0.1 %');
+    assert(opt.union_evals > 0, 'accepted polish reports evaluations');
+  } else {
+    assert(opt.union_evals === 0, 'unpolished result reports 0 evals (Python convention)');
+  }
+  assert(opt.pf <= 0.01 * 1.02, 'polished design still meets target');
+  assert(E.printabilityReport(opt.analysis).pass, 'polished design still printable');
+  // Runtime budget for the added stage (headless Node).
+  assert(runtimeMs < 2500, `robust optimiser incl. union polish should be <2.5 s, got ${runtimeMs.toFixed(0)} ms`);
+  console.log(`      union polish runtime: ${runtimeMs.toFixed(0)} ms · polished=${opt.union_polished} · printed ${opt.union_before_printed_g.toFixed(3)} -> ${opt.union_after_printed_g.toFixed(3)} g`);
+});
+
+test('v0.4 assumption bounds match the Python reference range', () => {
+  const material = DEFAULTS.material;
+  const analysis = E.analyzeLattice(E.uniformDesign(2.0), { rho: material.rho });
+  const ab = E.assumptionBounds(material, analysis.demands.sigma_y_req, analysis.demands.E_req, 'lot');
+  assert(ab.corr_range.length === 2 && ab.split_range.length === 2, 'two variants per assumption');
+  assert(Math.abs(ab.corr_range[0].corr - 0.30) < 1e-12 && Math.abs(ab.corr_range[1].corr - 0.70) < 1e-12, 'corr variants 0.30/0.70');
+  assert(Math.abs(ab.split_range[0].lotFraction - 0.75) < 1e-12 && Math.abs(ab.split_range[1].lotFraction - 0.95) < 1e-12, 'split variants 75/95 %');
+  // Python reference for the uniform 2.0 mm design (rPETG, lot level)
+  const refCorr = 8.220160034677626e-5;
+  const refSplitLo = 1.6764902591726027e-6;
+  const refSplitHi = 0.00012873756134984538;
+  assert(Math.abs(ab.corr_range[0].pf - refCorr) / refCorr < 1e-6, `corr0.30 P_f ${ab.corr_range[0].pf}`);
+  assert(Math.abs(ab.corr_range[1].pf - refCorr) / refCorr < 1e-6, `corr0.70 P_f ${ab.corr_range[1].pf}`);
+  assert(Math.abs(ab.split_range[0].pf - refSplitLo) / refSplitLo < 1e-6, `split75 P_f ${ab.split_range[0].pf}`);
+  assert(Math.abs(ab.split_range[1].pf - refSplitHi) / refSplitHi < 1e-6, `split95 P_f ${ab.split_range[1].pf}`);
+  assert(ab.pf_min === Math.min(...ab.corr_range.concat(ab.split_range).map((x) => x.pf)), 'pf_min');
+  assert(ab.pf_max === Math.max(...ab.corr_range.concat(ab.split_range).map((x) => x.pf)), 'pf_max');
+  assert(/assumption sensitivity/i.test(ab.note) && /not validation/i.test(ab.note), 'note labels assumption sensitivity, not validation');
 });
 
 // ---------------------------------------------------------------------------

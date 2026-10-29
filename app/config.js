@@ -52,6 +52,9 @@ export const MATERIAL_PRESETS = {
     E_mean: 2100, E_cv: 0.10,
     sy_mean: 46.0, sy_cv: 0.10,
     rho: 1.24, corr: 0.55,
+    elongationMean: 4.0, elongationCv: 0.20, corrEElong: -0.25,
+    printProcessOk: true,
+    processNote: 'printed in-plane data — valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'R07: printed rPETG, ISO 527-2 in-plane strength 46.5 MPa (library); E 2100 MPa; doi:10.3221/igf-esis.70.18.',
@@ -65,6 +68,9 @@ export const MATERIAL_PRESETS = {
     E_mean: 2500, E_cv: 0.12,
     sy_mean: 45.0, sy_cv: 0.15,
     rho: 1.34, corr: 0.60,
+    elongationMean: 3.5, elongationCv: 0.25, corrEElong: -0.25,
+    printProcessOk: false,
+    processNote: 'injection-moulding data — contrast only, not valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'rPET studies; spec §3 (provisional).',
@@ -78,6 +84,9 @@ export const MATERIAL_PRESETS = {
     E_mean: 950, E_cv: 0.22,
     sy_mean: 28.0, sy_cv: 0.17,
     rho: 0.95, corr: 0.55,
+    elongationMean: 14.0, elongationCv: 0.30, corrEElong: -0.25,
+    printProcessOk: false,
+    processNote: 'injection/compression data — contrast only, not valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'Cecon 2023 (modulus range); Eriksen 2019; PNAS 2025 — as cited in spec §1.',
@@ -91,6 +100,9 @@ export const MATERIAL_PRESETS = {
     E_mean: 1100, E_cv: 0.18,
     sy_mean: 27.0, sy_cv: 0.13,
     rho: 0.94, corr: 0.50,
+    elongationMean: 25.0, elongationCv: 0.45, corrEElong: -0.25,
+    printProcessOk: false,
+    processNote: 'injection data — contrast only, not valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'PCR-PP lot-drift literature; spec §3 (provisional).',
@@ -106,6 +118,11 @@ export function numericMaterial(presetKey) {
     E_mean: p.E_mean, E_cv: p.E_cv,
     sy_mean: p.sy_mean, sy_cv: p.sy_cv,
     rho: p.rho, corr: p.corr,
+    process: p.process,
+    printProcessOk: p.printProcessOk,
+    elongationMean: p.elongationMean,
+    elongationCv: p.elongationCv,
+    corrEElong: p.corrEElong,
     lotFraction: p.lotFraction,
     withinFraction: p.withinFraction,
   };
@@ -254,4 +271,18 @@ export const V03 = {
     uniform2_printed_mass_g: 53.97,
     uniform2_analytic_mass_g: 60.32,
   },
+};
+
+
+// ---------------------------------------------------------------------------
+// v0.4 remaining-gaps contract
+// ---------------------------------------------------------------------------
+export const V04 = {
+  printedProcesses: ['FDM/FFF'],
+  processGateNote: 'Material data is for an injection/compression process — not valid for a printed lattice. Pick rPETG (printed, FDM/FFF) or treat this preset as contrast only.',
+  brittleNote: 'Brittle-lot screen is a marginal lognormal P(elongation < strain demand). It is a conservative ADD-ON, NOT included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25).',
+  brittleCaveat: 'Elongation-vs-E correlation assumed -0.25 (unmeasured).',
+  assumptionNote: 'Varies two unmeasured assumptions — corr(lnE, lnσy) 0.30/0.70 and lot-vs-within split 75/95% — and shows the P_f range. This is assumption sensitivity, NOT validation.',
+  unionPolish: { nHalton: 10000, maxEvals: 90, acceptFactor: 0.999 },
+  qcNotUsedNote: 'Recorded for traceability only — NOT used in the simulation (no calibrated proxy).',
 };

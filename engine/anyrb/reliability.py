@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .materials import Material
+from .materials import Material, _lognormal_params
 
 # Gauss-Legendre nodes/weights for Phi2 (fixed, deterministic)
 _GL_X, _GL_W = np.polynomial.legendre.leggauss(48)
@@ -103,6 +103,48 @@ def failure_probability(mat: Material, sigma_req: float, E_req: float,
     b = (np.log(max(E_req, 1e-12)) - p["mu_E"]) / p["sig_E"]
     pf = py + pe - phi2(a, b, p["rho"])
     return float(min(max(pf, 0.0), 1.0))
+
+
+def failure_probability_elongation(mat: Material, strain_demand: float,
+                                  level: str = "lot") -> float:
+    """Marginal P(elongation_at_break < strain_demand).
+
+    This is the brittle-lot screen, deliberately reported *separately* from the
+    headline two-property P_f: the library's elongation-vs-E correlation
+    (-0.25) is an assumption, so a joint three-property probability is not
+    claimed.  The app/report shows this as a conservative add-on bound.
+    """
+    if not np.isfinite(mat.elongation_mean) or mat.elongation_mean <= 0:
+        return float("nan")
+    f = {"lot": mat.lot_fraction, "within": mat.within_fraction, "total": 1.0}[level]
+    cv = float(mat.elongation_cv) * f
+    mean = float(mat.elongation_mean) / 100.0
+    if cv <= 0:
+        return 1.0 if strain_demand >= mean else 0.0
+    mu, sig = _lognormal_params(mean, cv)
+    return float(_ndtr((np.log(max(strain_demand, 1e-12)) - mu) / sig))
+
+
+def assumption_bounds(mat: Material, sigma_req: float, E_req: float,
+                      level: str = "lot") -> dict:
+    """How much do the two unmeasured assumptions move P_f?
+
+    - ln E / ln sy correlation (assumed 0.55, no measured recyclate source)
+    - lot-vs-within variance split (inferred 85/15, not a measured population)
+    Returns a range, not a claim of validation.
+    """
+    import dataclasses
+    out = {"corr_range": [], "split_range": []}
+    for corr in (0.30, 0.70):
+        m = dataclasses.replace(mat, corr=corr)
+        out["corr_range"].append({"corr": corr, "pf": failure_probability(m, sigma_req, E_req, level=level)})
+    for frac in (0.75, 0.95):
+        within = float(np.sqrt(max(1.0 - frac ** 2, 0.0)))
+        m = dataclasses.replace(mat, lot_fraction=frac, within_fraction=within)
+        out["split_range"].append({"lot_fraction": frac, "pf": failure_probability(m, sigma_req, E_req, level=level)})
+    vals = [x["pf"] for x in out["corr_range"] + out["split_range"]]
+    out["pf_min"] = float(min(vals)); out["pf_max"] = float(max(vals))
+    return out
 
 
 def mode_split(mat: Material, sigma_req: float, E_req: float,

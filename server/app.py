@@ -30,7 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import ValidationError
 
-from . import contract_v03, meta_client, prompts, schemas
+from . import contract_v03, contract_v04, meta_client, prompts, schemas
 
 PROJECT = Path(__file__).resolve().parent.parent
 INDEX = PROJECT / "index.html"
@@ -43,7 +43,7 @@ MAX_TEXT = schemas.MAX_TEXT
 MAX_UPLOAD = schemas.MAX_UPLOAD
 RATE_LIMIT = int(os.environ.get("ANYRB_RATE_LIMIT_RPM", "120"))
 
-APP_VERSION = "0.3"
+APP_VERSION = "0.4"
 
 app = FastAPI(title="AnyRB AI", version=APP_VERSION,
               description="Local FastAPI backend putting Meta AI models in the AnyRB design loop. "
@@ -402,21 +402,26 @@ def health() -> dict:
                "last_latency_s": (live_calls[-1].get("latency_s") if live_calls else None),
                "model_latencies": meta_client.model_latencies(),
                "cache": meta_client.cache_stats()},
-        "version": "v0.3",
-        "contract_version": "v0.3",
-        "family_scope": contract_v03.FAMILY_SCOPE,
+        "version": "v0.4",
+        "contract_version": "v0.4",
+        "family_scope": contract_v04.FAMILY_SCOPE,
         "printability_limits": dict(contract_v03.PRINTABILITY_LIMITS),
+        "process_rule": contract_v04.PROCESS_RULE,
         "validation": _validation_summary(),
-        "engine": {"version": "0.3",
-                   "canonical": "python engine 0.3 + JS engine 0.3",
+        "engine": {"version": "0.4",
+                   "canonical": "python engine 0.4 + JS engine 0.4",
                    "design_target_pf": 0.01,
                    "printed_mass": True,
                    "mass_analytic_upper_bound": True,
                    "family_feasibility": True,
                    "lot_specific_recipe": True,
                    "sustained_bound": True,
-                   "measurement_cv_default": contract_v03.DEFAULT_MEASUREMENT_CV},
-        "service": {"name": "anyrb-ai", "version": "0.3",
+                   "measurement_cv_default": contract_v03.DEFAULT_MEASUREMENT_CV,
+                   "printed_process_gate": True,
+                   "elongation_brittle_screen": True,
+                   "union_mass_polish": True,
+                   "assumption_bounds": True},
+        "service": {"name": "anyrb-ai", "version": "0.4",
                     "port": int(os.environ.get("ANYRB_PORT", "8787"))},
         "cache": meta_client.cache_stats(),
         "session": {"id": meta_client.SESSION_ID, "calls": len(calls),
@@ -471,7 +476,17 @@ def design_plan(body: schemas.PlanIn, request: Request) -> dict:
     _rate_limit(request)
     if not isinstance(body.brief, dict) or not isinstance(body.baseline, dict):
         raise HTTPException(422, "brief and baseline are required objects")
-    payload = contract_v03.build_plan_payload(body.model_dump())
+    payload = contract_v04.build_plan_payload(body.model_dump())
+    process = payload.get("process") or {}
+    if process.get("ok") is False:
+        # Printed-process gate: IM/compression data cannot feed the printed-lattice AI path.
+        plan = _coerce_plan({}, payload)
+        plan["_meta"] = meta_client.local_meta("plan", "process_mismatch")
+        plan["blocked"] = True
+        plan["process"] = process
+        plan["feasibility"] = payload.get("feasibility")
+        plan["note"] = contract_v04.PROCESS_MISMATCH_NOTE
+        return _respond(schemas.PlanResponse, plan)
     feasibility = payload.get("feasibility") or {}
     if feasibility.get("feasible") is False:
         # The engine gate already refuses this family: the AI must not draw candidates.
@@ -491,6 +506,7 @@ def design_plan(body: schemas.PlanIn, request: Request) -> dict:
     plan["family_scope"] = payload.get("family_scope", "")
     plan["printability_limits"] = payload.get("printability_limits") or {}
     plan["feasibility"] = feasibility or None
+    plan["process"] = payload.get("process")
     plan["blocked"] = False
     plan["note"] = ("" if not out.get("_meta", {}).get("fallback")
                     else "deterministic priors (AI unavailable); engineering evaluation by the verified engine")
@@ -500,13 +516,16 @@ def design_plan(body: schemas.PlanIn, request: Request) -> dict:
 @app.post("/api/design/review")
 def design_review(body: schemas.ReviewIn, request: Request) -> dict:
     _rate_limit(request)
-    payload = contract_v03.build_review_payload(body.model_dump())
+    payload = contract_v04.build_review_payload(body.model_dump())
     out = meta_client.spark_json("review", prompts.REVIEW_SYSTEM, payload,
                                  fallback=lambda: prompts.fallback_review(payload),
                                  mock=_want_mock(request))
     review = _coerce_review(out, payload)
     review["_meta"] = out.get("_meta")
     review.setdefault("feasibility", payload.get("feasibility"))
+    for _block in ("brittle", "assumptions", "process", "qc"):
+        if payload.get(_block):
+            review.setdefault(_block, payload[_block])
     review = _grounded_or_fallback("review", review, payload,
                                    prompts.fallback_review(payload))
     return _respond(schemas.ReviewResponse, review)
@@ -515,7 +534,7 @@ def design_review(body: schemas.ReviewIn, request: Request) -> dict:
 @app.post("/api/proof/memo")
 def proof_memo(body: schemas.ProofIn, request: Request) -> dict:
     _rate_limit(request)
-    payload = contract_v03.build_proof_payload(body.model_dump())
+    payload = contract_v04.build_proof_payload(body.model_dump())
     out = meta_client.spark_json("proof", prompts.PROOF_SYSTEM, payload,
                                  fallback=lambda: prompts.fallback_proof(payload),
                                  mock=_want_mock(request))
@@ -524,6 +543,9 @@ def proof_memo(body: schemas.ProofIn, request: Request) -> dict:
     proof.setdefault("feasibility", payload.get("feasibility"))
     proof.setdefault("lot_recipe", payload.get("lot_recipe"))
     proof.setdefault("measurement", payload.get("measurement"))
+    for _block in ("brittle", "assumptions", "process", "qc"):
+        if payload.get(_block):
+            proof.setdefault(_block, payload[_block])
     proof = _grounded_or_fallback("proof", proof, payload,
                                   prompts.fallback_proof(payload))
     return _respond(schemas.ProofResponse, proof)

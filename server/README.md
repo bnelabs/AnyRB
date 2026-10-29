@@ -63,10 +63,40 @@ Per-request mode override (useful for demoing Live vs fallback without restartin
 fallback path; `?mock=0` clears the override. Responses always report what happened in
 `_meta` (`model`, `latency_s`, `cached`, `fallback`, `mock`, `usage/tokens`).
 
+## v0.4 contract (second review response)
+
+v0.4 closes the remaining gaps from the second external review. Additive again; `GET /api/health`
+reports `version: "v0.4"`. See `API.md` §v0.4 for the full contract. Summary:
+
+* **Printed-process gate** — only FDM/FFF material data is valid for the printed bracket family.
+  `GET /api/health` exposes `engine.printed_process_gate`; the plan endpoint accepts
+  `feasibility.process_ok` / `reason` and `material.process`, and returns
+  `process {ok, process, reason, rule}`. If the gate fails the server **does not call the AI**:
+  `blocked: true`, `_meta.mock_reason: "process_mismatch"` and a note that the IM/compression preset
+  cannot be used for a printed lattice (deterministic placeholders only for schema compatibility).
+  The plan prompt states the same rule.
+* **Elongation / brittle-lot screen** — review/proof accept a `brittle` block and the memo reports
+  it as a **conservative add-on, not folded into the headline two-property P_f**; brittle lots are
+  flagged, with `health.engine.elongation_brittle_screen` exposing the capability.
+* **Assumption bounds** — review/proof accept `assumptions {pf_min, pf_max, corr_range,
+  split_range}` and the memo labels the P_f range as **unmeasured sensitivity, not validation**.
+* **Union-mass polish** — `health.engine.union_mass_polish` (the AI never computes mass; final
+  selection is polished on the printed union mass by the engine).
+* **Lot QC record** — review/proof accept `qc {lot_id, supplier, measurement_source,
+  measurement_cv, recycled_content_pct}`; lot identity is a record and recycled content is a
+  **paperwork claim (not simulated)**. An explicit QC measurement CV overrides the 12 % default.
+* The process block is echoed on review/proof responses; `process.ok: false` makes the memo state
+  that the printed-lattice design is blocked. The sustained bound remains advisory.
+
+Freshness note: `server/evidence/live_calls.json` is the v0.2-era live evidence; the v0.3 and v0.4
+contract changes are mock-tested (`51 passed, 1 skipped`). Re-run
+`.venv/bin/python server/verify_live.py` with a key to refresh live evidence (the endpoints still
+accept the script's payloads).
+
 ## v0.3 contract (reviewer response)
 
 v0.3 constrains the AI to decisions the verified engine can refuse, surfaces family scope and
-carries measurement uncertainty. All changes are additive; `GET /api/health` reports
+carries measurement uncertainty (v0.4 builds additively on this). All changes are additive; `GET /api/health` reports
 `version: "v0.3"`. See `API.md` §v0.3 for the full contract. Summary:
 
 * **Brief/lot parsing** now return optional `measurement_cv` (default `0.12`, retained in
@@ -84,11 +114,6 @@ carries measurement uncertainty. All changes are additive; `GET /api/health` rep
   upper bound, call the sustained bound advisory (and say "not qualified for sustained load"
   when it fails), never claim certification, and remain number-grounded.
 * v0.2 request payloads are still accepted; old response consumers keep working.
-
-Freshness note: `server/evidence/live_calls.json` is the v0.2-era live evidence; the v0.3
-contract changes are mock-tested (`40 passed, 1 skipped`). Re-run
-`.venv/bin/python server/verify_live.py` with a key to refresh live evidence (the endpoints
-still accept the script's payloads).
 
 ## Verified live calls (2026-10-29, real key)
 
@@ -138,7 +163,7 @@ cd AnyRB
 ```bash
 cd AnyRB
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q
-# 40 passed, 1 skipped  (skipped = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
+# 51 passed, 1 skipped  (skipped = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
 ```
 
 The suite isolates itself before importing the app: `META_API_KEY=""`, a temporary cache and
@@ -158,6 +183,8 @@ and static-path safety (no `/server/.env`, `.venv`, or traversal).
 | `server/app.py` | FastAPI app: endpoints, CORS, request-size guard, rate limit, static same-origin serving, JSON error handlers, `--mock` CLI |
 | `server/schemas.py` | pydantic request/response models; every handler response is validated through them (`_respond`) |
 | `server/meta_client.py` | Meta model clients (Spark/Image/ASR/SAM), env loading, retry, disk cache, provenance log, `configured()` health, deterministic fallbacks, key redaction |
+| `server/contract_v03.py` | v0.3 payload normaliser: canonical grounded payload, family scope, printability limits, lot recipe, measurement, sustained bound, feasibility |
+| `server/contract_v04.py` | v0.4 payload normaliser: printed-process gate, brittle/elongation screen, assumption bounds, lot QC record |
 | `server/prompts.py` | grounded prompts, untrusted-text delimiters, number-grounding helper, deterministic fallbacks |
 | `server/tests/test_server.py` | pytest suite (mock mode) |
 | `server/verify_live.py` | live verification + evidence writer |

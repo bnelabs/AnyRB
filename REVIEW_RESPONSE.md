@@ -60,3 +60,23 @@ The mass bias is real and design-dependent (~5–28 %), but it is **not 25 % on 
 4. **One physical coupon comparison and one real incoming-inspection input** — coupon pre-registration done; physical test and calibrated MFI proxy remain roadmap (no lab access).
 
 Until the roadmap items exist, AnyRB is a **design-stage calculator and virtual qualification aid for one bracket/lattice family**, not a general qualification method for upcycled products.
+
+## v0.4 addendum — second external review
+
+The second review inspected commit **793c1bd** (18:03), before the v0.3 release. At current HEAD many of its
+claims were already fixed: union-mass headline/selection, measurement CV in known-lot passports, 8-control
+lot-specific resize, printability enforced, 53-check validation with cell-size/pin-joint checks, coupon
+pre-registration, and the brief feasibility gate. The genuinely open items are addressed here:
+
+| Remaining feedback item | v0.4 status |
+|---|---|
+| IM/compression presets were run through an FDM frame | **Fixed** — `Material.print_process_ok`; `family_feasibility` returns `process_mismatch` for rPET/rHDPE/rPP; app blocks Design for non-FDM presets. They remain visible only as contrast data. |
+| Failure is a two-property OR; elongation never enters failure | **Partial** — elongation at break (mean/CV from the feedstock library) now produces a peak-strain demand and a **marginal brittle-lot P_f** plus a conservative add-on bound. It is labelled as an add-on, not folded into the headline P_f, because the E-elongation correlation (-0.25) is an assumption. Separate tension/compression allowables and a joint three-property integral remain roadmap. |
+| Mass is still the analytic objective | **Improved** — global search remains analytic (disclosed), but a final local pattern search now minimises the printed Halton union mass subject to P_f and printability; it accepts only a genuine 60k-sample improvement. DesignResult exposes `union_polished`/`union_evals`. |
+| Corr 0.55 and 85/15 lot split are unmeasured assumptions | **Quantified** — `assumption_bounds` reports P_f over corr 0.30/0.70 and lot split 75/95%; the report/app labels these as assumptions, not validation. |
+| Report does not carry lot identity | **Partial** — Prove/export carries lot ID, supplier, measurement source/CV and recycled-content paperwork; the design-stage qualification report explicitly says no delivered lot was supplied and points to that export. |
+| Plant proxy (MFI/density → E/σy) absent | **Roadmap** — no calibrated relation exists; the app records MFI/density/tensile fields only as QC metadata and does not infer E/σy. A supplier-calibrated proxy with residual uncertainty is the next data task. |
+| No printer instruction / cost of reject vs thicken | **Partial** — the app now gives an 8-control resize, global-equivalent extrusion multiplier, re-slice note, verdict and added mass. Scrap-cost economics and an accept/thicken/reject recommendation with cost remain roadmap. |
+| Local topology only | **Roadmap / disclosed** — "best of this bracket/lattice family"; alternative cells, skins, clips, panels and injection-moulded parts are explicitly out of scope. |
+| No physical coupon | **Roadmap** — pre-registered coupon plan with frozen predictions exists; no specimen has been tested. |
+

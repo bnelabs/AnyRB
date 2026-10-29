@@ -52,6 +52,12 @@ class Material:
     within_fraction: float = 0.38730
     sources: tuple[str, ...] = ()
     confidence: str = "provisional v0.1"
+    # Printed-part elongation at break (percent).  Kept separate from the
+    # headline stiffness/strength failure probability in v0.4; see
+    # failure_probability_elongation and the report's brittle-lot screen.
+    elongation_mean: float = float("nan")
+    elongation_cv: float = 0.0
+    corr_E_elong: float = -0.25
 
     def __post_init__(self) -> None:
         if not (-0.99 <= self.corr <= 0.99):
@@ -60,6 +66,14 @@ class Material:
             raise ValueError("lot^2 + within^2 must be <= 1 (CV_total^2 = sum of squares)")
         if self.E_cv < 0 or self.sy_cv < 0:
             raise ValueError("CVs must be non-negative (0 = deterministic marginal)")
+        if self.elongation_cv < 0:
+            raise ValueError("elongation_cv must be non-negative")
+
+    @property
+    def print_process_ok(self) -> bool:
+        """Only FDM/FFF material data belongs in the printed-bracket model."""
+        p = str(self.process).upper()
+        return ("FDM" in p) or ("FFF" in p)
 
     # -- lognormal descriptors -------------------------------------------------
     def params(self, level: str = "lot") -> dict:
@@ -116,6 +130,10 @@ class Material:
             sy_cv=s_cv,
             rho=self.rho,
             corr=self.corr,
+            elongation_mean=self.elongation_mean,
+            elongation_cv=float(np.sqrt(max(
+                (self.elongation_cv * self.within_fraction) ** 2 + measurement_cv ** 2, 1e-12))) if np.isfinite(self.elongation_mean) else self.elongation_cv,
+            corr_E_elong=self.corr_E_elong,
             lot_fraction=0.0,
             within_fraction=1.0,
             sources=self.sources,
@@ -143,25 +161,29 @@ PRESETS: dict[str, Material] = {
         id="rpetg", name="rPETG (recycled PETG, printed parts)",
         process="FDM/FFF", E_mean=2100.0, E_cv=0.10, sy_mean=46.0, sy_cv=0.10,
         rho=1.24, corr=0.55,
-        sources=("research/01 R07 (printed rPETG, ISO 527-2: E 2.28 GPa CV 10.8%, peak stress 46.5 MPa)",),
+        elongation_mean=4.0, elongation_cv=0.20, corr_E_elong=-0.25,
+        sources=("research/01 R07 (printed rPETG, ISO 527-2: E 2.28 GPa CV 10.8%, peak stress 46.5 MPa; strain at peak 3.15-3.51%)",),
     ),
     "rpet": Material(
-        id="rpet", name="rPET (bottle-grade recyclate, injection moulding)",
+        id="rpet", name="rPET (bottle-grade recyclate; injection/compression data — contrast only for printed bracket)",
         process="IM", E_mean=2500.0, E_cv=0.12, sy_mean=45.0, sy_cv=0.15,
         rho=1.34, corr=0.60,
-        sources=("research/01 R01,R04,R08,R22",),
+        elongation_mean=3.5, elongation_cv=0.25, corr_E_elong=-0.25,
+        sources=("research/01 R01,R04,R08,R22; elongation from data/feedstock_library.json",),
     ),
     "rhdpe": Material(
-        id="rhdpe", name="rHDPE (post-consumer recyclate)",
+        id="rhdpe", name="rHDPE (post-consumer recyclate; injection/compression data — contrast only for printed bracket)",
         process="IM/compression", E_mean=950.0, E_cv=0.22, sy_mean=28.0, sy_cv=0.17,
         rho=0.95, corr=0.55,
-        sources=("research/01 R01,R02,R03,R04 (Cecon 2023; Eriksen 2019; PNAS 2025)",),
+        elongation_mean=14.0, elongation_cv=0.30, corr_E_elong=-0.25,
+        sources=("research/01 R01,R02,R03,R04 (Cecon 2023; Eriksen 2019; PNAS 2025); elongation from library",),
     ),
     "rpp": Material(
-        id="rpp", name="rPP (post-consumer recyclate)",
+        id="rpp", name="rPP (post-consumer recyclate; injection data — contrast only for printed bracket)",
         process="IM", E_mean=1100.0, E_cv=0.18, sy_mean=27.0, sy_cv=0.13,
         rho=0.94, corr=0.50,
-        sources=("research/01 R02,R03,R04,R05,R06",),
+        elongation_mean=25.0, elongation_cv=0.45, corr_E_elong=-0.25,
+        sources=("research/01 R02,R03,R04,R05,R06; elongation from library (10 PCR-PP lots 10-100%)",),
     ),
 }
 

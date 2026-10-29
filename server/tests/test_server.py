@@ -561,19 +561,24 @@ def _v03_proof_payload() -> dict:
     return payload
 
 
-def test_health_v03_contract():
+def test_health_v04_contract():
     body = client.get("/api/health").json()
-    assert body["version"] == "v0.3"
-    assert body["contract_version"] == "v0.3"
-    assert body["service"]["version"] == "0.3"
-    assert body["engine"]["version"] == "0.3"
+    assert body["version"] == "v0.4"
+    assert body["contract_version"] == "v0.4"
+    assert body["service"]["version"] == "0.4"
+    assert body["engine"]["version"] == "0.4"
     for cap in ("printed_mass", "family_feasibility", "lot_specific_recipe",
                 "sustained_bound", "measurement_cv_default"):
         assert cap in body["engine"], cap
+    # v0.4 engine capabilities
+    for cap in ("printed_process_gate", "elongation_brittle_screen",
+                "union_mass_polish", "assumption_bounds"):
+        assert body["engine"].get(cap) is True, cap
     assert body["engine"]["measurement_cv_default"] == 0.12
     assert "best of this bracket/lattice family" in body["family_scope"]
     assert body["printability_limits"]["max_neighbour_width_ratio"] <= 1.5
     assert body["printability_limits"]["max_slenderness"] <= 30
+    assert "only FDM/FFF material data is valid" in body["process_rule"]
 
 
 def test_brief_measurement_cv_default_stated_and_clamped():
@@ -792,3 +797,188 @@ def test_review_prompt_rules_engine_refusable_numbers():
     assert "not" in p and "qualified for sustained load" in p
     assert "printed_mass_g" in p and "upper bound" in p
     assert "No certification" in p or "certification" in p
+
+
+# ===========================================================================
+# AnyRB v0.4 — printed-process gate, elongation/brittle screen, assumption
+# bounds, lot QC record. All mock-mode (no live model calls).
+# ===========================================================================
+V04_FACTS = {
+    "printed_mass_g": 46.0, "mass_analytic_upper_bound_g": 50.81, "pf": 0.00997,
+    "target_pf": 0.01, "governing_mode": "stiffness/buckling",
+    "min_width_mm": 1.18, "max_slenderness": 22.7, "neighbour_ratio": 1.45,
+    "sustained_pf_bound": 0.04, "sustained_deflection_bound_mm": 4.0,
+}
+V04_BRITTLE = {"strain_req_pct": 0.87, "elongation_mean_pct": 4.0, "elongation_cv": 0.20,
+               "pf_brittle": 0.0009, "pf_bound": 0.0109}
+V04_ASSUMPTIONS = {
+    "pf_min": 0.004, "pf_max": 0.030,
+    "corr_range": [{"corr": 0.3, "pf": 0.006}, {"corr": 0.7, "pf": 0.004}],
+    "split_range": [{"lot_fraction": 0.75, "pf": 0.008},
+                    {"lot_fraction": 0.95, "pf": 0.016}],
+}
+V04_QC = {"lot_id": "LOT-2026-014", "supplier": "Recycled Polymer Co.",
+          "measurement_source": "certificate", "measurement_cv": 0.15,
+          "recycled_content_pct": 78}
+
+
+def _v04_review_payload() -> dict:
+    return {"facts": V04_FACTS, "target_pf": 0.01,
+            "design": {"control_widths_mm": [2.0] * 8},
+            "brittle": dict(V04_BRITTLE), "assumptions": dict(V04_ASSUMPTIONS),
+            "qc": dict(V04_QC), "process": {"ok": True, "process": "FDM/FFF"}}
+
+
+def _v04_proof_payload() -> dict:
+    payload = _v04_review_payload()
+    payload["validation"] = {"counts": {"PASS": 51, "WARN": 2, "FAIL": 0}, "total": 53}
+    return payload
+
+
+def test_plan_process_mismatch_from_feasibility_blocks_ai():
+    plan = client.post("/api/design/plan", json={
+        "brief": {"load_N": 150},
+        "baseline": {"uniform_width_mm": 2.0},
+        "material": {"process": "IM/compression"},
+        "feasibility": {"feasible": False, "process_ok": False,
+                        "reason": "process_mismatch"},
+    }).json()
+    schemas.PlanResponse.model_validate(plan)
+    assert plan["blocked"] is True
+    assert plan["_meta"]["mock_reason"] == "process_mismatch"
+    assert plan["_meta"]["model"] == "fallback"
+    assert plan["process"]["ok"] is False
+    assert plan["process"]["reason"] == "process_mismatch"
+    assert "IM/compression" in plan["note"] and "FDM/FFF" in plan["note"]
+    assert len(plan["candidates"]) == 3  # schema-compatible placeholders only
+
+
+def test_plan_process_mismatch_inferred_from_material_process():
+    plan = client.post("/api/design/plan", json={
+        "brief": {"load_N": 150},
+        "baseline": {"uniform_width_mm": 2.0},
+        "material": {"process": "IM"},          # rPET-style moulded preset process
+    }).json()
+    assert plan["blocked"] is True
+    assert plan["_meta"]["mock_reason"] == "process_mismatch"
+    assert plan["process"]["ok"] is False
+
+
+def test_plan_printed_process_is_not_blocked():
+    plan = client.post("/api/design/plan", json={
+        "brief": {"load_N": 150},
+        "baseline": {"uniform_width_mm": 2.0},
+        "material": {"process": "FDM/FFF"},
+        "feasibility": {"feasible": True, "process_ok": True, "min_achievable_pf": 0.0002},
+    }).json()
+    assert plan["blocked"] is False
+    assert plan["process"]["ok"] is True
+    assert plan["_meta"]["mock_reason"] != "process_mismatch"
+
+
+def test_process_mismatch_takes_precedence_over_family_infeasible():
+    plan = client.post("/api/design/plan", json={
+        "brief": {"load_N": 900},
+        "baseline": {"uniform_width_mm": 4.0},
+        "material": {"process": "IM/compression"},
+        "feasibility": {"feasible": False, "process_ok": False,
+                        "reason": "process_mismatch", "min_achievable_pf": 0.02},
+    }).json()
+    assert plan["_meta"]["mock_reason"] == "process_mismatch"
+    assert "IM/compression" in plan["note"]
+
+
+def test_plan_prompt_states_only_printed_data_is_valid():
+    from server import prompts
+    assert "Only FDM/FFF material data is valid for the printed bracket family" in prompts.PLAN_SYSTEM
+    assert "process mismatch" in prompts.PLAN_SYSTEM
+    assert "do not propose candidates" in prompts.PLAN_SYSTEM
+
+
+def test_review_v04_brittle_assumptions_qc_grounding():
+    review = client.post("/api/design/review", json=_v04_review_payload()).json()
+    schemas.ReviewResponse.model_validate(review)
+    assert review["_meta"]["grounding"]["ok"] is True
+    # v0.4 blocks are echoed to the client
+    assert review["brittle"]["pf_brittle"] == pytest.approx(0.0009)
+    assert review["assumptions"]["pf_max"] == pytest.approx(0.03)
+    assert review["qc"]["lot_id"] == "LOT-2026-014"
+    assert review["qc"]["recycled_content_pct"] == pytest.approx(78.0)
+    assert review["qc"]["measurement_cv"] == pytest.approx(0.15)
+    # wording rules
+    memo = review["memo"]
+    assert "conservative add-on" in memo.lower()
+    assert "not in the headline p_f" in memo.lower()
+    assert "sensitivity, not validation" in memo.lower()
+    assert "paperwork claim (not simulated)" in memo.lower()
+    assert "15.0%" in memo                      # QC measurement CV wins over the 12 % default
+    assert "78.0%" in memo                      # recycled content, labelled paperwork
+    # brittle/assumptions are never claimed as validation
+    assert "validated by" not in memo.lower()
+    text = " ".join([review["memo"], review["key_risk"]] + review["next_actions"] + review["caveats"])
+    ok, bad = prompts.grounded(text, app_module.contract_v04.build_review_payload(
+        _v04_review_payload()))
+    assert ok, bad
+
+
+def test_proof_v04_brittle_assumptions_qc_grounding():
+    proof = client.post("/api/proof/memo", json=_v04_proof_payload()).json()
+    schemas.ProofResponse.model_validate(proof)
+    assert proof["_meta"]["grounding"]["ok"] is True
+    for block in ("brittle", "assumptions", "qc", "process"):
+        assert proof.get(block), block
+    memo = proof["memo"]
+    assert "brittle/elongation screen" in memo.lower()
+    assert "not in the headline p_f" in memo.lower()
+    assert "sensitivity, not validation" in memo.lower()
+    assert "paperwork claim (not simulated)" in memo.lower()
+    assert "not qualified for sustained load" in memo.lower()
+    assert "51 pass" in memo and "53 checks" in memo
+    assert "certification" not in memo.lower()
+    assert "certified" not in memo.lower()
+    text = " ".join([proof["memo"]] + proof["what_would_change_answer"]
+                    + proof["recommended_tests"] + [proof["claim_level"]])
+    ok, bad = prompts.grounded(text, app_module.contract_v04.build_proof_payload(
+        _v04_proof_payload()))
+    assert ok, bad
+
+
+def test_review_v04_process_mismatch_is_reported_as_blocked():
+    payload = _v04_review_payload()
+    payload["process"] = {"ok": False, "process": "IM/compression",
+                          "reason": "process_mismatch"}
+    review = client.post("/api/design/review", json=payload).json()
+    assert review["process"]["ok"] is False
+    assert "design is blocked" in review["memo"].lower()
+    assert "process mismatch" in review["memo"].lower()
+
+
+def test_v04_blocks_absent_keeps_v03_behaviour():
+    # v0.3-shaped payload (no brittle/assumptions/qc/process) still works and grounded
+    payload = {"facts": {"printed_mass_g": 46.0, "mass_analytic_upper_bound_g": 50.81,
+                         "pf": 0.00997, "target_pf": 0.01},
+               "target_pf": 0.01, "design": {"control_widths_mm": [2.0] * 8}}
+    review = client.post("/api/design/review", json=payload).json()
+    schemas.ReviewResponse.model_validate(review)
+    assert review["_meta"]["grounding"]["ok"] is True
+    assert review.get("brittle") is None
+    assert review.get("assumptions") is None
+    assert review.get("qc") is None
+    assert "printed mass 46.0 g" in review["memo"]
+
+
+def test_review_app_sustained_keys_are_picked_up():
+    # the app flattens the sustained bound into facts.sustained_pf_bound
+    payload = {"facts": dict(V04_FACTS), "target_pf": 0.01,
+               "design": {"control_widths_mm": [2.0] * 8}}
+    review = client.post("/api/design/review", json=payload).json()
+    assert review["sustained_advisory"] == "not qualified for sustained load (advisory)"
+    assert "not qualified for sustained load" in review["memo"].lower()
+
+
+def test_plan_v04_prompt_rules_and_health_process_rule():
+    health = client.get("/api/health").json()
+    assert "IM/compression" in health["process_rule"]
+    from server import prompts
+    assert "IM/compression" in prompts.PLAN_SYSTEM
+    assert "best of this bracket/lattice family" in prompts.PLAN_SYSTEM

@@ -33,6 +33,7 @@ from anyrb.lattice import (build_lattice, mass_g, printed_mass_g,
                            widths_from_controls)
 from anyrb.materials import PRESETS
 from anyrb.mechanics import evaluate
+from anyrb.reliability import failure_probability_elongation
 
 F_DESIGN = 150.0
 
@@ -102,6 +103,9 @@ def build_payload() -> dict:
             "rho_g_cm3": mat.rho, "corr_log": mat.corr,
             "lot_fraction": mat.lot_fraction,
             "within_fraction": mat.within_fraction,
+            "elongation_mean_pct": mat.elongation_mean,
+            "elongation_cv": mat.elongation_cv,
+            "corr_E_elong": mat.corr_E_elong,
             "provenance": list(mat.sources),
         },
         "specimens": {
@@ -120,6 +124,10 @@ def build_payload() -> dict:
                     "E_req_at_150N_MPa": float(gc["E_req"]),
                     "printed_mass_g": float(printed_c),
                     "analytic_mass_g": float(gc["volume_mm3"] * mat.rho / 1000.0),
+                    "strain_req_pct": float(100.0 * gc["sigma_req"] / mat.E_mean),
+                    "pf_brittle": float(failure_probability_elongation(
+                        mat, gc["sigma_req"] / mat.E_mean, level="lot")),
+                    "elongation_mean_pct": float(mat.elongation_mean),
                 },
                 "uncertainty": {
                     "material_90pct_interval_tip_stiffness_N_per_mm":
@@ -144,6 +152,12 @@ def build_payload() -> dict:
                     "printed_mass_g": float(printed_b),
                     "analytic_mass_g": float(analytic_b),
                     "static_Pf_rpetg_lot": float(r["pf"]),
+                    "strain_req_pct": float(100.0 * r["strain_req"]),
+                    "pf_brittle": float(r["pf_brittle"]),
+                    "pf_brittle_bound": float(r["pf_brittle_bound"]),
+                    "elongation_mean_pct": float(mat.elongation_mean),
+                    "brittle_note": "marginal brittle screen; joint 3-property probability not claimed "
+                                    "(E-elongation correlation assumed -0.25)",
                 },
                 "uncertainty": {
                     "material_90pct_interval_tip_stiffness_N_per_mm":
@@ -176,6 +190,8 @@ def build_payload() -> dict:
                            "measured and subtracted",
             "reporting": "record build orientation and process parameters (ISO/ASTM 52921, ASTM F2971), "
                          "lot ID, supplier, measured proxy values and measurement CV",
+            "elongation": "extrusion-printed tensile coupons per ISO 527-2 (n=5 per lot) to measure "
+                          "elongation at break and test the brittle-lot screen; record strain at peak",
             "blindness": "predictions and acceptance criteria are frozen (this file's hash) before testing; "
                          "no post-hoc model tuning before the comparison report is written",
             "standards_note": "protocol is informed by ASTM D790-style flexural practice, ISO 291 conditioning, "
@@ -190,6 +206,9 @@ def build_payload() -> dict:
             "coverage": "the 90% material prediction interval should contain >= 80% of specimen values "
                         "across lots; failure to cover widens the feedstock prior, it does not justify a "
                         "point prediction",
+            "brittle": "measured elongation at break within the printed-elongation prior band "
+                       "(4.0% x[0.86,1.16] for rPETG); if the lot is brittle, the marginal brittle P_f "
+                       "must be reported as an add-on, never silently folded into the headline P_f",
             "trend": "rank order of the two specimen families (coupon vs bracket) must be preserved",
             "failure_action": "a criterion failure is reported as a validation finding with the discrepancy, "
                               "not absorbed into a fudge factor; model discrepancy is calibrated explicitly",

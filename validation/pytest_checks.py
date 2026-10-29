@@ -24,7 +24,7 @@ RESULTS = HERE / "results.json"
 # Open engine defects found by this validation. Remove an entry only when the engine is fixed.
 KNOWN_OPEN: dict[str, str] = {}  # F2b fixed & re-verified (2026-10-29); add new tracked defects here
 # Documented WARNs that are acceptable as long as they are reported (not silently passing).
-EXPECTED_WARNS = {"F4", "F5"}
+EXPECTED_WARNS = {"F4", "F5", "K8"}
 
 
 @pytest.fixture(scope="session")

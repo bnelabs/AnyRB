@@ -2,7 +2,7 @@
  "suite": "AnyRB coupon / bracket pre-registration (L3+ path)",
  "brand": "AnyRB",
  "version": "v0.3",
- "created_utc": "2026-10-29T15:31:33+00:00",
+ "created_utc": "2026-10-29T19:54:03+00:00",
  "status": "PRE-REGISTERED BLIND PREDICTIONS. No physical test has been performed; no measured data is included or implied.",
  "engine": {
   "reference": "engine/anyrb (Python reference implementation)",
@@ -20,8 +20,11 @@
   "corr_log": 0.55,
   "lot_fraction": 0.92195,
   "within_fraction": 0.3873,
+  "elongation_mean_pct": 4.0,
+  "elongation_cv": 0.2,
+  "corr_E_elong": -0.25,
   "provenance": [
-   "research/01 R07 (printed rPETG, ISO 527-2: E 2.28 GPa CV 10.8%, peak stress 46.5 MPa)"
+   "research/01 R07 (printed rPETG, ISO 527-2: E 2.28 GPa CV 10.8%, peak stress 46.5 MPa; strain at peak 3.15-3.51%)"
   ]
  },
  "specimens": {
@@ -46,7 +49,10 @@
     "sigma_req_at_150N_MPa": 10.003755499046054,
     "E_req_at_150N_MPa": 1031.8252750157387,
     "printed_mass_g": 21.999987413333333,
-    "analytic_mass_g": 24.28939912324466
+    "analytic_mass_g": 24.28939912324466,
+    "strain_req_pct": 0.4763693094783836,
+    "pf_brittle": 0.0,
+    "elongation_mean_pct": 4.0
    },
    "uncertainty": {
     "material_90pct_interval_tip_stiffness_N_per_mm": [
@@ -183,7 +189,12 @@
     "E_req_at_150N_MPa": 1687.9766194499934,
     "printed_mass_g": 46.40025605333333,
     "analytic_mass_g": 50.809428668061415,
-    "static_Pf_rpetg_lot": 0.009956387330703032
+    "static_Pf_rpetg_lot": 0.009956387330703032,
+    "strain_req_pct": 0.8955343469889637,
+    "pf_brittle": 2.7755575615628914e-16,
+    "pf_brittle_bound": 0.009956387330703309,
+    "elongation_mean_pct": 4.0,
+    "brittle_note": "marginal brittle screen; joint 3-property probability not claimed (E-elongation correlation assumed -0.25)"
    },
    "uncertainty": {
     "material_90pct_interval_tip_stiffness_N_per_mm": [
@@ -223,6 +234,7 @@
   "conditioning": "23 +/- 2 C, 50 +/- 10 % RH, >= 48 h (ISO 291)",
   "calibration": "load cell calibrated per ISO 7500-1 class 1 or better; fixture compliance measured and subtracted",
   "reporting": "record build orientation and process parameters (ISO/ASTM 52921, ASTM F2971), lot ID, supplier, measured proxy values and measurement CV",
+  "elongation": "extrusion-printed tensile coupons per ISO 527-2 (n=5 per lot) to measure elongation at break and test the brittle-lot screen; record strain at peak",
   "blindness": "predictions and acceptance criteria are frozen (this file's hash) before testing; no post-hoc model tuning before the comparison report is written",
   "standards_note": "protocol is informed by ASTM D790-style flexural practice, ISO 291 conditioning, ISO 7500-1 calibration and ISO/ASTM 52921 / ASTM F2971 reporting; it is not a certified test method for this bespoke lattice geometry"
  },
@@ -230,6 +242,7 @@
   "stiffness": "measured tip stiffness within [-25%, +25%] of the frozen predicted value for >= 4/5 specimens per lot; mean within [-15%, +15%]",
   "first_yield": "measured first-yield load within [-25%, +35%] of the frozen predicted value for >= 4/5 specimens per lot",
   "coverage": "the 90% material prediction interval should contain >= 80% of specimen values across lots; failure to cover widens the feedstock prior, it does not justify a point prediction",
+  "brittle": "measured elongation at break within the printed-elongation prior band (4.0% x[0.86,1.16] for rPETG); if the lot is brittle, the marginal brittle P_f must be reported as an add-on, never silently folded into the headline P_f",
   "trend": "rank order of the two specimen families (coupon vs bracket) must be preserved",
   "failure_action": "a criterion failure is reported as a validation finding with the discrepancy, not absorbed into a fudge factor; model discrepancy is calibrated explicitly"
  },
@@ -238,5 +251,5 @@
   "claim_effect": "passing this campaign would support L4 (component validation) for this geometry, process and material class only; it would not certify the product",
   "data_handling": "measured CSV is ingested with validation/compare_measurements.py and appended to the comparison record; the pre-registration hash is never edited"
  },
- "pre_registration_hash": "sha256:70fa40dc1a11f53995a42b34508dbb09b3bba60d0ab808a8fbad9d879da51c43"
+ "pre_registration_hash": "sha256:641825c85beec59c147e258c89ee9e373e99b036c83edeeedd9aad7a0abe51e5"
 }

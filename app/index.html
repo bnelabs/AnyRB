@@ -172,6 +172,12 @@
           <div class="fg-facts" id="family-gate-facts">—</div>
         </div>
 
+        <div class="card family-gate process-gate" id="process-gate" role="alert" hidden>
+          <div class="fg-head"><span class="fg-icon" aria-hidden="true">!</span><div><h3 style="margin:0">Material data is not for a printed process</h3>
+          <p class="card-sub" style="margin:2px 0 0" id="process-gate-sub">Injection/compression-moulded property data cannot be used for a printed lattice. Pick rPETG (printed, FDM/FFF), or treat this preset as contrast only.</p></div></div>
+          <div class="fg-facts" id="process-gate-facts">—</div>
+        </div>
+
         <div class="brief-cols">
           <div class="card understanding" id="understanding-card">
             <div class="u-head">
@@ -331,6 +337,7 @@
             <div><span class="micro">Printability</span><b id="hero-print">—</b></div>
             <div><span class="micro">Governing mode</span><b id="hero-mode">—</b></div>
           </div>
+          <p class="micro" id="hero-polish" style="margin-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">Union-mass polish pending.</p>
         </div>
 
         <div class="candidates-head row-between">
@@ -357,6 +364,16 @@
             <div class="vs-bars" id="vs-bars"></div>
             <p class="vs-takeaway" id="vs-takeaway">—</p>
           </div>
+        </div>
+
+        <div class="card brittle-card" id="brittle-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Brittle-lot screen <span class="pill pill--accent" style="height:20px;vertical-align:2px">NOT in headline P_f</span></h3>
+            <div class="card-sub">Marginal lognormal P(elongation-at-break &lt; peak strain demand) — a conservative add-on screen, reported separately.</div></div>
+            <span class="badge-model" id="brittle-badge" data-kind="engine"><span class="b-dot"></span>marginal screen</span>
+          </div>
+          <div class="brittle-grid" id="brittle-values">—</div>
+          <p class="micro" id="brittle-note" style="margin-top:8px">E–elongation correlation assumed −0.25 (unmeasured); not folded into the headline P_f.</p>
         </div>
 
         <div class="design-ctas">
@@ -413,7 +430,11 @@
             <div class="qc-field"><label for="qc-e">Measured lot E · MPa</label><input id="qc-e" type="number" step="10" min="200" max="6000"></div>
             <div class="qc-field"><label for="qc-sy">Measured lot σy · MPa</label><input id="qc-sy" type="number" step="1" min="5" max="120"></div>
             <div class="qc-field"><label for="qc-cv">Measurement CV · %</label><input id="qc-cv" type="number" step="1" min="1" max="40" value="12"></div>
+            <div class="qc-field"><label for="qc-mfi">MFI · g/10 min <span class="qc-tag">not used — no calibrated proxy</span></label><input id="qc-mfi" type="number" step="0.1" min="0" placeholder="e.g. 18"></div>
+            <div class="qc-field"><label for="qc-density">Density · g/cm³ <span class="qc-tag">not used — no calibrated proxy</span></label><input id="qc-density" type="number" step="0.01" min="0.5" placeholder="e.g. 1.24"></div>
+            <div class="qc-field"><label for="qc-tensile-row">Tensile test row / certificate <span class="qc-tag">traceability only</span></label><input id="qc-tensile-row" type="text" placeholder="e.g. ISO 527-2 row 3"></div>
           </div>
+          <p class="micro" id="qc-notused" style="margin-top:8px;text-transform:none;letter-spacing:0;line-height:1.5">MFI / density / tensile-row are recorded for traceability only and are <b>not used</b> in the simulation — no calibrated proxy exists; E and σy above are the inputs actually used.</p>
           <div class="chip-row" style="margin:10px 0 4px">
             <button class="chip" type="button" data-lot="nominal">Nominal lot</button>
             <button class="chip" type="button" data-lot="weak">Weak lot · E ×0.8</button>
@@ -437,6 +458,26 @@
           </div>
           <div class="advisory-body" id="sustained-values">—</div>
           <p class="micro" id="sustained-note" style="margin-top:8px">Advisory only. The static qualification above is unchanged.</p>
+        </div>
+
+        <div class="card brittle-card" id="brittle-proof-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Brittle-lot screen <span class="pill pill--accent" style="height:20px;vertical-align:2px">NOT in headline P_f</span></h3>
+            <div class="card-sub">Marginal elongation screen; conservative add-on bound, not the headline reliability.</div></div>
+            <span class="badge-model" id="proof-brittle-badge" data-kind="engine"><span class="b-dot"></span>marginal screen</span>
+          </div>
+          <div class="brittle-grid" id="proof-brittle-values">—</div>
+          <p class="micro" id="proof-brittle-note" style="margin-top:8px">E–elongation correlation assumed −0.25 (unmeasured).</p>
+        </div>
+
+        <div class="card" id="assumptions-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Assumption sensitivity</h3>
+            <div class="card-sub" id="assumptions-sub">Unmeasured assumptions, not validation — how far P_f moves if the correlation and lot/within split are different.</div></div>
+            <span class="badge-model" id="assumptions-badge" data-kind="fallback"><span class="b-dot"></span>assumption band</span>
+          </div>
+          <div class="assumption-body" id="assumptions-values">—</div>
+          <p class="micro" style="margin-top:8px">corr(lnE, lnσy) 0.30 / 0.70 · lot-vs-within split 75 % / 95 %. This is assumption sensitivity, <b>not validation</b>.</p>
         </div>
 
         <div class="card" id="acceptance-card" style="grid-column:1/-1">
@@ -496,7 +537,7 @@
 </div>
 
 <footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.3</span>
+  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.4</span>
   <span class="f-honest">AnyRB is decision support, not certification.</span>
   <span>In-silico only · Literature-derived feedstock · Simulated numbers</span>
 </footer>

@@ -7,6 +7,8 @@ actually have, and get an internal geometry that behaves reliably — plus the p
 
 Built for the **Meta Global AI Developer Hackathon — Indie Developer track, "Push the Frontier"**.
 
+> **v0.4 (remaining gaps):** printed-process gate (IM presets blocked), elongation/brittle-lot screen, final union-mass polish, and assumption-sensitivity bounds. See the v0.4 addendum in [`REVIEW_RESPONSE.md`](REVIEW_RESPONSE.md).
+>
 > **v0.3 (review response):** headline masses are now printed union estimates (robust ~46.4 g; analytic 50.8 g upper bound), printability is enforced, known-lot passports keep measurement uncertainty, compensation is an 8-control lot-specific resize, and the Brief runs an engine feasibility gate. Full point-by-point response: [`REVIEW_RESPONSE.md`](REVIEW_RESPONSE.md).
 
 **Repo:** `github.com/bnelabs/AnyRB` (private) · **Product:** AnyRB — Any Recycled Batch.
@@ -22,8 +24,8 @@ explaining; a verified physics engine does every number.
 - **Research:** `reports/AnyRB_Research_Synthesis.pdf` · `reports/AnyRB_Full_Research_Dossier.pdf` · `research/00–05`
 - **Qualification report:** `reports/AnyRB_Qualification_Report.pdf` (generated per design; `make report`)
 - **Live Meta backend:** `server/` (`API.md`, tests, `evidence/live_calls.json`)
-- **Independent validation:** `validation/VALIDATION.md` + `results.json` (51 PASS / 2 WARN / 0 FAIL)
-- **Review response:** `REVIEW_RESPONSE.md` (point-by-point) · `V0_3_SPEC.md` (v0.3 contract)
+- **Independent validation:** `validation/VALIDATION.md` + `results.json` (56 PASS / 2 WARN / 0 FAIL)
+- **Review response:** `REVIEW_RESPONSE.md` (point-by-point, v0.3 + v0.4 addendum) · `V0_3_SPEC.md` / `V0_4_SPEC.md`
 - **Audits:** `audit/AUDIT.md`, `audit/REAUDIT.md`, `audit/HACKATHON_AUDIT.md` (historical v0.2 audit: SHIP); v0.3 delta audit in `audit/V0_3_AUDIT.md` when complete
 
 ## The 3-minute product
@@ -59,8 +61,8 @@ network and for stage safety.
 python3 app/build.py          # → anyrb/index.html (single file) + app/standalone.html
 make test                     # 29 engine tests (~20 s), includes Python↔JS cross-check
 make test-server              # AI backend tests in mock mode
-node app/tests/run.mjs        # 33 JS engine/UI tests
-make validate                 # independent scientific validation suite (51 PASS / 2 WARN / 0 FAIL)
+node app/tests/run.mjs        # 37 JS engine/UI tests
+make validate                 # independent scientific validation suite (56 PASS / 2 WARN / 0 FAIL)
 make verify-live              # real Meta calls → server/evidence/live_calls.json
 make report                   # regenerate qualification report + STL
 make pdf                      # rebuild PDF deliverables
@@ -90,7 +92,7 @@ that the verified engine evaluates and ranks. The AI may phrase numbers; it may 
 - Deterministic multi-start pattern-search optimiser (mass minimisation subject to P_f ≤ target), with
   six baseline strategies (solid, uniform, mass-matched, nominal FoS 1.5, mean-only, robust).
 - Batch passport: lot-specific 8-control resize + global-equivalent slicer scale, measurement CV retained, acceptance window, and a QC record (lot identity, supplier, measurement, recycled-content paperwork claim).
-- Independent validation suite: **51 PASS / 2 WARN / 0 FAIL** — including a re-implemented frame element, corrected full-length union sampling, Halton-QMC vs 2e6-sample Monte Carlo, cell-size and pin-joint model-form bands, coupon pre-registration,
+- Independent validation suite: **56 PASS / 2 WARN / 0 FAIL** — including a re-implemented frame element, corrected full-length union sampling, Halton-QMC vs 2e6-sample Monte Carlo, cell-size and pin-joint model-form bands, coupon pre-registration,
   an energy-minimisation solver, 1e6-sample Monte-Carlo checks, periodic unit-cell homogenisation,
   optimiser brute-force comparison, and STL geometry audit. The two WARNs are *known, quantified*
   items: analytic strut-sum is an upper bound (robust design: analytic 50.8 g vs printed union

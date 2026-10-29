@@ -847,3 +847,16 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
 .optimised-hero .hero-metrics .micro { display: block; margin-bottom: 3px; }
 .optimised-hero .hero-metrics b { font: 600 15px var(--mono); color: var(--ink); }
 @media (max-width: 900px) { .optimised-hero .hero-metrics { grid-template-columns: repeat(2, 1fr); } }
+
+/* v0.4 remaining-gaps cards */
+.family-gate.process-gate { border-color: #D8C9B5; background: #FBF6EC; }
+.family-gate.process-gate .fg-icon { background: #8A6A2F; }
+.brittle-card { border-color: #E7C7B5; }
+.brittle-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 16px; margin-top: 12px; }
+.brittle-grid .micro { display: block; margin-bottom: 3px; }
+.brittle-grid b { font: 600 14px var(--mono); color: var(--ink); }
+.brittle-grid .is-warn b { color: var(--accent-ink); }
+.assumption-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; margin-top: 10px; font-size: 12.5px; color: var(--muted-strong); }
+.assumption-body b { font-family: var(--mono); color: var(--ink); }
+.assumption-band { margin-top: 10px; padding: 10px 12px; background: var(--card-warm); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+@media (max-width: 1080px) { .brittle-grid { grid-template-columns: repeat(2, 1fr); } }

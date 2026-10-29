@@ -15,6 +15,13 @@
 - Brief runs an engine feasibility gate before any AI candidate is drawn; sustained-load creep bound is shown as an advisory.
 - Full point-by-point response: `REVIEW_RESPONSE.md`; coupon pre-registration: `validation/COUPON_TEST_PLAN.md`.
 
+## v0.4 remaining-gap fixes
+
+- Printed-process gate: only FDM/FFF material data can design the printed lattice; IM/compression presets are contrast-only.
+- Elongation/brittle-lot screen: peak strain demand vs printed elongation; marginal P_f shown as a conservative add-on, not in headline P_f.
+- Union-mass final polish stage; assumption-sensitivity bounds for correlation and lot/within split.
+- Non-FDM presets blocked, QC lot record retained.
+
 ## Why this is a frontier problem
 
 Recycled plastics are cheap and required by regulation, but their mechanical properties swing wildly from
@@ -102,6 +109,6 @@ came from a validator sampler bug and is retired. AI text is grounded in engine 
 is explanatory, not analytical. The product is decision-support software and does not certify any part or
 material.
 
-**Independent validation (53 checks):** 51 PASS / 2 WARN / 0 FAIL — re-implemented frame element, energy
+**Independent validation (58 checks):** 56 PASS / 2 WARN / 0 FAIL — re-implemented frame element, energy
 minimisation vs direct stiffness, SciPy/quad/1e6-MC reliability cross-checks, periodic unit-cell
 homogenisation, brute-force optimiser comparison, STL geometry audit; the two WARNs are the analytic mass upper bound and the Halton printed-estimate tolerance at minimum width. See `validation/VALIDATION.md`.

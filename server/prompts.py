@@ -99,6 +99,9 @@ Rules:
 - Respect the engine feasibility gate: the payload may carry `feasibility`; the widest printable
   uniform lattice is the engine's feasibility check. You may not propose a candidate that assumes
   more than the engine can evaluate; the engine re-evaluates every prior and can refuse it.
+- Only FDM/FFF material data is valid for the printed bracket family. If the payload/engine
+  reports a process mismatch (material.process is IM/compression, feasibility.process_ok is false,
+  or process.ok is false), the design is blocked: do not propose candidates.
 - width_priors_mm are strut widths in mm in this exact order: bottom row x = 0, 1/3, 2/3, 1 of the
   span, then top row x = 0, 1/3, 2/3, 1. Values must be within 1.0-4.0 mm and physically sensible:
   thicker near the clamped wall (x=0), thinner toward the tip; no value outside the range.
@@ -131,6 +134,15 @@ Rules:
 - The sustained-load/creep bound is ADVISORY only. If it fails, say the part is not qualified for
   sustained load; the static result is unchanged. Never present it as the design allowable.
 - State the scope: best of this bracket/lattice family, not a topology optimum.
+- If a brittle/elongation screen is supplied (`brittle`), report it as a CONSERVATIVE ADD-ON:
+  it is NOT folded into the headline two-property P_f. Cite `pf_brittle` / `pf_brittle_pct`
+  and the bound, and flag brittle lots as an add-on risk.
+- If assumption bounds are supplied (`assumptions`), present the P_f range as unmeasured
+  SENSITIVITY (ln E / ln sy correlation and lot-vs-within split ranges) — never as validation.
+- If `process.ok` is false (process mismatch), state that the printed-lattice design is blocked:
+  IM/compression material data cannot be used for a printed part. Do not present it as a design.
+- If a QC record is supplied (`qc`: lot id, supplier, measurement source/CV), treat it as a
+  record; a recycled-content percentage is a paperwork claim, not a simulated property.
 - Never claim certification or measured reliability; this is simulated decision support.
 - Plain engineering language, no marketing. Output JSON only.
 """
@@ -154,6 +166,15 @@ Rules:
 - State the family scope: best of this bracket/lattice family, not a topology optimum.
 - Recommend only the listed validation tests (T1 tensile per lot, T2 lattice coupons, T3 full bracket)
   and explicit claim levels (L0-L1 verified, L2 partial, L4-L6 absent) where relevant.
+- If a brittle/elongation screen is supplied (`brittle`), report it as a CONSERVATIVE ADD-ON not
+  in the headline two-property P_f; cite its P_f and flag brittle lots. Never present it as the
+  design allowable.
+- If assumption bounds are supplied (`assumptions`), present them as unmeasured SENSITIVITY, not
+  validation; never claim the range was measured.
+- If `process.ok` is false (process mismatch), the design is blocked: IM/compression data cannot
+  be used for a printed lattice. Say so; do not write a qualification narrative for it.
+- The QC record (`qc`: lot id, supplier, measurement source/CV) is a record; recycled-content %
+  is a paperwork claim, not a simulated property.
 - No certification language; no physical testing has been run. Output JSON only.
 """
 
@@ -408,6 +429,73 @@ def _pct(x, nd: int = 2) -> str:
     return f"{100.0 * float(x):.{nd}f}%"
 
 
+def _brittle_fragment(payload: dict) -> str:
+    b = payload.get("brittle") or {}
+    if not b:
+        return ""
+    bits = []
+    if b.get("pf_brittle_pct") is not None:
+        bits.append(f"brittle screen P_f {_fmt(b['pf_brittle_pct'], 2)}%")
+    elif b.get("pf_brittle") is not None:
+        bits.append(f"brittle screen P_f {_fmt(100.0 * float(b['pf_brittle']), 2)}%")
+    if b.get("pf_bound_pct") is not None:
+        bits.append(f"add-on bound {_fmt(b['pf_bound_pct'], 2)}%")
+    if b.get("strain_req_pct") is not None:
+        bits.append(f"strain demand {_fmt(b['strain_req_pct'], 2)}%")
+    if not bits:
+        return ""
+    return (" Brittle/elongation screen: " + ", ".join(bits)
+            + " — conservative add-on, not in the headline P_f.")
+
+
+def _assumption_fragment(payload: dict) -> str:
+    a = payload.get("assumptions") or {}
+    if not a:
+        return ""
+    bits = []
+    if a.get("pf_min_pct") is not None and a.get("pf_max_pct") is not None:
+        bits.append(f"P_f spans {_fmt(a['pf_min_pct'], 2)}–{_fmt(a['pf_max_pct'], 2)}%")
+    corr = [e.get("corr") for e in (a.get("corr_range") or []) if e.get("corr") is not None]
+    if corr:
+        bits.append("corr " + "–".join(_fmt(c, 2) for c in corr[:2]))
+    split = [e.get("lot_fraction_pct") for e in (a.get("split_range_pct") or [])
+             if e.get("lot_fraction_pct") is not None]
+    if split:
+        bits.append("lot split " + "–".join(_fmt(x, 0) for x in split[:2]) + "%")
+    if not bits:
+        return ""
+    return (" Unmeasured assumption sensitivity: " + ", ".join(bits)
+            + " — sensitivity, not validation.")
+
+
+def _qc_fragment(payload: dict) -> str:
+    q = payload.get("qc") or {}
+    if not q:
+        return ""
+    bits = []
+    if q.get("lot_id"):
+        bits.append(f"lot {q['lot_id']}")
+    if q.get("supplier"):
+        bits.append(f"supplier {q['supplier']}")
+    if q.get("measurement_source"):
+        bits.append(f"source {q['measurement_source']}")
+    if q.get("measurement_cv_pct") is not None:
+        bits.append(f"measurement CV {_fmt(q['measurement_cv_pct'], 1)}%")
+    if q.get("recycled_content_pct") is not None:
+        bits.append(f"recycled content {_fmt(q['recycled_content_pct'], 1)}% is a paperwork claim (not simulated)")
+    if not bits:
+        return ""
+    return " Lot record: " + "; ".join(bits) + "."
+
+
+def _process_fragment(payload: dict) -> str:
+    p = payload.get("process") or {}
+    if p.get("ok") is False:
+        return (" Design is blocked: process mismatch — IM/compression material data cannot be used "
+                "for the printed bracket family.")
+    return ""
+
+
 def fallback_review(payload: dict) -> dict:
     """Deterministic design memo; only numbers already in the canonical payload."""
     design = payload.get("design") or {}
@@ -459,6 +547,8 @@ def fallback_review(payload: dict) -> dict:
                  f"{' passes' if sustained.get('passes') else ' fails'} — advisory only.")
     if sustained.get("passes") is False:
         memo += " not qualified for sustained load (advisory); the static result is unchanged."
+    memo += _brittle_fragment(payload) + _assumption_fragment(payload) + _qc_fragment(payload)
+    memo += _process_fragment(payload)
     memo += " Scope: best of this bracket/lattice family; not a topology optimum."
     key_risk = "Model-form uncertainty: 2-D frame idealisation, not experimentally validated."
     if sustained.get("passes") is False:
@@ -467,6 +557,8 @@ def fallback_review(payload: dict) -> dict:
     if pr.get("passes") is False:
         key_risk = ("Printability limits exceeded; " + key_risk)
     next_actions = ["Verify the measured lot E before printing."]
+    if payload.get("brittle"):
+        next_actions.append("Coupon-test elongation at break before trusting brittle lots.")
     if recipe.get("width_multipliers"):
         next_actions.append("Apply the 8 per-strut width multipliers in the slicer.")
     else:
@@ -482,6 +574,10 @@ def fallback_review(payload: dict) -> dict:
         "sustained_advisory": (
             "not qualified for sustained load (advisory)" if sustained.get("passes") is False
             else ("sustained-load bound is advisory only" if sustained else "")),
+        "brittle": payload.get("brittle"),
+        "assumptions": payload.get("assumptions"),
+        "process": payload.get("process"),
+        "qc": payload.get("qc"),
     }
 
 
@@ -532,6 +628,8 @@ def fallback_proof(payload: dict) -> dict:
                  f"{' passes' if sustained.get('passes') else ' fails'}.")
     if sustained.get("passes") is False:
         memo += " not qualified for sustained load (advisory only; static qualification unchanged)."
+    memo += _brittle_fragment(payload) + _assumption_fragment(payload) + _qc_fragment(payload)
+    memo += _process_fragment(payload)
     memo += " Scope: best of this bracket/lattice family; not a topology optimum."
     return {
         "memo": memo,
@@ -548,4 +646,8 @@ def fallback_proof(payload: dict) -> dict:
         "sustained_advisory": (
             "not qualified for sustained load (advisory)" if sustained.get("passes") is False
             else ("sustained-load bound is advisory only" if sustained else "")),
+        "brittle": payload.get("brittle"),
+        "assumptions": payload.get("assumptions"),
+        "process": payload.get("process"),
+        "qc": payload.get("qc"),
     }

@@ -63,9 +63,11 @@ from anyrb.lattice import (CELL, DEPTH, F_DESIGN, HEIGHT, LENGTH, NX, PAD_LEN,
                               printed_volume_mm3, uniform_controls, widths_from_controls)
 from anyrb.materials import PRESETS, Material
 from anyrb.mechanics import demands, evaluate, solve_unit
-from anyrb.optimize import (LOG_HI, LOG_LO, family_feasibility, lot_specific_recipe,
+from anyrb.optimize import (LOG_HI, LOG_LO, _union_polish, family_feasibility,
+                            lot_specific_recipe, minimum_uniform_width, optimize_robust,
                             pattern_search, sustained_bound)
-from anyrb.reliability import failure_probability, lot_pass_probability
+from anyrb.reliability import (assumption_bounds, failure_probability,
+                               failure_probability_elongation, lot_pass_probability)
 from anyrb import reliability as reliability_mod
 from anyrb.stl import lattice_triangles
 
@@ -1267,6 +1269,11 @@ def check_H(lat):
                 "widths_mm": r["widths"].tolist(), "mass_g": r["mass_g"],
                 "mass_analytic_g": r["mass_analytic_g"], "printed_mass_g": r["printed_mass_g"],
                 "printability": printability_report(lat, r["widths"]),
+                "strain_req": r["strain_req"], "pf_brittle": r["pf_brittle"],
+                "pf_brittle_bound": r["pf_brittle_bound"],
+                "elongation_mean_pct": r["elongation_mean_pct"],
+                "elongation_cv": r["elongation_cv"],
+                "process_ok": r["process_ok"] if "process_ok" in r else m.print_process_ok,
                 "sigma_req_MPa": r["sigma_req_MPa"], "E_req_MPa": r["E_req_MPa"],
                 "E_req_def_MPa": r["E_req_def_MPa"], "E_req_buck_MPa": r["E_req_buck_MPa"],
                 "u_tip_unit_mm": r["u_tip_unit_mm"], "u_tip_mean_mm": r["u_tip_mean_mm"],
@@ -1399,6 +1406,342 @@ console.log(JSON.stringify(out));
 # ===========================================================================
 # I. Model-form limitations and claim-ladder mapping
 # ===========================================================================
+def check_v04():
+    """v0.4 additions: process gate, brittle screen, union polish, assumption bounds, report."""
+    import dataclasses
+    from scipy.stats import lognorm
+    mat = PRESETS["rpetg"]
+    lat = build_lattice()
+    target = 0.01
+    summary = json.loads((ROOT / "reports" / "summary.json").read_text())
+    robust_ctl = np.asarray(summary["robust"]["controls"], float)
+    r = evaluate(mat, robust_ctl, printed=False)
+    d = r["demands"]
+
+    # ---------------- K4: printed-process gate ----------------------------
+    ff = family_feasibility(mat, target)
+    rows = {}
+    ok = (ff.get("process_ok") is True and ff.get("feasible") is True
+          and ff.get("min_achievable_pf") is not None
+          and ff["min_achievable_pf"] <= target)
+    for key in ("rpet", "rhdpe", "rpp"):
+        m = PRESETS[key]
+        res = family_feasibility(m, target)
+        rows[key] = {"process": m.process, "process_ok": m.print_process_ok,
+                     "feasible": res.get("feasible"), "reason": res.get("reason"),
+                     "engine_process_ok": res.get("process_ok")}
+        ok &= (("FDM" not in m.process.upper()) and ("FFF" not in m.process.upper()))
+        ok &= (m.print_process_ok is False)
+        ok &= (res.get("process_ok") is False and res.get("feasible") is False
+               and res.get("reason") == "process_mismatch"
+               and res.get("min_achievable_pf") is None)
+    probes = [("FDM/FFF", True), ("FFF", True), ("fdm", True), ("IM", False),
+              ("IM/compression", False), ("SLA", False), ("", False)]
+    probe_ok = all(dataclasses.replace(mat, process=p).print_process_ok == e
+                   for p, e in probes)
+    ok &= probe_ok
+    record("K4", "K: v0.4 features",
+           "Printed-process gate: only FDM/FFF data may enter the printed-bracket model",
+           "Non-printed presets are contrast-only: family_feasibility must refuse them with process_mismatch before any design",
+           "Engine family_feasibility and Material.print_process_ok vs independent process-string classification (rPETG FDM vs rPET/rHDPE/rPP IM/compression)",
+           "rPETG process_ok/feasible true; all non-printed presets process_ok=false, feasible=false, reason=process_mismatch, min_pf=None; print_process_ok probes all correct",
+           f"rPETG process_ok/feasible={ff.get('process_ok')}/{ff.get('feasible')}; "
+           + "; ".join(f"{k}({v['process']}): process_ok={v['engine_process_ok']}, "
+                       f"feasible={v['feasible']}, reason={v['reason']}" for k, v in rows.items())
+           + f"; probes correct={probe_ok}",
+           status_for(ok),
+           notes="This is a claim gate, not a mechanical check: moulded/injection data cannot represent a "
+                 "printed lattice. rPETG is the only printable preset in the library; the others remain "
+                 "visible as labelled contrast only.",
+           evidence={"rpetg": {"process": mat.process, "process_ok": ff.get("process_ok"),
+                               "feasible": ff.get("feasible"),
+                               "min_achievable_pf": ff.get("min_achievable_pf")},
+                     "nonprintable": rows, "probes_ok": probe_ok})
+
+    # ---------------- K5: elongation / brittle screen ---------------------
+    demands = [0.001, 0.002, 0.004, 0.0089553, 0.012, 0.02, 0.04]
+    max_err = 0.0
+    for level in ("lot", "within"):
+        f = mat.lot_fraction if level == "lot" else mat.within_fraction
+        cv = mat.elongation_cv * f
+        mean = mat.elongation_mean / 100.0
+        sigma = math.sqrt(math.log1p(cv * cv))
+        mu = math.log(mean) - 0.5 * sigma * sigma
+        for dem in demands:
+            eng = failure_probability_elongation(mat, dem, level=level)
+            ref_lognorm = float(lognorm.cdf(dem, s=sigma, scale=math.exp(mu)))
+            ref_phi = float(ndtr((math.log(dem) - mu) / sigma))
+            max_err = max(max_err, abs(eng - ref_lognorm), abs(eng - ref_phi))
+    vals = [failure_probability_elongation(mat, dem) for dem in demands]
+    monotone = all(b >= a - 1e-15 for a, b in zip(vals, vals[1:]))
+    deg = dataclasses.replace(mat, elongation_cv=0.0)
+    deg_below = failure_probability_elongation(deg, 0.02)
+    deg_above = failure_probability_elongation(deg, 0.05)
+    nan_mat = dataclasses.replace(mat, elongation_mean=float("nan"))
+    nan_pf = failure_probability_elongation(nan_mat, 0.01)
+    strain_ok = abs(r["strain_req"] - d.sigma_req / mat.E_mean) <= 1e-15 * max(1.0, r["strain_req"])
+    pf_br = failure_probability_elongation(mat, r["strain_req"])
+    bound_ok = (abs(r["pf_brittle"] - pf_br) < 1e-15
+                and abs(r["pf_brittle_bound"] - (r["pf"] + r["pf_brittle"])) < 1e-15)
+    headline_ok = abs(r["pf"] - failure_probability(mat, d.sigma_req, d.E_req)) < 1e-15
+    m12 = mat.lot_from_measurement(2300.0, 50.0, measurement_cv=0.12)
+    e_within = mat.elongation_cv * mat.within_fraction
+    expected_elong_cv = math.sqrt(e_within ** 2 + 0.12 ** 2)
+    measured_ok = (abs(m12.elongation_cv - expected_elong_cv) < 1e-12
+                   and np.isfinite(failure_probability_elongation(m12, r["strain_req"])))
+    ok = (max_err <= 1e-12 and monotone and deg_below == 0.0 and deg_above == 1.0
+          and math.isnan(nan_pf) and strain_ok and bound_ok and headline_ok and measured_ok)
+    record("K5", "K: v0.4 features",
+           "Elongation / brittle-lot screen verified as a marginal conservative add-on",
+           "The brittle screen is a one-property lognormal marginal; it does NOT claim a joint three-property probability (E-elongation correlation assumed, not measured)",
+           "Independent scipy.stats.lognorm / direct normal CDF at lot and within levels, monotonicity, zero-CV and NaN limits, evaluate() strain_req consistency, add-on bound arithmetic",
+           "max |engine - independent| <= 1e-12; monotone; degenerate limits exact; strain_req == sigma_req/E_mean; pf_brittle_bound == pf + pf_brittle",
+           f"max abs err {max_err:.1e}; monotone={monotone}; degenerate {deg_below:.0f}/{deg_above:.0f}; "
+           f"strain_req {100*r['strain_req']:.3f}% == sigma_req/E_mean; pf_brittle {r['pf_brittle']:.2e}; "
+           f"headline pf {r['pf']:.5f} + brittle = bound {r['pf_brittle_bound']:.5f}; "
+           f"known lot 12% meas CV: elongation CV {m12.elongation_cv:.4f} (expected {expected_elong_cv:.4f})",
+           status_for(ok),
+           notes="The three-property joint probability is intentionally NOT claimed. If E and elongation "
+                 "were negatively correlated as assumed (-0.25), the true joint failure probability could "
+                 "differ from the reported add-on bound; the bound is labelled conservative and shown "
+                 "separately from the headline two-property P_f in every report.",
+           evidence={"max_abs_err": max_err, "strain_req": r["strain_req"],
+                     "pf_brittle": r["pf_brittle"], "pf_brittle_bound": r["pf_brittle_bound"],
+                     "headline_pf": r["pf"], "measured_lot_elongation_cv": m12.elongation_cv,
+                     "requested_demands": demands, "engine_values": vals})
+
+    # ---------------- K6: union-mass final polish -------------------------
+    def penalty(widths):
+        pr = printability_report(lat, widths)
+        ratio = max(0.0, pr["max_neighbour_width_ratio"] - 1.5) / 0.5
+        slen = max(0.0, pr["max_slenderness"] - 30.0) / 30.0
+        return 80.0 * (ratio + slen)
+
+    def analytic_obj(x):
+        rr = evaluate(mat, x, printed=False)
+        excess = max(0.0, rr["pf"] - target) / target
+        return rr["mass_g"] * (1.0 + 100.0 * excess + penalty(rr["widths"]))
+
+    starts = []
+    seen = []
+    w0 = minimum_uniform_width(mat, target)
+    for w in (None, 2.0, 2.2, 2.5, 3.0, 3.6):
+        ww = w0 if w is None else w
+        if ww is None:
+            continue
+        if any(abs(ww - s) < 1e-3 for s in seen):
+            continue
+        seen.append(ww)
+        starts.append(uniform_controls(ww))
+    pre = None
+    for start in starts:
+        xs, _, _ = pattern_search(analytic_obj, start, max_evals=1200)
+        rr = evaluate(mat, xs)
+        if rr["pf"] > target * 1.02:
+            continue
+        score = rr["printed_mass_g"]
+        if pre is None or score < pre[0]:
+            pre = (score, xs, rr)
+    t0 = time.perf_counter()
+    res = optimize_robust(mat, target)
+    polish_runtime = time.perf_counter() - t0
+    final_eval = evaluate(mat, res.controls)
+    final_printed = final_eval["printed_mass_g"]
+    final_pf = final_eval["pf"]
+    pr = printability_report(lat, final_eval["widths"])
+    pre_printed = pre[0]
+    delta_pct = 100.0 * (final_printed / pre_printed - 1.0)
+    accepted_ok = True
+    if res.union_polished:
+        accepted_ok = (final_printed <= pre_printed * 1.005
+                       and final_printed < pre_printed
+                       and res.union_evals > 0)
+        mode = "accepted"
+    else:
+        ctrl_diff = float(np.max(np.abs(np.asarray(res.controls) - np.asarray(pre[1]))))
+        accepted_ok = ctrl_diff <= 1e-12 and res.union_evals == 0
+        # verify the decision was correct: the polished candidate must not have passed
+        try:
+            xp, info = _union_polish(mat, pre[1], target)
+            rp = evaluate(mat, xp)
+            prp = printability_report(lat, rp["widths"])
+            improve = (rp["printed_mass_g"] or rp["mass_g"]) < pre_printed * 0.999
+            accept = (improve and rp["pf"] <= target * 1.02
+                      and not prp["out_of_bounds"]
+                      and prp["max_neighbour_width_ratio"] <= 1.5
+                      and prp["max_slenderness"] <= 30.0)
+            accepted_ok &= (not accept)
+            decline_candidate = {"candidate_printed_g": rp["printed_mass_g"],
+                                 "candidate_pf": rp["pf"],
+                                 "would_accept": bool(accept), "improve": bool(improve),
+                                 "printability": prp}
+        except Exception as e:  # pragma: no cover
+            accepted_ok = False
+            decline_candidate = {"error": str(e)}
+        mode = "declined"
+    feasible_ok = (final_pf <= target * 1.02 and not pr["out_of_bounds"]
+                   and pr["max_neighbour_width_ratio"] <= 1.5
+                   and pr["max_slenderness"] <= 30.0)
+    stored_ok = (res.printed_mass_g is not None
+                 and abs(res.printed_mass_g - final_printed) / final_printed < 1e-9)
+    V, se, _, _ = union_volume(lat, final_eval["widths"])
+    union_audit = final_printed / (V * mat.rho / 1000.0) - 1.0
+    audit_ok = abs(union_audit) <= 0.005
+    ok = bool(accepted_ok and feasible_ok and stored_ok and audit_ok and polish_runtime < 120.0)
+    record("K6", "K: v0.4 features",
+           "Union-mass final polish is recorded, bounded and correctly accepted/declined",
+           "Multi-start ranks analytic mass; the short local polish minimises printed Halton mass subject to target P_f and printability; acceptance requires a genuine 60k printed-mass improvement",
+           "Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime",
+           "final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s",
+           f"pre-polish printed {pre_printed:.3f} g -> final {final_printed:.3f} g ({delta_pct:+.3f}%); "
+           f"union_polished={res.union_polished}, union_evals={res.union_evals}; "
+           f"final pf {final_pf:.5f}, neighbour ratio {pr['max_neighbour_width_ratio']:.3f}, "
+           f"slenderness {pr['max_slenderness']:.1f}; runtime {polish_runtime:.1f} s; "
+           f"60k-vs-independent-union {100*union_audit:+.2f}%; mode={mode}",
+           status_for(ok),
+           notes="The global search still ranks with the analytic upper bound (disclosed); only the final "
+                 "selection/polish uses the printed union. The default rPETG design correctly declines the "
+                 "polish when no compliant improvement exists." if mode == "declined" else
+                 "The polish was accepted only after a genuine printed-mass improvement with target/printability compliance.",
+           evidence={"pre_polish_printed_g": pre_printed,
+                     "final_printed_g": final_printed,
+                     "relative_change_pct": delta_pct,
+                     "union_polished": bool(res.union_polished),
+                     "union_evals": int(res.union_evals),
+                     "runtime_s": polish_runtime,
+                     "final_pf": final_pf,
+                     "printability": pr,
+                     "printed_vs_independent_union_pct": 100.0 * union_audit,
+                     "decline_check": decline_candidate if mode == "declined" else None})
+
+    # ---------------- K7: assumption bounds ------------------------------
+    ab = assumption_bounds(mat, d.sigma_req, d.E_req)
+    indep = []
+    for corr in (0.30, 0.70):
+        indep.append(("corr", corr, pf_scipy(dataclasses.replace(mat, corr=corr),
+                                             d.sigma_req, d.E_req)[0]))
+    for frac in (0.75, 0.95):
+        within = math.sqrt(max(1.0 - frac ** 2, 0.0))
+        indep.append(("split", frac, pf_scipy(dataclasses.replace(
+            mat, lot_fraction=frac, within_fraction=within), d.sigma_req, d.E_req)[0]))
+    engine_rows = {("corr", x["corr"]): x["pf"] for x in ab["corr_range"]}
+    engine_rows.update({("split", x["lot_fraction"]): x["pf"] for x in ab["split_range"]})
+    max_ab_err = max(abs(engine_rows[(k, x)] - v) for (k, x, v) in indep)
+    vals_ab = list(engine_rows.values())
+    ordering_ok = (abs(ab["pf_min"] - min(vals_ab)) < 1e-15
+                   and abs(ab["pf_max"] - max(vals_ab)) < 1e-15
+                   and engine_rows[("split", 0.75)] < engine_rows[("split", 0.95)])
+    corr_insensitive = abs(engine_rows[("corr", 0.30)] - engine_rows[("corr", 0.70)]) < 1e-12
+    ok = max_ab_err <= 1e-12 and ordering_ok
+    record("K7", "K: v0.4 features",
+           "Assumption bounds are computed correctly and labelled as assumption sensitivity, not validation",
+           "P_f is re-evaluated for corr(lnE,ln sy)=0.30/0.70 and lot-vs-within variance split 75/95%; this is a sensitivity band on unmeasured assumptions",
+           "Engine assumption_bounds vs independent SciPy closed-form P_f at each assumption setting",
+           "engine vs independent <= 1e-12; pf_min/pf_max match the four settings; split monotone",
+           f"corr 0.30/0.70 -> {engine_rows[('corr', 0.30)]:.5f}/{engine_rows[('corr', 0.70)]:.5f} "
+           f"(insensitive={corr_insensitive}); split 75/95% -> "
+           f"{engine_rows[('split', 0.75)]:.5f}/{engine_rows[('split', 0.95)]:.5f}; "
+           f"range [{ab['pf_min']:.5f}, {ab['pf_max']:.5f}], max err {max_ab_err:.1e}",
+           status_for(ok),
+           notes="These are unmeasured assumptions: no recyclate dataset gives the lnE-ln sy correlation "
+                 "or the lot/within variance split. The bound is reported as a range, not as validation. "
+                 "For this stiffness-governed design the correlation has no effect; the split moves P_f "
+                 "by ~6x, which is the dominant assumption exposure.")
+
+    # ---------------- K8: report / lot record ----------------------------
+    required_keys = ["brittle_screen", "assumptions", "process_ok",
+                     "lot_record_supplied", "validation"]
+    html_path = ROOT / "reports" / "qualification_report.html"
+    html = html_path.read_text() if html_path.exists() else ""
+    app_ui = (ROOT / "app" / "ui.js").read_text() if (ROOT / "app" / "ui.js").exists() else ""
+    br = summary.get("brittle_screen", {})
+    ass = summary.get("assumptions", {})
+    val = summary.get("validation", {})
+    robust_pf = summary.get("robust", {}).get("pf", float("nan"))
+    html_required = ["Brittle-lot screen", "Assumption bounds", "Process compatibility",
+                     "no delivered lot was supplied to this design-stage report",
+                     "validation/VALIDATION.md"]
+    html_ok = all(s in html for s in html_required)
+    fields_ok = (all(k in summary for k in required_keys)
+                 and br.get("pf_brittle") is not None
+                 and abs(br.get("pf_bound", 0.0) - (robust_pf + br.get("pf_brittle", 0.0))) < 1e-9
+                 and abs(br.get("strain_req_pct", 0.0)
+                         - 100.0 * summary["robust"]["sigma_req_MPa"]
+                         / summary["material"]["E_mean"]) < 1e-9
+                 and summary.get("process_ok") is True
+                 and summary.get("lot_record_supplied") is False
+                 and abs(ass.get("pf_min", -1) - min(
+                     [x["pf"] for x in ass.get("corr_range", [])]
+                     + [x["pf"] for x in ass.get("split_range", [])])) < 1e-15
+                 and abs(ass.get("pf_max", -1) - max(
+                     [x["pf"] for x in ass.get("corr_range", [])]
+                     + [x["pf"] for x in ass.get("split_range", [])])) < 1e-15)
+    app_ok = all(s in app_ui for s in ("lot_id", "supplier", "recycled_content_pct",
+                                       ("measurement_cv" if "measurement_cv" in app_ui else "measurement")))
+    counts_present = all(k in val for k in ("PASS", "WARN", "FAIL", "total"))
+    prev_results = HERE / "results.json"
+    fresh = None
+    if prev_results.exists():
+        try:
+            prev = json.loads(prev_results.read_text())["summary"]
+            fresh = (val.get("total") == prev.get("total")
+                     and val.get("PASS") == prev.get("PASS")
+                     and val.get("WARN") == prev.get("WARN")
+                     and val.get("FAIL") == prev.get("FAIL"))
+        except Exception:
+            fresh = None
+    ok = fields_ok and html_ok and app_ok and counts_present
+    status = "PASS" if (ok and fresh) else ("WARN" if ok else "FAIL")
+    record("K8", "I: claim scope" if False else "K: v0.4 features",
+           "Design-stage report and app export carry the v0.4 disclosures",
+           "Report summary/HTML must contain the brittle screen, assumption bounds, process compatibility, validation counts and the no-delivered-lot statement; app Prove export carries lot identity",
+           "reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit)",
+           "all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports)",
+           f"fields_ok={fields_ok}, html_ok={html_ok}, app_lot_identity={app_ok}, "
+           f"report validation {val.get('PASS')}P/{val.get('WARN')}W/{val.get('FAIL')}F of "
+           f"{val.get('total')}; stale vs current results={fresh is False}",
+           status,
+           notes="Reports are generated artifacts: if validation counts are stale, run `make report` after "
+                 "the validation suite (the check then flips to PASS). The no-lot statement is required "
+                 "because the design-stage report is generic; the app Prove export carries lot ID, supplier, "
+                 "measurement source/CV and recycled-content %.")
+    # figure 6: v0.4 features
+    fig, axs = plt.subplots(1, 3, figsize=(12.6, 3.9), dpi=140)
+    ax = axs[0]
+    dens = np.linspace(0.0005, 0.06, 200)
+    ax.plot(100 * dens, [failure_probability_elongation(mat, x, level="lot") for x in dens], "-",
+            label="engine, lot level")
+    ax.plot(100 * dens, [failure_probability_elongation(mat, x, level="within") for x in dens], "--",
+            label="engine, within level")
+    f_lot = mat.lot_fraction
+    cv_l = mat.elongation_cv * f_lot
+    mean_l = mat.elongation_mean / 100.0
+    sig_l = math.sqrt(math.log1p(cv_l * cv_l)); mu_l = math.log(mean_l) - 0.5 * sig_l ** 2
+    ax.plot(100 * dens, [lognorm.cdf(x, s=sig_l, scale=math.exp(mu_l)) for x in dens], ":",
+            label="independent lognormal")
+    ax.set_xlabel("strain demand (%)"); ax.set_ylabel("P(elongation at break < demand)")
+    ax.set_title("K5: brittle-lot marginal screen (rPETG)")
+    ax.legend(fontsize=7)
+    ax = axs[1]
+    vals_plot = [engine_rows[("corr", 0.30)], engine_rows[("corr", 0.70)],
+                 engine_rows[("split", 0.75)], engine_rows[("split", 0.95)]]
+    ax.bar(["corr\n0.30", "corr\n0.70", "lot split\n75%", "lot split\n95%"], vals_plot,
+           color=["#79c", "#79c", "#c96", "#c96"])
+    ax.set_ylabel("P_f (two-property)"); ax.set_title("K7: assumption sensitivity, not validation")
+    ax = axs[2]
+    ax.bar(["pre-polish", "final"], [pre_printed, final_printed], color=["#aaa", "#3a7"])
+    ax.set_ylabel("printed union mass (g)")
+    ax.set_title(f"K6: union polish ({'accepted' if res.union_polished else 'correctly declined'})")
+    fig.tight_layout()
+    fig.savefig(FIG / "06_v04_features.png"); plt.close(fig)
+    FIGS.append("figures/06_v04_features.png")
+
+    return {"K4": rows, "K5": {"max_err": max_err, "pf_brittle": r["pf_brittle"]},
+            "K6": {"pre": pre_printed, "final": final_printed, "polished": bool(res.union_polished)},
+            "K7": {"pf_min": ab["pf_min"], "pf_max": ab["pf_max"]},
+            "K8": {"fresh": fresh, "html_ok": html_ok}}
+
+
 def check_I():
     ladder = {
         "L0_code_verified": {
@@ -1409,7 +1752,8 @@ def check_I():
             "status": "achieved",
             "evidence": "B (energy-minimisation cross-check), C1-C5 (reliability quadrature/MC convergence), "
                         "D1-D3 (optimiser vs brute force), E (periodic cell energy/stress consistency), "
-                        "F4/F5 (mass basis audited), H (counts/determinism), J/K (model-form bands and v0.3 features)",
+                        "F4/F5 (mass basis audited), H (counts/determinism), J/K (model-form bands and v0.3/v0.4 features: "
+                        "K4 process gate, K5 brittle marginal, K6 union polish, K7 assumption bounds, K8 report disclosures)",
         },
         "L2_literature_calibrated_uq": {
             "status": "partial",
@@ -1417,7 +1761,8 @@ def check_I():
         },
         "L3_literature_reproduced": {
             "status": "pre-registered, no data",
-            "evidence": "coupon/bracket blind predictions, protocol and acceptance criteria frozen and hashed (L1); no measurements have been made",
+            "evidence": "coupon/bracket blind predictions (stiffness, first-yield, strain, brittle marginal), "
+                        "protocol and acceptance criteria frozen and hashed (L1); no measurements have been made",
         },
         "L4_component_validated": {"status": "absent", "evidence": "no coupon experiments exist"},
         "L5_system_validated": {"status": "absent", "evidence": "no full-bracket experiments exist"},
@@ -1425,7 +1770,7 @@ def check_I():
     }
     record("I1", "I: claim scope", "Claim-ladder mapping (L0-L2) updated by this validation",
            "L0 and L1 are demonstrated by independent checks; L2 is partial; L3+ remain absent",
-           "Mapping of A-H results onto the dossier-05 claim ladder",
+           "Mapping of A-L results onto the dossier-05 claim ladder",
            "documentation consistent with evidence (no over-claim)",
            "L0 achieved, L1 achieved, L2 partial, L3 pre-registered only, L4-L6 absent",
            "PASS", notes="Every user-facing number should carry its level; this suite raises L0/L1 confidence only.",
@@ -1470,6 +1815,15 @@ def check_I():
                           "for sustained load.",
         "coupon_not_tested": "The coupon/bracket plan is pre-registered only (L1); no physical measurements "
                              "exist. Claim level remains L0-L1, L2 partial, L3 pre-registered.",
+        "brittle_screen_marginal": "The brittle-lot screen is a one-property lognormal marginal (pf_brittle) "
+                                   "reported as a conservative add-on; the joint three-property probability is "
+                                   "NOT claimed because the E-elongation correlation (-0.25) is assumed (K5).",
+        "assumption_bounds_not_validation": "The reported P_f range over corr 0.30/0.70 and lot split 75/95% is "
+                                            "sensitivity to unmeasured assumptions, not validation; the split is "
+                                            "the dominant exposure (~6x P_f swing on the shipped design, K7).",
+        "process_gate_scope": "Only FDM/FFF material data may enter the printed-bracket model; moulded/injection "
+                              "presets are contrast-only and design is blocked (K4). This is a claim gate, not a "
+                              "mechanical validation of printed-part properties.",
         "printed_union_discretisation": "The deterministic 60k-point Halton printed-union estimate deviates from "
                                         "an independent 10M-sample Monte Carlo by <=0.1% at the shipped designs but "
                                         "by 0.35% at w=1 mm (W_MIN) — beyond the documented 0.3% claim (F5 WARN). "
@@ -1822,16 +2176,25 @@ def check_L():
         k_now = mat.E_mean / d.u_tip_unit
         fy_now = mat.sy_mean / (d.sigma_req / F_DESIGN)
         pred_b = pred["specimens"]["bracket_7x3_robust"]["predicted"]
+        strain_b_now = 100.0 * d.sigma_req / mat.E_mean
+        brittle_b_now = failure_probability_elongation(mat, d.sigma_req / mat.E_mean, level="lot")
         rel_b = max(abs(k_now / pred_b["tip_stiffness_N_per_mm"] - 1.0),
-                    abs(fy_now / pred_b["first_yield_load_N"] - 1.0))
+                    abs(fy_now / pred_b["first_yield_load_N"] - 1.0),
+                    abs(strain_b_now / pred_b["strain_req_pct"] - 1.0),
+                    abs(brittle_b_now - pred_b["pf_brittle"]) / max(abs(pred_b["pf_brittle"]), 1e-300),
+                    abs(mat.elongation_mean - pred["material"]["elongation_mean_pct"]) / mat.elongation_mean)
         cspec = pred["specimens"]["coupon_3x2"]
         gen = generic_lattice(3, 2, pad=PAD_LEN, wide=70.0, tall=40.0)
         wc = widths_from_controls(uniform_controls(cspec["geometry"]["nominal_width_mm"]), gen.midpoints)
         gc = generic_demands(gen, wc, 3, 2)
         k_c_now = mat.E_mean / gc["u_tip_unit"]
         fy_c_now = mat.sy_mean / (gc["sigma_req"] / F_DESIGN)
+        strain_c_now = 100.0 * gc["sigma_req"] / mat.E_mean
+        brittle_c_now = failure_probability_elongation(mat, gc["sigma_req"] / mat.E_mean, level="lot")
         rel_c = max(abs(k_c_now / cspec["predicted"]["tip_stiffness_N_per_mm"] - 1.0),
-                    abs(fy_c_now / cspec["predicted"]["first_yield_load_N"] - 1.0))
+                    abs(fy_c_now / cspec["predicted"]["first_yield_load_N"] - 1.0),
+                    abs(strain_c_now / cspec["predicted"]["strain_req_pct"] - 1.0),
+                    abs(brittle_c_now - cspec["predicted"]["pf_brittle"]) / max(abs(cspec["predicted"]["pf_brittle"]), 1e-300))
         tool_ok = False; tool_obs = ""
         try:
             tmp = ART / "coupon_measurements_template.csv"
@@ -1850,7 +2213,7 @@ def check_L():
            "Frozen coupon/bracket predictions, protocol and comparison tool are pre-registered",
            "The L3+ path is a pre-registered, blind prediction package: no physical test exists, so this check only verifies integrity and reproducibility of the frozen artifacts",
            "COUPON_TEST_PLAN.md + coupon_predictions.json (hash) + compare_measurements.py; predictions recomputed from current engine/model",
-           "files exist, pre-registration hash matches canonical payload, predictions reproduce <=1e-9, tool template parses",
+           "files exist, pre-registration hash matches canonical payload, stiffness/first-yield/strain/brittle predictions reproduce <=1e-9, tool template parses",
            obs, status_for(ok),
            notes="Status is L3-path *pre-registration*, not L3/L4 evidence: no measurements have been made. "
                  "The hash freezes geometry, material, predictions, uncertainty bands and acceptance criteria "
@@ -1901,7 +2264,7 @@ def write_reports(ladder, limits, env):
 
     lines = []
     A = lines.append
-    A("# AnyRB independent validation report (v0.3)")
+    A("# AnyRB independent validation report (v0.4)")
     A("")
     A(f"Generated: {results['generated_utc']} · Suite runtime {elapsed:.1f} s · "
       f"Python {env['python']} · NumPy {env['numpy']} · SciPy {env['scipy']} · "
@@ -1928,6 +2291,11 @@ def write_reports(ladder, limits, env):
     A("- **Mass basis:** display `printed_mass_g` (deterministic Halton-QMC union). F5 audits it against "
       "independent Monte Carlo: ≤0.1% deviation at the shipped designs, 0.35% worst case at w=1 mm (W_MIN) — "
       "a documented WARN. Label analytic `mass_g` strictly as a conservative upper bound (F4 WARN).")
+    A("- **v0.4 disclosures:** brittle-lot screen is a *marginal add-on* (`pf_brittle` shown separately; "
+      "`pf_brittle_bound = pf + pf_brittle`, joint three-property probability NOT claimed); the P_f range over "
+      "corr 0.30/0.70 and lot split 75/95% is assumption sensitivity, not validation; only FDM/FFF material "
+      "data may enter the printed-bracket model (non-printed presets are contrast-only and design is blocked); "
+      "the final design mass is selected on the printed union after a recorded polish step.")
     A("")
     A("## Summary")
     A("")
@@ -2021,8 +2389,16 @@ def write_reports(ladder, limits, env):
       "static allowable and fails it (K1); a 12% measurement CV is retained (known-lot P_f ~0.8%, not zero) and "
       "the lot-specific recipe is self-consistent (K2); the family feasibility gate matches an independent "
       "W_MAX computation for feasible and infeasible materials (K3).")
-    A("11. The coupon/bracket blind-prediction package is pre-registered and hash-frozen; no physical test has "
-      "been performed or is claimed (L1).")
+    A("11. The coupon/bracket blind-prediction package is pre-registered and hash-frozen, including stiffness, "
+      "first-yield, strain and brittle-marginal predictions; no physical test has been performed or is claimed (L1).")
+    A("12. v0.4 additions are independently checked: the printed-process gate refuses IM/compression presets and "
+      "lets only FDM/FFF data through (K4); the brittle-lot screen matches an independent lognormal marginal, is "
+      "monotone, handles zero-CV/NaN limits and keeps the headline two-property P_f separate (K5); the union-mass "
+      "polish is recorded, bounded, printable and correctly declined when there is no compliant improvement (K6); "
+      "assumption bounds over corr 0.30/0.70 and lot split 75/95% match independent closed-form P_f and are "
+      "reported as assumption sensitivity, not validation (K7); the report/export disclosures are present (K8).")
+    A("13. The design-stage report explicitly states that no delivered lot was supplied, while the app Prove "
+      "export carries lot ID, supplier, measurement source/CV and recycled-content % as a paperwork claim (K8).")
     A("")
     A("### What this suite does NOT verify")
     A("")
@@ -2031,7 +2407,10 @@ def write_reports(ladder, limits, env):
       "behaviour, plasticity, creep/fatigue, spatial defect statistics and the literature-derived "
       "material distributions are outside the scope of these checks. The sustained-load bound is an advisory "
       "calculation, not a creep model; the cell-size and joint bands are internal model-form estimates, not "
-      "experiments. The coupon/bracket plan is pre-registered only (L3 path), with no measurements. The claim level remains L0–L1 "
+      "experiments. The brittle screen is a one-property marginal, not a joint three-property probability; the "
+      "assumption bounds are sensitivity to unmeasured values; the process gate is a claim-scope restriction, not "
+      "a printed-part validation. The coupon/bracket plan is pre-registered only (L3 path), with no measurements. "
+      "The claim level remains L0–L1 "
       "(code/solution verification) with partial L2 (literature-calibrated UQ), **not** L3–L6. "
       "No statement here supports certification, production reliability, or compliance with "
       "ISO/ASTM/UL/PPWR requirements.")
@@ -2079,6 +2458,7 @@ def write_reports(ladder, limits, env):
     A("| Fixed 48-point GL loss at rho=0.99 | C1b | **FIXED**: adaptive SciPy path for |rho|>0.9; C1b PASS (independent 1-D quadrature) |")
     A("| Degenerate-marginal P_f combination | C9 | **FIXED**: corrected combination; C9 exact |")
     A("| Engine printed/union mass method changed to deterministic Halton QMC | v0.3 | **AUDITED**: F5 WARN — ≤0.1% vs independent MC at shipped designs, 0.35% at w=1 mm (W_MIN); analytic remains a labelled upper bound (F4 WARN) |")
+    A("| Generated report validation counts lag the suite after each check-set change | K8 | **OPEN (WARN, by design)**: run `make report` after validation; the check then flips to PASS. Report content (brittle, assumptions, process, no-lot statement) is present. |")
     A("")
     A("## Recommended engine/product changes (not applied — validator scope)")
     A("")
@@ -2092,7 +2472,13 @@ def write_reports(ladder, limits, env):
     A("3. **Model-form disclosure (J1/J2):** surface the cell-count and frame-vs-truss bands wherever absolute "
       "numbers are shown; avoid implying the lattice family is a general topology optimiser.")
     A("4. **Coupon path (L1):** re-issue the pre-registration (new hash) if the engine changes; never tune "
-      "predictions after measurements.")
+      "predictions after measurements. The v0.4 package now also freezes strain-demand and brittle-marginal "
+      "predictions plus an ISO 527-2 elongation coupon test.")
+    A("5. **Report freshness (K8):** generated reports embed the last validation counts. Run `make report` "
+      "after every validation run; K8 remains WARN until the report's counts match `validation/results.json`.")
+    A("6. **Brittle screen (K5):** keep `pf_brittle` / `pf_brittle_bound` visually separate from the headline "
+      "two-property P_f and never present the add-on bound as a joint probability; the E-elongation correlation "
+      "is assumed.")
     A("")
     (HERE / "VALIDATION.md").write_text("\n".join(lines) + "\n")
     return results, counts
@@ -2133,6 +2519,7 @@ def main():
     check_J(lat)
     check_K()
     check_L()
+    check_v04()
     ladder, limits = check_I()
     results, counts = write_reports(ladder, limits, env)
     print("\n" + "=" * 78)

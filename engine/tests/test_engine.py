@@ -266,6 +266,48 @@ class TestOptimisation(unittest.TestCase):
         self.assertTrue(aw["pass"][j, i])
 
 
+class TestV04Gaps(unittest.TestCase):
+    def test_process_gate_blocks_non_fdm_presets(self):
+        from anyrb.optimize import family_feasibility
+        fg = family_feasibility(PRESETS["rpetg"], 0.01)
+        self.assertTrue(fg["feasible"])
+        self.assertTrue(fg["process_ok"])
+        for key in ("rpet", "rhdpe", "rpp"):
+            f = family_feasibility(PRESETS[key], 0.01)
+            self.assertFalse(f["feasible"])
+            self.assertFalse(f["process_ok"])
+            self.assertEqual(f["reason"], "process_mismatch")
+
+    def test_brittle_screen_marginal(self):
+        from anyrb.reliability import failure_probability_elongation
+        m = PRESETS["rpetg"]
+        p_low = failure_probability_elongation(m, 0.005)
+        p_high = failure_probability_elongation(m, 0.02)
+        self.assertLessEqual(p_low, p_high)
+        self.assertGreaterEqual(p_low, 0.0)
+        self.assertLessEqual(p_high, 1.0)
+        r = evaluate(m, np.log(np.array([[1.8,1.6,1.4,1.2],[1.7,1.5,1.3,1.15]])).ravel())
+        self.assertAlmostEqual(r["strain_req"], r["sigma_req_MPa"] / m.E_mean, places=12)
+        self.assertAlmostEqual(r["pf_brittle_bound"], r["pf"] + r["pf_brittle"], places=12)
+        self.assertFalse(m.print_process_ok is False)  # rPETG is printed
+        self.assertFalse(PRESETS["rpet"].print_process_ok)
+
+    def test_assumption_bounds_are_sensitivity_not_validation(self):
+        from anyrb.reliability import assumption_bounds
+        r = optimize_robust(PRESETS["rpetg"], 0.02)
+        b = assumption_bounds(PRESETS["rpetg"], r.sigma_req_MPa, r.E_req_MPa)
+        self.assertLessEqual(b["pf_min"], b["pf_max"])
+        self.assertEqual(len(b["corr_range"]), 2)
+        self.assertEqual(len(b["split_range"]), 2)
+        self.assertTrue(0.0 <= b["pf_min"] <= 1.0 and 0.0 <= b["pf_max"] <= 1.0)
+
+    def test_union_polish_fields(self):
+        r = optimize_robust(PRESETS["rpetg"], 0.02)
+        self.assertIsInstance(r.union_polished, bool)
+        self.assertIsInstance(r.union_evals, int)
+        self.assertLess(r.printed_mass_g, r.mass_g)
+
+
 class TestIO(unittest.TestCase):
     def test_stl_export(self):
         lat = build_lattice()

@@ -42,6 +42,8 @@ class DesignResult:
     printed_mass_g: float | None = None
     mass_analytic_g: float | None = None
     printability: dict | None = None
+    union_polished: bool = False
+    union_evals: int = 0
     reliability: float = field(init=False)
     strategy: str = ""
 
@@ -61,6 +63,9 @@ class DesignResult:
             "sigma_req_MPa": self.sigma_req_MPa,
             "E_req_MPa": self.E_req_MPa,
             "u_tip_mean_mm": self.u_tip_mean_mm,
+            "printability": self.printability,
+            "union_polished": self.union_polished,
+            "union_evals": self.union_evals,
         }
 
 
@@ -224,7 +229,8 @@ def uniform_width_for_mass(mat: Material, mass_target: float) -> float:
 # ---------------------------------------------------------------------------
 def optimize_robust(mat: Material, target_pf: float = 0.01,
                     x0: np.ndarray | None = None, max_evals: int = 1200,
-                    name: str = "Robust optimisation") -> DesignResult:
+                    name: str = "Robust optimisation",
+                    union_polish: bool = True) -> DesignResult:
     def objective(x):
         r = evaluate(mat, x, printed=False)
         excess = max(0.0, r["pf"] - target_pf) / target_pf
@@ -245,7 +251,24 @@ def optimize_robust(mat: Material, target_pf: float = 0.01,
         if best is None or score < best[0]:
             best = (score, xs)
     x = best[1] if best else _run_multistart(objective, _starts(mat, target_pf))[0]
-    return _result(name, "robust", mat, x)
+    polished = None
+    if union_polish and mat.print_process_ok:
+        try:
+            before = evaluate(mat, x)
+            x2, info = _union_polish(mat, x, target_pf)
+            r2 = evaluate(mat, x2)
+            pr2 = printability_report(build_lattice(), r2["widths"])
+            improved = (r2.get("printed_mass_g") or r2["mass_g"]) < (before.get("printed_mass_g") or before["mass_g"]) * 0.999
+            if (improved and r2["pf"] <= target_pf * 1.02 and not pr2["out_of_bounds"]
+                    and pr2["max_neighbour_width_ratio"] <= 1.5
+                    and pr2["max_slenderness"] <= 30.0):
+                x, polished = x2, info
+        except Exception:
+            polished = None
+    result = _result(name, "robust", mat, x)
+    result.union_polished = bool(polished)
+    result.union_evals = int(polished["evals"]) if polished else 0
+    return result
 
 
 def optimize_deterministic(mat: Material, safety_factor: float = 1.5,
@@ -342,7 +365,7 @@ def pareto_curve(mat: Material, targets: list[float] | None = None,
     x = x0
     for t in targets:
         r = optimize_robust(mat, target_pf=t, x0=x, max_evals=900,
-                            name=f"target {t:g}")
+                            name=f"target {t:g}", union_polish=False)
         out.append({"target_pf": t, "achieved_pf": r.pf,
                     "mass_g": r.printed_mass_g if r.printed_mass_g else r.mass_g,
                     "mass_analytic_g": r.mass_g,
@@ -351,6 +374,32 @@ def pareto_curve(mat: Material, targets: list[float] | None = None,
     return out
 
 
+
+
+def _union_polish(mat: Material, controls: np.ndarray, target_pf: float,
+                  n_halton: int = 10_000, max_evals: int = 90) -> tuple[np.ndarray, dict]:
+    """Local finish on the printed/union mass instead of the analytic bound.
+
+    The global multi-start search still ranks with the fast analytic mass; this
+    short local pattern search then minimises the printed Halton union estimate
+    subject to the same reliability target and printability limits.  It makes
+    the *delivered* design locally optimal on the reported mass basis.
+    """
+    lat = build_lattice()
+
+    def objective(x):
+        c = np.clip(np.asarray(x, float), LOG_LO, LOG_HI)
+        w = widths_from_controls(c, lat.midpoints)
+        r = evaluate(mat, c, printed=False)
+        excess = max(0.0, r["pf"] - target_pf) / target_pf
+        m = printed_mass_g(lat, w, mat.rho, n=n_halton)
+        return m * (1.0 + 100.0 * excess + _print_penalty(w))
+
+    x, _, evals = pattern_search(objective, np.asarray(controls, float),
+                                 max_evals=max_evals)
+    r = evaluate(mat, x)
+    return x, {"evals": evals, "printed_mass_g": r.get("printed_mass_g"),
+               "pf": r["pf"], "printability": printability_report(lat, r["widths"])}
 
 
 # ---------------------------------------------------------------------------
@@ -367,11 +416,17 @@ def family_feasibility(mat: Material, target_pf: float = 0.01,
     from .lattice import F_DESIGN, U_LIMIT
     F = F_DESIGN if F is None else F
     u_lim = U_LIMIT if u_lim is None else u_lim
+    if not mat.print_process_ok:
+        return {"feasible": False, "min_achievable_pf": None,
+                "process_ok": False, "reason": "process_mismatch",
+                "detail": (f"material data is for '{mat.process}', not FDM/FFF; "
+                           "a printed lattice cannot use moulded-property data"),
+                "max_width_mm": W_MAX, "target_pf": target_pf}
     widths = widths_from_controls(uniform_controls(W_MAX), build_lattice().midpoints)
     d = demands(build_lattice(), widths, F=F, u_lim=u_lim)
     pf = failure_probability(mat, d.sigma_req, d.E_req, level="lot")
     return {"feasible": bool(pf <= target_pf), "min_achievable_pf": pf,
-            "sigma_req_MPa": d.sigma_req, "E_req_MPa": d.E_req,
+            "process_ok": True, "sigma_req_MPa": d.sigma_req, "E_req_MPa": d.E_req,
             "max_width_mm": W_MAX, "target_pf": target_pf}
 
 

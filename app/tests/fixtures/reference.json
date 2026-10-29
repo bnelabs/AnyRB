@@ -1117,12 +1117,12 @@
    "lot_fraction": 0.92195,
    "within_fraction": 0.3873,
    "sources": [
-    "research/01 R07 (printed rPETG, ISO 527-2: E 2.28 GPa CV 10.8%, peak stress 46.5 MPa)"
+    "research/01 R07 (printed rPETG, ISO 527-2: E 2.28 GPa CV 10.8%, peak stress 46.5 MPa; strain at peak 3.15-3.51%)"
    ]
   },
   "rpet": {
    "id": "rpet",
-   "name": "rPET (bottle-grade recyclate, injection moulding)",
+   "name": "rPET (bottle-grade recyclate; injection/compression data \u2014 contrast only for printed bracket)",
    "process": "IM",
    "E_mean": 2500.0,
    "E_cv": 0.12,
@@ -1133,12 +1133,12 @@
    "lot_fraction": 0.92195,
    "within_fraction": 0.3873,
    "sources": [
-    "research/01 R01,R04,R08,R22"
+    "research/01 R01,R04,R08,R22; elongation from data/feedstock_library.json"
    ]
   },
   "rhdpe": {
    "id": "rhdpe",
-   "name": "rHDPE (post-consumer recyclate)",
+   "name": "rHDPE (post-consumer recyclate; injection/compression data \u2014 contrast only for printed bracket)",
    "process": "IM/compression",
    "E_mean": 950.0,
    "E_cv": 0.22,
@@ -1149,12 +1149,12 @@
    "lot_fraction": 0.92195,
    "within_fraction": 0.3873,
    "sources": [
-    "research/01 R01,R02,R03,R04 (Cecon 2023; Eriksen 2019; PNAS 2025)"
+    "research/01 R01,R02,R03,R04 (Cecon 2023; Eriksen 2019; PNAS 2025); elongation from library"
    ]
   },
   "rpp": {
    "id": "rpp",
-   "name": "rPP (post-consumer recyclate)",
+   "name": "rPP (post-consumer recyclate; injection data \u2014 contrast only for printed bracket)",
    "process": "IM",
    "E_mean": 1100.0,
    "E_cv": 0.18,
@@ -1165,7 +1165,7 @@
    "lot_fraction": 0.92195,
    "within_fraction": 0.3873,
    "sources": [
-    "research/01 R02,R03,R04,R05,R06"
+    "research/01 R02,R03,R04,R05,R06; elongation from library (10 PCR-PP lots 10-100%)"
    ]
   }
  },
@@ -1291,6 +1291,12 @@
     "max_neighbour_width_ratio": 1.0000000000000002,
     "out_of_bounds": false
    },
+   "strain_req": 0.006628209689931176,
+   "pf_brittle": 0.0,
+   "pf_brittle_bound": 8.220160034677626e-05,
+   "elongation_mean_pct": 4.0,
+   "elongation_cv": 0.2,
+   "process_ok": true,
    "sigma_req_MPa": 13.91924034885547,
    "E_req_MPa": 1478.4990367212513,
    "E_req_def_MPa": 1353.5662931953038,
@@ -1710,6 +1716,12 @@
     "max_neighbour_width_ratio": 1.0,
     "out_of_bounds": false
    },
+   "strain_req": 0.008575450043981034,
+   "pf_brittle": 0.0,
+   "pf_brittle_bound": 0.9999999909516268,
+   "elongation_mean_pct": 4.0,
+   "elongation_cv": 0.2,
+   "process_ok": true,
    "sigma_req_MPa": 18.008445092360173,
    "E_req_MPa": 3509.939020482656,
    "E_req_def_MPa": 1808.23214206078,
@@ -1838,6 +1850,12 @@
     "max_neighbour_width_ratio": 1.0,
     "out_of_bounds": false
    },
+   "strain_req": 0.004581699219625656,
+   "pf_brittle": 0.0,
+   "pf_brittle_bound": 2.1316282072803006e-14,
+   "elongation_mean_pct": 3.5,
+   "elongation_cv": 0.25,
+   "process_ok": false,
    "sigma_req_MPa": 11.454248049064141,
    "E_req_MPa": 1080.1894884848034,
    "E_req_def_MPa": 1080.1894884848034,
@@ -1966,6 +1984,12 @@
     "max_neighbour_width_ratio": 1.9720087492381322,
     "out_of_bounds": false
    },
+   "strain_req": 0.006214831376761003,
+   "pf_brittle": 0.0,
+   "pf_brittle_bound": 0.7479073276387949,
+   "elongation_mean_pct": 4.0,
+   "elongation_cv": 0.2,
+   "process_ok": true,
    "sigma_req_MPa": 13.051145891198107,
    "E_req_MPa": 2223.6586437158385,
    "E_req_def_MPa": 1456.244085422595,

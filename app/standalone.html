@@ -856,6 +856,19 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
 .optimised-hero .hero-metrics b { font: 600 15px var(--mono); color: var(--ink); }
 @media (max-width: 900px) { .optimised-hero .hero-metrics { grid-template-columns: repeat(2, 1fr); } }
 
+/* v0.4 remaining-gaps cards */
+.family-gate.process-gate { border-color: #D8C9B5; background: #FBF6EC; }
+.family-gate.process-gate .fg-icon { background: #8A6A2F; }
+.brittle-card { border-color: #E7C7B5; }
+.brittle-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 16px; margin-top: 12px; }
+.brittle-grid .micro { display: block; margin-bottom: 3px; }
+.brittle-grid b { font: 600 14px var(--mono); color: var(--ink); }
+.brittle-grid .is-warn b { color: var(--accent-ink); }
+.assumption-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; margin-top: 10px; font-size: 12.5px; color: var(--muted-strong); }
+.assumption-body b { font-family: var(--mono); color: var(--ink); }
+.assumption-band { margin-top: 10px; padding: 10px 12px; background: var(--card-warm); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+@media (max-width: 1080px) { .brittle-grid { grid-template-columns: repeat(2, 1fr); } }
+
 </style>
 
 </head>
@@ -1010,6 +1023,12 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
           <div class="fg-head"><span class="fg-icon" aria-hidden="true">!</span><div><h3 style="margin:0">Infeasible for this bracket family</h3>
           <p class="card-sub" style="margin:2px 0 0">Even the widest printable uniform lattice (4.0 mm struts) cannot meet the reliability target with this batch. Design is blocked — no AI candidate is drawn.</p></div></div>
           <div class="fg-facts" id="family-gate-facts">—</div>
+        </div>
+
+        <div class="card family-gate process-gate" id="process-gate" role="alert" hidden>
+          <div class="fg-head"><span class="fg-icon" aria-hidden="true">!</span><div><h3 style="margin:0">Material data is not for a printed process</h3>
+          <p class="card-sub" style="margin:2px 0 0" id="process-gate-sub">Injection/compression-moulded property data cannot be used for a printed lattice. Pick rPETG (printed, FDM/FFF), or treat this preset as contrast only.</p></div></div>
+          <div class="fg-facts" id="process-gate-facts">—</div>
         </div>
 
         <div class="brief-cols">
@@ -1171,6 +1190,7 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
             <div><span class="micro">Printability</span><b id="hero-print">—</b></div>
             <div><span class="micro">Governing mode</span><b id="hero-mode">—</b></div>
           </div>
+          <p class="micro" id="hero-polish" style="margin-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">Union-mass polish pending.</p>
         </div>
 
         <div class="candidates-head row-between">
@@ -1197,6 +1217,16 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
             <div class="vs-bars" id="vs-bars"></div>
             <p class="vs-takeaway" id="vs-takeaway">—</p>
           </div>
+        </div>
+
+        <div class="card brittle-card" id="brittle-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Brittle-lot screen <span class="pill pill--accent" style="height:20px;vertical-align:2px">NOT in headline P_f</span></h3>
+            <div class="card-sub">Marginal lognormal P(elongation-at-break &lt; peak strain demand) — a conservative add-on screen, reported separately.</div></div>
+            <span class="badge-model" id="brittle-badge" data-kind="engine"><span class="b-dot"></span>marginal screen</span>
+          </div>
+          <div class="brittle-grid" id="brittle-values">—</div>
+          <p class="micro" id="brittle-note" style="margin-top:8px">E–elongation correlation assumed −0.25 (unmeasured); not folded into the headline P_f.</p>
         </div>
 
         <div class="design-ctas">
@@ -1253,7 +1283,11 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
             <div class="qc-field"><label for="qc-e">Measured lot E · MPa</label><input id="qc-e" type="number" step="10" min="200" max="6000"></div>
             <div class="qc-field"><label for="qc-sy">Measured lot σy · MPa</label><input id="qc-sy" type="number" step="1" min="5" max="120"></div>
             <div class="qc-field"><label for="qc-cv">Measurement CV · %</label><input id="qc-cv" type="number" step="1" min="1" max="40" value="12"></div>
+            <div class="qc-field"><label for="qc-mfi">MFI · g/10 min <span class="qc-tag">not used — no calibrated proxy</span></label><input id="qc-mfi" type="number" step="0.1" min="0" placeholder="e.g. 18"></div>
+            <div class="qc-field"><label for="qc-density">Density · g/cm³ <span class="qc-tag">not used — no calibrated proxy</span></label><input id="qc-density" type="number" step="0.01" min="0.5" placeholder="e.g. 1.24"></div>
+            <div class="qc-field"><label for="qc-tensile-row">Tensile test row / certificate <span class="qc-tag">traceability only</span></label><input id="qc-tensile-row" type="text" placeholder="e.g. ISO 527-2 row 3"></div>
           </div>
+          <p class="micro" id="qc-notused" style="margin-top:8px;text-transform:none;letter-spacing:0;line-height:1.5">MFI / density / tensile-row are recorded for traceability only and are <b>not used</b> in the simulation — no calibrated proxy exists; E and σy above are the inputs actually used.</p>
           <div class="chip-row" style="margin:10px 0 4px">
             <button class="chip" type="button" data-lot="nominal">Nominal lot</button>
             <button class="chip" type="button" data-lot="weak">Weak lot · E ×0.8</button>
@@ -1277,6 +1311,26 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
           </div>
           <div class="advisory-body" id="sustained-values">—</div>
           <p class="micro" id="sustained-note" style="margin-top:8px">Advisory only. The static qualification above is unchanged.</p>
+        </div>
+
+        <div class="card brittle-card" id="brittle-proof-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Brittle-lot screen <span class="pill pill--accent" style="height:20px;vertical-align:2px">NOT in headline P_f</span></h3>
+            <div class="card-sub">Marginal elongation screen; conservative add-on bound, not the headline reliability.</div></div>
+            <span class="badge-model" id="proof-brittle-badge" data-kind="engine"><span class="b-dot"></span>marginal screen</span>
+          </div>
+          <div class="brittle-grid" id="proof-brittle-values">—</div>
+          <p class="micro" id="proof-brittle-note" style="margin-top:8px">E–elongation correlation assumed −0.25 (unmeasured).</p>
+        </div>
+
+        <div class="card" id="assumptions-card">
+          <div class="card-head">
+            <div><h3 style="margin:0">Assumption sensitivity</h3>
+            <div class="card-sub" id="assumptions-sub">Unmeasured assumptions, not validation — how far P_f moves if the correlation and lot/within split are different.</div></div>
+            <span class="badge-model" id="assumptions-badge" data-kind="fallback"><span class="b-dot"></span>assumption band</span>
+          </div>
+          <div class="assumption-body" id="assumptions-values">—</div>
+          <p class="micro" style="margin-top:8px">corr(lnE, lnσy) 0.30 / 0.70 · lot-vs-within split 75 % / 95 %. This is assumption sensitivity, <b>not validation</b>.</p>
         </div>
 
         <div class="card" id="acceptance-card" style="grid-column:1/-1">
@@ -1336,7 +1390,7 @@ details.why .why-body { font-size: 12.5px; color: var(--muted-strong); line-heig
 </div>
 
 <footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.3</span>
+  <span><b style="color:var(--ink)">AnyRB</b> · AI reliability studio · v0.4</span>
   <span class="f-honest">AnyRB is decision support, not certification.</span>
   <span>In-silico only · Literature-derived feedstock · Simulated numbers</span>
 </footer>
@@ -1424,6 +1478,9 @@ const MATERIAL_PRESETS = {
     E_mean: 2100, E_cv: 0.10,
     sy_mean: 46.0, sy_cv: 0.10,
     rho: 1.24, corr: 0.55,
+    elongationMean: 4.0, elongationCv: 0.20, corrEElong: -0.25,
+    printProcessOk: true,
+    processNote: 'printed in-plane data — valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'R07: printed rPETG, ISO 527-2 in-plane strength 46.5 MPa (library); E 2100 MPa; doi:10.3221/igf-esis.70.18.',
@@ -1437,6 +1494,9 @@ const MATERIAL_PRESETS = {
     E_mean: 2500, E_cv: 0.12,
     sy_mean: 45.0, sy_cv: 0.15,
     rho: 1.34, corr: 0.60,
+    elongationMean: 3.5, elongationCv: 0.25, corrEElong: -0.25,
+    printProcessOk: false,
+    processNote: 'injection-moulding data — contrast only, not valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'rPET studies; spec §3 (provisional).',
@@ -1450,6 +1510,9 @@ const MATERIAL_PRESETS = {
     E_mean: 950, E_cv: 0.22,
     sy_mean: 28.0, sy_cv: 0.17,
     rho: 0.95, corr: 0.55,
+    elongationMean: 14.0, elongationCv: 0.30, corrEElong: -0.25,
+    printProcessOk: false,
+    processNote: 'injection/compression data — contrast only, not valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'Cecon 2023 (modulus range); Eriksen 2019; PNAS 2025 — as cited in spec §1.',
@@ -1463,6 +1526,9 @@ const MATERIAL_PRESETS = {
     E_mean: 1100, E_cv: 0.18,
     sy_mean: 27.0, sy_cv: 0.13,
     rho: 0.94, corr: 0.50,
+    elongationMean: 25.0, elongationCv: 0.45, corrEElong: -0.25,
+    printProcessOk: false,
+    processNote: 'injection data — contrast only, not valid for a printed lattice',
     lotFraction: 0.92195,
     withinFraction: 0.38730,
     source: 'PCR-PP lot-drift literature; spec §3 (provisional).',
@@ -1478,6 +1544,11 @@ function numericMaterial(presetKey) {
     E_mean: p.E_mean, E_cv: p.E_cv,
     sy_mean: p.sy_mean, sy_cv: p.sy_cv,
     rho: p.rho, corr: p.corr,
+    process: p.process,
+    printProcessOk: p.printProcessOk,
+    elongationMean: p.elongationMean,
+    elongationCv: p.elongationCv,
+    corrEElong: p.corrEElong,
     lotFraction: p.lotFraction,
     withinFraction: p.withinFraction,
   };
@@ -1628,7 +1699,21 @@ const V03 = {
   },
 };
 
-return { GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION, V03 };
+
+// ---------------------------------------------------------------------------
+// v0.4 remaining-gaps contract
+// ---------------------------------------------------------------------------
+const V04 = {
+  printedProcesses: ['FDM/FFF'],
+  processGateNote: 'Material data is for an injection/compression process — not valid for a printed lattice. Pick rPETG (printed, FDM/FFF) or treat this preset as contrast only.',
+  brittleNote: 'Brittle-lot screen is a marginal lognormal P(elongation < strain demand). It is a conservative ADD-ON, NOT included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25).',
+  brittleCaveat: 'Elongation-vs-E correlation assumed -0.25 (unmeasured).',
+  assumptionNote: 'Varies two unmeasured assumptions — corr(lnE, lnσy) 0.30/0.70 and lot-vs-within split 75/95% — and shows the P_f range. This is assumption sensitivity, NOT validation.',
+  unionPolish: { nHalton: 10000, maxEvals: 90, acceptFactor: 0.999 },
+  qcNotUsedNote: 'Recorded for traceability only — NOT used in the simulation (no calibrated proxy).',
+};
+
+return { GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION, V03, V04 };
 })();
 
 /* ===== engine.js ===== */
@@ -1714,6 +1799,14 @@ function normalizeMaterial(material = {}) {
     0, 2,
   );
   out.level = out.level || null;
+  // v0.4 printed-process + elongation/brittle screen fields
+  out.process = out.process || out.print_process || 'FDM/FFF';
+  out.printProcessOk = out.printProcessOk ?? out.print_process_ok
+    ?? /FDM|FFF/i.test(String(out.process));
+  const elongMean = out.elongationMean ?? out.elongation_mean ?? (out.preset === 'rPETG' ? 4.0 : NaN);
+  out.elongationMean = Number.isFinite(elongMean) && elongMean > 0 ? elongMean : NaN;
+  out.elongationCv = clamp(out.elongationCv ?? out.elongation_cv ?? 0, 0, 2);
+  out.corrEElong = out.corrEElong ?? out.corr_E_elong ?? -0.25;
   return out;
 }
 
@@ -2632,6 +2725,7 @@ function lotFromMeasurement(materialIn, E_measured, sy_measured, measurementCv =
   const m = normalizeMaterial(materialIn);
   const eWithin = m.E_cv * m.withinFraction;
   const sWithin = m.sy_cv * m.withinFraction;
+  const elongWithin = m.elongationCv * m.withinFraction;
   const eCv = Math.sqrt(Math.max(eWithin * eWithin + measurementCv * measurementCv, 1e-12));
   const sCv = Math.sqrt(Math.max(sWithin * sWithin + measurementCv * measurementCv, 1e-12));
   return {
@@ -2641,6 +2735,9 @@ function lotFromMeasurement(materialIn, E_measured, sy_measured, measurementCv =
     E_cv: eCv,
     sy_mean: Number.isFinite(sy_measured) ? sy_measured : m.sy_mean,
     sy_cv: sCv,
+    elongationCv: Number.isFinite(m.elongationMean)
+      ? Math.sqrt(Math.max(elongWithin * elongWithin + measurementCv * measurementCv, 1e-12))
+      : m.elongationCv,
     lotFraction: 0,
     withinFraction: 1,
     measurementCv,
@@ -2648,10 +2745,87 @@ function lotFromMeasurement(materialIn, E_measured, sy_measured, measurementCv =
   };
 }
 
+/**
+ * Marginal brittle-lot screen: P(elongation-at-break < strain demand), exactly
+ * mirroring Python `reliability.failure_probability_elongation`.
+ * Reported SEPARATELY from the headline two-property P_f (corr assumed -0.25).
+ */
+function failureProbabilityElongation(materialIn, strainDemand, level = 'lot') {
+  const m = normalizeMaterial(materialIn);
+  if (!Number.isFinite(m.elongationMean) || m.elongationMean <= 0) return NaN;
+  const f = level === 'within' ? m.withinFraction : level === 'total' ? 1.0 : m.lotFraction;
+  const cv = m.elongationCv * f;
+  const mean = m.elongationMean / 100;
+  const demand = Math.max(strainDemand, 1e-12);
+  if (cv <= 0) return demand >= mean ? 1 : 0;
+  const p = lognormalParams(mean, cv);
+  return clamp(normalCDF((Math.log(demand) - p.mu) / p.sigma), 0, 1);
+}
+
+/**
+ * Assumption sensitivity (mirrors Python `reliability.assumption_bounds`):
+ * corr(lnE, lnσy) 0.30/0.70 and lot-vs-within split 75/95 %.
+ */
+function assumptionBounds(materialIn, sigmaReq, Ereq, level = 'lot') {
+  const m = normalizeMaterial(materialIn);
+  const corrRange = [0.30, 0.70].map((corr) => ({
+    corr,
+    pf: pfFromThresholds(sigmaReq, Ereq, levelMaterial({ ...m, corr }, level)),
+  }));
+  const splitRange = [0.75, 0.95].map((lotFraction) => ({
+    lotFraction,
+    pf: pfFromThresholds(sigmaReq, Ereq, levelMaterial({
+      ...m,
+      lotFraction,
+      withinFraction: Math.sqrt(Math.max(1 - lotFraction * lotFraction, 0)),
+    }, level)),
+  }));
+  const vals = corrRange.concat(splitRange).map((x) => x.pf);
+  return {
+    corr_range: corrRange,
+    split_range: splitRange,
+    pf_min: Math.min(...vals),
+    pf_max: Math.max(...vals),
+    note: 'Unmeasured assumptions (correlation and lot/within split) — assumption sensitivity, not validation.',
+  };
+}
+
+/** Brittle-lot fields attached to an analysed design (Python `evaluate` fields). */
+function brittleScreen(analysis, materialIn, level = 'lot') {
+  const m = normalizeMaterial(materialIn);
+  const pf = probabilityOfFailure(analysis, m, level);
+  const strainReq = analysis.demands.sigma_y_req / Math.max(m.E_mean, 1e-9);
+  const pfBrittle = failureProbabilityElongation(m, strainReq, level);
+  return {
+    strain_req: strainReq,
+    strain_req_pct: strainReq * 100,
+    elongation_mean_pct: m.elongationMean,
+    elongation_cv: m.elongationCv,
+    corr_E_elong_assumed: m.corrEElong,
+    pf_brittle: pfBrittle,
+    pf_brittle_bound: Number.isFinite(pfBrittle) ? pf + pfBrittle : pf,
+    brittle_ok: Number.isFinite(pfBrittle) ? pfBrittle <= 0.01 : null,
+    brittle_included_in_headline: false,
+    note: 'Marginal brittle-lot screen; conservative ADD-ON, not included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25).',
+  };
+}
+
 /** Family feasibility gate: widest printable uniform lattice vs target. */
 function familyFeasibility(materialIn, opts = {}) {
   const material = normalizeMaterial(materialIn);
   const targetPf = opts.targetPf ?? DEFAULTS.targetPf;
+  if (!material.printProcessOk) {
+    return {
+      feasible: false,
+      process_ok: false,
+      reason: 'process_mismatch',
+      detail: `material data is for '${material.process}', not FDM/FFF; a printed lattice cannot use moulded-property data`,
+      min_achievable_pf: null,
+      max_width_mm: GEOMETRY.wMax,
+      target_pf: targetPf,
+      material,
+    };
+  }
   const analysis = analyzeLattice(uniformDesign(GEOMETRY.wMax), {
     F: opts.F ?? DEFAULTS.F,
     uLim: opts.uLim ?? GEOMETRY.uLim,
@@ -2666,6 +2840,7 @@ function familyFeasibility(materialIn, opts = {}) {
     E_req_MPa: analysis.demands.E_req,
     max_width_mm: GEOMETRY.wMax,
     target_pf: targetPf,
+    process_ok: true,
     analysis,
   };
 }
@@ -2907,16 +3082,18 @@ function reliabilityReport(analysis, materialIn, opts = {}) {
 // Preset catalogue re-export for convenience in the UI/build.
 
 
-return { clamp, lognormalParams, materialFromPreset, normalizeMaterial, normalCDF, bivariateNormalCDF, NODE_COUNT, DOF_COUNT, nodeId, nodePosition, MESH_NODES, MESH_ELEMENTS, N_ELEMENTS, FIXED_DOFS, TIP_NODES, CONTROL_X, CONTROL_Y, controlPointPosition, widthField, designWidths, uniformDesign, elementWidths, scaleDesign, frameLocalStiffness, frameTransform, solveFrame, buildLatticeModel, unitLoadSolve, memberForcesUnitLoad, analyzeLattice, SOLID_BASELINE, analyzeSolid, LEVELS, levelMaterial, withinLotMaterial, twoLevelCVs, pfFromThresholds, probabilityOfFailure, failureModes, deflectionAtE, nodeDisplacements, PRINTED_MASS, halton, printedVolumeMm3, printedMassG, printabilityReport, lotFromMeasurement, familyFeasibility, sustainedBound, elementUtilisation, mulberry32, correlatedNormalPair, sampleAtLevel, sampleTwoLevel, batchMetrics, reliabilityReport, MATERIAL_PRESETS, GEOMETRY, DEFAULTS };
+return { clamp, lognormalParams, materialFromPreset, normalizeMaterial, normalCDF, bivariateNormalCDF, NODE_COUNT, DOF_COUNT, nodeId, nodePosition, MESH_NODES, MESH_ELEMENTS, N_ELEMENTS, FIXED_DOFS, TIP_NODES, CONTROL_X, CONTROL_Y, controlPointPosition, widthField, designWidths, uniformDesign, elementWidths, scaleDesign, frameLocalStiffness, frameTransform, solveFrame, buildLatticeModel, unitLoadSolve, memberForcesUnitLoad, analyzeLattice, SOLID_BASELINE, analyzeSolid, LEVELS, levelMaterial, withinLotMaterial, twoLevelCVs, pfFromThresholds, probabilityOfFailure, failureModes, deflectionAtE, nodeDisplacements, PRINTED_MASS, halton, printedVolumeMm3, printedMassG, printabilityReport, lotFromMeasurement, failureProbabilityElongation, assumptionBounds, brittleScreen, familyFeasibility, sustainedBound, elementUtilisation, mulberry32, correlatedNormalPair, sampleAtLevel, sampleTwoLevel, batchMetrics, reliabilityReport, MATERIAL_PRESETS, GEOMETRY, DEFAULTS };
 })();
 
 /* ===== optimize.js ===== */
 __modules.optimize = (function () {
-const {GEOMETRY, DEFAULTS, OPTIMIZER} = __modules.config;
+const {GEOMETRY, DEFAULTS, OPTIMIZER, V04} = __modules.config;
 const {analyzeLattice,
   analyzeSolid,
   printabilityReport,
   printedMassG,
+  brittleScreen,
+  assumptionBounds,
   lotFromMeasurement,
   familyFeasibility,
   sustainedBound,
@@ -2974,6 +3151,14 @@ function printabilityPass(analysis) {
 }
 function printedMassOf(analysis) {
   return analysis.printed_mass_g != null ? analysis.printed_mass_g : analysis.mass_g;
+}
+/** Attach the v0.4 brittle-lot screen + assumption sensitivity to an analysis. */
+function decorate(analysis, material) {
+  const brittle = brittleScreen(analysis, material, 'lot');
+  const assumptions = assumptionBounds(
+    material, analysis.demands.sigma_y_req, analysis.demands.E_req, 'lot',
+  );
+  return { ...analysis, ...brittle, assumptions };
 }
 const LOG10 = Math.log(10);
 
@@ -3283,15 +3468,70 @@ function* robustOptimizeGen(materialIn, ctx, opts = {}) {
     const pb = b.printed_mass_g ?? b.mass;
     return (pa - pb) || (a.mass - b.mass);
   })[0];
-  const analysis = analyzeLattice(winner.design, ctx);
-  const pf = probabilityOfFailure(analysis, material, 'lot');
+  let analysis = analyzeLattice(winner.design, ctx);
+  let pf = probabilityOfFailure(analysis, material, 'lot');
+
+  // v0.4 union-mass final polish: short local pattern search on the printed
+  // Halton union mass (10k samples) subject to P_f + printability; accepted only
+  // if the final 60k printed mass improves. The global search above still ranks
+  // with the analytic upper bound (disclosed).
+  let unionPolished = false;
+  let unionEvals = 0;
+  let unionBeforePrintedG = printedMassOf(analysis);
+  if (material.printProcessOk !== false) {
+    try {
+      const objectivePolish = (design) => {
+        const a = analyzeLattice(design, { ...ctx, printed: false });
+        const p = probabilityOfFailure(a, material, 'lot');
+        const pen = printabilityPenalty(a);
+        const excess = Math.max(0, (p - targetPf) / targetPf);
+        const m = printedMassG(design, material.rho, { n: V04.unionPolish.nHalton });
+        return { value: m * (1 + 100 * excess + pen), mass: m, pf: p, design };
+      };
+      const search = patternSearchGen(objectivePolish, winner.design, {
+        maxEvals: V04.unionPolish.maxEvals,
+        minStep: 0.004,
+      });
+      let step = search.next();
+      while (!step.done) step = search.next();
+      const polishedDesign = step.value && step.value.design ? step.value.design : winner.design;
+      const after = analyzeLattice(polishedDesign, ctx);
+      const afterPrinted = printedMassOf(after);
+      const afterPf = probabilityOfFailure(after, material, 'lot');
+      const pr = printabilityReport(after);
+      const improved = afterPrinted < unionBeforePrintedG * V04.unionPolish.acceptFactor;
+      const constraintsOk = afterPf <= targetPf * 1.02
+        && pr && pr.max_neighbour_width_ratio <= 1.5 + 1e-9
+        && pr.max_slenderness <= 30 + 1e-9 && !pr.out_of_bounds;
+      if (improved && constraintsOk) {
+        analysis = after;
+        pf = afterPf;
+        unionPolished = true;
+        unionEvals = step.value.evals || 0;
+      }
+    } catch (err) { /* polish is best-effort; keep the multi-start result */ }
+  }
+  analysis = decorate(analysis, material);
+
   return {
-    design: winner.design,
+    design: unionPolished ? analysis.designLogWidth : winner.design,
+    polished_design: unionPolished ? analysis.designLogWidth : null,
     analysis,
     pf,
     mass: analysis.mass_g,
     mass_analytic_g: analysis.mass_analytic_g,
     printed_mass_g: analysis.printed_mass_g,
+    union_polished: unionPolished,
+    union_evals: unionEvals,
+    union_before_printed_g: unionBeforePrintedG,
+    union_after_printed_g: analysis.printed_mass_g,
+    strain_req: analysis.strain_req,
+    pf_brittle: analysis.pf_brittle,
+    pf_brittle_bound: analysis.pf_brittle_bound,
+    brittle_ok: analysis.brittle_ok,
+    elongation_mean_pct: analysis.elongation_mean_pct,
+    elongation_cv: analysis.elongation_cv,
+    assumptions: analysis.assumptions,
     evals: totalEvals,
     targetPf,
     startDesign: winner.startDesign,
@@ -3369,7 +3609,7 @@ function* nominalOptimizeGen(materialIn, ctx, opts = {}) {
     return (pa - pb) || (a.mass - b.mass) || (a.score - b.score);
   });
   const winner = pool[0];
-  const analysis = analyzeLattice(winner.design, ctx);
+  const analysis = decorate(analyzeLattice(winner.design, ctx), material);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   const feasibleMean = (fos * analysis.demands.sigma_y_req <= material.sy_mean * (1 + 1e-9))
     && (fos * analysis.demands.E_req <= material.E_mean * (1 + 1e-9));
@@ -3504,6 +3744,7 @@ function meanOnlyBaseline(materialIn, ctx, opts = {}) {
 }
 
 function summarize(key, label, analysis, material, pf, targetPf, extra = {}) {
+  const decorated = decorate(analysis, material);
   const row = {
     key,
     label,
@@ -3512,6 +3753,13 @@ function summarize(key, label, analysis, material, pf, targetPf, extra = {}) {
     mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
     printed_mass_g: analysis.printed_mass_g ?? analysis.mass_g,
     printability: printabilityReport(analysis),
+    strain_req: decorated.strain_req,
+    pf_brittle: decorated.pf_brittle,
+    pf_brittle_bound: decorated.pf_brittle_bound,
+    brittle_ok: decorated.brittle_ok,
+    elongation_mean_pct: decorated.elongation_mean_pct,
+    elongation_cv: decorated.elongation_cv,
+    assumptions: decorated.assumptions,
     family_scope: 'best of this bracket/lattice family',
     pf,
     reliability: 1 - pf,
@@ -4127,6 +4375,11 @@ function materialFromLot(lot, fallbackKey = DEFAULTS.preset) {
     corr: l.corr ?? base.corr,
     lotFraction: l.lotFraction ?? base.lotFraction,
     withinFraction: l.withinFraction ?? base.withinFraction,
+    process: l.process ?? base.process,
+    printProcessOk: l.printProcessOk ?? base.printProcessOk,
+    elongationMean: l.elongationMean ?? base.elongationMean,
+    elongationCv: l.elongationCv ?? base.elongationCv,
+    corrEElong: l.corrEElong ?? base.corrEElong,
   });
 }
 
@@ -4145,6 +4398,12 @@ function presetLot(key) {
     corr: p.corr,
     lotFraction: p.lotFraction,
     withinFraction: p.withinFraction,
+    process: p.process,
+    printProcessOk: p.printProcessOk,
+    processNote: p.processNote,
+    elongationMean: p.elongationMean,
+    elongationCv: p.elongationCv,
+    corrEElong: p.corrEElong ?? -0.25,
     note: p.note,
   };
 }
@@ -4409,6 +4668,7 @@ function evaluateCandidate(candidate, material, ctx, targetPf) {
       + Math.max(0, printability.max_slenderness - 30) / 30)
     : 0;
   const score = feasible ? printedMass : printedMass * (1 + 100 * violation + printPenalty);
+  const brittle = E.brittleScreen(analysis, material, 'lot');
   return {
     ...candidate,
     logWidth,
@@ -4416,6 +4676,15 @@ function evaluateCandidate(candidate, material, ctx, targetPf) {
     mass_g: printedMass,
     mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
     printed_mass_g: printedMass,
+    strain_req: brittle.strain_req,
+    strain_req_pct: brittle.strain_req_pct,
+    elongation_mean_pct: brittle.elongation_mean_pct,
+    elongation_cv: brittle.elongation_cv,
+    pf_brittle: brittle.pf_brittle,
+    pf_brittle_bound: brittle.pf_brittle_bound,
+    brittle_ok: brittle.brittle_ok,
+    brittle_included_in_headline: brittle.brittle_included_in_headline,
+    brittle_note: brittle.note,
     pf,
     reliability: 1 - pf,
     feasible,
@@ -4469,6 +4738,8 @@ function recommendedDesign(materialIn, ctx, targetPf) {
   const printability = E.printabilityReport(analysis);
   const printed = analysis.printed_mass_g ?? analysis.mass_g;
   const feasible = opt.pf <= targetPf * 1.02 && !!(printability && printability.pass);
+  const brittle = E.brittleScreen(analysis, material, 'lot');
+  const assumptions = E.assumptionBounds(material, analysis.demands.sigma_y_req, analysis.demands.E_req, 'lot');
   return {
     id: 'optimised',
     name: 'Engine-optimised',
@@ -4488,6 +4759,20 @@ function recommendedDesign(materialIn, ctx, targetPf) {
     score: printed,
     governing: E.failureModes(analysis, material, 'lot').governingLabel,
     printability,
+    strain_req: brittle.strain_req,
+    strain_req_pct: brittle.strain_req_pct,
+    elongation_mean_pct: brittle.elongation_mean_pct,
+    elongation_cv: brittle.elongation_cv,
+    pf_brittle: brittle.pf_brittle,
+    pf_brittle_bound: brittle.pf_brittle_bound,
+    brittle_ok: brittle.brittle_ok,
+    brittle_included_in_headline: brittle.brittle_included_in_headline,
+    brittle_note: brittle.note,
+    assumptions,
+    union_polished: !!opt.union_polished,
+    union_evals: opt.union_evals || 0,
+    union_before_printed_g: opt.union_before_printed_g,
+    union_after_printed_g: opt.union_after_printed_g,
     sigma_y_req: analysis.demands.sigma_y_req,
     E_req: analysis.demands.E_req,
     deflection_mm: analysis.deflectionScale / material.E_mean,
@@ -4901,8 +5186,8 @@ function validationFallback() {
   return {
     source: 'embedded fallback (validation/results.json not available)',
     generated: null,
-    counts: { PASS: 51, WARN: 2, FAIL: 0 },
-    total: 53,
+    counts: { PASS: 56, WARN: 2, FAIL: 0 },
+    total: 58,
     runtime_s: null,
     checks: [
       { id: 'A', title: 'FE element benchmarks', detail: 'A1–A7: axial, cantilever, rigid body, independent assembly, equilibrium, symmetry, linearity — 8/8 pass', status: 'pass' },
@@ -4968,6 +5253,13 @@ function buildDesignMemoPayload({ brief, selected, comparison }) {
     conventional_mass_g: comparison && comparison.conventional ? round2(comparison.conventional.mass_g, 1) : null,
     conventional_pf_pct: comparison && comparison.conventional ? round2(comparison.conventional.pf * 100, 2) : null,
     family_scope: 'best of this bracket/lattice family',
+    strain_req_pct: round2(selected.strain_req_pct, 2),
+    elongation_mean_pct: round2(selected.elongation_mean_pct, 2),
+    elongation_cv: round2(selected.elongation_cv, 3),
+    pf_brittle: selected.pf_brittle,
+    pf_brittle_bound: selected.pf_brittle_bound,
+    brittle_ok: selected.brittle_ok,
+    brittle_note: 'Marginal brittle-lot screen; conservative add-on, NOT included in the headline P_f (E-elongation correlation assumed).',
   };
   return { facts, target_pf: brief.targetPf, design: { control_widths_mm: facts.widths_mm } };
 }
@@ -4994,6 +5286,16 @@ function buildProofPayload({ brief, selected, proof, validation }) {
       sustained_pf_bound: sustained ? round2(sustained.pf_bound, 6) : null,
       sustained_deflection_bound_mm: sustained ? round2(sustained.deflection_bound_mm, 2) : null,
       sustained_qualified: sustained ? sustained.pf_bound <= (brief.targetPf ?? 0.01) : null,
+      strain_req_pct: proof && proof.brittle ? round2(proof.brittle.strain_req_pct, 2) : null,
+      elongation_mean_pct: proof && proof.brittle ? round2(proof.brittle.elongation_mean_pct, 2) : null,
+      elongation_cv: proof && proof.brittle ? round2(proof.brittle.elongation_cv, 3) : null,
+      pf_brittle: proof && proof.brittle ? proof.brittle.pf_brittle : null,
+      pf_brittle_bound: proof && proof.brittle ? proof.brittle.pf_brittle_bound : null,
+      brittle_ok: proof && proof.brittle ? proof.brittle.brittle_ok : null,
+      assumption_pf_min: proof && proof.assumptions ? proof.assumptions.pf_min : null,
+      assumption_pf_max: proof && proof.assumptions ? proof.assumptions.pf_max : null,
+      union_polished: proof && typeof proof.union_polished === 'boolean' ? proof.union_polished : null,
+      union_evals: proof && proof.union_evals != null ? proof.union_evals : null,
       recipe_global_scale: recipe ? round2(recipe.global_equivalent_scale, 3) : null,
       recipe_added_mass_pct: recipe ? round2(recipe.added_mass_pct, 2) : null,
       recipe_pf: recipe ? round2(recipe.pf, 6) : null,
@@ -5001,6 +5303,24 @@ function buildProofPayload({ brief, selected, proof, validation }) {
       measurement_cv: recipe ? recipe.measurement_cv : null,
     },
     validation: { counts, total },
+    brittle: proof && proof.brittle ? {
+      strain_req_pct: round2(proof.brittle.strain_req_pct, 2),
+      elongation_mean_pct: round2(proof.brittle.elongation_mean_pct, 2),
+      elongation_cv: round2(proof.brittle.elongation_cv, 3),
+      pf_brittle: proof.brittle.pf_brittle,
+      pf_brittle_bound: proof.brittle.pf_brittle_bound,
+      brittle_ok: proof.brittle.brittle_ok,
+      included_in_headline: false,
+      corr_E_elong_assumed: -0.25,
+      note: proof.brittle.note,
+    } : null,
+    assumptions: proof && proof.assumptions ? proof.assumptions : null,
+    union_polish: proof ? {
+      polished: !!proof.union_polished,
+      evals: proof.union_evals || 0,
+      before_printed_g: proof.union_before_printed_g ?? null,
+      after_printed_g: proof.union_after_printed_g ?? null,
+    } : null,
     sustained: sustained ? {
       pf_bound: round2(sustained.pf_bound, 6),
       E_req_bound_MPa: round2(sustained.E_req_bound_MPa, 1),
@@ -5527,7 +5847,7 @@ const state = {
   lab: false,
   busy: false,
   passport: { e: 1, sy: 1, adapt: null },
-  qc: { lotId: '', supplier: '', recycledPct: null, e: null, sy: null, cv: V03.measurementCvDefault * 100 },
+  qc: { lotId: '', supplier: '', recycledPct: null, e: null, sy: null, cv: V03.measurementCvDefault * 100, mfi: null, density: null, tensileRow: '' },
   ai: null,
   aiMode: 'detecting',
   aiCalls: [],
@@ -5672,7 +5992,7 @@ function renderProject() {
   const seed = $('#session-seed');
   if (seed) seed.textContent = String(DEFAULTS.seed);
   const engine = $('#session-engine');
-  if (engine) engine.textContent = `v0.3 · ${E.N_ELEMENTS} el.`;
+  if (engine) engine.textContent = `v0.4 · ${E.N_ELEMENTS} el.`;
   const valid = $('#session-valid');
   if (valid) {
     const v = state.validation || {};
@@ -5761,7 +6081,9 @@ function renderLot() {
   const lot = state.lot;
   const pMeta = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
   $('#lot-name').textContent = `${pMeta.label} · in-plane`;
-  $('#lot-source').textContent = lot.source || 'Literature preset · ISO 527-2 in-plane strength · R07';
+  const presetMeta = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
+  const processTag = state.material.printProcessOk ? `${state.material.process} · printed data` : `${state.material.process} · CONTRAST ONLY (not a printed process)`;
+  $('#lot-source').textContent = `${lot.source || 'Literature-derived preset'} · ${processTag}`;
   $('#lot-E').textContent = `${int(lot.E_mean)} MPa`;
   $('#lot-Ecv').textContent = `${nf(lot.E_cv * 100, 1)} %`;
   $('#lot-sy').textContent = `${nf(lot.sy_mean, 1)} MPa`;
@@ -5780,20 +6102,21 @@ function renderLot() {
 function renderPresetMenu() {
   const host = $('#preset-menu');
   if (!host) return;
-  host.innerHTML = '<div class="micro" style="margin-bottom:8px">Verified presets</div>';
+  host.innerHTML = '<div class="micro" style="margin-bottom:8px">Verified presets · printed (FDM/FFF) vs contrast only</div>';
   Object.values(MATERIAL_PRESETS).forEach((p) => {
-    const b = el(`<button class="chip" type="button" aria-pressed="${p.key === state.brief.preset}" style="margin:0 6px 6px 0">${esc(p.label)}</button>`);
+    const contrast = p.printProcessOk === false;
+    const b = el(`<button class="chip" type="button" aria-pressed="${p.key === state.brief.preset}" title="${esc(contrast ? 'Contrast only — ' + p.process + ' data, not valid for a printed lattice' : 'Printed process data — valid for a printed lattice')}" style="margin:0 6px 6px 0">${esc(p.label)}${contrast ? ' <span style="color:var(--accent-ink);font-size:10px">· contrast only</span>' : ''}</button>`);
     b.addEventListener('click', () => {
       applyPresetLot(p.key);
       host.hidden = true;
-      toast(`${p.label} applied · ${int(p.E_mean)} MPa · σy ${nf(p.sy_mean, 1)} MPa`);
+      if (contrast) toast(`${p.label} · contrast only: ${p.process} data cannot size a printed lattice — Design blocked`, 'err');
+      else toast(`${p.label} applied · ${int(p.E_mean)} MPa · σy ${nf(p.sy_mean, 1)} MPa`);
       renderUnderstanding();
       renderPlanPreview();
     });
     host.appendChild(b);
   });
-}
-function renderPlanPreview() {
+}function renderPlanPreview() {
   const host = $('#plan-preview');
   if (!host) return;
   const plan = state.plan;
@@ -5852,8 +6175,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function runDesignFlow() {
   if (state.busy) return;
-  if (state.feasibility && !state.feasibility.feasible) {
-    toast('Infeasible for this bracket/lattice family — Design is blocked', 'err');
+  if (state.feasibility && (state.feasibility.process_ok === false || !state.feasibility.feasible)) {
+    toast(state.feasibility.process_ok === false
+      ? 'Material data is injection/compression, not a printed process — Design is blocked'
+      : 'Infeasible for this bracket/lattice family — Design is blocked', 'err');
     renderFeasibility();
     return;
   }
@@ -5925,6 +6250,7 @@ function selectCandidate(id) {
   renderCandidates();
   renderHero();
   renderMetrics();
+  renderBrittle(selectedCandidate(), 'design');
   renderLattice();
   renderVsStrip();
   const c = selectedCandidate();
@@ -5941,6 +6267,7 @@ function renderDesign() {
   renderCandidates();
   renderHero();
   renderMetrics();
+  renderBrittle(selectedCandidate(), 'design');
   renderLattice();
   renderVsStrip();
   const preset = MATERIAL_PRESETS[state.brief.preset] || MATERIAL_PRESETS[DEFAULTS.preset];
@@ -5992,6 +6319,14 @@ function renderHero() {
   $('#hero-pf').textContent = fmtPf(h.pf);
   $('#hero-print').textContent = `${h.printabilityPass ? 'pass' : 'warn'} · ratio ${nf(print.max_neighbour_width_ratio, 2)} · L/w ${nf(print.max_slenderness, 1)}`;
   $('#hero-mode').textContent = h.governing || '—';
+  const polish = $('#hero-polish');
+  if (polish) {
+    if (h.union_polished) {
+      polish.innerHTML = `<b>Union-mass polish:</b> accepted — printed Halton mass ${nf(h.union_before_printed_g, 2)} g → <b>${nf(h.union_after_printed_g, 2)} g</b> after ${int(h.union_evals)} local printed-mass evaluations (10k-sample QMC), with P_f + printability constraints rechecked on the final 60k estimate.`;
+    } else {
+      polish.innerHTML = `<b>Union-mass polish:</b> checked — no printed-mass improvement found for this local finish, so the multi-start printed-mass winner is shipped. (Global multi-start search still ranks with the analytic upper bound; disclosed.)`;
+    }
+  }
   const btn = $('#btn-select-hero');
   if (btn) {
     const active = state.selectedId === 'optimised';
@@ -5999,8 +6334,7 @@ function renderHero() {
     btn.textContent = active ? 'Selected' : 'Use optimised design';
     btn.dataset.id = 'optimised';
   }
-}
-function renderMetrics() {
+}function renderMetrics() {
   const c = selectedCandidate();
   if (!c) return;
   $('#metric-mass-value').innerHTML = `${nf(c.mass_g, 2)} <span class="m-unit">g</span>`;
@@ -6030,7 +6364,13 @@ function renderMassFootnotes() {
   const designNote = $('#mass-footnote');
   if (designNote) designNote.textContent = d.note;
   const proofNote = $('#proof-mass-note');
-  if (proofNote) proofNote.textContent = `Printed mass ${nf(d.printed_g, 2)} g · analytic upper bound ${nf(d.analytic_upper_bound_g, 2)} g (+${nf(d.upper_bound_pct, 1)}%) — ${d.note}`;
+  if (proofNote) {
+    const up = state.proof;
+    const union = up ? (up.union_polished
+      ? ` Union-mass polish accepted: ${nf(up.union_before_printed_g, 2)} g → ${nf(up.union_after_printed_g, 2)} g printed after ${int(up.union_evals)} local printed-mass evaluations (10k QMC).`
+      : ' Union-mass polish checked: no printed-mass improvement found; the multi-start printed-mass winner is shipped.') : '';
+    proofNote.textContent = `Printed mass ${nf(d.printed_g, 2)} g · analytic upper bound ${nf(d.analytic_upper_bound_g, 2)} g (+${nf(d.upper_bound_pct, 1)}%) — ${d.note}${union}`;
+  }
 }
 
 function renderVsStrip() {
@@ -6260,6 +6600,10 @@ async function runProofFlow() {
       F: state.brief.loadN,
       uLim: state.brief.deflLimitMm,
     });
+    const brittle = E.brittleScreen(bestAnalysis, state.material, 'lot');
+    const assumptions = E.assumptionBounds(
+      state.material, bestAnalysis.demands.sigma_y_req, bestAnalysis.demands.E_req, 'lot',
+    );
     state.validation = await loadValidation();
     const printedRows = comparison.rows.map((r) => ({
       ...r,
@@ -6283,6 +6627,11 @@ async function runProofFlow() {
       optimizedDesign: bestDesign, optimizedAnalysis: bestAnalysis,
       report, window: win,
       sustained, recipe, qc: { ...state.qc },
+      brittle, assumptions,
+      union_polished: !!multi.union_polished,
+      union_evals: multi.union_evals || 0,
+      union_before_printed_g: multi.union_before_printed_g,
+      union_after_printed_g: multi.union_after_printed_g,
       passport: { eRatio: 1, syRatio: 1, lotE: recipe.lot.lot_E, lotSy: recipe.lot.lot_sy, adapt: null },
       comparison, proofMemo: null, render: null,
     };
@@ -6347,6 +6696,8 @@ function renderProof() {
 
   renderRecipe();
   renderSustained();
+  renderBrittle(p.brittle, 'proof');
+  renderAssumptions(p.assumptions);
   renderValidation();
   renderClaims();
   renderMassFootnotes();
@@ -6459,6 +6810,29 @@ function renderQC() {
   set('#qc-e', q.e == null ? Math.round(m.E_mean) : q.e);
   set('#qc-sy', q.sy == null ? Math.round(m.sy_mean * 10) / 10 : q.sy);
   set('#qc-cv', q.cv == null ? V03.measurementCvDefault * 100 : q.cv);
+  set('#qc-mfi', q.mfi);
+  set('#qc-density', q.density);
+  set('#qc-tensile-row', q.tensileRow);
+}
+function qcRecord() {
+  const num = (sel, fallback) => {
+    const v = Number($(sel)?.value);
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  };
+  return {
+    lotId: ($('#qc-lot-id')?.value || '').trim(),
+    supplier: ($('#qc-supplier')?.value || '').trim(),
+    recycledPct: num('#qc-recycled', null),
+    e: num('#qc-e', state.material.E_mean),
+    sy: num('#qc-sy', state.material.sy_mean),
+    cv: num('#qc-cv', V03.measurementCvDefault * 100),
+    mfi: num('#qc-mfi', null),
+    density: num('#qc-density', null),
+    tensileRow: ($('#qc-tensile-row')?.value || '').trim(),
+    notUsedNote: 'MFI / density / tensile row recorded for traceability only — NOT used in the simulation (no calibrated proxy).',
+    recycledContentNote: 'Recycled-content % is a paperwork claim — not simulated or verified.',
+    designStageNoDeliveredLot: !($('#qc-lot-id')?.value || '').trim(),
+  };
 }
 function recipeVerdictKind(verdict) {
   if (/reject/i.test(verdict)) return 'reject';
@@ -6540,6 +6914,9 @@ function recomputeRecipe() {
   state.qc.lotId = ($('#qc-lot-id')?.value || '').slice(0, 64);
   state.qc.supplier = ($('#qc-supplier')?.value || '').slice(0, 64);
   state.qc.recycledPct = readNum('#qc-recycled', null);
+  state.qc.mfi = readNum('#qc-mfi', null);
+  state.qc.density = readNum('#qc-density', null);
+  state.qc.tensileRow = ($('#qc-tensile-row')?.value || '').slice(0, 128);
   const btn = $('#btn-recipe');
   if (btn) { btn.disabled = true; btn.textContent = 'Computing…'; }
   setTimeout(() => {
@@ -6571,6 +6948,13 @@ function wireRecipe() {
   ['#qc-e', '#qc-sy', '#qc-cv'].forEach((sel) => {
     $(sel)?.addEventListener('change', debounce(() => { if (state.proof) recomputeRecipe(); }, 500));
   });
+  ['#qc-lot-id', '#qc-supplier', '#qc-recycled', '#qc-mfi', '#qc-density', '#qc-tensile-row'].forEach((sel) => {
+    $(sel)?.addEventListener('change', () => {
+      const rec = qcRecord();
+      state.qc = { ...state.qc, ...rec };
+      persist();
+    });
+  });
   $$('[data-lot]').forEach((chip) => {
     chip.addEventListener('click', () => {
       const kind = chip.dataset.lot;
@@ -6587,9 +6971,38 @@ function wireRecipe() {
 // ---------------------------------------------------------------------------
 // Brief feasibility gate (widest printable uniform lattice vs target)
 // ---------------------------------------------------------------------------
+function renderBrittle(br, where) {
+  const host = $(where === 'proof' ? '#proof-brittle-values' : '#brittle-values');
+  const badge = $(where === 'proof' ? '#proof-brittle-badge' : '#brittle-badge');
+  const note = $(where === 'proof' ? '#proof-brittle-note' : '#brittle-note');
+  if (!host) return;
+  if (!br) { host.textContent = '—'; return; }
+  const warn = br.brittle_ok === false;
+  host.innerHTML = `
+    <div><span class="micro">Peak strain demand</span><b>${nf(br.strain_req_pct, 3)} %</b></div>
+    <div><span class="micro">Elongation capacity</span><b>${nf(br.elongation_mean_pct, 1)} % <span style="color:var(--muted);font-size:11px">CV ${nf(br.elongation_cv * 100, 0)} %</span></b></div>
+    <div><span class="micro">Marginal P_f (brittle)</span><b>${fmtPf(br.pf_brittle)}</b></div>
+    <div><span class="micro">Add-on bound · P_f + marginal</span><b>${fmtPf(br.pf_brittle_bound)}</b></div>
+    <div class="${warn ? 'is-warn' : ''}"><span class="micro">Screen</span><b>${warn ? 'brittle-lot warning' : 'brittle margin OK'}</b></div>`;
+  if (badge) badge.innerHTML = `<span class="b-dot"></span>marginal screen · NOT in headline P_f`;
+  if (note) note.textContent = `${br.brittle_note || ''} Peak strain demand = σy_req / E_mean at mean E; capacity mean/CV are printed elongation from the feedstock library. E–elongation correlation assumed ${nf(br.corr_E_elong_assumed ?? br.corr_E_elong ?? -0.25, 2)}.`;
+}
+function renderAssumptions(a) {
+  const host = $('#assumptions-values');
+  if (!host) return;
+  if (!a) { host.textContent = '—'; return; }
+  const corr = Array.isArray(a.corr_range) ? a.corr_range : [];
+  const split = Array.isArray(a.split_range) ? a.split_range : [];
+  host.innerHTML = `<div class="assumption-band" style="grid-column:1/-1">P_f range <b>${fmtPf(a.pf_min)} – ${fmtPf(a.pf_max)}</b> across the two unmeasured assumptions</div>
+    <div><span class="micro">corr(lnE, lnσy) 0.30 / 0.70</span><br>${corr.map((x) => `<b>${fmtPf(x.pf)}</b>`).join(' &nbsp;·&nbsp; ')}</div>
+    <div><span class="micro">lot-vs-within split 75 % / 95 %</span><br>${split.map((x) => `<b>${fmtPf(x.pf)}</b>`).join(' &nbsp;·&nbsp; ')}</div>`;
+  const badge = $('#assumptions-badge');
+  if (badge) badge.innerHTML = '<span class="b-dot"></span>assumption sensitivity · not validation';
+}
 function renderFeasibility() {
-  const gate = $('#family-gate');
-  if (!gate) return;
+  const familyGate = $('#family-gate');
+  const processGate = $('#process-gate');
+  if (!familyGate) return;
   const target = state.brief.targetPf;
   const ff = E.familyFeasibility(state.material, {
     targetPf: target,
@@ -6597,18 +7010,28 @@ function renderFeasibility() {
     uLim: state.brief.deflLimitMm,
   });
   state.feasibility = ff;
-  const facts = $('#family-gate-facts');
   const btn = $('#btn-design');
+  if (ff.process_ok === false) {
+    processGate.hidden = false;
+    familyGate.hidden = true;
+    const sub = $('#process-gate-sub');
+    if (sub) sub.textContent = `Material data is for '${state.material.process}' — not valid for a printed lattice. Pick rPETG (printed, FDM/FFF), or treat this preset as contrast only.`;
+    const facts = $('#process-gate-facts');
+    if (facts) facts.innerHTML = `process <b>${esc(state.material.process)}</b> · printed-process gate: <b>FDM/FFF only</b> · ${esc(state.material.processNote || 'injection/compression data')}`;
+    if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.dataset.blockReason = 'process'; btn.title = ff.detail || 'Material data is not for a printed process — Design blocked'; }
+    return;
+  }
+  processGate.hidden = true;
+  const facts = $('#family-gate-facts');
   if (!ff.feasible) {
-    gate.hidden = false;
+    familyGate.hidden = false;
     if (facts) facts.innerHTML = `widest uniform lattice <b>${nf(ff.max_width_mm, 2)} mm</b> · min achievable P_f <b>${fmtPf(ff.min_achievable_pf)}</b> vs target ${fmtPf(target)} · demand <b>${nf(ff.sigma_req_MPa, 1)} MPa</b> σy / <b>${nf(ff.E_req_MPa, 0)} MPa</b> E`;
-    if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.title = 'Infeasible for this bracket/lattice family — adjust target, load or material'; }
+    if (btn) { btn.disabled = true; btn.dataset.blocked = '1'; btn.dataset.blockReason = 'infeasible'; btn.title = 'Infeasible for this bracket/lattice family — adjust target, load or material'; }
   } else {
-    gate.hidden = true;
-    if (btn && btn.dataset.blocked === '1') { btn.disabled = false; delete btn.dataset.blocked; btn.title = ''; }
+    familyGate.hidden = true;
+    if (btn && btn.dataset.blocked === '1') { btn.disabled = false; delete btn.dataset.blocked; delete btn.dataset.blockReason; btn.title = ''; }
   }
 }
-
 // ---------------------------------------------------------------------------
 // Validation + claims// ---------------------------------------------------------------------------
 // Validation + claims
@@ -6703,7 +7126,7 @@ function renderValidation() {
   const foot = $('#validation-foot');
   if (foot) {
     const runtime = v.runtime_s ? ` · ${Number(v.runtime_s).toFixed(1)} s` : '';
-    foot.textContent = `${counts.PASS} pass · ${counts.WARN} warn · ${counts.FAIL} fail · ${total} checks · Python 29 / JS 33 tests${runtime}`;
+    foot.textContent = `${counts.PASS} pass · ${counts.WARN} warn · ${counts.FAIL} fail · ${total} checks · Python 29 / JS 37 tests${runtime}`;
   }
   const sub = $('#validation-sub');
   if (sub) sub.textContent = v.source ? `Source: ${v.source}` : 'L0–L1 verified';
@@ -6739,7 +7162,7 @@ function loadProofMemos() {
     controlWidthsMm: E.designWidths(p.optimizedDesign),
     printability: E.printabilityReport(p.optimizedAnalysis),
   };
-  const payload = AC.buildProofPayload({ brief: state.brief, selected, proof: { passport: p.passport, sustained: p.sustained, recipe: p.recipe }, validation: state.validation });
+  const payload = AC.buildProofPayload({ brief: state.brief, selected, proof: { passport: p.passport, sustained: p.sustained, recipe: p.recipe, brittle: p.brittle, assumptions: p.assumptions, union_polished: p.union_polished, union_evals: p.union_evals, union_before_printed_g: p.union_before_printed_g, union_after_printed_g: p.union_after_printed_g }, validation: state.validation });
   const badge = $('#proof-memo-badge');
   (async () => {
     try {
@@ -7063,6 +7486,7 @@ function buildDesignJson() {
     candidates: state.candidates.map((x) => ({ id: x.id, name: x.name, control_widths_mm: x.controlWidthsMm, mass_g: x.mass_g, pf: x.pf, feasible: x.feasible, governing: x.governing })),
     selected: c ? { id: c.id, name: c.name, control_widths_mm: c.controlWidthsMm, mass_g: c.mass_g, pf: c.pf } : null,
     family_scope: 'best of this bracket/lattice family',
+    printed_process: { process: state.material.process, print_process_ok: !!state.material.printProcessOk, note: state.material.processNote || null },
     optimized: p ? {
       design_log_width: p.optimizedDesign,
       widths_mm: E.designWidths(p.optimizedDesign),
@@ -7080,6 +7504,13 @@ function buildDesignJson() {
       governing_mode: p.report.modes.governingLabel,
       printability: E.printabilityReport(p.optimizedAnalysis),
       mass_disclosure: AC.massDisclosure(p.optimizedAnalysis.mass_g),
+      union_polish: {
+        polished: !!p.union_polished,
+        evals: p.union_evals || 0,
+        before_printed_g: p.union_before_printed_g ?? null,
+        after_printed_g: p.union_after_printed_g ?? null,
+        note: 'Short local pattern search minimising the 10k-sample Halton printed mass subject to P_f + printability; accepted only if the final 60k printed mass improves.',
+      },
     } : null,
     sustained_load_advisory: p && p.sustained ? {
       ...p.sustained,
@@ -7100,13 +7531,41 @@ function buildDesignJson() {
       note: 'Lot-specific 8-control resize; global equivalent scale is a slicer fallback only.',
     } : null,
     qc_record: p ? {
-      lot_id: p.qc.lotId,
-      supplier: p.qc.supplier,
-      measurement_used: { E_MPa: p.qc.e, sy_MPa: p.qc.sy },
-      measurement_cv: p.qc.cv / 100,
-      recycled_content_pct: p.qc.recycledPct,
-      recycled_content_note: 'Paperwork claim — not simulated or verified.',
+      lot_id: qcRecord().lotId || null,
+      supplier: qcRecord().supplier || null,
+      measurement_used: { E_MPa: qcRecord().e, sy_MPa: qcRecord().sy },
+      measurement_cv: qcRecord().cv / 100,
+      recycled_content_pct: qcRecord().recycledPct,
+      mfi_g_10min: qcRecord().mfi,
+      density_g_cm3: qcRecord().density,
+      tensile_row: qcRecord().tensileRow || null,
+      not_used_note: qcRecord().notUsedNote,
+      recycled_content_note: qcRecord().recycledContentNote,
+      design_stage_no_delivered_lot: !qcRecord().lotId,
     } : null,
+    brittle_screen: p && p.brittle ? {
+      strain_req_pct: p.brittle.strain_req_pct,
+      elongation_mean_pct: p.brittle.elongation_mean_pct,
+      elongation_cv: p.brittle.elongation_cv,
+      pf_brittle: p.brittle.pf_brittle,
+      pf_brittle_bound: p.brittle.pf_brittle_bound,
+      brittle_ok: p.brittle.brittle_ok,
+      included_in_headline_pf: false,
+      corr_E_elong_assumed: -0.25,
+      note: p.brittle.note,
+    } : null,
+    assumption_bounds: p && p.assumptions ? {
+      ...p.assumptions,
+      label: 'Assumption sensitivity — unmeasured assumptions, NOT validation.',
+    } : null,
+    qc_optional: {
+      mfi_g_10min: state.qc.mfi,
+      density_g_cm3: state.qc.density,
+      tensile_row: state.qc.tensileRow,
+      used_in_simulation: false,
+      note: 'Recorded for traceability only — no calibrated proxy; not used to infer E or σy.',
+    },
+    design_stage_no_delivered_lot: !(qcRecord().lotId),
     validation: state.validation,
     ai: { mode: state.aiMode, calls: state.aiCalls },
     limitations: [
@@ -7117,6 +7576,10 @@ function buildDesignJson() {
       'Printability: neighbour width ratio > 1.5 or slenderness > 30 is a hard constraint in the optimiser; the selected design passes both.',
       'Sustained load: the creep x2.0 / compression /0.8 bound is an advisory only; static design allowables are unchanged and no sustained-load qualification has been performed.',
       'Known lot: the lot-specific recipe retains measurement uncertainty (default CV 12 %) and re-optimises all 8 width controls; global equivalent scale is a slicer fallback.',
+      'Brittle-lot screen: marginal lognormal against elongation-at-break, reported as a conservative add-on; NOT included in the headline two-property P_f because the E-elongation correlation is assumed (-0.25).',
+      'Printed-process gate: only FDM/FFF material data is valid for the printed lattice; injection/compression presets are contrast only and block Design.',
+      'Assumption bounds vary corr(lnE, lnσy) and the lot/within split; they are assumption sensitivity, not validation.',
+      'Design-stage report: no delivered lot is specified unless a lot ID/measurement is entered in the QC record.',
       'Feedstock distributions are literature-derived; no experimental validation in this project.',
     ],
   };
@@ -7143,7 +7606,7 @@ function buildReportHtml() {
   .memo{background:#FCFBF7} .lim{font-size:12px;color:var(--muted)}
   .tag{color:var(--verify)} .warn{color:#B8361A}
 </style></head><body>
-<div class="micro">AnyRB v0.3 · in-silico qualification · decision support, not certification</div>
+<div class="micro">AnyRB v0.4 · in-silico qualification · decision support, not certification</div>
 <h1>${esc(state.project)}</h1>
 <div class="badge">Generated ${new Date().toISOString()} · AI mode: ${esc(state.aiMode)} · seed ${DEFAULTS.seed}</div>
 <div class="card"><div class="micro">Brief</div>
@@ -7173,7 +7636,19 @@ ${p && p.sustained ? `<h2>Sustained-load advisory</h2><div class="card"><div cla
 ${p && p.recipe ? `<h2>Known-batch print recipe</h2><div class="card"><p class="lim">Lot-specific 8-control resize (not one global scale), measurement CV ${nf(p.recipe.measurement_cv * 100, 0)} % retained.</p>
 <div class="v">Width multipliers: ${p.recipe.width_multipliers.map((v) => nf(v, 2) + '×').join(' · ')}</div>
 <div class="k" style="margin-top:8px">Global equivalent scale ${nf(p.recipe.global_equivalent_scale, 2)}× (slicer fallback only) · printed mass ${nf(p.recipe.printed_mass_g, 2)} g (${signed(p.recipe.added_mass_pct, 1)} %) · P_f ${fmtPf(p.recipe.pf)} · verdict <b>${esc(p.recipe.verdict)}</b></div>
-<div class="k" style="margin-top:8px">QC record: lot ${esc(p.qc.lotId || '—')} · supplier ${esc(p.qc.supplier || '—')} · measurement used E ${nf(p.qc.e, 0)} MPa / σy ${nf(p.qc.sy, 1)} MPa · measurement CV ${nf(p.qc.cv, 0)} % · recycled content ${p.qc.recycledPct == null ? '—' : nf(p.qc.recycledPct, 0) + ' %'} <i>(paperwork claim, not simulated)</i></div></div>` : ''}
+<div class="k" style="margin-top:8px">QC record: lot ${esc(qcRecord().lotId || '—')} · supplier ${esc(qcRecord().supplier || '—')} · measurement used E ${nf(qcRecord().e, 0)} MPa / σy ${nf(qcRecord().sy, 1)} MPa · measurement CV ${nf(qcRecord().cv, 0)} % · recycled content ${qcRecord().recycledPct == null ? '—' : nf(qcRecord().recycledPct, 0) + ' %'} <i>(paperwork claim, not simulated)</i></div>
+<div class="k" style="margin-top:4px">MFI ${qcRecord().mfi == null ? '—' : nf(qcRecord().mfi, 1) + ' g/10 min'} · density ${qcRecord().density == null ? '—' : nf(qcRecord().density, 2) + ' g/cm³'} · tensile row ${esc(qcRecord().tensileRow || '—')} <i>(traceability only — NOT used in the simulation; no calibrated proxy)</i></div>
+${qcRecord().designStageNoDeliveredLot ? '<p class="lim"><b>Design-stage report:</b> no delivered lot specified — this report is a design-stage prediction, not a batch qualification. Enter lot ID/measurements in the QC record or use the known-batch print recipe before release.</p>' : ''}</div>` : ''}
+${p && p.brittle ? `<h2>Brittle-lot screen (NOT in headline P_f)</h2><div class="card"><div class="grid">
+<div><div class="k">Peak strain demand</div><div class="v">${nf(p.brittle.strain_req_pct, 3)} %</div></div>
+<div><div class="k">Elongation capacity</div><div class="v">${nf(p.brittle.elongation_mean_pct, 1)} % · CV ${nf(p.brittle.elongation_cv * 100, 0)} %</div></div>
+<div><div class="k">Marginal P_f (brittle)</div><div class="v">${fmtPf(p.brittle.pf_brittle)}</div></div>
+<div><div class="k">Conservative add-on bound</div><div class="v">${fmtPf(p.brittle.pf_brittle_bound)}</div></div>
+</div><p class="lim">Marginal lognormal screen, reported separately and NOT folded into the headline two-property P_f because the E-elongation correlation is assumed (-0.25). ${esc(p.brittle.brittle_ok ? 'Brittle margin OK.' : 'Brittle-lot warning.')}</p></div>` : ''}
+${p && p.assumptions ? `<h2>Assumption sensitivity (not validation)</h2><div class="card"><div class="k">P_f range across unmeasured assumptions: <b>${fmtPf(p.assumptions.pf_min)} – ${fmtPf(p.assumptions.pf_max)}</b></div>
+<div class="k" style="margin-top:6px">corr(lnE, lnσy) 0.30 / 0.70: ${p.assumptions.corr_range.map((x) => fmtPf(x.pf)).join(' · ')}</div>
+<div class="k" style="margin-top:4px">lot-vs-within split 75 % / 95 %: ${p.assumptions.split_range.map((x) => fmtPf(x.pf)).join(' · ')}</div>
+<p class="lim">Assumption sensitivity, NOT validation: correlation and variance split are unmeasured model inputs.</p></div>` : ''}
 <h2>Validation</h2><div class="card">${state.validation.checks.map((x) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="badge">${esc(x.status)}</span><br><span class="lim">${esc(x.detail)}</span></div>`).join('')}
 <p class="lim">Source: ${esc(state.validation.source || 'embedded fallback')}</p></div>
 <h2>AI provenance</h2><div class="card"><table><thead><tr><th>Endpoint</th><th>Model</th><th>Latency</th><th>Status</th></tr></thead><tbody>${state.aiCalls.map((cl) => `<tr><td>${esc(cl.endpoint)}</td><td>${esc(cl.model)}</td><td>${(cl.latencyMs / 1000).toFixed(2)} s</td><td>${cl.demo ? 'mock' : cl.fallback ? 'fallback' : 'live'}${cl.cached ? ' · cached' : ''}</td></tr>`).join('') || '<tr><td colspan="4">No AI calls recorded</td></tr>'}</tbody></table></div>

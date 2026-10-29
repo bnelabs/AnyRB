@@ -200,7 +200,7 @@ def evaluate(mat, control_logw: np.ndarray, F: float = F_DESIGN,
              u_lim: float = U_LIMIT, lattice: Lattice | None = None,
              use_within: bool = False, printed: bool = True) -> dict:
     """Full evaluation of a design against a feedstock distribution."""
-    from .reliability import failure_probability, mode_split
+    from .reliability import failure_probability, failure_probability_elongation, mode_split
 
     lattice = lattice or build_lattice()
     widths = widths_from_controls(control_logw, lattice.midpoints)
@@ -208,6 +208,8 @@ def evaluate(mat, control_logw: np.ndarray, F: float = F_DESIGN,
     level = "within" if use_within else "lot"
     pf = failure_probability(mat, d.sigma_req, d.E_req, level=level)
     modes = mode_split(mat, d.sigma_req, d.E_req, level=level)
+    strain_req = d.sigma_req / max(mat.E_mean, 1e-9)
+    pf_brittle = failure_probability_elongation(mat, strain_req, level=level) if np.isfinite(mat.elongation_mean) else float("nan")
     m = mass_g(lattice, widths, mat.rho)
     m_printed = printed_mass_g(lattice, widths, mat.rho) if printed else None
     return {
@@ -233,4 +235,12 @@ def evaluate(mat, control_logw: np.ndarray, F: float = F_DESIGN,
         "demands": d,
         "capacity_ratio_sy": mat.sy_mean / d.sigma_req,
         "capacity_ratio_E": mat.E_mean / d.E_req,
+        "strain_req": strain_req,
+        "elongation_mean_pct": mat.elongation_mean,
+        "elongation_cv": mat.elongation_cv,
+        "pf_brittle": pf_brittle,
+        "pf_brittle_bound": (pf + pf_brittle) if np.isfinite(pf_brittle) else pf,
+        "brittle_ok": (bool(pf_brittle <= 0.01) if np.isfinite(pf_brittle) else None),
+        "process": mat.process,
+        "process_ok": bool(mat.print_process_ok),
     }

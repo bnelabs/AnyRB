@@ -85,6 +85,8 @@ class PlanIn(BaseModel):
     printability_limits: dict[str, Any] = Field(default_factory=dict)
     family_scope: str = Field(default="", max_length=400)
     engine: dict[str, Any] = Field(default_factory=dict)
+    # v0.4: printed-process gate block (optional; material.process is also accepted)
+    process: dict[str, Any] = Field(default_factory=dict)
 
 
 class ReviewIn(BaseModel):
@@ -106,6 +108,12 @@ class ReviewIn(BaseModel):
     feasibility: dict[str, Any] = Field(default_factory=dict)
     family_scope: str = Field(default="", max_length=400)
     target_pf: Optional[float] = None
+    # v0.4 blocks (all optional; absent => v0.2/v0.3 behaviour)
+    brittle: dict[str, Any] = Field(default_factory=dict)
+    assumptions: dict[str, Any] = Field(default_factory=dict)
+    assumption_bounds: dict[str, Any] = Field(default_factory=dict)
+    process: dict[str, Any] = Field(default_factory=dict)
+    qc: dict[str, Any] = Field(default_factory=dict)
 
 
 class ProofIn(BaseModel):
@@ -128,6 +136,12 @@ class ProofIn(BaseModel):
     feasibility: dict[str, Any] = Field(default_factory=dict)
     family_scope: str = Field(default="", max_length=400)
     target_pf: Optional[float] = None
+    # v0.4 blocks (all optional; absent => v0.2/v0.3 behaviour)
+    brittle: dict[str, Any] = Field(default_factory=dict)
+    assumptions: dict[str, Any] = Field(default_factory=dict)
+    assumption_bounds: dict[str, Any] = Field(default_factory=dict)
+    process: dict[str, Any] = Field(default_factory=dict)
+    qc: dict[str, Any] = Field(default_factory=dict)
 
 
 class ImageIn(BaseModel):
@@ -255,6 +269,7 @@ class PlanResponse(AIResponse):
     family_scope: str = FAMILY_SCOPE
     printability_limits: dict[str, Any] = Field(default_factory=lambda: dict(PRINTABILITY_LIMITS))
     feasibility: Optional[dict[str, Any]] = None
+    process: Optional[dict[str, Any]] = None
     blocked: bool = False
     note: str = ""
 
@@ -275,6 +290,10 @@ class ReviewResponse(AIResponse):
     mass_basis: str = MASS_BASIS
     sustained_advisory: str = ""
     feasibility: Optional[dict[str, Any]] = None
+    brittle: Optional[dict[str, Any]] = None
+    assumptions: Optional[dict[str, Any]] = None
+    process: Optional[dict[str, Any]] = None
+    qc: Optional[dict[str, Any]] = None
 
 
 class ProofResponse(AIResponse):
@@ -288,6 +307,10 @@ class ProofResponse(AIResponse):
     feasibility: Optional[dict[str, Any]] = None
     lot_recipe: Optional[dict[str, Any]] = None
     measurement: Optional[dict[str, Any]] = None
+    brittle: Optional[dict[str, Any]] = None
+    assumptions: Optional[dict[str, Any]] = None
+    process: Optional[dict[str, Any]] = None
+    qc: Optional[dict[str, Any]] = None
 
 
 class VoiceResponse(AIResponse):
@@ -333,8 +356,8 @@ class CacheStats(BaseModel):
 class HealthResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
     ok: bool = True
-    version: str = "v0.3"
-    contract_version: str = "v0.3"
+    version: str = "v0.4"
+    contract_version: str = "v0.4"
     family_scope: str = FAMILY_SCOPE
     printability_limits: dict[str, Any] = Field(default_factory=lambda: dict(PRINTABILITY_LIMITS))
     mode: Literal["live", "mock", "offline"] = "mock"

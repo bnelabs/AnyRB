@@ -19,12 +19,14 @@
  *   score = mass · (1 + 100 · max(0, (P_f − target)/target)).
  */
 
-import { GEOMETRY, DEFAULTS, OPTIMIZER } from './config.js';
+import { GEOMETRY, DEFAULTS, OPTIMIZER, V04 } from './config.js';
 import {
   analyzeLattice,
   analyzeSolid,
   printabilityReport,
   printedMassG,
+  brittleScreen,
+  assumptionBounds,
   lotFromMeasurement,
   familyFeasibility,
   sustainedBound,
@@ -60,6 +62,14 @@ function printabilityPass(analysis) {
 }
 function printedMassOf(analysis) {
   return analysis.printed_mass_g != null ? analysis.printed_mass_g : analysis.mass_g;
+}
+/** Attach the v0.4 brittle-lot screen + assumption sensitivity to an analysis. */
+function decorate(analysis, material) {
+  const brittle = brittleScreen(analysis, material, 'lot');
+  const assumptions = assumptionBounds(
+    material, analysis.demands.sigma_y_req, analysis.demands.E_req, 'lot',
+  );
+  return { ...analysis, ...brittle, assumptions };
 }
 const LOG10 = Math.log(10);
 
@@ -369,15 +379,70 @@ export function* robustOptimizeGen(materialIn, ctx, opts = {}) {
     const pb = b.printed_mass_g ?? b.mass;
     return (pa - pb) || (a.mass - b.mass);
   })[0];
-  const analysis = analyzeLattice(winner.design, ctx);
-  const pf = probabilityOfFailure(analysis, material, 'lot');
+  let analysis = analyzeLattice(winner.design, ctx);
+  let pf = probabilityOfFailure(analysis, material, 'lot');
+
+  // v0.4 union-mass final polish: short local pattern search on the printed
+  // Halton union mass (10k samples) subject to P_f + printability; accepted only
+  // if the final 60k printed mass improves. The global search above still ranks
+  // with the analytic upper bound (disclosed).
+  let unionPolished = false;
+  let unionEvals = 0;
+  let unionBeforePrintedG = printedMassOf(analysis);
+  if (material.printProcessOk !== false) {
+    try {
+      const objectivePolish = (design) => {
+        const a = analyzeLattice(design, { ...ctx, printed: false });
+        const p = probabilityOfFailure(a, material, 'lot');
+        const pen = printabilityPenalty(a);
+        const excess = Math.max(0, (p - targetPf) / targetPf);
+        const m = printedMassG(design, material.rho, { n: V04.unionPolish.nHalton });
+        return { value: m * (1 + 100 * excess + pen), mass: m, pf: p, design };
+      };
+      const search = patternSearchGen(objectivePolish, winner.design, {
+        maxEvals: V04.unionPolish.maxEvals,
+        minStep: 0.004,
+      });
+      let step = search.next();
+      while (!step.done) step = search.next();
+      const polishedDesign = step.value && step.value.design ? step.value.design : winner.design;
+      const after = analyzeLattice(polishedDesign, ctx);
+      const afterPrinted = printedMassOf(after);
+      const afterPf = probabilityOfFailure(after, material, 'lot');
+      const pr = printabilityReport(after);
+      const improved = afterPrinted < unionBeforePrintedG * V04.unionPolish.acceptFactor;
+      const constraintsOk = afterPf <= targetPf * 1.02
+        && pr && pr.max_neighbour_width_ratio <= 1.5 + 1e-9
+        && pr.max_slenderness <= 30 + 1e-9 && !pr.out_of_bounds;
+      if (improved && constraintsOk) {
+        analysis = after;
+        pf = afterPf;
+        unionPolished = true;
+        unionEvals = step.value.evals || 0;
+      }
+    } catch (err) { /* polish is best-effort; keep the multi-start result */ }
+  }
+  analysis = decorate(analysis, material);
+
   return {
-    design: winner.design,
+    design: unionPolished ? analysis.designLogWidth : winner.design,
+    polished_design: unionPolished ? analysis.designLogWidth : null,
     analysis,
     pf,
     mass: analysis.mass_g,
     mass_analytic_g: analysis.mass_analytic_g,
     printed_mass_g: analysis.printed_mass_g,
+    union_polished: unionPolished,
+    union_evals: unionEvals,
+    union_before_printed_g: unionBeforePrintedG,
+    union_after_printed_g: analysis.printed_mass_g,
+    strain_req: analysis.strain_req,
+    pf_brittle: analysis.pf_brittle,
+    pf_brittle_bound: analysis.pf_brittle_bound,
+    brittle_ok: analysis.brittle_ok,
+    elongation_mean_pct: analysis.elongation_mean_pct,
+    elongation_cv: analysis.elongation_cv,
+    assumptions: analysis.assumptions,
     evals: totalEvals,
     targetPf,
     startDesign: winner.startDesign,
@@ -455,7 +520,7 @@ export function* nominalOptimizeGen(materialIn, ctx, opts = {}) {
     return (pa - pb) || (a.mass - b.mass) || (a.score - b.score);
   });
   const winner = pool[0];
-  const analysis = analyzeLattice(winner.design, ctx);
+  const analysis = decorate(analyzeLattice(winner.design, ctx), material);
   const pf = probabilityOfFailure(analysis, material, 'lot');
   const feasibleMean = (fos * analysis.demands.sigma_y_req <= material.sy_mean * (1 + 1e-9))
     && (fos * analysis.demands.E_req <= material.E_mean * (1 + 1e-9));
@@ -590,6 +655,7 @@ export function meanOnlyBaseline(materialIn, ctx, opts = {}) {
 }
 
 function summarize(key, label, analysis, material, pf, targetPf, extra = {}) {
+  const decorated = decorate(analysis, material);
   const row = {
     key,
     label,
@@ -598,6 +664,13 @@ function summarize(key, label, analysis, material, pf, targetPf, extra = {}) {
     mass_analytic_g: analysis.mass_analytic_g ?? analysis.mass_g,
     printed_mass_g: analysis.printed_mass_g ?? analysis.mass_g,
     printability: printabilityReport(analysis),
+    strain_req: decorated.strain_req,
+    pf_brittle: decorated.pf_brittle,
+    pf_brittle_bound: decorated.pf_brittle_bound,
+    brittle_ok: decorated.brittle_ok,
+    elongation_mean_pct: decorated.elongation_mean_pct,
+    elongation_cv: decorated.elongation_cv,
+    assumptions: decorated.assumptions,
     family_scope: 'best of this bracket/lattice family',
     pf,
     reliability: 1 - pf,

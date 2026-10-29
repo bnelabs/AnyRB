@@ -30,7 +30,7 @@ Double-click **`../index.html`**. The pill shows **Offline · fallback on** and 
    printed Halton union estimate 46.4 g vs analytic upper bound 50.81 g (+9.5%).
 3. **03 · Prove** — reliability gauge, batch acceptance window, batch passport (try E ×0.85 → 8-control resize, global-equivalent
    ×1.28, +19.6 % printed mass, conditional; E ×0.5 → reject). The scientific-validation card reads
-   **51 PASS / 2 WARN / 0 FAIL (53 independent checks)** with the two known WARNs labelled. Muse Spark
+   **56 PASS / 2 WARN / 0 FAIL (58 independent checks)** with the two known WARNs labelled. Muse Spark
    writes the qualification narrative; Muse Image provides the labelled concept render. Export the
    qualification report/STL/JSON; open the AI provenance drawer.
 4. **Method & honesty** — claims ladder L0–L1 verified / L2 partial / L4–L6 absent, the "what v0.1 cannot
@@ -50,9 +50,9 @@ Double-click **`../index.html`**. The pill shows **Offline · fallback on** and 
 ```bash
 cd AnyRB
 make test            # 29 engine tests
-make test-server     # 40 backend tests, 1 skipped (mock mode)
-node app/tests/run.mjs   # 33 JS engine/UI tests
-make validate        # independent validation: 51 PASS / 2 WARN / 0 FAIL (53 checks)
+make test-server     # 51 backend tests, 1 skipped (mock mode)
+node app/tests/run.mjs   # 37 JS engine/UI tests
+make validate        # independent validation: 56 PASS / 2 WARN / 0 FAIL (58 checks)
 make verify-live     # real Meta calls → server/evidence/live_calls.json (needs server/.env)
 make report && make pdf
 python3 app/build.py # rebuild single-file index.html

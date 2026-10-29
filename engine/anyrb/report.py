@@ -29,7 +29,7 @@ from .mechanics import demands, evaluate, element_utilisation, solid_demands
 from .optimize import (compare_strategies, batch_recipe, acceptance_window,
                        family_feasibility, sustained_bound,
                        pareto_curve, optimize_robust)
-from .reliability import failure_probability, mode_split, monte_carlo, sensitivity
+from .reliability import failure_probability, mode_split, monte_carlo, sensitivity, assumption_bounds
 from .stl import write_ascii_stl
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -307,6 +307,16 @@ def build_report(mat: Material, target_pf: float = 0.01,
     sustained = sustained_bound(mat, robust.controls)
     feasibility = family_feasibility(mat, target_pf)
     val = _validation_summary() or {}
+    robust_eval = evaluate(mat, robust.controls)
+    assumptions = assumption_bounds(mat, d.sigma_req, d.E_req)
+    brittle = {
+        "strain_req_pct": 100.0 * robust_eval.get("strain_req", 0.0),
+        "elongation_mean_pct": robust_eval.get("elongation_mean_pct"),
+        "elongation_cv": robust_eval.get("elongation_cv"),
+        "pf_brittle": robust_eval.get("pf_brittle"),
+        "pf_bound": robust_eval.get("pf_brittle_bound"),
+        "note": "Marginal brittle-lot screen; not included in the headline two-property P_f because the E-elongation correlation is assumed.",
+    }
 
     # batch passport scenarios
     lot_rows = []
@@ -350,6 +360,10 @@ def build_report(mat: Material, target_pf: float = 0.01,
         "family_feasibility": feasibility,
         "sustained_bound": sustained,
         "validation": val,
+        "assumptions": assumptions,
+        "brittle_screen": brittle,
+        "process_ok": bool(mat.print_process_ok),
+        "lot_record_supplied": False,
         "mass_basis": {
             "analytic_upper_bound_g": robust.mass_g,
             "printed_union_estimate_g": robust.printed_mass_g,
@@ -507,6 +521,10 @@ the analytic strut-sum ({robust.mass_g:.1f} g) is a conservative upper bound (+{
 <li><strong>Feasibility gate:</strong> before Design, the engine checks whether the bracket/lattice family can meet the target at the maximum printable width. This material: {'feasible' if feasibility['feasible'] else 'INFEASIBLE'} (minimum achievable P<sub>f</sub> {feasibility['min_achievable_pf']:.2e}).</li>
 <li><strong>Sustained-load advisory (creep / compression bound):</strong> E<sub>req</sub> &times; {sustained['creep_factor']:.1f}, &sigma;<sub>req</sub> / {sustained['compression_factor']:.1f}, deflection &times; {sustained['creep_factor']:.1f}; bound P<sub>f</sub> {sustained['pf_bound']:.2f}, deflection bound {sustained['deflection_bound_mm']:.1f} mm. This static design is <strong>not qualified for sustained load</strong>; the bound is advisory, not the design allowable.</li>
 <li><strong>Family scope:</strong> "best of this bracket/lattice family" — not a general topology optimiser. A pre-registered coupon plan is in validation/COUPON_TEST_PLAN.md; no physical test has been run.</li>
+<li><strong>Brittle-lot screen (new):</strong> peak tensile strain demand {brittle['strain_req_pct']:.2f}% at mean E vs printed elongation at break {brittle['elongation_mean_pct'] if brittle['elongation_mean_pct'] is not None else '—'}% (CV {brittle['elongation_cv']:.2f}). Marginal brittle P<sub>f</sub> = {brittle['pf_brittle']:.2e}; conservative add-on bound (two-property P<sub>f</sub> + brittle marginal) = {brittle['pf_bound']:.2%}. <em>Not included in the headline P<sub>f</sub></em> because E-elongation correlation is assumed (-0.25), not measured.</li>
+<li><strong>Assumption bounds (new):</strong> lot-vs-within variance split 75–95% moves P<sub>f</sub> from {assumptions['pf_min']:.2%} to {assumptions['pf_max']:.2%}; changing the assumed E–σ<sub>y</sub> correlation 0.30–0.70 does not move this design (stiffness-governed). These are assumptions, not validated population values.</li>
+<li><strong>Process compatibility:</strong> this report is for a printed bracket; the selected material is <code>{mat.process}</code> ({'compatible' if mat.print_process_ok else 'NOT compatible — design blocked'}). Non-FDM presets are contrast-only and cannot be designed into the printed lattice.</li>
+<li><strong>Lot record:</strong> no delivered lot was supplied to this design-stage report. The app's Prove export carries lot ID, supplier, measurement source/CV and recycled-content % (paperwork claim).</li>
 </ul>
 </div>
 
@@ -574,7 +592,8 @@ slicer's extrusion-multiplier setting. Inputs would be supplier lot data or a me
 </tbody></table>
 <img src="{figs['acceptance']}" alt="acceptance">
 <div class="cap">Acceptance window for a known lot as a function of its measured mean E and mean sy
-(within-lot scatter included). Green = the part meets the target without redesign.</div>
+(within-lot scatter + 12% measurement CV retained). Green = the part meets the target without redesign.
+Lot identity, supplier, measurement source and recycled-content paperwork are carried in the app/export rather than simulated here.</div>
 </div>
 
 <h2>5. Verification evidence (why you can trust the model at all)</h2>

@@ -133,6 +133,9 @@ def main() -> int:
         shot_figure("v2/live/02-design.png", "Design step: AI proposes three priors; the verified engine optimises/ranks them."),
         shot_figure("v2/live/03-prove.png", "Prove step: batch acceptance, passport decision validation checklist and exports."),
         shot_figure("v2/offline/02-design.png", "Offline mode: identical flow with deterministic fallbacks, clearly badged."),
+        shot_figure("v4/04-process-gate.png", "v0.4 printed-process gate: injection/compression presets are contrast-only; Design is blocked."),
+        shot_figure("v4/03-design-brittle.png", "v0.4 brittle-lot screen: peak strain demand vs printed elongation, labelled as a conservative add-on."),
+        shot_figure("v4/06-assumptions.png", "v0.4 assumption-sensitivity band (correlation and lot/within split), labelled not validation."),
     ])
     appendix = ("<h1>Appendix — the interactive prototype</h1>"
                 "<p class='small'>Screenshots from <code>anyrb/index.html</code> (standalone, offline). "

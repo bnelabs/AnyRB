@@ -364,3 +364,128 @@ grounding accept/reject on the v0.3 payload, both payload generations, prompt ru
 health contract. Seeded `reports` on disk (evidence/live_calls.json) are from the v0.2-era live
 pass; re-run `python server/verify_live.py` with a key to refresh them (old payloads still
 accepted by these endpoints).
+
+---
+
+# v0.4 changes — printed-process gate, brittle screen, assumption bounds, QC record
+
+Contract version **v0.4** (`GET /api/health` → `version: "v0.4"`, `contract_version: "v0.4"`).
+Additive again: v0.2/v0.3 clients keep working, every v0.4 block is optional. The principle is
+unchanged — the AI only phrases engine decisions the engine can refuse; it computes no performance
+numbers and certifies nothing.
+
+## GET /api/health — v0.4 engine capabilities
+
+```json
+{"ok": true, "version": "v0.4", "contract_version": "v0.4",
+ "process_rule": "only FDM/FFF material data is valid for the printed bracket family; …",
+ "engine": {"version": "0.4",
+            "printed_process_gate": true, "elongation_brittle_screen": true,
+            "union_mass_polish": true, "assumption_bounds": true,
+            "printed_mass": true, "family_feasibility": true,
+            "lot_specific_recipe": true, "sustained_bound": true,
+            "measurement_cv_default": 0.12},
+ "service": {"name": "anyrb-ai", "version": "0.4"}}
+```
+
+The four v0.4 capabilities: `printed_process_gate` (only FDM/FFF data may feed the printed
+lattice path), `elongation_brittle_screen` (marginal elongation-at-break P_f, reported as an
+add-on), `union_mass_polish` (final design mass is polished on the printed union mass, not the
+analytic upper bound), `assumption_bounds` (correlation / lot-split P_f range).
+
+## POST /api/design/plan — printed-process gate
+
+Request additions (all optional):
+
+```json
+{"material": {"process": "FDM/FFF" | "IM" | "IM/compression" | …},
+ "feasibility": {"feasible": true, "process_ok": true, "reason": "", "min_achievable_pf": 0.0002},
+ "process": {"ok": true, "process": "FDM/FFF", "reason": ""}}
+```
+
+The server infers the gate from `feasibility.process_ok` / `feasibility.reason`, an explicit
+`process.ok`, or `material.process` (FDM/FFF ⇒ printed; IM / injection / compression / moulded /
+SLA / resin ⇒ not printed). Response adds `process`:
+
+```json
+{"process": {"ok": false, "process": "IM/compression", "reason": "process_mismatch",
+             "rule": "only FDM/FFF material data is valid for the printed bracket family; …"}}
+```
+
+**If the gate fails, the AI is not called.** The response is HTTP 200 with `blocked: true`,
+`_meta.model: "fallback"`, `_meta.mock_reason: "process_mismatch"`, `process` echoed, and `note`:
+*"the selected material preset is IM/compression data and cannot be used for a printed lattice —
+design is blocked; choose an FDM/FFF preset (e.g. rPETG)"*. Three deterministic placeholders are
+returned only for schema compatibility. `process_mismatch` takes precedence over the family
+infeasibility gate (`mock_reason: "family_infeasible"`).
+
+Prompt contract (stated to the model): "Only FDM/FFF material data is valid for the printed bracket
+family." — IM/compression presets are contrast data, never printed-lattice input.
+
+## POST /api/design/review and /api/proof/memo — v0.4 blocks
+
+Optional request blocks (all accepted in snake_case; camelCase tolerated):
+
+```json
+{"brittle": {"strain_req_pct": 0.87, "elongation_mean_pct": 4.0, "elongation_cv": 0.20,
+             "pf_brittle": 0.0009, "pf_bound": 0.0109, "note": "…"},
+ "assumptions": {"pf_min": 0.004, "pf_max": 0.030,
+                 "corr_range": [{"corr": 0.3, "pf": 0.006}, {"corr": 0.7, "pf": 0.004}],
+                 "split_range": [{"lot_fraction": 0.75, "pf": 0.008},
+                                 {"lot_fraction": 0.95, "pf": 0.016}]},
+ "process": {"ok": true, "process": "FDM/FFF", "reason": ""},
+ "qc": {"lot_id": "LOT-2026-014", "supplier": "Recycled Polymer Co.",
+        "measurement_source": "certificate", "measurement_cv": 0.15,
+        "recycled_content_pct": 78}}
+```
+
+Also accepted from the app's flattened payload: `facts.mass_analytic_upper_bound_g`,
+`facts.sustained_pf_bound` / `facts.sustained_deflection_bound_mm`, `proof.sustained`,
+`proof.recipe`, `proof.qc`. `qc.measurement_cv` (fraction) or the app panel's `qc.cv`
+(percent) both work; an explicit QC measurement CV overrides the 12 % default in the memo.
+
+Response additions (optional; only echoed when supplied):
+
+```json
+{"brittle": {"pf_brittle": 0.0009, "pf_brittle_pct": 0.09, "pf_bound": 0.0109,
+             "pf_bound_pct": 1.09, "label": "conservative add-on, not folded into the headline two-property P_f",
+             "headline": false},
+ "assumptions": {"pf_min": 0.004, "pf_max": 0.03, "pf_min_pct": 0.4, "pf_max_pct": 3.0,
+                 "corr_range": [...], "split_range": [...], "label": "unmeasured assumption sensitivity, not validation",
+                 "is_validation": false},
+ "process": {"ok": true, "process": "FDM/FFF", "rule": "…"},
+ "qc": {"lot_id": "LOT-2026-014", "supplier": "…", "measurement_source": "certificate",
+        "measurement_cv": 0.15, "measurement_cv_pct": 15.0,
+        "recycled_content_pct": 78.0, "recycled_content_note": "paperwork claim (not simulated)"}}
+```
+
+Prompt/number rules enforced (and regression-tested):
+
+1. **Brittle / elongation screen** is a *conservative add-on*: it is never folded into the
+   headline two-property P_f; brittle lots are flagged as an add-on risk.
+2. **Assumption bounds** are *unmeasured sensitivity* (ln E / ln sy correlation and lot-vs-within
+   split) — never validation, and the model may not claim the range was measured.
+3. **Process mismatch blocks design** — if `process.ok` is false the memo says the printed-lattice
+   design is blocked (IM/compression data cannot be used for a printed part).
+4. **Lot identity / QC** is a record; a recycled-content % is a *paperwork claim (not simulated)*.
+5. The **sustained-load / creep bound** remains advisory (and says "not qualified for sustained
+   load" when it fails); printed mass remains the comparison basis, analytic mass is an upper bound.
+6. Every number in the text must exist in the request-derived canonical payload; otherwise the
+   deterministic memo is returned with `_meta.fallback: true` and `_meta.grounding.ok: false`.
+
+## Backward compatibility
+
+| Client payload | v0.4 server |
+|---|---|
+| v0.2 review/proof request keys | accepted (unchanged behaviour) |
+| v0.3 review/proof blocks (`facts`, `design`, `lot_recipe`, `measurement`, `sustained_bound`, `feasibility`, `family_scope`) | accepted; v0.4 blocks absent ⇒ v0.3 response shapes (brittle/assumptions/process/qc omitted) |
+| v0.2/v0.3 plan payloads (`brief`/`baseline`/`first_pass`/`feasibility`) | accepted; no process info ⇒ gate not applied |
+| `?mock=1` / `X-AnyRB-Mock` | unchanged |
+
+## Testing
+
+`51 passed, 1 skipped` in mock mode (no live model calls): v0.4 adds process-blocked plan
+(feasibility- and material-derived, precedence over family infeasibility), printed-process
+non-blocking, prompt-rule assertions, brittle/assumption/QC grounding and wording on review and
+proof, absent-v0.4-block backwards compatibility, app-shaped sustained-key pickup, and the v0.4
+health contract. Run: `cd AnyRB && .venv/bin/python -m pytest server/tests -q`.
