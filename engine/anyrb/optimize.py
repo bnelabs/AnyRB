@@ -245,7 +245,7 @@ def optimize_robust(mat: Material, target_pf: float = 0.01,
     for start in _starts(mat, target_pf):
         xs, _, _ = pattern_search(objective, start, max_evals=max_evals)
         r = evaluate(mat, xs)
-        if r["pf"] > target_pf * 1.02:
+        if r["pf"] > target_pf * 1.000001:
             continue
         score = r["printed_mass_g"] if r.get("printed_mass_g") else r["mass_g"]
         if best is None or score < best[0]:
@@ -259,7 +259,7 @@ def optimize_robust(mat: Material, target_pf: float = 0.01,
             r2 = evaluate(mat, x2)
             pr2 = printability_report(build_lattice(), r2["widths"])
             improved = (r2.get("printed_mass_g") or r2["mass_g"]) < (before.get("printed_mass_g") or before["mass_g"]) * 0.999
-            if (improved and r2["pf"] <= target_pf * 1.02 and not pr2["out_of_bounds"]
+            if (improved and r2["pf"] <= target_pf * 1.000001 and not pr2["out_of_bounds"]
                     and pr2["max_neighbour_width_ratio"] <= 1.5
                     and pr2["max_slenderness"] <= 30.0):
                 x, polished = x2, info
@@ -491,7 +491,7 @@ def lot_specific_recipe(mat: Material, controls: np.ndarray, target_pf: float = 
     base_printed = printed_mass_g(lat, base_r["widths"], mat.rho)
     scales = np.exp(r["controls"] - base)
     g = float(np.median(scales))
-    if r["pf"] > target_pf * 1.02:
+    if r["pf"] > target_pf * 1.000001:
         verdict = "reject / reroute"
     elif g <= 1.001:
         verdict = "pass as designed"

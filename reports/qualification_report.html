@@ -33,7 +33,7 @@
 
 <h1>Virtual qualification report — recycled-polymer bracket</h1>
 <div class="sub">rPETG (recycled PETG, printed parts) &middot; process: FDM/FFF &middot; reference product: 150&times;60&times;10&nbsp;mm
-cantilever bracket at 150&nbsp;N &middot; generated 2026-10-29 20:05 UTC
+cantilever bracket at 150&nbsp;N &middot; generated 2026-10-29 20:25 UTC
 &nbsp; <span class="badge">in-silico · not a certification</span></div>
 
 <div class="cards">
@@ -88,8 +88,9 @@ the analytic strut-sum (50.8 g) is a conservative upper bound (+9.5%). The old 2
 <li><strong>Feasibility gate:</strong> before Design, the engine checks whether the bracket/lattice family can meet the target at the maximum printable width. This material: feasible (minimum achievable P<sub>f</sub> 0.00e+00).</li>
 <li><strong>Sustained-load advisory (creep / compression bound):</strong> E<sub>req</sub> &times; 2.0, &sigma;<sub>req</sub> / 0.8, deflection &times; 2.0; bound P<sub>f</sub> 1.00, deflection bound 4.0 mm. This static design is <strong>not qualified for sustained load</strong>; the bound is advisory, not the design allowable.</li>
 <li><strong>Family scope:</strong> "best of this bracket/lattice family" — not a general topology optimiser. A pre-registered coupon plan is in validation/COUPON_TEST_PLAN.md; no physical test has been run.</li>
-<li><strong>Brittle-lot screen (new):</strong> peak tensile strain demand 0.90% at mean E vs printed elongation at break 4.0% (CV 0.20). Marginal brittle P<sub>f</sub> = 2.78e-16; conservative add-on bound (two-property P<sub>f</sub> + brittle marginal) = 1.00%. <em>Not included in the headline P<sub>f</sub></em> because E-elongation correlation is assumed (-0.25), not measured.</li>
-<li><strong>Assumption bounds (new):</strong> lot-vs-within variance split 75–95% moves P<sub>f</sub> from 0.20% to 1.20%; changing the assumed E–σ<sub>y</sub> correlation 0.30–0.70 does not move this design (stiffness-governed). These are assumptions, not validated population values.</li>
+<li><strong>Brittle-lot screen (new):</strong> peak tensile strain demand 0.90% at mean E vs printed elongation at break 4.0% (CV 0.20). Marginal brittle P<sub>f</sub> = 0.00e+00; add-on estimate (not a formal upper bound; strain demand at mean E; E–elongation correlation assumed; two-property P<sub>f</sub> + brittle marginal) = 1.00%. <em>Not included in the headline P<sub>f</sub></em> because E-elongation correlation is assumed (-0.25), not measured. The elongation marginal uses its own lot/within split (rPETG 50% of variance between lots; E/σy use 85%); the 1% brittle screen threshold is fixed and is not the design target.</li>
+<li><strong>Assumption bounds (new):</strong> lot-vs-within variance split 75–95% moves P<sub>f</sub> from 0.20% to 1.20%; changing the assumed E–σ<sub>y</sub> correlation 0.30–0.70 does not move this design (stiffness-governed). The target is met under the default 85/15 split; at the 95% extreme the modelled P<sub>f</sub> (1.20%) exceeds 1%, which is why these are labelled assumptions, not validated population values.</li>
+<li><strong>Union-mass polish (new):</strong> the global multi-start search ranks with the analytic upper bound (disclosed); a final local pattern search minimises the printed Halton union mass under the same constraints. No compliant improvement found — the stage was checked and declined; printed mass 46.40 g, 0 polish evaluations. The delivered design is locally optimal (not proven globally) on the reported printed-mass basis.</li>
 <li><strong>Process compatibility:</strong> this report is for a printed bracket; the selected material is <code>FDM/FFF</code> (compatible). Non-FDM presets are contrast-only and cannot be designed into the printed lattice.</li>
 <li><strong>Lot record:</strong> no delivered lot was supplied to this design-stage report. The app's Prove export carries lot ID, supplier, measurement source/CV and recycled-content % (paperwork claim).</li>
 </ul>
@@ -181,7 +182,7 @@ Lot identity, supplier, measurement source and recycled-content paperwork are ca
 
 <h2>5. Verification evidence (why you can trust the model at all)</h2>
 <div class="card">
-<div class="ok"><strong>Independent validation suite:</strong> 56 PASS / 2 WARN /
+<div class="ok"><strong>Independent validation suite:</strong> 55 PASS / 3 WARN /
 0 FAIL across 58 checks (see <code>validation/VALIDATION.md</code>).
 The two WARNs are disclosed, not hidden: <strong>F4</strong> the analytic strut-sum is a conservative upper bound
 (robust design 50.81 g vs printed union 46.40 g, +9.5 %), and <strong>F5</strong> the deterministic Halton printed-mass
@@ -220,7 +221,7 @@ it does not transfer to a single-material printed bracket. AnyRB v0.1 changes th
 the <em>mean demand</em>; it does not claim to reduce the material's own CV.</p></div>
 
 <div class="footer">
-AnyRB v0.3 prototype &middot; reference engine build 2026-10-29T20:05:42+00:00 &middot;
+AnyRB v0.3 prototype &middot; reference engine build 2026-10-29T20:25:55+00:00 &middot;
 material data: provisional literature-derived presets (research/01) &middot;
 key literature: Georgiou, Sun, Liu &amp; Athanasiou, PNAS 2025, doi:10.1073/pnas.2502613122; Cecon et al., Waste Management 2023;
 Eriksen et al., Waste Management 2019 &middot; full references in <code>research/</code>.

@@ -2,7 +2,7 @@
  "suite": "AnyRB coupon / bracket pre-registration (L3+ path)",
  "brand": "AnyRB",
  "version": "v0.3",
- "created_utc": "2026-10-29T19:54:03+00:00",
+ "created_utc": "2026-10-29T20:22:34+00:00",
  "status": "PRE-REGISTERED BLIND PREDICTIONS. No physical test has been performed; no measured data is included or implied.",
  "engine": {
   "reference": "engine/anyrb (Python reference implementation)",
@@ -191,8 +191,8 @@
     "analytic_mass_g": 50.809428668061415,
     "static_Pf_rpetg_lot": 0.009956387330703032,
     "strain_req_pct": 0.8955343469889637,
-    "pf_brittle": 2.7755575615628914e-16,
-    "pf_brittle_bound": 0.009956387330703309,
+    "pf_brittle": 0.0,
+    "pf_brittle_bound": 0.009956387330703032,
     "elongation_mean_pct": 4.0,
     "brittle_note": "marginal brittle screen; joint 3-property probability not claimed (E-elongation correlation assumed -0.25)"
    },
@@ -251,5 +251,5 @@
   "claim_effect": "passing this campaign would support L4 (component validation) for this geometry, process and material class only; it would not certify the product",
   "data_handling": "measured CSV is ingested with validation/compare_measurements.py and appended to the comparison record; the pre-registration hash is never edited"
  },
- "pre_registration_hash": "sha256:641825c85beec59c147e258c89ee9e373e99b036c83edeeedd9aad7a0abe51e5"
+ "pre_registration_hash": "sha256:9365e974ada585164d5fdd8e000c5b989806dffd01fd3dd071c29f3eec42e752"
 }

@@ -76,7 +76,7 @@ reports `version: "v0.4"`. See `API.md` §v0.4 for the full contract. Summary:
   cannot be used for a printed lattice (deterministic placeholders only for schema compatibility).
   The plan prompt states the same rule.
 * **Elongation / brittle-lot screen** — review/proof accept a `brittle` block and the memo reports
-  it as a **conservative add-on, not folded into the headline two-property P_f**; brittle lots are
+  it as a **add-on estimate (not a formal bound), not folded into the headline two-property P_f**; brittle lots are
   flagged, with `health.engine.elongation_brittle_screen` exposing the capability.
 * **Assumption bounds** — review/proof accept `assumptions {pf_min, pf_max, corr_range,
   split_range}` and the memo labels the P_f range as **unmeasured sensitivity, not validation**.

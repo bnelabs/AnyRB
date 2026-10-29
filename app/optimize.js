@@ -358,7 +358,7 @@ export function* robustOptimizeGen(materialIn, ctx, opts = {}) {
       mass_analytic_g: analysis.mass_analytic_g,
       printed_mass_g: analysis.printed_mass_g,
       pf,
-      feasible: pf <= targetPf * 1.02 && pr && pr.pass,
+      feasible: pf <= targetPf * 1.000001 && pr && pr.pass,
       printability: pr,
       evals: res.evals,
     };
@@ -411,7 +411,7 @@ export function* robustOptimizeGen(materialIn, ctx, opts = {}) {
       const afterPf = probabilityOfFailure(after, material, 'lot');
       const pr = printabilityReport(after);
       const improved = afterPrinted < unionBeforePrintedG * V04.unionPolish.acceptFactor;
-      const constraintsOk = afterPf <= targetPf * 1.02
+      const constraintsOk = afterPf <= targetPf * 1.000001
         && pr && pr.max_neighbour_width_ratio <= 1.5 + 1e-9
         && pr.max_slenderness <= 30 + 1e-9 && !pr.out_of_bounds;
       if (improved && constraintsOk) {
@@ -902,7 +902,7 @@ export function lotSpecificRecipe(materialIn, logWidthIn, opts = {}) {
   const addedMassPct = 100 * (printedMass / Math.max(basePrinted, 1e-12) - 1);
   const pr = printabilityReport(analysis);
   let verdict;
-  if (pf > targetPf * 1.02) verdict = 'reject / reroute';
+  if (pf > targetPf * 1.000001) verdict = 'reject / reroute';
   else if (globalScale <= 1.001) verdict = 'pass as designed';
   else if (globalScale <= 1.15) verdict = 'pass with compensation';
   else if (globalScale <= 1.5) verdict = 'conditional (heavy compensation)';

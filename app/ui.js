@@ -1243,7 +1243,7 @@ function renderBrittle(br, where) {
     <div><span class="micro">Peak strain demand</span><b>${nf(br.strain_req_pct, 3)} %</b></div>
     <div><span class="micro">Elongation capacity</span><b>${nf(br.elongation_mean_pct, 1)} % <span style="color:var(--muted);font-size:11px">CV ${nf(br.elongation_cv * 100, 0)} %</span></b></div>
     <div><span class="micro">Marginal P_f (brittle)</span><b>${fmtPf(br.pf_brittle)}</b></div>
-    <div><span class="micro">Add-on bound · P_f + marginal</span><b>${fmtPf(br.pf_brittle_bound)}</b></div>
+    <div><span class="micro">Add-on estimate · P_f + marginal</span><b>${fmtPf(br.pf_brittle_bound)}</b></div>
     <div class="${warn ? 'is-warn' : ''}"><span class="micro">Screen</span><b>${warn ? 'brittle-lot warning' : 'brittle margin OK'}</b></div>`;
   if (badge) badge.innerHTML = `<span class="b-dot"></span>marginal screen · NOT in headline P_f`;
   if (note) note.textContent = `${br.brittle_note || ''} Peak strain demand = σy_req / E_mean at mean E; capacity mean/CV are printed elongation from the feedstock library. E–elongation correlation assumed ${nf(br.corr_E_elong_assumed ?? br.corr_E_elong ?? -0.25, 2)}.`;
@@ -1837,7 +1837,7 @@ function buildDesignJson() {
       'Printability: neighbour width ratio > 1.5 or slenderness > 30 is a hard constraint in the optimiser; the selected design passes both.',
       'Sustained load: the creep x2.0 / compression /0.8 bound is an advisory only; static design allowables are unchanged and no sustained-load qualification has been performed.',
       'Known lot: the lot-specific recipe retains measurement uncertainty (default CV 12 %) and re-optimises all 8 width controls; global equivalent scale is a slicer fallback.',
-      'Brittle-lot screen: marginal lognormal against elongation-at-break, reported as a conservative add-on; NOT included in the headline two-property P_f because the E-elongation correlation is assumed (-0.25).',
+      'Brittle-lot screen: marginal lognormal against elongation-at-break, reported as an add-on estimate (not a formal upper bound); NOT included in the headline two-property P_f because the E-elongation correlation is assumed (-0.25).',
       'Printed-process gate: only FDM/FFF material data is valid for the printed lattice; injection/compression presets are contrast only and block Design.',
       'Assumption bounds vary corr(lnE, lnσy) and the lot/within split; they are assumption sensitivity, not validation.',
       'Design-stage report: no delivered lot is specified unless a lot ID/measurement is entered in the QC record.',
@@ -1904,7 +1904,7 @@ ${p && p.brittle ? `<h2>Brittle-lot screen (NOT in headline P_f)</h2><div class=
 <div><div class="k">Peak strain demand</div><div class="v">${nf(p.brittle.strain_req_pct, 3)} %</div></div>
 <div><div class="k">Elongation capacity</div><div class="v">${nf(p.brittle.elongation_mean_pct, 1)} % · CV ${nf(p.brittle.elongation_cv * 100, 0)} %</div></div>
 <div><div class="k">Marginal P_f (brittle)</div><div class="v">${fmtPf(p.brittle.pf_brittle)}</div></div>
-<div><div class="k">Conservative add-on bound</div><div class="v">${fmtPf(p.brittle.pf_brittle_bound)}</div></div>
+<div><div class="k">Add-on estimate (not a formal bound)</div><div class="v">${fmtPf(p.brittle.pf_brittle_bound)}</div></div>
 </div><p class="lim">Marginal lognormal screen, reported separately and NOT folded into the headline two-property P_f because the E-elongation correlation is assumed (-0.25). ${esc(p.brittle.brittle_ok ? 'Brittle margin OK.' : 'Brittle-lot warning.')}</p></div>` : ''}
 ${p && p.assumptions ? `<h2>Assumption sensitivity (not validation)</h2><div class="card"><div class="k">P_f range across unmeasured assumptions: <b>${fmtPf(p.assumptions.pf_min)} – ${fmtPf(p.assumptions.pf_max)}</b></div>
 <div class="k" style="margin-top:6px">corr(lnE, lnσy) 0.30 / 0.70: ${p.assumptions.corr_range.map((x) => fmtPf(x.pf)).join(' · ')}</div>

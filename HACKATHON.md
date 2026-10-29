@@ -18,7 +18,7 @@
 ## v0.4 remaining-gap fixes
 
 - Printed-process gate: only FDM/FFF material data can design the printed lattice; IM/compression presets are contrast-only.
-- Elongation/brittle-lot screen: peak strain demand vs printed elongation; marginal P_f shown as a conservative add-on, not in headline P_f.
+- Elongation/brittle-lot screen: peak strain demand vs printed elongation; marginal P_f shown as an add-on estimate, not in headline P_f.
 - Union-mass final polish stage; assumption-sensitivity bounds for correlation and lot/within split.
 - Non-FDM presets blocked, QC lot record retained.
 
@@ -85,7 +85,7 @@ cp server/.env.example server/.env   # add your Meta API key (never committed)
 # offline fallback: open index.html directly (deterministic assistant, clearly labelled)
 ```
 
-Tests: `make test` (engine, 29) · `make test-server` (API, mock) · `node app/tests/run.mjs` (UI/engine, 22) ·
+Tests: `make test` (engine, 33) · `make test-server` (API, 51+1, mock) · `node app/tests/run.mjs` (UI/engine, 37) ·
 `make validate` (independent scientific validation) · `make verify-live` (real Meta calls → evidence file).
 
 ## Submission checklist

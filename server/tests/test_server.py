@@ -907,7 +907,7 @@ def test_review_v04_brittle_assumptions_qc_grounding():
     assert review["qc"]["measurement_cv"] == pytest.approx(0.15)
     # wording rules
     memo = review["memo"]
-    assert "conservative add-on" in memo.lower()
+    assert "add-on estimate" in memo.lower()
     assert "not in the headline p_f" in memo.lower()
     assert "sensitivity, not validation" in memo.lower()
     assert "paperwork claim (not simulated)" in memo.lower()

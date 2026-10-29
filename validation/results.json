@@ -1,7 +1,7 @@
 {
  "suite": "AnyRB independent scientific validation",
  "version": "v0.3-validation",
- "generated_utc": "2026-10-29T20:12:08+00:00",
+ "generated_utc": "2026-10-29T20:28:35+00:00",
  "environment": {
   "python": "3.15.2",
   "numpy": "2.5.4",
@@ -9,7 +9,7 @@
   "matplotlib": "3.11.2",
   "node": "v26.12.1",
   "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
-  "engine_files": "8ce01b68e6522735c0a3ce2cd4e44467",
+  "engine_files": "39ad9de85ac3694435f4d9a226532e04",
   "fixture_sha256": "82b48a676a397ec8a5e94cdd1c767d84",
   "fixture_sha256_full": "82b48a676a397ec8a5e94cdd1c767d84"
  },
@@ -18,7 +18,7 @@
   "PASS": 56,
   "WARN": 2,
   "FAIL": 0,
-  "runtime_s": 62.6,
+  "runtime_s": 85.8,
   "exit_code": 0
  },
  "claim_ladder": {
@@ -67,7 +67,7 @@
   "joint_model_form": "Rigid-frame idealisation vs pin-jointed truss: tip stiffness differs by only 0.4%, but frame demands are 14% (strength) and 9% (stiffness) higher (J2); real printed joints lie between these bounds.",
   "sustained_load": "Sustained-load/creep advisory bound fails the static allowable: bound P_f ~1.0 and bound deflection ~4.0 mm > 2.5 mm limit (K1). The static design is NOT qualified for sustained load.",
   "coupon_not_tested": "The coupon/bracket plan is pre-registered only (L1); no physical measurements exist. Claim level remains L0-L1, L2 partial, L3 pre-registered.",
-  "brittle_screen_marginal": "The brittle-lot screen is a one-property lognormal marginal (pf_brittle) reported as a conservative add-on; the joint three-property probability is NOT claimed because the E-elongation correlation (-0.25) is assumed (K5).",
+  "brittle_screen_marginal": "The brittle-lot screen is a one-property lognormal marginal (pf_brittle) reported as an add-on estimate (not a formal bound); the joint three-property probability is NOT claimed because the E-elongation correlation (-0.25) is assumed. It uses an elongation-specific lot/within split (rPETG 50% between lots vs 85% for E/sy) and a fixed 1% brittle_ok threshold that is not the design target (K5).",
   "assumption_bounds_not_validation": "The reported P_f range over corr 0.30/0.70 and lot split 75/95% is sensitivity to unmeasured assumptions, not validation; the split is the dominant exposure (~6x P_f swing on the shipped design, K7).",
   "process_gate_scope": "Only FDM/FFF material data may enter the printed-bracket model; moulded/injection presets are contrast-only and design is blocked (K4). This is a claim gate, not a mechanical validation of printed-part properties.",
   "printed_union_discretisation": "The deterministic 60k-point Halton printed-union estimate deviates from an independent 10M-sample Monte Carlo by <=0.1% at the shipped designs but by 0.35% at w=1 mm (W_MIN) \u2014 beyond the documented 0.3% claim (F5 WARN). Analytic mass is a deliberate upper bound (F4 WARN)."
@@ -580,7 +580,7 @@
    "category": "D: optimiser",
    "title": "Brute-force grid baseline on the reduced 2-parameter family",
    "claim": "A 57x37 grid establishes the reference optimum of the uniform-width + root-gradient family",
-   "method": "2109 evaluations of anyrb.evaluate (~5.1 s)",
+   "method": "2109 evaluations of anyrb.evaluate (~4.6 s)",
    "tolerance": "grid must contain feasible designs",
    "observed": "best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346",
    "status": "PASS",
@@ -951,9 +951,9 @@
    "claim": "The JS engine reproduces the frozen fixtures; full app suite reported informationally",
    "method": "node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency",
    "tolerance": "filtered engine/fixture tests: exit 0 and 0 failures",
-   "observed": "1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 22.5 s",
+   "observed": "1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 33.1 s",
    "status": "PASS",
-   "notes": "Full app suite: 37 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.",
+   "notes": "Full app suite: 36 passed, 1 failed, 0 skipped; app-layer failure(s): v0.4 union-mass polish improves or safely leaves the printed mass: robust optimiser incl. union polish should be <2.5 s, got 4100 ms. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.",
    "evidence": {}
   },
   {
@@ -1170,20 +1170,43 @@
   {
    "id": "K5",
    "category": "K: v0.4 features",
-   "title": "Elongation / brittle-lot screen verified as a marginal conservative add-on",
-   "claim": "The brittle screen is a one-property lognormal marginal; it does NOT claim a joint three-property probability (E-elongation correlation assumed, not measured)",
-   "method": "Independent scipy.stats.lognorm / direct normal CDF at lot and within levels, monotonicity, zero-CV and NaN limits, evaluate() strain_req consistency, add-on bound arithmetic",
-   "tolerance": "max |engine - independent| <= 1e-12; monotone; degenerate limits exact; strain_req == sigma_req/E_mean; pf_brittle_bound == pf + pf_brittle",
-   "observed": "max abs err 5.6e-16; monotone=True; degenerate 0/1; strain_req 0.896% == sigma_req/E_mean; pf_brittle 2.78e-16; headline pf 0.00996 + brittle = bound 0.00996; known lot 12% meas CV: elongation CV 0.1428 (expected 0.1428)",
+   "title": "Elongation / brittle-lot screen verified with its own lot/within split (add-on estimate, not a formal bound)",
+   "claim": "The brittle screen is a one-property lognormal marginal with an elongation-specific variance split; it does NOT claim a joint three-property probability (E-elongation correlation assumed, not measured)",
+   "method": "Independent scipy.stats.lognorm / direct normal CDF using the elongation-specific split (lot sqrt(frac), within sqrt(1-frac), measured lot f=1), supplied reference values, monotonicity, zero-CV/NaN limits, evaluate() strain_req consistency, fixed 1% brittle_ok threshold",
+   "tolerance": "max |engine - independent| <= 1e-12; Lead reference values reproduced to 1e-12; measured-lot elongation CV 0.1854723699099141 exact; deg limits exact; brittle_ok matches pf_brittle <= 1% threshold",
+   "observed": "max abs err 6.7e-16; ref 0.02=6.010388e-07, 0.04=5.280468e-01 (rel err 0.0e+00); lot split sqrt(0.50); measured-lot elong CV 0.185472 (ref 0.185472); strain_req 0.896% == sigma_req/E_mean; pf_brittle 0.00e+00; headline pf 0.00996 + add-on = estimate 0.00996; 1% screen threshold verified (pass/fail boundary found)",
    "status": "PASS",
-   "notes": "The three-property joint probability is intentionally NOT claimed. If E and elongation were negatively correlated as assumed (-0.25), the true joint failure probability could differ from the reported add-on bound; the bound is labelled conservative and shown separately from the headline two-property P_f in every report.",
+   "notes": "The three-property joint probability is intentionally NOT claimed. The v0.4 screen uses an elongation-specific lot/within split (rPETG 50% between lots, vs 85% for E/sy) and a fixed 1% brittle_ok threshold that is documented and is NOT the design target. The reported brittle add-on is an estimate (not a formal bound) because the E-elongation correlation (-0.25) is assumed.",
    "evidence": {
-    "max_abs_err": 5.551115123125783e-16,
+    "max_abs_err": 6.661338147750939e-16,
+    "reference_values": {
+     "lot_pf_0.02": 6.010388069466188e-07,
+     "lot_pf_0.04": 0.5280467959439502,
+     "measured_lot_elongation_cv": 0.1854723699099141
+    },
+    "reference_rel_err": 0.0,
+    "elongation_lot_variance_fractions": {
+     "rpetg": 0.5,
+     "rpet": 0.6,
+     "rhdpe": 0.55,
+     "rpp": 0.6
+    },
     "strain_req": 0.008955343469889637,
-    "pf_brittle": 2.7755575615628914e-16,
-    "pf_brittle_bound": 0.009956387330703309,
+    "pf_brittle": 0.0,
+    "pf_addon_estimate": 0.009956387330703032,
     "headline_pf": 0.009956387330703032,
-    "measured_lot_elongation_cv": 0.1428287492068736,
+    "brittle_threshold": {
+     "pass_example": [
+      1.6,
+      2.5212274170516302e-05,
+      true
+     ],
+     "fail_example": [
+      1.25,
+      0.01074087304992316,
+      false
+     ]
+    },
     "requested_demands": [
      0.001,
      0.002,
@@ -1197,10 +1220,10 @@
      0.0,
      0.0,
      0.0,
-     2.7755575615628914e-16,
-     4.206490711311517e-11,
-     0.00010807524159223147,
-     0.5364227338586437
+     0.0,
+     0.0,
+     6.010388069466188e-07,
+     0.5280467959439502
     ]
    }
   },
@@ -1211,7 +1234,7 @@
    "claim": "Multi-start ranks analytic mass; the short local polish minimises printed Halton mass subject to target P_f and printability; acceptance requires a genuine 60k printed-mass improvement",
    "method": "Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime",
    "tolerance": "final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s",
-   "observed": "pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 5.1 s; 60k-vs-independent-union +0.01%; mode=declined",
+   "observed": "pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 5.3 s; 60k-vs-independent-union +0.01%; mode=declined",
    "status": "PASS",
    "notes": "The global search still ranks with the analytic upper bound (disclosed); only the final selection/polish uses the printed union. The default rPETG design correctly declines the polish when no compliant improvement exists.",
    "evidence": {
@@ -1220,7 +1243,7 @@
     "relative_change_pct": 0.0,
     "union_polished": false,
     "union_evals": 0,
-    "runtime_s": 5.114994916017167,
+    "runtime_s": 5.341784334043041,
     "final_pf": 0.009956387330703032,
     "printability": {
      "min_width_mm": 1.2427942708684527,
@@ -1264,9 +1287,9 @@
    "claim": "Report summary/HTML must contain the brittle screen, assumption bounds, process compatibility, validation counts and the no-delivered-lot statement; app Prove export carries lot identity",
    "method": "reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit)",
    "tolerance": "all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports)",
-   "observed": "fields_ok=True, html_ok=True, app_lot_identity=True, report validation 56P/2W/0F of 58; stale vs current results=False",
+   "observed": "fields_ok=True, html_ok=True, app_lot_identity=True, v0.4-hardening wording=True, report validation 56P/2W/0F of 58 (expected for this run if K8 passes: 56P/2W/0F of 58)",
    "status": "PASS",
-   "notes": "Reports are generated artifacts: if validation counts are stale, run `make report` after the validation suite (the check then flips to PASS). The no-lot statement is required because the design-stage report is generic; the app Prove export carries lot ID, supplier, measurement source/CV and recycled-content %.",
+   "notes": "Reports are generated artifacts: run `make report` after the validation suite so the report embeds the current counts and the hardened brittle-screen wording (the check then flips to PASS). The no-lot statement is required because the design-stage report is generic; the app Prove export carries lot ID, supplier, measurement source/CV and recycled-content %.",
    "evidence": {}
   },
   {
@@ -1336,7 +1359,7 @@
     "joint_model_form": "Rigid-frame idealisation vs pin-jointed truss: tip stiffness differs by only 0.4%, but frame demands are 14% (strength) and 9% (stiffness) higher (J2); real printed joints lie between these bounds.",
     "sustained_load": "Sustained-load/creep advisory bound fails the static allowable: bound P_f ~1.0 and bound deflection ~4.0 mm > 2.5 mm limit (K1). The static design is NOT qualified for sustained load.",
     "coupon_not_tested": "The coupon/bracket plan is pre-registered only (L1); no physical measurements exist. Claim level remains L0-L1, L2 partial, L3 pre-registered.",
-    "brittle_screen_marginal": "The brittle-lot screen is a one-property lognormal marginal (pf_brittle) reported as a conservative add-on; the joint three-property probability is NOT claimed because the E-elongation correlation (-0.25) is assumed (K5).",
+    "brittle_screen_marginal": "The brittle-lot screen is a one-property lognormal marginal (pf_brittle) reported as an add-on estimate (not a formal bound); the joint three-property probability is NOT claimed because the E-elongation correlation (-0.25) is assumed. It uses an elongation-specific lot/within split (rPETG 50% between lots vs 85% for E/sy) and a fixed 1% brittle_ok threshold that is not the design target (K5).",
     "assumption_bounds_not_validation": "The reported P_f range over corr 0.30/0.70 and lot split 75/95% is sensitivity to unmeasured assumptions, not validation; the split is the dominant exposure (~6x P_f swing on the shipped design, K7).",
     "process_gate_scope": "Only FDM/FFF material data may enter the printed-bracket model; moulded/injection presets are contrast-only and design is blocked (K4). This is a claim gate, not a mechanical validation of printed-part properties.",
     "printed_union_discretisation": "The deterministic 60k-point Halton printed-union estimate deviates from an independent 10M-sample Monte Carlo by <=0.1% at the shipped designs but by 0.35% at w=1 mm (W_MIN) \u2014 beyond the documented 0.3% claim (F5 WARN). Analytic mass is a deliberate upper bound (F4 WARN)."

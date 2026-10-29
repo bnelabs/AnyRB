@@ -448,7 +448,7 @@ Response additions (optional; only echoed when supplied):
 
 ```json
 {"brittle": {"pf_brittle": 0.0009, "pf_brittle_pct": 0.09, "pf_bound": 0.0109,
-             "pf_bound_pct": 1.09, "label": "conservative add-on, not folded into the headline two-property P_f",
+             "pf_bound_pct": 1.09, "label": "add-on estimate (not a formal bound), not folded into the headline two-property P_f",
              "headline": false},
  "assumptions": {"pf_min": 0.004, "pf_max": 0.03, "pf_min_pct": 0.4, "pf_max_pct": 3.0,
                  "corr_range": [...], "split_range": [...], "label": "unmeasured assumption sensitivity, not validation",
@@ -461,7 +461,7 @@ Response additions (optional; only echoed when supplied):
 
 Prompt/number rules enforced (and regression-tested):
 
-1. **Brittle / elongation screen** is a *conservative add-on*: it is never folded into the
+1. **Brittle / elongation screen** is a *add-on estimate*: it is never folded into the
    headline two-property P_f; brittle lots are flagged as an add-on risk.
 2. **Assumption bounds** are *unmeasured sensitivity* (ln E / ln sy correlation and lot-vs-within
    split) — never validation, and the model may not claim the range was measured.

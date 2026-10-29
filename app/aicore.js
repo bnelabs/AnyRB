@@ -945,7 +945,7 @@ export function buildDesignMemoPayload({ brief, selected, comparison }) {
     pf_brittle: selected.pf_brittle,
     pf_brittle_bound: selected.pf_brittle_bound,
     brittle_ok: selected.brittle_ok,
-    brittle_note: 'Marginal brittle-lot screen; conservative add-on, NOT included in the headline P_f (E-elongation correlation assumed).',
+    brittle_note: 'Marginal brittle-lot screen; add-on estimate (not a formal bound), NOT included in the headline P_f (E-elongation correlation assumed).',
   };
   return { facts, target_pf: brief.targetPf, design: { control_widths_mm: facts.widths_mm } };
 }

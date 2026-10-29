@@ -112,11 +112,18 @@ def failure_probability_elongation(mat: Material, strain_demand: float,
     This is the brittle-lot screen, deliberately reported *separately* from the
     headline two-property P_f: the library's elongation-vs-E correlation
     (-0.25) is an assumption, so a joint three-property probability is not
-    claimed.  The app/report shows this as a conservative add-on bound.
+    claimed.  The app/report shows this as a add-on estimate (not a formal bound).
     """
     if not np.isfinite(mat.elongation_mean) or mat.elongation_mean <= 0:
         return float("nan")
-    f = {"lot": mat.lot_fraction, "within": mat.within_fraction, "total": 1.0}[level]
+    if level == "total":
+        f = 1.0
+    elif mat.lot_fraction <= 1e-12:          # measured lot: cv_already=within+measurement
+        f = 1.0
+    elif level == "lot":
+        f = float(np.sqrt(max(mat.elongation_lot_variance_fraction, 0.0)))
+    else:                                    # within
+        f = float(np.sqrt(max(1.0 - mat.elongation_lot_variance_fraction, 0.0)))
     cv = float(mat.elongation_cv) * f
     mean = float(mat.elongation_mean) / 100.0
     if cv <= 0:

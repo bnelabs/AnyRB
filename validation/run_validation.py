@@ -1458,20 +1458,37 @@ def check_v04():
                                "min_achievable_pf": ff.get("min_achievable_pf")},
                      "nonprintable": rows, "probes_ok": probe_ok})
 
-    # ---------------- K5: elongation / brittle screen ---------------------
+    # ---------------- K5: elongation / brittle screen (v0.4 hardenings) --
+    def elong_factor(mm, level):
+        if level == "total" or mm.lot_fraction <= 1e-12:
+            return 1.0
+        if level == "lot":
+            return math.sqrt(mm.elongation_lot_variance_fraction)
+        return math.sqrt(max(1.0 - mm.elongation_lot_variance_fraction, 0.0))
+
+    def elong_pf_ref(mm, demand, level):
+        cv = mm.elongation_cv * elong_factor(mm, level)
+        mean = mm.elongation_mean / 100.0
+        if cv <= 0:
+            return 1.0 if demand >= mean else 0.0
+        sigma2 = math.log1p(cv * cv)
+        sigma = math.sqrt(sigma2)
+        mu = math.log(mean) - 0.5 * sigma2
+        return float(ndtr((math.log(max(demand, 1e-12)) - mu) / sigma))
+
     demands = [0.001, 0.002, 0.004, 0.0089553, 0.012, 0.02, 0.04]
     max_err = 0.0
-    for level in ("lot", "within"):
-        f = mat.lot_fraction if level == "lot" else mat.within_fraction
-        cv = mat.elongation_cv * f
-        mean = mat.elongation_mean / 100.0
-        sigma = math.sqrt(math.log1p(cv * cv))
-        mu = math.log(mean) - 0.5 * sigma * sigma
+    for level in ("lot", "within", "total"):
         for dem in demands:
             eng = failure_probability_elongation(mat, dem, level=level)
-            ref_lognorm = float(lognorm.cdf(dem, s=sigma, scale=math.exp(mu)))
-            ref_phi = float(ndtr((math.log(dem) - mu) / sigma))
-            max_err = max(max_err, abs(eng - ref_lognorm), abs(eng - ref_phi))
+            ref = elong_pf_ref(mat, dem, level)
+            # independent scipy lognormal check on the same split
+            cv = mat.elongation_cv * elong_factor(mat, level)
+            mean = mat.elongation_mean / 100.0
+            sigma = math.sqrt(math.log1p(cv * cv))
+            mu = math.log(mean) - 0.5 * sigma * sigma
+            ref_lognorm = float(lognorm.cdf(dem, s=sigma, scale=math.exp(mu))) if cv > 0 else ref
+            max_err = max(max_err, abs(eng - ref), abs(eng - ref_lognorm))
     vals = [failure_probability_elongation(mat, dem) for dem in demands]
     monotone = all(b >= a - 1e-15 for a, b in zip(vals, vals[1:]))
     deg = dataclasses.replace(mat, elongation_cv=0.0)
@@ -1479,35 +1496,72 @@ def check_v04():
     deg_above = failure_probability_elongation(deg, 0.05)
     nan_mat = dataclasses.replace(mat, elongation_mean=float("nan"))
     nan_pf = failure_probability_elongation(nan_mat, 0.01)
+    # v0.4 reference values supplied by the Lead, recomputed independently
+    ref_002 = 6.010388069466188e-07
+    ref_004 = 0.5280467959439502
+    ref_meas_cv = 0.1854723699099141
+    eng_002 = failure_probability_elongation(mat, 0.02, "lot")
+    eng_004 = failure_probability_elongation(mat, 0.04, "lot")
+    ref_err = max(abs(eng_002 / ref_002 - 1.0), abs(eng_004 / ref_004 - 1.0))
     strain_ok = abs(r["strain_req"] - d.sigma_req / mat.E_mean) <= 1e-15 * max(1.0, r["strain_req"])
     pf_br = failure_probability_elongation(mat, r["strain_req"])
     bound_ok = (abs(r["pf_brittle"] - pf_br) < 1e-15
                 and abs(r["pf_brittle_bound"] - (r["pf"] + r["pf_brittle"])) < 1e-15)
     headline_ok = abs(r["pf"] - failure_probability(mat, d.sigma_req, d.E_req)) < 1e-15
     m12 = mat.lot_from_measurement(2300.0, 50.0, measurement_cv=0.12)
-    e_within = mat.elongation_cv * mat.within_fraction
-    expected_elong_cv = math.sqrt(e_within ** 2 + 0.12 ** 2)
-    measured_ok = (abs(m12.elongation_cv - expected_elong_cv) < 1e-12
+    expected_elong_cv = math.sqrt(
+        (mat.elongation_cv * math.sqrt(1.0 - mat.elongation_lot_variance_fraction)) ** 2
+        + 0.12 ** 2)
+    measured_ok = (abs(m12.elongation_cv - expected_elong_cv) < 1e-14
+                   and abs(m12.elongation_cv - ref_meas_cv) < 1e-14
                    and np.isfinite(failure_probability_elongation(m12, r["strain_req"])))
-    ok = (max_err <= 1e-12 and monotone and deg_below == 0.0 and deg_above == 1.0
-          and math.isnan(nan_pf) and strain_ok and bound_ok and headline_ok and measured_ok)
+    fractions = {k: PRESETS[k].elongation_lot_variance_fraction
+                 for k in ("rpetg", "rpet", "rhdpe", "rpp")}
+    fraction_ok = (abs(fractions["rpetg"] - 0.50) < 1e-15
+                   and abs(fractions["rpet"] - 0.60) < 1e-15
+                   and abs(fractions["rhdpe"] - 0.55) < 1e-15
+                   and abs(fractions["rpp"] - 0.60) < 1e-15)
+    # brittle_ok is a fixed 1% screen (documented), not the design target
+    found_true = None; found_false = None; thr_consistent = True
+    for em in np.linspace(0.9, 1.6, 29):
+        mm = dataclasses.replace(mat, elongation_mean=float(em))
+        rr = evaluate(mm, robust_ctl, printed=False)
+        consistent = (rr["brittle_ok"] == (rr["pf_brittle"] <= 0.01))
+        thr_consistent &= consistent
+        if rr["pf_brittle"] <= 0.01:
+            found_true = (float(em), rr["pf_brittle"], rr["brittle_ok"])
+        else:
+            found_false = (float(em), rr["pf_brittle"], rr["brittle_ok"])
+    threshold_ok = thr_consistent and found_true is not None and found_false is not None
+    ok = (max_err <= 1e-12 and ref_err <= 1e-12 and monotone
+          and deg_below == 0.0 and deg_above == 1.0 and math.isnan(nan_pf)
+          and strain_ok and bound_ok and headline_ok and measured_ok
+          and fraction_ok and threshold_ok)
     record("K5", "K: v0.4 features",
-           "Elongation / brittle-lot screen verified as a marginal conservative add-on",
-           "The brittle screen is a one-property lognormal marginal; it does NOT claim a joint three-property probability (E-elongation correlation assumed, not measured)",
-           "Independent scipy.stats.lognorm / direct normal CDF at lot and within levels, monotonicity, zero-CV and NaN limits, evaluate() strain_req consistency, add-on bound arithmetic",
-           "max |engine - independent| <= 1e-12; monotone; degenerate limits exact; strain_req == sigma_req/E_mean; pf_brittle_bound == pf + pf_brittle",
-           f"max abs err {max_err:.1e}; monotone={monotone}; degenerate {deg_below:.0f}/{deg_above:.0f}; "
-           f"strain_req {100*r['strain_req']:.3f}% == sigma_req/E_mean; pf_brittle {r['pf_brittle']:.2e}; "
-           f"headline pf {r['pf']:.5f} + brittle = bound {r['pf_brittle_bound']:.5f}; "
-           f"known lot 12% meas CV: elongation CV {m12.elongation_cv:.4f} (expected {expected_elong_cv:.4f})",
+           "Elongation / brittle-lot screen verified with its own lot/within split (add-on estimate, not a formal bound)",
+           "The brittle screen is a one-property lognormal marginal with an elongation-specific variance split; it does NOT claim a joint three-property probability (E-elongation correlation assumed, not measured)",
+           "Independent scipy.stats.lognorm / direct normal CDF using the elongation-specific split (lot sqrt(frac), within sqrt(1-frac), measured lot f=1), supplied reference values, monotonicity, zero-CV/NaN limits, evaluate() strain_req consistency, fixed 1% brittle_ok threshold",
+           "max |engine - independent| <= 1e-12; Lead reference values reproduced to 1e-12; measured-lot elongation CV 0.1854723699099141 exact; deg limits exact; brittle_ok matches pf_brittle <= 1% threshold",
+           f"max abs err {max_err:.1e}; ref 0.02={eng_002:.6e}, 0.04={eng_004:.6e} "
+           f"(rel err {ref_err:.1e}); lot split sqrt({mat.elongation_lot_variance_fraction:.2f}); "
+           f"measured-lot elong CV {m12.elongation_cv:.6f} (ref 0.185472); strain_req "
+           f"{100*r['strain_req']:.3f}% == sigma_req/E_mean; pf_brittle {r['pf_brittle']:.2e}; "
+           f"headline pf {r['pf']:.5f} + add-on = estimate {r['pf_brittle_bound']:.5f}; "
+           f"1% screen threshold verified (pass/fail boundary found)",
            status_for(ok),
-           notes="The three-property joint probability is intentionally NOT claimed. If E and elongation "
-                 "were negatively correlated as assumed (-0.25), the true joint failure probability could "
-                 "differ from the reported add-on bound; the bound is labelled conservative and shown "
-                 "separately from the headline two-property P_f in every report.",
-           evidence={"max_abs_err": max_err, "strain_req": r["strain_req"],
-                     "pf_brittle": r["pf_brittle"], "pf_brittle_bound": r["pf_brittle_bound"],
-                     "headline_pf": r["pf"], "measured_lot_elongation_cv": m12.elongation_cv,
+           notes="The three-property joint probability is intentionally NOT claimed. The v0.4 screen uses "
+                 "an elongation-specific lot/within split (rPETG 50% between lots, vs 85% for E/sy) and a "
+                 "fixed 1% brittle_ok threshold that is documented and is NOT the design target. The "
+                 "reported brittle add-on is an estimate (not a formal bound) because the E-elongation "
+                 "correlation (-0.25) is assumed.",
+           evidence={"max_abs_err": max_err,
+                     "reference_values": {"lot_pf_0.02": eng_002, "lot_pf_0.04": eng_004,
+                                          "measured_lot_elongation_cv": m12.elongation_cv},
+                     "reference_rel_err": ref_err,
+                     "elongation_lot_variance_fractions": fractions,
+                     "strain_req": r["strain_req"], "pf_brittle": r["pf_brittle"],
+                     "pf_addon_estimate": r["pf_brittle_bound"], "headline_pf": r["pf"],
+                     "brittle_threshold": {"pass_example": found_true, "fail_example": found_false},
                      "requested_demands": demands, "engine_values": vals})
 
     # ---------------- K6: union-mass final polish -------------------------
@@ -1537,7 +1591,7 @@ def check_v04():
     for start in starts:
         xs, _, _ = pattern_search(analytic_obj, start, max_evals=1200)
         rr = evaluate(mat, xs)
-        if rr["pf"] > target * 1.02:
+        if rr["pf"] > target * 1.000001:
             continue
         score = rr["printed_mass_g"]
         if pre is None or score < pre[0]:
@@ -1566,7 +1620,7 @@ def check_v04():
             rp = evaluate(mat, xp)
             prp = printability_report(lat, rp["widths"])
             improve = (rp["printed_mass_g"] or rp["mass_g"]) < pre_printed * 0.999
-            accept = (improve and rp["pf"] <= target * 1.02
+            accept = (improve and rp["pf"] <= target * 1.000001
                       and not prp["out_of_bounds"]
                       and prp["max_neighbour_width_ratio"] <= 1.5
                       and prp["max_slenderness"] <= 30.0)
@@ -1579,7 +1633,7 @@ def check_v04():
             accepted_ok = False
             decline_candidate = {"error": str(e)}
         mode = "declined"
-    feasible_ok = (final_pf <= target * 1.02 and not pr["out_of_bounds"]
+    feasible_ok = (final_pf <= target * 1.000001 and not pr["out_of_bounds"]
                    and pr["max_neighbour_width_ratio"] <= 1.5
                    and pr["max_slenderness"] <= 30.0)
     stored_ok = (res.printed_mass_g is not None
@@ -1662,6 +1716,9 @@ def check_v04():
                      "no delivered lot was supplied to this design-stage report",
                      "validation/VALIDATION.md"]
     html_ok = all(s in html for s in html_required)
+    html_new_wording = ["add-on estimate", "elongation marginal uses its own lot/within split",
+                        "1% brittle screen threshold"]
+    wording_ok = all(s in html for s in html_new_wording)
     fields_ok = (all(k in summary for k in required_keys)
                  and br.get("pf_brittle") is not None
                  and abs(br.get("pf_bound", 0.0) - (robust_pf + br.get("pf_brittle", 0.0))) < 1e-9
@@ -1679,32 +1736,36 @@ def check_v04():
     app_ok = all(s in app_ui for s in ("lot_id", "supplier", "recycled_content_pct",
                                        ("measurement_cv" if "measurement_cv" in app_ui else "measurement")))
     counts_present = all(k in val for k in ("PASS", "WARN", "FAIL", "total"))
-    prev_results = HERE / "results.json"
-    fresh = None
-    if prev_results.exists():
-        try:
-            prev = json.loads(prev_results.read_text())["summary"]
-            fresh = (val.get("total") == prev.get("total")
-                     and val.get("PASS") == prev.get("PASS")
-                     and val.get("WARN") == prev.get("WARN")
-                     and val.get("FAIL") == prev.get("FAIL"))
-        except Exception:
-            fresh = None
+    # Expected final counts for THIS run if K8 passes: it runs before I1/I2 are
+    # recorded, and K8 itself would add one PASS.  A regenerated report must
+    # embed exactly these counts to be considered fresh.
+    prior_pass = sum(1 for c in CHECKS if c["status"] == "PASS")
+    prior_warn = sum(1 for c in CHECKS if c["status"] == "WARN")
+    prior_fail = sum(1 for c in CHECKS if c["status"] == "FAIL")
+    expected = {"total": len(CHECKS) + 3, "PASS": prior_pass + 3,
+                "WARN": prior_warn, "FAIL": prior_fail}
+    fresh = (val.get("total") == expected["total"]
+             and val.get("PASS") == expected["PASS"]
+             and val.get("WARN") == expected["WARN"]
+             and val.get("FAIL") == expected["FAIL"])
     ok = fields_ok and html_ok and app_ok and counts_present
-    status = "PASS" if (ok and fresh) else ("WARN" if ok else "FAIL")
+    status = "PASS" if (ok and fresh and wording_ok) else ("WARN" if ok else "FAIL")
     record("K8", "I: claim scope" if False else "K: v0.4 features",
            "Design-stage report and app export carry the v0.4 disclosures",
            "Report summary/HTML must contain the brittle screen, assumption bounds, process compatibility, validation counts and the no-delivered-lot statement; app Prove export carries lot identity",
            "reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit)",
            "all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports)",
            f"fields_ok={fields_ok}, html_ok={html_ok}, app_lot_identity={app_ok}, "
+           f"v0.4-hardening wording={wording_ok}, "
            f"report validation {val.get('PASS')}P/{val.get('WARN')}W/{val.get('FAIL')}F of "
-           f"{val.get('total')}; stale vs current results={fresh is False}",
+           f"{val.get('total')} (expected for this run if K8 passes: "
+           f"{expected['PASS']}P/{expected['WARN']}W/{expected['FAIL']}F of {expected['total']})",
            status,
-           notes="Reports are generated artifacts: if validation counts are stale, run `make report` after "
-                 "the validation suite (the check then flips to PASS). The no-lot statement is required "
-                 "because the design-stage report is generic; the app Prove export carries lot ID, supplier, "
-                 "measurement source/CV and recycled-content %.")
+           notes="Reports are generated artifacts: run `make report` after the validation suite so the "
+                 "report embeds the current counts and the hardened brittle-screen wording (the check then "
+                 "flips to PASS). The no-lot statement is required because the design-stage report is "
+                 "generic; the app Prove export carries lot ID, supplier, measurement source/CV and "
+                 "recycled-content %.")
     # figure 6: v0.4 features
     fig, axs = plt.subplots(1, 3, figsize=(12.6, 3.9), dpi=140)
     ax = axs[0]
@@ -1816,8 +1877,11 @@ def check_I():
         "coupon_not_tested": "The coupon/bracket plan is pre-registered only (L1); no physical measurements "
                              "exist. Claim level remains L0-L1, L2 partial, L3 pre-registered.",
         "brittle_screen_marginal": "The brittle-lot screen is a one-property lognormal marginal (pf_brittle) "
-                                   "reported as a conservative add-on; the joint three-property probability is "
-                                   "NOT claimed because the E-elongation correlation (-0.25) is assumed (K5).",
+                                   "reported as an add-on estimate (not a formal bound); the joint "
+                                   "three-property probability is NOT claimed because the E-elongation "
+                                   "correlation (-0.25) is assumed. It uses an elongation-specific lot/within "
+                                   "split (rPETG 50% between lots vs 85% for E/sy) and a fixed 1% brittle_ok "
+                                   "threshold that is not the design target (K5).",
         "assumption_bounds_not_validation": "The reported P_f range over corr 0.30/0.70 and lot split 75/95% is "
                                             "sensitivity to unmeasured assumptions, not validation; the split is "
                                             "the dominant exposure (~6x P_f swing on the shipped design, K7).",
@@ -2291,11 +2355,13 @@ def write_reports(ladder, limits, env):
     A("- **Mass basis:** display `printed_mass_g` (deterministic Halton-QMC union). F5 audits it against "
       "independent Monte Carlo: ≤0.1% deviation at the shipped designs, 0.35% worst case at w=1 mm (W_MIN) — "
       "a documented WARN. Label analytic `mass_g` strictly as a conservative upper bound (F4 WARN).")
-    A("- **v0.4 disclosures:** brittle-lot screen is a *marginal add-on* (`pf_brittle` shown separately; "
-      "`pf_brittle_bound = pf + pf_brittle`, joint three-property probability NOT claimed); the P_f range over "
-      "corr 0.30/0.70 and lot split 75/95% is assumption sensitivity, not validation; only FDM/FFF material "
-      "data may enter the printed-bracket model (non-printed presets are contrast-only and design is blocked); "
-      "the final design mass is selected on the printed union after a recorded polish step.")
+    A("- **v0.4 disclosures:** brittle-lot screen is a *marginal add-on estimate (not a formal bound)* "
+      "(`pf_brittle` shown separately; `pf_brittle_bound = pf + pf_brittle`, joint three-property probability "
+      "NOT claimed), with its own elongation lot/within split (rPETG 50% between lots vs 85% for E/σy) and a "
+      "fixed 1% brittle screen threshold (not the design target); the P_f range over corr 0.30/0.70 and lot "
+      "split 75/95% is assumption sensitivity, not validation; only FDM/FFF material data may enter the "
+      "printed-bracket model (non-printed presets are contrast-only and design is blocked); the final design "
+      "mass is selected on the printed union after a recorded polish step, with strict P_f <= target acceptance.")
     A("")
     A("## Summary")
     A("")
@@ -2477,8 +2543,8 @@ def write_reports(ladder, limits, env):
     A("5. **Report freshness (K8):** generated reports embed the last validation counts. Run `make report` "
       "after every validation run; K8 remains WARN until the report's counts match `validation/results.json`.")
     A("6. **Brittle screen (K5):** keep `pf_brittle` / `pf_brittle_bound` visually separate from the headline "
-      "two-property P_f and never present the add-on bound as a joint probability; the E-elongation correlation "
-      "is assumed.")
+      "two-property P_f and never present the add-on estimate as a joint probability or a formal bound; the "
+      "E-elongation correlation is assumed and the elongation split differs from E/sy.")
     A("")
     (HERE / "VALIDATION.md").write_text("\n".join(lines) + "\n")
     return results, counts

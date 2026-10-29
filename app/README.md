@@ -31,7 +31,7 @@ unreachable backend → offline assistant, clearly badged per card and in the to
 
 ```bash
 python3 app/build.py        # inlines app sources -> anyrb/index.html (+ app/standalone.html)
-node app/tests/run.mjs      # 37 tests: engine fixtures, FE checks, v0.3 AI helpers
+node app/tests/run.mjs      # 37 tests: engine fixtures, FE checks, v0.4 AI helpers
 ```
 
 ---

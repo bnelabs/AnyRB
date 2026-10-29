@@ -85,6 +85,7 @@ export function normalizeMaterial(material = {}) {
   const elongMean = out.elongationMean ?? out.elongation_mean ?? (out.preset === 'rPETG' ? 4.0 : NaN);
   out.elongationMean = Number.isFinite(elongMean) && elongMean > 0 ? elongMean : NaN;
   out.elongationCv = clamp(out.elongationCv ?? out.elongation_cv ?? 0, 0, 2);
+  out.elongationLotVarianceFraction = clamp(out.elongationLotVarianceFraction ?? out.elongation_lot_variance_fraction ?? 0.5, 0, 1);
   out.corrEElong = out.corrEElong ?? out.corr_E_elong ?? -0.25;
   return out;
 }
@@ -1004,7 +1005,7 @@ export function lotFromMeasurement(materialIn, E_measured, sy_measured, measurem
   const m = normalizeMaterial(materialIn);
   const eWithin = m.E_cv * m.withinFraction;
   const sWithin = m.sy_cv * m.withinFraction;
-  const elongWithin = m.elongationCv * m.withinFraction;
+  const elongWithin = m.elongationCv * Math.sqrt(Math.max(1 - m.elongationLotVarianceFraction, 0));
   const eCv = Math.sqrt(Math.max(eWithin * eWithin + measurementCv * measurementCv, 1e-12));
   const sCv = Math.sqrt(Math.max(sWithin * sWithin + measurementCv * measurementCv, 1e-12));
   return {
@@ -1032,7 +1033,11 @@ export function lotFromMeasurement(materialIn, E_measured, sy_measured, measurem
 export function failureProbabilityElongation(materialIn, strainDemand, level = 'lot') {
   const m = normalizeMaterial(materialIn);
   if (!Number.isFinite(m.elongationMean) || m.elongationMean <= 0) return NaN;
-  const f = level === 'within' ? m.withinFraction : level === 'total' ? 1.0 : m.lotFraction;
+  let f;
+  if (level === 'total') f = 1.0;
+  else if (m.lotFraction <= 1e-12) f = 1.0; // measured lot: elongationCv already within+measurement
+  else if (level === 'within') f = Math.sqrt(Math.max(1 - m.elongationLotVarianceFraction, 0));
+  else f = Math.sqrt(Math.max(m.elongationLotVarianceFraction, 0));
   const cv = m.elongationCv * f;
   const mean = m.elongationMean / 100;
   const demand = Math.max(strainDemand, 1e-12);
@@ -1084,8 +1089,9 @@ export function brittleScreen(analysis, materialIn, level = 'lot') {
     pf_brittle: pfBrittle,
     pf_brittle_bound: Number.isFinite(pfBrittle) ? pf + pfBrittle : pf,
     brittle_ok: Number.isFinite(pfBrittle) ? pfBrittle <= 0.01 : null,
+    brittle_threshold: 0.01,
     brittle_included_in_headline: false,
-    note: 'Marginal brittle-lot screen; conservative ADD-ON, not included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25).',
+    note: 'Marginal brittle-lot screen at mean-E strain; add-on ESTIMATE, not a formal upper bound; not included in the headline two-property P_f because the E–elongation correlation is assumed (-0.25). Screen threshold fixed at 1 %.',
   };
 }
 

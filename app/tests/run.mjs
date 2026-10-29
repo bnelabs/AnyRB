@@ -823,11 +823,11 @@ test('v0.4 brittle-lot screen matches the Python reference constants', () => {
   // Python marginals: failure_probability_elongation at strain demands 0.02 / 0.04 (lot level)
   const at02 = E.failureProbabilityElongation(material, 0.02, 'lot');
   const at04 = E.failureProbabilityElongation(material, 0.04, 'lot');
-  assert(Math.abs(at02 - 1.0807524159223115e-4) / 1.0807524159223115e-4 < 1e-9, `elong marginal 0.02: ${at02}`);
-  assert(Math.abs(at04 - 0.5364227338586437) < 1e-12, `elong marginal 0.04: ${at04}`);
-  // Known lot retains measurement CV in elongation (Python 0.1428287492068736)
+  assert(Math.abs(at02 - 6.010388069466188e-7) / 6.010388069466188e-7 < 1e-9, `elong marginal 0.02: ${at02}`);
+  assert(Math.abs(at04 - 0.5280467959439502) < 1e-12, `elong marginal 0.04: ${at04}`);
+  // Known lot retains measurement CV in elongation (Python 0.1854723699099141)
   const measured = E.lotFromMeasurement(material, 0.8 * material.E_mean, material.sy_mean, 0.12);
-  assert(Math.abs(measured.elongationCv - 0.1428287492068736) < 1e-12, `measured elongation CV ${measured.elongationCv}`);
+  assert(Math.abs(measured.elongationCv - 0.1854723699099141) < 1e-12, `measured elongation CV ${measured.elongationCv}`);
 });
 
 test('v0.4 union-mass polish improves or safely leaves the printed mass', () => {

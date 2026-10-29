@@ -4,7 +4,7 @@ Responds to the second external review's remaining gaps:
 
 * **printed-process gate** — only FDM/FFF material data is valid for the printed
   bracket family; IM/compression presets may never feed the printed-lattice AI path.
-* **elongation / brittle-lot screen** — surfaced as a *conservative add-on*, never
+* **elongation / brittle-lot screen** — surfaced as a *add-on estimate*, never
   folded into the headline two-property P_f.
 * **union-mass polish** — exposed as an engine capability (the AI never computes mass).
 * **assumption bounds** — correlation / lot-split sensitivity, labelled *sensitivity,
@@ -31,7 +31,7 @@ PROCESS_RULE = ("only FDM/FFF material data is valid for the printed bracket fam
 PROCESS_MISMATCH_NOTE = ("the selected material preset is IM/compression data and cannot be used "
                          "for a printed lattice — design is blocked; choose an FDM/FFF preset "
                          "(e.g. rPETG)")
-BRITTLE_NOTE = "conservative add-on, not folded into the headline two-property P_f"
+BRITTLE_NOTE = "add-on estimate (not a formal bound), not folded into the headline two-property P_f"
 BRITTLE_HEADLINE = "not in the headline P_f"
 ASSUMPTIONS_NOTE = "unmeasured assumption sensitivity, not validation"
 QC_RECYCLED_NOTE = "paperwork claim (not simulated)"

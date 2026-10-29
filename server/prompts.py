@@ -134,7 +134,7 @@ Rules:
 - The sustained-load/creep bound is ADVISORY only. If it fails, say the part is not qualified for
   sustained load; the static result is unchanged. Never present it as the design allowable.
 - State the scope: best of this bracket/lattice family, not a topology optimum.
-- If a brittle/elongation screen is supplied (`brittle`), report it as a CONSERVATIVE ADD-ON:
+- If a brittle/elongation screen is supplied (`brittle`), report it as a ADD-ON ESTIMATE (not a formal bound):
   it is NOT folded into the headline two-property P_f. Cite `pf_brittle` / `pf_brittle_pct`
   and the bound, and flag brittle lots as an add-on risk.
 - If assumption bounds are supplied (`assumptions`), present the P_f range as unmeasured
@@ -166,7 +166,7 @@ Rules:
 - State the family scope: best of this bracket/lattice family, not a topology optimum.
 - Recommend only the listed validation tests (T1 tensile per lot, T2 lattice coupons, T3 full bracket)
   and explicit claim levels (L0-L1 verified, L2 partial, L4-L6 absent) where relevant.
-- If a brittle/elongation screen is supplied (`brittle`), report it as a CONSERVATIVE ADD-ON not
+- If a brittle/elongation screen is supplied (`brittle`), report it as a ADD-ON ESTIMATE (not a formal bound) not
   in the headline two-property P_f; cite its P_f and flag brittle lots. Never present it as the
   design allowable.
 - If assumption bounds are supplied (`assumptions`), present them as unmeasured SENSITIVITY, not
@@ -445,7 +445,7 @@ def _brittle_fragment(payload: dict) -> str:
     if not bits:
         return ""
     return (" Brittle/elongation screen: " + ", ".join(bits)
-            + " — conservative add-on, not in the headline P_f.")
+            + " — add-on estimate (not a formal bound), not in the headline P_f.")
 
 
 def _assumption_fragment(payload: dict) -> str:

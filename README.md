@@ -59,7 +59,7 @@ network and for stage safety.
 ### Rebuild
 ```bash
 python3 app/build.py          # → anyrb/index.html (single file) + app/standalone.html
-make test                     # 29 engine tests (~20 s), includes Python↔JS cross-check
+make test                     # 33 engine tests (~55 s), includes Python↔JS cross-check
 make test-server              # AI backend tests in mock mode
 node app/tests/run.mjs        # 37 JS engine/UI tests
 make validate                 # independent scientific validation suite (56 PASS / 2 WARN / 0 FAIL)
@@ -117,7 +117,7 @@ AnyRB/
 ├── server/                     ← FastAPI Meta AI backend (Spark/Image/Voice/SAM), API.md, tests, live evidence
 ├── design/                     ← v0.2 design system + high-fidelity prototype (visual target)
 ├── validation/                 ← independent validation suite, results.json, VALIDATION.md, figures
-├── engine/                     ← canonical Python engine + 29 tests + fixtures
+├── engine/                     ← canonical Python engine + 33 tests + fixtures
 ├── research/                   ← cited dossiers 00–05 + machine-readable references
 ├── reports/                    ← qualification report, STL, PDFs
 ├── audit/                      ← historical v0.2 audits (SHIP) + v0.3 delta audit
