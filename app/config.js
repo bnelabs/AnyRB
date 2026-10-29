@@ -13,6 +13,16 @@
 // ---------------------------------------------------------------------------
 // 1. Reference product geometry & loads (PRODUCT_SPEC.md §2)
 // ---------------------------------------------------------------------------
+// When the standalone HTML is opened from file://, relative /api URLs would
+// resolve to the filesystem. Point them at the local backend explicitly; the
+// server enables CORS for this local-only workflow. Served from 8787, relative
+// URLs remain same-origin.
+const _loc = typeof location !== 'undefined' ? location : null;
+const _file = !!_loc && _loc.protocol === 'file:';
+const _localServedElsewhere = !!_loc && /^(127\.0\.0\.1|localhost)$/.test(_loc.hostname) && _loc.port !== '8787';
+export const API = { base: (_file || _localServedElsewhere) ? 'http://127.0.0.1:8787' : '' };
+export const apiUrl = (path) => `${API.base}${path}`;
+
 export const GEOMETRY = {
   padWidth: 10,      // mm — solid wall pad, x = 0..10 (all DOF at x=10 fixed)
   cell: 20,          // mm — square lattice cell edge

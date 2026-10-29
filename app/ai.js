@@ -23,6 +23,7 @@ import {
   normalizeReviewResponse, normalizeProofResponse, normalizeVoiceResponse, normalizeRenderResponse,
   sanitizeMemo, makeProvenance, validateResponse,
 } from './aicore.js';
+import { apiUrl, API } from './config.js';
 
 const HEALTH_TIMEOUT_MS = 2600;
 const CALL_TIMEOUT_MS = 90000;
@@ -60,7 +61,10 @@ export function createAIClient(options = {}) {
     try { fn(snapshot()); } catch (err) { /* ignore */ }
     return () => listeners.delete(fn);
   }
+  const endpointLabel = (u) => String(u).replace(/^https?:\/\/127\.0\.0\.1:8787/, '');
+
   function record(entry) {
+    if (entry && entry.endpoint) entry = { ...entry, endpoint: endpointLabel(entry.endpoint) };
     const prov = makeProvenance(entry);
     calls.push(prov);
     emit();
@@ -93,56 +97,37 @@ export function createAIClient(options = {}) {
       emit();
       return snapshot();
     }
-    if (isFile || !fetchImpl) {
+    if (!fetchImpl) {
       mode = 'offline'; health = null; emit(); return snapshot();
     }
-    try {
-      const res = await fetchWithTimeout('/api/health', { headers: { accept: 'application/json' } }, HEALTH_TIMEOUT_MS);
-      if (!res.ok) throw new Error('health HTTP ' + res.status);
-      const h = await res.json();
-      const aiLive = h && h.ai ? (h.ai.live === true && h.ai.mock !== true) : h.ok === true;
-      if (!h || (!h.ok && !h.ai)) throw new Error('health payload invalid');
-      health = h;
-      mode = aiLive ? 'live' : 'offline';
-    } catch (err) {
-      health = null;
-      mode = 'offline';
+    // Try the configured/relative base first; if this page is served by a
+    // static host (file://, IDE preview, harness UI), fall back to the local
+    // backend at 127.0.0.1:8787 and remember the working base.
+    const candidates = [];
+    if (API.base) candidates.push(API.base);
+    if (API.base !== '') candidates.push('');
+    if (!candidates.includes('http://127.0.0.1:8787')) candidates.push('http://127.0.0.1:8787');
+    let lastErr = null;
+    for (const base of candidates) {
+      try {
+        const res = await fetchWithTimeout(`${base}/api/health`, { headers: { accept: 'application/json' } }, HEALTH_TIMEOUT_MS);
+        if (!res.ok) throw new Error('health HTTP ' + res.status);
+        const h = await res.json();
+        const aiLive = h && h.ai ? (h.ai.live === true && h.ai.mock !== true) : h.ok === true;
+        if (!h || (!h.ok && !h.ai)) throw new Error('health payload invalid');
+        health = h;
+        mode = aiLive ? 'live' : 'offline';
+        API.base = base;
+        emit();
+        return snapshot();
+      } catch (err) { lastErr = err; }
     }
+    health = null;
+    mode = 'offline';
     emit();
     return snapshot();
   }
 
-  function mockLatency(endpoint, payload) {
-    // deterministic pseudo-latency so repeated demos look consistent
-    let h = 0;
-    const str = endpoint + JSON.stringify(payload || {});
-    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-    return 240 + (h % 260);
-  }
-
-  async function postJson(endpoint, payload, timeoutMs = CALL_TIMEOUT_MS) {
-    let lastError = null;
-    for (let attempt = 0; attempt < RETRIES; attempt++) {
-      try {
-        const res = await fetchWithTimeout(endpoint, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', accept: 'application/json' },
-          body: JSON.stringify(payload || {}),
-        }, timeoutMs);
-        if (!res.ok) throw new Error(`${endpoint} HTTP ${res.status}`);
-        return { data: await res.json(), cached: !!res.headers.get('x-cache') && /hit/i.test(res.headers.get('x-cache')) };
-      } catch (err) {
-        lastError = err;
-        if (attempt < RETRIES - 1) await sleep(160);
-      }
-    }
-    throw lastError || new Error('request failed');
-  }
-
-  /**
-   * One AI call with mode handling, schema validation, retries and fallback.
-   * `offline()` must return the identical internal schema.
-   */
   async function call(kind, endpoint, payload, { offline, timeoutMs = CALL_TIMEOUT_MS, mockModel = 'muse-spark' } = {}) {
     const t0 = now();
     pending += 1;
@@ -199,7 +184,7 @@ export function createAIClient(options = {}) {
   // Public endpoints
   // -------------------------------------------------------------------------
   async function parseBrief(text, defaults) {
-    const r = await call('brief', '/api/brief/parse', { text: String(text || '').slice(0, 4000) }, {
+    const r = await call('brief', apiUrl('/api/brief/parse'), { text: String(text || '').slice(0, 4000) }, {
       offline: () => fallbackBrief(text, defaults),
       mockModel: 'muse-spark',
     });
@@ -217,7 +202,7 @@ export function createAIClient(options = {}) {
       const parsed = parseLotTextHeuristics(text, presetKey);
       return { lot: parsed.material, confidence: parsed.confidence, model: parsed.model, fallback: true, extracted: parsed.extracted, note: parsed.note, source: parsed.source };
     };
-    const r = await call('lot', '/api/lot/parse', { text: String(text || '').slice(0, 8000), preset: presetKey }, {
+    const r = await call('lot', apiUrl('/api/lot/parse'), { text: String(text || '').slice(0, 8000), preset: presetKey }, {
       offline: fallback, mockModel: 'muse-spark',
     });
     if (!r.live || r.mock) {
@@ -229,7 +214,7 @@ export function createAIClient(options = {}) {
   }
 
   async function planDesign(brief, material, ctx) {
-    const r = await call('plan', '/api/design/plan', {
+    const r = await call('plan', apiUrl('/api/design/plan'), {
       brief, first_pass: { feasible_uniform_width_mm: null, material: { E_mean: material.E_mean, E_cv: material.E_cv, sy_mean: material.sy_mean, sy_cv: material.sy_cv, rho: material.rho, corr: material.corr } },
     }, { offline: () => fallbackPlan(brief, material, ctx), mockModel: 'muse-spark' });
     if (!r.live || r.mock) {
@@ -250,7 +235,7 @@ export function createAIClient(options = {}) {
 
   async function reviewDesign(payload) {
     const fallback = fallbackDesignReview(payload);
-    const r = await call('review', '/api/design/review', payload, { offline: () => fallback, mockModel: 'muse-spark' });
+    const r = await call('review', apiUrl('/api/design/review'), payload, { offline: () => fallback, mockModel: 'muse-spark' });
     if (!r.live || r.mock) {
       return { memo: r.data.memo, nextActions: r.data.nextActions || [], grounded: true, fallback: r.mock ? false : true, provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
     }
@@ -263,7 +248,7 @@ export function createAIClient(options = {}) {
 
   async function proofMemo(payload) {
     const fallback = fallbackProofMemo(payload);
-    const r = await call('proof', '/api/proof/memo', payload, { offline: () => fallback, mockModel: 'muse-spark' });
+    const r = await call('proof', apiUrl('/api/proof/memo'), payload, { offline: () => fallback, mockModel: 'muse-spark' });
     if (!r.live || r.mock) {
       return { memo: r.data.memo, nextTest: r.data.nextTest || '', grounded: true, fallback: r.mock ? false : true, provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
     }
@@ -281,27 +266,27 @@ export function createAIClient(options = {}) {
       try {
         const form = new FormData();
         form.append('audio', blob, 'brief.webm');
-        const res = await fetchWithTimeout('/api/voice/transcribe', { method: 'POST', body: form, headers: { accept: 'application/json' } }, CALL_TIMEOUT_MS);
+        const res = await fetchWithTimeout(apiUrl('/api/voice/transcribe'), { method: 'POST', body: form, headers: { accept: 'application/json' } }, CALL_TIMEOUT_MS);
         if (!res.ok) throw new Error('voice HTTP ' + res.status);
         const data = await res.json();
         const schema = validateResponse('voice', data);
-        const prov = record({ endpoint: '/api/voice/transcribe', model: data.model || 'muse-voice', latencyMs: now() - t0, cached: false, fallback: false, schemaOk: schema.ok });
+        const prov = record({ endpoint: endpointLabel(apiUrl('/api/voice/transcribe')), model: data.model || 'muse-voice', latencyMs: now() - t0, cached: false, fallback: false, schemaOk: schema.ok });
         if (!schema.ok) throw new Error('voice schema');
         return { ...normalizeVoiceResponse(data), provenance: prov, live: true };
       } catch (err) {
-        const prov = record({ endpoint: '/api/voice/transcribe', model: OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: true, schemaOk: true, error: String(err.message || err) });
+        const prov = record({ endpoint: endpointLabel(apiUrl('/api/voice/transcribe')), model: OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: true, schemaOk: true, error: String(err.message || err) });
         return { ...fallback, provenance: prov, live: false, error: String(err.message || err) };
       }
     }
     const t0 = now();
     if (mode === 'mock') await sleep(260);
-    const prov = record({ endpoint: '/api/voice/transcribe', model: mode === 'mock' ? 'mock:muse-voice' : OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: mode !== 'mock', schemaOk: true, demo: mode === 'mock' });
+    const prov = record({ endpoint: endpointLabel(apiUrl('/api/voice/transcribe')), model: mode === 'mock' ? 'mock:muse-voice' : OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: mode !== 'mock', schemaOk: true, demo: mode === 'mock' });
     return { ...fallback, provenance: prov, live: mode === 'mock', mock: mode === 'mock' };
   }
 
   async function renderIllustration(payload) {
     const fallback = fallbackRenderSvg(payload);
-    const r = await call('render', '/api/image/render', payload, { offline: () => fallback, mockModel: 'muse-image', timeoutMs: CALL_TIMEOUT_MS });
+    const r = await call('render', apiUrl('/api/image/render'), payload, { offline: () => fallback, mockModel: 'muse-image', timeoutMs: CALL_TIMEOUT_MS });
     if (!r.live || r.mock) {
       return { ...r.data, provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
     }

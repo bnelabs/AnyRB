@@ -1439,6 +1439,16 @@ __modules.config = (function () {
 // ---------------------------------------------------------------------------
 // 1. Reference product geometry & loads (PRODUCT_SPEC.md §2)
 // ---------------------------------------------------------------------------
+// When the standalone HTML is opened from file://, relative /api URLs would
+// resolve to the filesystem. Point them at the local backend explicitly; the
+// server enables CORS for this local-only workflow. Served from 8787, relative
+// URLs remain same-origin.
+const _loc = typeof location !== 'undefined' ? location : null;
+const _file = !!_loc && _loc.protocol === 'file:';
+const _localServedElsewhere = !!_loc && /^(127\.0\.0\.1|localhost)$/.test(_loc.hostname) && _loc.port !== '8787';
+const API = { base: (_file || _localServedElsewhere) ? 'http://127.0.0.1:8787' : '' };
+const apiUrl = (path) => `${API.base}${path}`;
+
 const GEOMETRY = {
   padWidth: 10,      // mm — solid wall pad, x = 0..10 (all DOF at x=10 fixed)
   cell: 20,          // mm — square lattice cell edge
@@ -1714,7 +1724,7 @@ const V04 = {
   qcNotUsedNote: 'Recorded for traceability only — NOT used in the simulation (no calibrated proxy).',
 };
 
-return { GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION, V03, V04 };
+return { API, apiUrl, GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION, V03, V04 };
 })();
 
 /* ===== engine.js ===== */
@@ -5393,6 +5403,7 @@ const {OFFLINE_MODEL, OFFLINE_NOTE,
   normalizeBriefResponse, normalizeLotResponse, normalizePlan,
   normalizeReviewResponse, normalizeProofResponse, normalizeVoiceResponse, normalizeRenderResponse,
   sanitizeMemo, makeProvenance, validateResponse,} = __modules.aicore;
+const {apiUrl, API} = __modules.config;
 /**
  * AnyRB v0.2 — browser AI client.
  *
@@ -5409,6 +5420,7 @@ const {OFFLINE_MODEL, OFFLINE_NOTE,
  * Every call records a provenance entry (model, latency, cached, fallback,
  * schemaOk, grounding) which the UI exposes in the AI activity drawer.
  */
+
 
 
 
@@ -5448,7 +5460,10 @@ function createAIClient(options = {}) {
     try { fn(snapshot()); } catch (err) { /* ignore */ }
     return () => listeners.delete(fn);
   }
+  const endpointLabel = (u) => String(u).replace(/^https?:\/\/127\.0\.0\.1:8787/, '');
+
   function record(entry) {
+    if (entry && entry.endpoint) entry = { ...entry, endpoint: endpointLabel(entry.endpoint) };
     const prov = makeProvenance(entry);
     calls.push(prov);
     emit();
@@ -5481,56 +5496,37 @@ function createAIClient(options = {}) {
       emit();
       return snapshot();
     }
-    if (isFile || !fetchImpl) {
+    if (!fetchImpl) {
       mode = 'offline'; health = null; emit(); return snapshot();
     }
-    try {
-      const res = await fetchWithTimeout('/api/health', { headers: { accept: 'application/json' } }, HEALTH_TIMEOUT_MS);
-      if (!res.ok) throw new Error('health HTTP ' + res.status);
-      const h = await res.json();
-      const aiLive = h && h.ai ? (h.ai.live === true && h.ai.mock !== true) : h.ok === true;
-      if (!h || (!h.ok && !h.ai)) throw new Error('health payload invalid');
-      health = h;
-      mode = aiLive ? 'live' : 'offline';
-    } catch (err) {
-      health = null;
-      mode = 'offline';
+    // Try the configured/relative base first; if this page is served by a
+    // static host (file://, IDE preview, harness UI), fall back to the local
+    // backend at 127.0.0.1:8787 and remember the working base.
+    const candidates = [];
+    if (API.base) candidates.push(API.base);
+    if (API.base !== '') candidates.push('');
+    if (!candidates.includes('http://127.0.0.1:8787')) candidates.push('http://127.0.0.1:8787');
+    let lastErr = null;
+    for (const base of candidates) {
+      try {
+        const res = await fetchWithTimeout(`${base}/api/health`, { headers: { accept: 'application/json' } }, HEALTH_TIMEOUT_MS);
+        if (!res.ok) throw new Error('health HTTP ' + res.status);
+        const h = await res.json();
+        const aiLive = h && h.ai ? (h.ai.live === true && h.ai.mock !== true) : h.ok === true;
+        if (!h || (!h.ok && !h.ai)) throw new Error('health payload invalid');
+        health = h;
+        mode = aiLive ? 'live' : 'offline';
+        API.base = base;
+        emit();
+        return snapshot();
+      } catch (err) { lastErr = err; }
     }
+    health = null;
+    mode = 'offline';
     emit();
     return snapshot();
   }
 
-  function mockLatency(endpoint, payload) {
-    // deterministic pseudo-latency so repeated demos look consistent
-    let h = 0;
-    const str = endpoint + JSON.stringify(payload || {});
-    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-    return 240 + (h % 260);
-  }
-
-  async function postJson(endpoint, payload, timeoutMs = CALL_TIMEOUT_MS) {
-    let lastError = null;
-    for (let attempt = 0; attempt < RETRIES; attempt++) {
-      try {
-        const res = await fetchWithTimeout(endpoint, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', accept: 'application/json' },
-          body: JSON.stringify(payload || {}),
-        }, timeoutMs);
-        if (!res.ok) throw new Error(`${endpoint} HTTP ${res.status}`);
-        return { data: await res.json(), cached: !!res.headers.get('x-cache') && /hit/i.test(res.headers.get('x-cache')) };
-      } catch (err) {
-        lastError = err;
-        if (attempt < RETRIES - 1) await sleep(160);
-      }
-    }
-    throw lastError || new Error('request failed');
-  }
-
-  /**
-   * One AI call with mode handling, schema validation, retries and fallback.
-   * `offline()` must return the identical internal schema.
-   */
   async function call(kind, endpoint, payload, { offline, timeoutMs = CALL_TIMEOUT_MS, mockModel = 'muse-spark' } = {}) {
     const t0 = now();
     pending += 1;
@@ -5587,7 +5583,7 @@ function createAIClient(options = {}) {
   // Public endpoints
   // -------------------------------------------------------------------------
   async function parseBrief(text, defaults) {
-    const r = await call('brief', '/api/brief/parse', { text: String(text || '').slice(0, 4000) }, {
+    const r = await call('brief', apiUrl('/api/brief/parse'), { text: String(text || '').slice(0, 4000) }, {
       offline: () => fallbackBrief(text, defaults),
       mockModel: 'muse-spark',
     });
@@ -5605,7 +5601,7 @@ function createAIClient(options = {}) {
       const parsed = parseLotTextHeuristics(text, presetKey);
       return { lot: parsed.material, confidence: parsed.confidence, model: parsed.model, fallback: true, extracted: parsed.extracted, note: parsed.note, source: parsed.source };
     };
-    const r = await call('lot', '/api/lot/parse', { text: String(text || '').slice(0, 8000), preset: presetKey }, {
+    const r = await call('lot', apiUrl('/api/lot/parse'), { text: String(text || '').slice(0, 8000), preset: presetKey }, {
       offline: fallback, mockModel: 'muse-spark',
     });
     if (!r.live || r.mock) {
@@ -5617,7 +5613,7 @@ function createAIClient(options = {}) {
   }
 
   async function planDesign(brief, material, ctx) {
-    const r = await call('plan', '/api/design/plan', {
+    const r = await call('plan', apiUrl('/api/design/plan'), {
       brief, first_pass: { feasible_uniform_width_mm: null, material: { E_mean: material.E_mean, E_cv: material.E_cv, sy_mean: material.sy_mean, sy_cv: material.sy_cv, rho: material.rho, corr: material.corr } },
     }, { offline: () => fallbackPlan(brief, material, ctx), mockModel: 'muse-spark' });
     if (!r.live || r.mock) {
@@ -5638,7 +5634,7 @@ function createAIClient(options = {}) {
 
   async function reviewDesign(payload) {
     const fallback = fallbackDesignReview(payload);
-    const r = await call('review', '/api/design/review', payload, { offline: () => fallback, mockModel: 'muse-spark' });
+    const r = await call('review', apiUrl('/api/design/review'), payload, { offline: () => fallback, mockModel: 'muse-spark' });
     if (!r.live || r.mock) {
       return { memo: r.data.memo, nextActions: r.data.nextActions || [], grounded: true, fallback: r.mock ? false : true, provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
     }
@@ -5651,7 +5647,7 @@ function createAIClient(options = {}) {
 
   async function proofMemo(payload) {
     const fallback = fallbackProofMemo(payload);
-    const r = await call('proof', '/api/proof/memo', payload, { offline: () => fallback, mockModel: 'muse-spark' });
+    const r = await call('proof', apiUrl('/api/proof/memo'), payload, { offline: () => fallback, mockModel: 'muse-spark' });
     if (!r.live || r.mock) {
       return { memo: r.data.memo, nextTest: r.data.nextTest || '', grounded: true, fallback: r.mock ? false : true, provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
     }
@@ -5669,27 +5665,27 @@ function createAIClient(options = {}) {
       try {
         const form = new FormData();
         form.append('audio', blob, 'brief.webm');
-        const res = await fetchWithTimeout('/api/voice/transcribe', { method: 'POST', body: form, headers: { accept: 'application/json' } }, CALL_TIMEOUT_MS);
+        const res = await fetchWithTimeout(apiUrl('/api/voice/transcribe'), { method: 'POST', body: form, headers: { accept: 'application/json' } }, CALL_TIMEOUT_MS);
         if (!res.ok) throw new Error('voice HTTP ' + res.status);
         const data = await res.json();
         const schema = validateResponse('voice', data);
-        const prov = record({ endpoint: '/api/voice/transcribe', model: data.model || 'muse-voice', latencyMs: now() - t0, cached: false, fallback: false, schemaOk: schema.ok });
+        const prov = record({ endpoint: endpointLabel(apiUrl('/api/voice/transcribe')), model: data.model || 'muse-voice', latencyMs: now() - t0, cached: false, fallback: false, schemaOk: schema.ok });
         if (!schema.ok) throw new Error('voice schema');
         return { ...normalizeVoiceResponse(data), provenance: prov, live: true };
       } catch (err) {
-        const prov = record({ endpoint: '/api/voice/transcribe', model: OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: true, schemaOk: true, error: String(err.message || err) });
+        const prov = record({ endpoint: endpointLabel(apiUrl('/api/voice/transcribe')), model: OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: true, schemaOk: true, error: String(err.message || err) });
         return { ...fallback, provenance: prov, live: false, error: String(err.message || err) };
       }
     }
     const t0 = now();
     if (mode === 'mock') await sleep(260);
-    const prov = record({ endpoint: '/api/voice/transcribe', model: mode === 'mock' ? 'mock:muse-voice' : OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: mode !== 'mock', schemaOk: true, demo: mode === 'mock' });
+    const prov = record({ endpoint: endpointLabel(apiUrl('/api/voice/transcribe')), model: mode === 'mock' ? 'mock:muse-voice' : OFFLINE_MODEL, latencyMs: now() - t0, cached: false, fallback: mode !== 'mock', schemaOk: true, demo: mode === 'mock' });
     return { ...fallback, provenance: prov, live: mode === 'mock', mock: mode === 'mock' };
   }
 
   async function renderIllustration(payload) {
     const fallback = fallbackRenderSvg(payload);
-    const r = await call('render', '/api/image/render', payload, { offline: () => fallback, mockModel: 'muse-image', timeoutMs: CALL_TIMEOUT_MS });
+    const r = await call('render', apiUrl('/api/image/render'), payload, { offline: () => fallback, mockModel: 'muse-image', timeoutMs: CALL_TIMEOUT_MS });
     if (!r.live || r.mock) {
       return { ...r.data, provenance: r.provenance, live: r.live && !r.mock, mock: !!r.mock };
     }
@@ -5739,7 +5735,7 @@ return { PRODUCT_RENDER_DATA_URL, PRODUCT_RENDER_LABEL, PRODUCT_RENDER_MODEL };
 
 /* ===== ui.js ===== */
 __modules.ui = (function () {
-const {GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META, V03,} = __modules.config;
+const {GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META, V03, apiUrl,} = __modules.config;
 const E = __modules.engine;
 const O = __modules.optimize;
 const {buildBinarySTL, stlFileName} = __modules.stl;
@@ -5865,6 +5861,7 @@ state.ai = ai;
 ai.onChange((snap) => {
   state.aiCalls = snap.calls;
   state.aiMode = snap.mode;
+  document.documentElement.setAttribute('data-anybatch-ai-mode', snap.mode);
   renderAIStatus(snap);
 });
 
@@ -5946,8 +5943,19 @@ function renderBanner() {
     banner.hidden = false;
     banner.dataset.kind = 'offline';
     $('#banner-title').textContent = 'Offline assistant (no Meta API)';
-    $('#banner-body').textContent = 'Meta models are unreachable. The verified engine still runs locally; AI text uses deterministic fallbacks, badged per card.';
-    $('#banner-actions').innerHTML = '<button class="btn btn--sm btn--ghost" id="banner-dismiss" type="button">Dismiss</button>';
+    const standalone = typeof location !== 'undefined' && location.protocol === 'file:';
+    $('#banner-body').textContent = standalone
+      ? 'This is the standalone file and the local backend at http://127.0.0.1:8787 is not reachable. Start the backend, then reload this file (or open the served app) to use the live Meta models. The verified engine still runs locally and AI text uses deterministic fallbacks.'
+      : 'The backend is not reachable, so the verified engine still runs locally and AI text uses deterministic fallbacks, badged per card. Start the backend and reload for live Meta models.';
+    $('#banner-actions').innerHTML = '<a class="btn btn--sm" href="http://127.0.0.1:8787/" target="_blank" rel="noopener">Open live studio</a><button class="btn btn--sm" id="banner-retry-live" type="button">Retry connection</button><button class="btn btn--sm btn--ghost" id="banner-dismiss" type="button">Dismiss</button>';
+    $('#banner-retry-live')?.addEventListener('click', async () => {
+      banner.hidden = true; banner.dataset.dismissed = '1';
+      toast('Checking for the local Meta backend…');
+      await ai.detect();
+      const snap = ai.getSnapshot();
+      if (snap.mode === 'live') toast('Live · Meta models connected');
+      else toast('Still offline — start the backend and try again', 'err');
+    });
     $('#banner-dismiss')?.addEventListener('click', () => { banner.hidden = true; banner.dataset.dismissed = '1'; });
     return;
   }
@@ -7055,7 +7063,7 @@ async function loadValidation() {
       return await res.json();
     } catch (err) { return null; }
   };
-  const live = await tryFetch('/api/validation');
+  const live = await tryFetch(apiUrl('/api/validation'));
   const local = live || await tryFetch('validation/results.json');
   if (!local) return fallback;
   const checks = Array.isArray(local.checks) ? local.checks : null;

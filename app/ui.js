@@ -8,7 +8,7 @@
  */
 
 import {
-  GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META, V03,
+  GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META, V03, apiUrl,
 } from './config.js';
 import * as E from './engine.js';
 import * as O from './optimize.js';
@@ -119,6 +119,7 @@ state.ai = ai;
 ai.onChange((snap) => {
   state.aiCalls = snap.calls;
   state.aiMode = snap.mode;
+  document.documentElement.setAttribute('data-anybatch-ai-mode', snap.mode);
   renderAIStatus(snap);
 });
 
@@ -200,8 +201,19 @@ function renderBanner() {
     banner.hidden = false;
     banner.dataset.kind = 'offline';
     $('#banner-title').textContent = 'Offline assistant (no Meta API)';
-    $('#banner-body').textContent = 'Meta models are unreachable. The verified engine still runs locally; AI text uses deterministic fallbacks, badged per card.';
-    $('#banner-actions').innerHTML = '<button class="btn btn--sm btn--ghost" id="banner-dismiss" type="button">Dismiss</button>';
+    const standalone = typeof location !== 'undefined' && location.protocol === 'file:';
+    $('#banner-body').textContent = standalone
+      ? 'This is the standalone file and the local backend at http://127.0.0.1:8787 is not reachable. Start the backend, then reload this file (or open the served app) to use the live Meta models. The verified engine still runs locally and AI text uses deterministic fallbacks.'
+      : 'The backend is not reachable, so the verified engine still runs locally and AI text uses deterministic fallbacks, badged per card. Start the backend and reload for live Meta models.';
+    $('#banner-actions').innerHTML = '<a class="btn btn--sm" href="http://127.0.0.1:8787/" target="_blank" rel="noopener">Open live studio</a><button class="btn btn--sm" id="banner-retry-live" type="button">Retry connection</button><button class="btn btn--sm btn--ghost" id="banner-dismiss" type="button">Dismiss</button>';
+    $('#banner-retry-live')?.addEventListener('click', async () => {
+      banner.hidden = true; banner.dataset.dismissed = '1';
+      toast('Checking for the local Meta backend…');
+      await ai.detect();
+      const snap = ai.getSnapshot();
+      if (snap.mode === 'live') toast('Live · Meta models connected');
+      else toast('Still offline — start the backend and try again', 'err');
+    });
     $('#banner-dismiss')?.addEventListener('click', () => { banner.hidden = true; banner.dataset.dismissed = '1'; });
     return;
   }
@@ -1309,7 +1321,7 @@ async function loadValidation() {
       return await res.json();
     } catch (err) { return null; }
   };
-  const live = await tryFetch('/api/validation');
+  const live = await tryFetch(apiUrl('/api/validation'));
   const local = live || await tryFetch('validation/results.json');
   if (!local) return fallback;
   const checks = Array.isArray(local.checks) ? local.checks : null;

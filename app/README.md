@@ -18,8 +18,8 @@ deterministic offline assistant so the standalone file never breaks.
 
 | Mode | How | AI behaviour |
 |---|---|---|
-| **Offline standalone** (double-click) | open **`anyrb/index.html`** in Chrome/Safari (built by `python3 app/build.py`) | AI pill shows **Offline · fallback on**; deterministic assistant with identical JSON schemas; engine runs fully locally |
-| **Dev shell** | `python3 -m http.server 8000` from `anyrb/`, open `http://localhost:8000/app/` | same as file:// (ES modules, no backend) |
+| **Standalone file** (double-click) | open **`anyrb/index.html`** in Chrome/Safari (built by `python3 app/build.py`) | probes the local backend at `127.0.0.1:8787`: if running, AI pill shows **Live · Meta models**; otherwise **Offline · fallback on** with deterministic assistant and identical schemas. Engine always runs locally. |
+| **Dev shell / static preview** | `python3 -m http.server 8000` from `anyrb/`, open `http://localhost:8000/app/` | auto-discovers the local backend at `127.0.0.1:8787`; live if it is running, offline fallback otherwise |
 | **Live served by backend** | `cd AnyRB && .venv/bin/python -m server.app` → `http://127.0.0.1:8787` (serves `anyrb/index.html` at `/`) | same-origin `/api/*`: Muse Spark for intent/plan/memos, Muse Voice for mic, Muse Image for the concept render; pill shows **Live · Meta models** |
 | **Simulated live** (UI demo without backend) | add `?mock=1` | pill shows **Live · simulated Meta**; deterministic responses with synthetic latency, no network |
 | **State demos** | `?state=loading`, `?state=error`, `?state=offline`; deep links `?screen=brief|design|prove` | forces the corresponding loading/error/offline UI state |

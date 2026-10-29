@@ -19,7 +19,7 @@ explaining; a verified physics engine does every number.
 
 ## Deliverables quick index
 
-- **App:** `index.html` (single file, offline) — served live by the backend at `/`
+- **App:** `index.html` (single file; auto-connects to the local backend when it is running; otherwise deterministic offline fallback) — also served at `/`
 - **Hackathon pack:** `HACKATHON.md` (models, demo script, checklist) · `PRODUCT_V2.md` (IA/AI requirements)
 - **Research:** `reports/AnyRB_Research_Synthesis.pdf` · `reports/AnyRB_Full_Research_Dossier.pdf` · `research/00–05`
 - **Qualification report:** `reports/AnyRB_Qualification_Report.pdf` (generated per design; `make report`)
@@ -52,7 +52,7 @@ The app shows a green **Live · Meta models** pill and logs every call in the AI
 (model, latency, tokens, cached/fallback).
 
 ### Offline mode (no network, no key)
-Open **`index.html`** by double-click. The same UI runs with a deterministic offline assistant; the pill
+Open **`index.html`** by double-click or use `http://127.0.0.1:8787/`. The standalone file probes the local backend at `127.0.0.1:8787` and switches to **Live · Meta models** if it is running; otherwise the same UI runs with a deterministic offline assistant and the pill
 says **Offline assistant** and every AI-shaped response is labelled `fallback`. Useful for judges without
 network and for stage safety.
 
@@ -112,7 +112,7 @@ source of a number; the product does not certify any part, material or recycled-
 
 ```
 AnyRB/
-├── index.html                  ← standalone app (offline, double-click)
+├── index.html                  ← standalone app (auto-connects to local backend when running)
 ├── app/                        ← app sources: engine.js, optimize.js, ai.js, aicore.js, ui.js, styles.css, build.py
 ├── server/                     ← FastAPI Meta AI backend (Spark/Image/Voice/SAM), API.md, tests, live evidence
 ├── design/                     ← v0.2 design system + high-fidelity prototype (visual target)
