@@ -408,6 +408,45 @@ select:focus-visible {
   margin-left: auto;
 }
 
+.measurement-plastic {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 7px;
+  margin-top: -2px;
+  padding-left: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.plastic-phrase {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.measurement-plastic input {
+  width: 140px;
+  padding: 2px 0 3px;
+  border-bottom-color: var(--line-soft);
+  font-size: 13px;
+}
+
+.measurement-plastic .m-plasticType {
+  width: 170px;
+}
+
+.measurement-plastic .m-mix {
+  width: 120px;
+}
+
+.measurement-plastic .m-dirt {
+  width: 140px;
+}
+
 .word {
   color: var(--muted);
   font-size: 15px;
@@ -605,8 +644,30 @@ select:focus-visible {
     width: 70px;
   }
 
-  .measurement-row .word {
-    font-size: 14px;
+  .measurement-plastic {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .plastic-phrase {
+    display: flex;
+    width: 100%;
+    margin: 0 0 1px;
+  }
+
+  .measurement-plastic input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    font-size: 13px;
+  }
+
+  .measurement-plastic .m-plasticType,
+  .measurement-plastic .m-mix,
+  .measurement-plastic .m-dirt {
+    width: auto;
   }
 
   .measurement-row .remove,
@@ -722,7 +783,7 @@ select:focus-visible {
         <span class="number" aria-hidden="true">04</span>
         <h2 id="q-measured">What have you measured?</h2>
       </div>
-      <p class="help">Enter the number you measured on the piece you made.</p>
+      <p class="help">Enter the number you measured on the piece you made. Each line also keeps the plastic that piece was made with.</p>
       <div id="measurement-list" class="line-list"></div>
       <p class="empty" id="measurement-empty">No measured numbers yet.</p>
       <button class="add" id="add-measurement" type="button">Add a measurement</button>
@@ -768,7 +829,7 @@ __modules.product = (function () {
  */
 
 const STORE_KEY = 'anyrb.one-product.v1';
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 const MAX_PROPERTIES = 8;
 const MAX_MEASUREMENTS = 80;
 const MISSING_CAVEAT = 'A plastic name or a number from a supplier\'s sheet is not enough.';
@@ -824,12 +885,6 @@ function formatRange(min, max, unit = '') {
   return `${formatNumber(min)}–${formatNumber(max)}${suffix}`;
 }
 
-function allVersionsPhrase(value) {
-  if (value === 2) return 'both measured versions';
-  if (value === 3) return 'all three measured versions';
-  return `all ${numberWord(value)} measured versions`;
-}
-
 function numberWord(value) {
   const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
   return Number.isInteger(value) && value >= 0 && value < words.length ? words[value] : String(value);
@@ -850,12 +905,16 @@ function blankProperty() {
   return { id: newId('property'), name: '', unit: '', min: '', max: '' };
 }
 
-function blankMeasurement(propertyId = '', batch = '') {
+function blankMeasurement(propertyId = '', plastic = {}) {
+  const source = plastic && typeof plastic === 'object' ? plastic : {};
   return {
     id: newId('reading'),
     propertyId: clean(propertyId, 80),
     version: '',
-    batch: clean(batch),
+    batch: clean(source.batch),
+    plasticType: clean(source.type),
+    mix: clean(source.mix),
+    dirt: clean(source.dirt),
     value: '',
   };
 }
@@ -880,13 +939,17 @@ function normalizeProperty(raw = {}) {
   };
 }
 
-function normalizeMeasurement(raw = {}, propertyIds = new Set()) {
+function normalizeMeasurement(raw = {}, propertyIds = new Set(), fallbackPlastic = {}) {
   const propertyId = clean(raw.propertyId, 80);
+  const has = (key) => Object.prototype.hasOwnProperty.call(raw, key);
   const measurement = {
     id: clean(raw.id, 80) || newId('reading'),
     propertyId: propertyIds.has(propertyId) ? propertyId : '',
     version: clean(raw.version, 100),
     batch: clean(raw.batch, 120),
+    plasticType: has('plasticType') ? clean(raw.plasticType, 180) : clean(fallbackPlastic.type, 180),
+    mix: has('mix') ? clean(raw.mix, 180) : clean(fallbackPlastic.mix, 180),
+    dirt: has('dirt') ? clean(raw.dirt, 180) : clean(fallbackPlastic.dirt, 180),
     value: clean(raw.value, 40),
   };
   if (!measurement.propertyId) return null;
@@ -899,22 +962,23 @@ function normalizeState(raw = {}) {
   const properties = rawProperties.map(normalizeProperty).slice(0, MAX_PROPERTIES);
   if (!properties.length) properties.push(blankProperty());
   const propertyIds = new Set(properties.map((property) => property.id));
+  const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
+  const normalizedPlastic = {
+    type: clean(plastic.type, 180),
+    batch: clean(plastic.batch, 120),
+    mix: clean(plastic.mix, 180),
+    dirt: clean(plastic.dirt, 180),
+  };
   const rawMeasurements = Array.isArray(source.measurements) ? source.measurements : [];
   const measurements = rawMeasurements
-    .map((measurement) => normalizeMeasurement(measurement, propertyIds))
+    .map((measurement) => normalizeMeasurement(measurement, propertyIds, normalizedPlastic))
     .filter(Boolean)
     .slice(0, MAX_MEASUREMENTS);
-  const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
   return {
     version: STATE_VERSION,
     product: clean(source.product, 140),
     properties,
-    plastic: {
-      type: clean(plastic.type, 180),
-      batch: clean(plastic.batch, 120),
-      mix: clean(plastic.mix, 180),
-      dirt: clean(plastic.dirt, 180),
-    },
+    plastic: normalizedPlastic,
     measurements,
   };
 }
@@ -993,18 +1057,6 @@ function inTarget(range, target) {
   return range.min >= target.min && range.max <= target.max;
 }
 
-function rangeSentence(rows, property, target) {
-  const range = rangeOf(rows);
-  const name = lowerFirst(property.name) || 'this property';
-  const unit = target.unit;
-  const count = rows.length;
-  if (range.min === range.max) {
-    if (count === 1) return `The measurement is ${formatValue(range.min, unit)}.`;
-    return `All ${numberWord(count)} measurements read ${formatValue(range.min, unit)}.`;
-  }
-  return `The measurements run from ${formatNumber(range.min)} to ${formatValue(range.max, unit)}.`;
-}
-
 function missingHelp(property, state) {
   const name = lowerFirst(property.name) || 'this property';
   const kind = propertyKind(property.name);
@@ -1029,17 +1081,7 @@ function missingHelp(property, state) {
 }
 
 function missingNext(property, state) {
-  const name = lowerFirst(property.name) || 'this property';
-  const kind = propertyKind(property.name);
-  const batch = clean(state.plastic && state.plastic.batch);
-  const fromBatch = batch ? ` from the ${batch} batch` : '';
-  let action;
-  if (kind === 'weight') action = `Weigh one piece${fromBatch}`;
-  else if (kind === 'sound') action = `Do a sound test on one piece${fromBatch}`;
-  else if (kind === 'strength' || kind === 'stiffness') action = `Test ${name} on one piece${fromBatch}`;
-  else if (kind === 'size') action = `Measure ${name} on one piece${fromBatch}`;
-  else action = `Measure ${name} on one piece${fromBatch}`;
-  return `${action} and add the number above.`;
+  return testCurrentBatch(property, state);
 }
 
 function nextBatchNext(property) {
@@ -1047,9 +1089,10 @@ function nextBatchNext(property) {
   const kind = propertyKind(property.name);
   let action;
   if (kind === 'weight') action = 'Weigh one piece from the next batch';
-  else if (kind === 'sound') action = 'Do a sound test on one piece from the next batch';
-  else if (kind === 'strength' || kind === 'stiffness') action = `Test ${name} on one piece from the next batch`;
-  else if (kind === 'size') action = `Measure ${name} on one piece from the next batch`;
+  else if (kind === 'sound') action = 'Run the sound test on one piece from the next batch';
+  else if (kind === 'strength') action = 'Run the strength test on one piece from the next batch';
+  else if (kind === 'stiffness') action = 'Run the stiffness test on one piece from the next batch';
+  else if (kind === 'size') action = `Measure ${name} of one piece from the next batch`;
   else action = `Measure ${name} on one piece from the next batch`;
   return `${action} and add the number above.`;
 }
@@ -1101,168 +1144,313 @@ function versionGroups(rows, target) {
   });
 }
 
-function currentBatchInfo(state, rows) {
-  const current = clean(state.plastic && state.plastic.batch);
-  if (!current) return null;
-  const matched = rows.filter((row) => sameText(row.batch, current));
-  return { label: current, matched: matched.length > 0, rows: matched };
+function plasticNow(state) {
+  return {
+    type: clean(state.plastic && state.plastic.type),
+    batch: clean(state.plastic && state.plastic.batch),
+    mix: clean(state.plastic && state.plastic.mix),
+    dirt: clean(state.plastic && state.plastic.dirt),
+  };
 }
 
-function batchAnswer(state, property, rows) {
-  const target = targetOf(property);
-  const range = rangeOf(rows);
-  const inside = inTarget(range, target);
-  const current = currentBatchInfo(state, rows);
-  const measuredGroups = groupRows(rows, (row) => row.batch);
-  const onlyLabel = measuredGroups.length === 1 ? measuredGroups[0].label : '';
-  const thisBatch = current && current.matched;
-  const subject = thisBatch ? 'This batch' : upperFirst(batchReference(onlyLabel));
-  const versions = versionGroups(rows, target);
+function identityMatches(row, plastic) {
+  return sameText(row.plasticType, plastic.type)
+    && sameText(row.mix, plastic.mix)
+    && sameText(row.dirt, plastic.dirt);
+}
+
+function identityChanges(rows, plastic) {
+  const changes = new Set();
+  for (const row of rows) {
+    if (!sameText(row.plasticType, plastic.type)) changes.add('plastic type');
+    if (!sameText(row.mix, plastic.mix)) changes.add('mix');
+    if (!sameText(row.dirt, plastic.dirt)) changes.add('dirt or other plastic');
+  }
+  return [...changes];
+}
+
+function differencePhrase(changes) {
+  if (!changes.length) return 'different plastic, mix or dirt';
+  if (changes.length === 1) {
+    if (changes[0] === 'mix') return 'a different mix';
+    if (changes[0] === 'plastic type') return 'a different plastic type';
+    return `different ${changes[0]}`;
+  }
+  return `different ${listPhrases(changes)}`;
+}
+
+function currentBatchPhrase(plastic) {
+  return plastic.batch ? batchReference(plastic.batch) : 'this batch';
+}
+
+function testCurrentBatch(property, state) {
+  const plastic = plasticNow(state);
+  const name = lowerFirst(property.name) || 'this property';
+  const kind = propertyKind(property.name);
+  const place = plastic.batch ? `from ${batchReference(plastic.batch)}` : 'from this batch';
+  let action;
+  if (kind === 'weight') action = `Weigh one piece ${place}`;
+  else if (kind === 'sound') action = `Run the sound test on one piece ${place}`;
+  else if (kind === 'strength') action = `Run the strength test on one piece ${place}`;
+  else if (kind === 'stiffness') action = `Run the stiffness test on one piece ${place}`;
+  else if (kind === 'size') action = `Measure ${name} of one piece ${place}`;
+  else action = `Measure ${name} on one piece ${place}`;
+  return `${action} and add the number above.`;
+}
+
+function changedPiece(property) {
+  const name = lowerFirst(property.name) || 'this property';
+  const kind = propertyKind(property.name);
+  if (kind === 'weight') return 'Make one changed piece and weigh it before any shipment.';
+  if (kind === 'sound') return 'Make one changed piece and run the sound test on it before any shipment.';
+  if (kind === 'strength') return 'Make one changed piece and run the strength test on it before any shipment.';
+  if (kind === 'stiffness') return 'Make one changed piece and test its stiffness before any shipment.';
+  if (kind === 'size') return `Make one changed piece and measure its ${name} before any shipment.`;
+  return `Make one changed piece and measure ${name} on it before any shipment.`;
+}
+
+function amountOutside(range, target) {
+  const unit = target.unit;
+  const high = range.max > target.max;
+  const low = range.min < target.min;
+  if (high && low) {
+    return `The lowest reading is ${formatValue(range.min, unit)}, ${formatValue(target.min - range.min, unit)} below your bottom; the highest is ${formatValue(range.max, unit)}, ${formatValue(range.max - target.max, unit)} above your top.`;
+  }
+  if (high) {
+    if (range.min > target.max) {
+      const lowGap = range.min - target.max;
+      const highGap = range.max - target.max;
+      const gap = lowGap === highGap
+        ? formatValue(lowGap, unit)
+        : `${formatValue(lowGap, unit)} to ${formatValue(highGap, unit)}`;
+      return `It is ${gap} above your top of ${formatValue(target.max, unit)}.`;
+    }
+    return `The highest reading is ${formatValue(range.max, unit)}, ${formatValue(range.max - target.max, unit)} above your top of ${formatValue(target.max, unit)}.`;
+  }
+  if (low) {
+    if (range.max < target.min) {
+      const lowGap = target.min - range.max;
+      const highGap = target.min - range.min;
+      const gap = lowGap === highGap
+        ? formatValue(lowGap, unit)
+        : `${formatValue(lowGap, unit)} to ${formatValue(highGap, unit)}`;
+      return `It is ${gap} below your bottom of ${formatValue(target.min, unit)}.`;
+    }
+    return `The lowest reading is ${formatValue(range.min, unit)}, ${formatValue(target.min - range.min, unit)} below your bottom of ${formatValue(target.min, unit)}.`;
+  }
+  return '';
+}
+
+function rangeDirection(range, target) {
+  if (range.min > target.max) return 'high';
+  if (range.max < target.min) return 'low';
+  if (range.min < target.min && range.max > target.max) return 'both';
+  return 'outside';
+}
+
+function versionRangeText(groups, unit) {
+  return listPhrases(groups.map((group) => `${versionPhrase(group.label)} at ${formatRange(group.range.min, group.range.max, unit)}`));
+}
+
+function plasticSetupItem(property, headline, text, next) {
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'plastic-setup',
+    inside: null,
+    headline,
+    text,
+    next,
+  };
+}
+
+function uncoveredItem(property, state, namedRows, sameMaterialRows) {
+  const plastic = plasticNow(state);
+  const batch = currentBatchPhrase(plastic);
+  let text;
+  let headline;
+  if (sameMaterialRows.length) {
+    headline = 'These numbers do not cover this batch.';
+    text = `The numbers on hand do not cover this plastic in ${batch}: the pieces you measured are from other batches of this plastic. Do not ship ${batch}.`;
+  } else {
+    const changes = identityChanges(namedRows, plastic);
+    headline = 'These numbers do not cover this plastic.';
+    text = `The numbers on hand do not cover this plastic: the pieces you measured were made with ${differencePhrase(changes)}. Do not ship ${batch}.`;
+  }
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'uncovered',
+    inside: null,
+    headline,
+    text,
+    next: testCurrentBatch(property, state),
+  };
+}
+
+function allOutsideItem(property, state, currentRows, sameMaterialRows, target) {
+  const plastic = plasticNow(state);
+  const name = lowerFirst(property.name) || 'this property';
+  const range = rangeOf(sameMaterialRows);
+  const currentRange = rangeOf(currentRows);
+  const direction = rangeDirection(range, target);
+  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
+  const pieces = [];
+  if (batches.size > 1) {
+    if (direction === 'high') {
+      pieces.push(`Every measured piece of this plastic is above your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}.`);
+    } else if (direction === 'low') {
+      pieces.push(`Every measured piece of this plastic is below your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}.`);
+    } else {
+      pieces.push(`Every measured piece of this plastic is outside your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}; some are below and some are above.`);
+    }
+  }
+  pieces.push(`This batch is outside your ${formatRange(target.min, target.max, target.unit)} range: ${formatRange(currentRange.min, currentRange.max, target.unit)}. ${amountOutside(currentRange, target)}`);
+  pieces.push('Do not ship this batch or this combination.');
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'all-outside',
+    inside: false,
+    headline: batches.size > 1 ? 'Every measured piece is outside.' : 'This batch is outside.',
+    text: pieces.join(' '),
+    next: changedPiece(property),
+  };
+}
+
+function insideItem(property, state, currentRows, sameMaterialRows, target) {
+  const plastic = plasticNow(state);
+  const currentRange = rangeOf(currentRows);
+  const currentBatch = currentBatchPhrase(plastic);
+  const versions = versionGroups(sameMaterialRows, target);
   const insideVersions = versions.filter((group) => group.inside);
   const outsideVersions = versions.filter((group) => !group.inside);
   const hasVersionSplit = versions.length > 1 && insideVersions.length > 0 && outsideVersions.length > 0;
-
+  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
   const pieces = [];
+  const sameRange = rangeOf(sameMaterialRows);
+  const batchCount = batches.size;
+  if (hasVersionSplit || outsideVersions.length) {
+    pieces.push('Some pieces you measured with this plastic are outside your range.');
+  } else {
+    pieces.push('The pieces you measured with this plastic are inside your range.');
+  }
+  if (batchCount > 1) {
+    pieces.push(`Across the pieces of this plastic you measured, the range is ${formatRange(sameRange.min, sameRange.max, target.unit)}.`);
+  }
+  pieces.push(`This batch is inside: ${formatRange(currentRange.min, currentRange.max, target.unit)}, within your ${formatRange(target.min, target.max, target.unit)} range.`);
   if (hasVersionSplit) {
-    const insideText = listPhrases(insideVersions.map((group) => `${versionPhrase(group.label)} (${formatRange(group.range.min, group.range.max, target.unit)})`));
-    const outsideText = listPhrases(outsideVersions.map((group) => `${versionPhrase(group.label)} (${formatRange(group.range.min, group.range.max, target.unit)})`));
-    pieces.push(`${upperFirst(subject)} is inside for ${insideText} and outside for ${outsideText}.`);
-    pieces.push(`Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and drop ${listPhrases(outsideVersions.map((group) => versionPhrase(group.label)))}. Do not use this batch for the ${outsideVersions.length === 1 ? 'version' : 'versions'} you are dropping.`);
-  } else if (versions.length > 1 && inside) {
-    const versionText = versions.map((group) => `${versionPhrase(group.label)} at ${formatRange(group.range.min, group.range.max, target.unit)}`).join('; ');
-    pieces.push(`${upperFirst(subject)} is inside for ${allVersionsPhrase(versions.length)}: ${versionText}.`);
+    pieces.push(`${upperFirst(versionRangeText(insideVersions, target.unit))} stays inside; ${versionRangeText(outsideVersions, target.unit)} is outside.`);
+  }
+  if (batches.size === 1) {
+    pieces.push('You have measured only one batch. The next batch is unknown until you check it the same way.');
   } else {
-    pieces.push(`${subject} measures ${formatRange(range.min, range.max, target.unit)}. Your range is ${formatRange(target.min, target.max, target.unit)}, so ${thisBatch ? 'this batch' : 'that batch'} is ${inside ? 'inside' : 'outside'}.`);
+    pieces.push('The next batch is still unknown until you test it.');
   }
-
-  if (versions.length === 1 && !inside) {
-    pieces.push('Hold this batch; do not ship it as this product.');
-  }
-  if (current && !current.matched) {
-    pieces.push(`You have not measured ${batchReference(current.label)} yet.`);
-  }
-  pieces.push('You have measured only one batch. The next batch is unknown until you check it the same way.');
-
-  let next;
-  if (current && !current.matched) {
-    next = `Test one piece from ${batchReference(current.label)} and add the number above.`;
-  } else if (!inside && !hasVersionSplit) {
-    next = `Hold this batch, then ${nextBatchNext(property).replace(/^./, (letter) => letter.toLowerCase())}`;
-  } else {
-    next = nextBatchNext(property);
-  }
+  const next = hasVersionSplit
+    ? `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and drop ${listPhrases(outsideVersions.map((group) => versionPhrase(group.label)))}.`
+    : nextBatchNext(property);
   return {
     propertyId: property.id,
     name: clean(property.name),
-    kind: 'batch',
-    inside,
-    currentMatched: Boolean(thisBatch),
-    headline: hasVersionSplit
-      ? 'One version is inside.'
-      : thisBatch
-        ? inside ? 'This batch is inside.' : 'This batch is outside.'
-        : inside ? 'One batch is inside.' : 'One batch is outside.',
+    kind: 'inside',
+    inside: true,
+    headline: 'This batch is inside.',
     text: pieces.join(' '),
     next,
   };
 }
 
-function productAnswer(state, property, rows) {
-  const target = targetOf(property);
-  const range = rangeOf(rows);
-  const inside = inTarget(range, target);
-  const versions = versionGroups(rows, target);
+function outsideItem(property, state, currentRows, sameMaterialRows, target) {
+  const plastic = plasticNow(state);
+  const currentRange = rangeOf(currentRows);
+  const currentBatch = currentBatchPhrase(plastic);
+  const versions = versionGroups(sameMaterialRows, target);
   const insideVersions = versions.filter((group) => group.inside);
   const outsideVersions = versions.filter((group) => !group.inside);
-  const current = currentBatchInfo(state, rows);
+  const currentVersions = versionGroups(currentRows, target);
+  const currentInsideVersions = currentVersions.filter((group) => group.inside);
+  const currentOutsideVersions = currentVersions.filter((group) => !group.inside);
+  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
   const pieces = [];
-
-  pieces.push(rangeSentence(rows, property, target));
-  const outsideNone = range.max < target.min || range.min > target.max;
-  pieces.push(`Your range is ${formatRange(target.min, target.max, target.unit)}, so ${inside ? 'all of the measured numbers are inside it' : outsideNone ? 'none of the measured numbers is inside it' : 'not every measured number is inside it'}.`);
-
-  if (versions.length > 1) {
-    const insideParts = insideVersions.map((group) => `${versionPhrase(group.label)} stays inside at ${formatRange(group.range.min, group.range.max, target.unit)}`);
-    const outsideParts = outsideVersions.map((group) => `${versionPhrase(group.label)} is outside at ${formatRange(group.range.min, group.range.max, target.unit)}`);
-    if (insideParts.length) pieces.push(`${upperFirst(listPhrases(insideParts))}.`);
-    if (outsideParts.length) pieces.push(`${upperFirst(listPhrases(outsideParts))}.`);
-  }
-
-  if (current) {
-    if (!current.matched) {
-      pieces.push(`You have not measured ${batchReference(current.label)} yet.`);
-    } else {
-      const currentTarget = target;
-      const currentRange = rangeOf(current.rows);
-      const currentInside = inTarget(currentRange, currentTarget);
-      if (currentInside) {
-        pieces.push(`${upperFirst(batchReference(current.label))} is inside${inside ? '.' : '; another batch measured outside your range.'}`);
-      } else {
-        const currentVersions = versionGroups(current.rows, currentTarget);
-        const currentOutside = currentVersions.filter((group) => !group.inside);
-        if (currentVersions.length > 1 && currentOutside.length) {
-          pieces.push(`${upperFirst(batchReference(current.label))} is outside for ${listPhrases(currentOutside.map((group) => versionPhrase(group.label)))}. Do not ship that version from this batch.`);
-        } else {
-          pieces.push(`${upperFirst(batchReference(current.label))} is outside. Hold it; do not ship it as this product.`);
-        }
-      }
-    }
-  }
-
-  if (versions.length > 1) {
-    if (!insideVersions.length) {
-      pieces.push('None of the measured versions stays inside. Change the build or the mix; do not ship this version as it is.');
-    } else if (outsideVersions.length) {
-      // The next action names the version to make and the version to drop.
-    } else {
-      pieces.push('All measured versions stay inside.');
-    }
-  } else if (!inside) {
-    const currentInside = current && current.matched && inTarget(rangeOf(current.rows), target);
-    if (!currentInside) pieces.push('Change the build or the mix.');
+  const partial = currentInsideVersions.length > 0 && currentOutsideVersions.length > 0;
+  const currentOutsideRows = currentRows.filter((row) => row.numeric < target.min || row.numeric > target.max);
+  const currentOutsideRange = rangeOf(currentOutsideRows);
+  const sameRange = rangeOf(sameMaterialRows);
+  pieces.push('Some pieces you measured with this plastic are outside your range.');
+  pieces.push(`Across the pieces of this plastic you measured, the range is ${formatRange(sameRange.min, sameRange.max, target.unit)}.`);
+  if (partial) {
+    pieces.push(`Part of this batch is outside: ${versionRangeText(currentOutsideVersions, target.unit)}. ${amountOutside(currentOutsideRange, target)}`);
+    pieces.push(`${upperFirst(versionRangeText(currentInsideVersions, target.unit))} stays inside.`);
+    pieces.push(`Do not ship ${listPhrases(currentOutsideVersions.map((group) => versionPhrase(group.label)))} from ${currentBatch}.`);
   } else {
-    pieces.push('Keep making this version.');
+    pieces.push(`This batch is outside your ${formatRange(target.min, target.max, target.unit)} range: ${formatRange(currentRange.min, currentRange.max, target.unit)}. ${amountOutside(currentRange, target)}`);
+    pieces.push(`Do not ship ${currentBatch}.`);
   }
-
-  if (inside && current && current.matched) {
-    pieces.push('A new batch is still unknown until you test it.');
+  if (insideVersions.length && !currentInsideVersions.length) {
+    pieces.push(`${upperFirst(versionRangeText(insideVersions, target.unit))} was inside on the pieces you measured of this plastic.`);
   }
-
-  let headline = inside ? 'This product stays inside.' : 'This product is outside.';
-  if (insideVersions.length && outsideVersions.length) headline = 'One version stays inside.';
-  if (!insideVersions.length && versions.length > 1) headline = 'None of these versions stays inside.';
-
-  const makeAndDrop = () => `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and drop ${listPhrases(outsideVersions.map((group) => versionPhrase(group.label)))}`;
+  if (!insideVersions.length) {
+    pieces.push('No measured version of this plastic stayed inside.');
+  }
+  if (batches.size === 1) {
+    pieces.push('You have measured only one batch. The next batch is unknown until you check it the same way.');
+  }
   let next;
-  if (insideVersions.length && outsideVersions.length) {
-    next = `${makeAndDrop()}.`;
-  } else if (current && !current.matched) {
-    next = `Test one piece from the ${current.label} batch and add the number above.`;
-  } else if (current && current.matched) {
-    const currentRange = rangeOf(current.rows);
-    const currentInside = inTarget(currentRange, target);
-    if (!currentInside) {
-      next = `Hold ${batchReference(current.label)} and change the build or the mix before you ship.`;
-    } else {
-      next = nextBatchNext(property);
-    }
-  } else if (inside) {
-    next = nextBatchNext(property);
+  if (currentInsideVersions.length && currentOutsideVersions.length) {
+    next = `Make ${listPhrases(currentInsideVersions.map((group) => versionPhrase(group.label)))}; keep ${currentBatch} for ${currentInsideVersions.length === 1 ? 'that version' : 'those versions'} only.`;
   } else if (insideVersions.length) {
-    next = `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and change the build or the mix for the rest.`;
+    next = `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and hold ${currentBatch}.`;
   } else {
-    next = 'Change the build or the mix, then test one piece before you ship.';
+    next = changedPiece(property);
   }
-
   return {
     propertyId: property.id,
     name: clean(property.name),
-    kind: 'product',
-    inside,
-    headline,
+    kind: 'outside',
+    inside: false,
+    headline: currentInsideVersions.length && currentOutsideVersions.length
+      ? 'This batch is outside, but one version is inside.'
+      : 'This batch is outside.',
     text: pieces.join(' '),
     next,
   };
+}
+
+function answerForProperty(state, property) {
+  const issue = propertyIssue(property);
+  if (issue === 'name') return null;
+  if (issue) return setupItem(property, issue);
+  const allRows = measurementsFor(state, property.id);
+  if (!allRows.length) return missingItem(property, state);
+  const unnamedCount = allRows.filter((row) => !clean(row.batch)).length;
+  const rows = allRows.filter((row) => clean(row.batch));
+  if (!rows.length) return unnamedItem(property, unnamedCount);
+  const plastic = plasticNow(state);
+  if (!plastic.type) {
+    return plasticSetupItem(property, 'Which plastic is this?', 'Name the plastic this batch is made from so the numbers can be matched to it.', 'Add the plastic type above.');
+  }
+  if (!plastic.batch) {
+    return plasticSetupItem(property, 'Name this batch.', 'Add the batch you have now so the numbers can be matched to it.', 'Add the batch name above.');
+  }
+  const sameMaterialRows = rows.filter((row) => identityMatches(row, plastic));
+  const differentIdentityCount = rows.length - sameMaterialRows.length;
+  const currentRows = sameMaterialRows.filter((row) => sameText(row.batch, plastic.batch));
+  const target = targetOf(property);
+  let item;
+  if (!currentRows.length) {
+    item = uncoveredItem(property, state, rows, sameMaterialRows);
+  } else if (sameMaterialRows.every((row) => row.numeric < target.min || row.numeric > target.max)) {
+    item = allOutsideItem(property, state, currentRows, sameMaterialRows, target);
+  } else {
+    const currentRange = rangeOf(currentRows);
+    item = inTarget(currentRange, target)
+      ? insideItem(property, state, currentRows, sameMaterialRows, target)
+      : outsideItem(property, state, currentRows, sameMaterialRows, target);
+  }
+  if (sameMaterialRows.length && differentIdentityCount) item.text = `${item.text} ${differentPlasticText(differentIdentityCount)}`;
+  if (unnamedCount) item.text = `${item.text} ${allUnnamedText(unnamedCount)}`;
+  return item;
 }
 
 function unnamedItem(property, count) {
@@ -1286,21 +1474,10 @@ function allUnnamedText(count) {
     : `${count} numbers have no batch names, so they are not used yet. Add the batches above.`;
 }
 
-function answerForProperty(state, property) {
-  const issue = propertyIssue(property);
-  if (issue === 'name') return null;
-  if (issue) return setupItem(property, issue);
-  const allRows = measurementsFor(state, property.id);
-  if (!allRows.length) return missingItem(property, state);
-  const rows = allRows.filter((row) => clean(row.batch));
-  const unnamedCount = allRows.length - rows.length;
-  if (!rows.length) return unnamedItem(property, unnamedCount);
-  let item;
-  const namedBatches = new Set(rows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
-  if (namedBatches.size >= 2) item = productAnswer(state, property, rows);
-  else item = batchAnswer(state, property, rows);
-  if (unnamedCount) item.text = `${item.text} ${allUnnamedText(unnamedCount)}`;
-  return item;
+function differentPlasticText(count) {
+  return count === 1
+    ? 'One number was measured with a different plastic, mix or dirt, so it is not used here.'
+    : `${count} numbers were measured with a different plastic, mix or dirt, so they are not used here.`;
 }
 
 function earlyAnswer(headline, text, next) {
@@ -1339,38 +1516,53 @@ function buildAnswer(input) {
     return earlyAnswer('What has to stay steady?', 'Add a property and the range it must stay inside.', 'Name a property and set its range.');
   }
 
+  const urgentKinds = new Set(['uncovered', 'outside', 'all-outside']);
   const setup = items.filter((item) => item.kind === 'setup');
+  const plasticSetup = items.filter((item) => item.kind === 'plastic-setup');
   const unnamed = items.filter((item) => item.kind === 'batch-name');
-  const outside = items.filter((item) => !['setup', 'batch-name'].includes(item.kind) && item.inside === false);
+  const urgent = items.filter((item) => urgentKinds.has(item.kind));
   const missing = items.filter((item) => item.kind === 'missing');
-  const measured = items.filter((item) => item.kind === 'batch' || item.kind === 'product');
+  const inside = items.filter((item) => item.kind === 'inside');
   if (missing.length) missing[0].text = `${missing[0].text} ${MISSING_CAVEAT}`;
 
   let headline;
   let next;
   if (items.length === 1) {
     headline = items[0].headline;
-  } else if (outside.length) {
-    headline = outside.length === 1 ? 'One property is outside your range.' : `${upperFirst(numberWord(outside.length))} properties are outside your range.`;
+  } else if (urgent.length) {
+    if (urgent.length === 1) {
+      headline = urgent[0].headline;
+    } else {
+      const allUncovered = urgent.every((item) => item.kind === 'uncovered');
+      const allOutside = urgent.every((item) => item.kind === 'outside' || item.kind === 'all-outside');
+      const count = upperFirst(numberWord(urgent.length));
+      headline = allOutside
+        ? `${count} properties are outside your range.`
+        : allUncovered
+          ? `${count} properties are not covered by these numbers.`
+          : `${count} properties need attention.`;
+    }
   } else if (setup.length) {
     headline = 'Set the range first.';
+  } else if (plasticSetup.length) {
+    const sameHeadline = plasticSetup.every((item) => item.headline === plasticSetup[0].headline);
+    headline = sameHeadline ? plasticSetup[0].headline : 'Name the plastic and this batch.';
   } else if (unnamed.length) {
     headline = unnamed.length === 1 ? 'One batch name is missing.' : `${upperFirst(numberWord(unnamed.length))} batch names are missing.`;
   } else if (missing.length) {
     headline = 'Not enough to answer everything yet.';
-  } else if (measured.every((item) => item.kind === 'product')) {
-    headline = 'This product stays inside.';
-  } else if (measured.every((item) => item.kind === 'batch')) {
-    headline = measured.every((item) => item.currentMatched) ? 'This batch is inside.' : 'The measured batches are inside.';
+  } else if (inside.length === items.length) {
+    headline = 'This batch is inside.';
   } else {
     headline = 'Here is where you stand.';
   }
 
-  if (outside.length) next = outside[0].next;
+  if (urgent.length) next = urgent[0].next;
   else if (setup.length) next = setup[0].next;
+  else if (plasticSetup.length) next = plasticSetup[0].next;
   else if (unnamed.length) next = unnamed.length === 1 ? unnamed[0].next : 'Add the batch names above.';
   else if (missing.length) next = missing[0].next;
-  else if (measured.length) next = measured[0].next;
+  else if (inside.length) next = inside[0].next;
   else next = '';
 
   return { headline, items, next };
@@ -1559,7 +1751,33 @@ function renderMeasurements(focusId = '') {
     remove.setAttribute('aria-label', 'Remove this measurement');
     remove.textContent = '×';
 
-    row.append(propertyControl, phrase('on', version), phrase('from', batch), phrase('was', value, unit), remove);
+    const plasticLine = document.createElement('div');
+    plasticLine.className = 'measurement-plastic';
+    function plasticPhrase(word, field, label, placeholder) {
+      const wrap = document.createElement('span');
+      wrap.className = 'plastic-phrase';
+      const text = document.createElement('span');
+      text.className = 'word';
+      text.textContent = word;
+      const input = document.createElement('input');
+      input.className = `m-${field}`;
+      input.dataset.field = field;
+      input.type = 'text';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.placeholder = placeholder;
+      input.setAttribute('aria-label', label);
+      input.value = measurement[field] || '';
+      wrap.append(text, input);
+      return wrap;
+    }
+    plasticLine.append(
+      plasticPhrase('made with', 'plasticType', 'Plastic type for this piece', 'plastic type'),
+      plasticPhrase('mixed with', 'mix', 'Mix for this piece', 'mix'),
+      plasticPhrase('dirt', 'dirt', 'Dirt or other plastic for this piece', 'other plastic'),
+    );
+
+    row.append(propertyControl, phrase('on', version), phrase('from', batch), phrase('was', value, unit), remove, plasticLine);
     list.append(row);
   });
 
@@ -1587,7 +1805,7 @@ function renderAnswer() {
   body.replaceChildren();
   answer.items.forEach((item) => {
     const paragraph = document.createElement('p');
-    if (item.name && (item.kind === 'batch' || item.kind === 'product')) {
+    if (item.name && ['inside', 'outside', 'all-outside', 'uncovered'].includes(item.kind)) {
       const label = document.createElement('b');
       label.textContent = item.name.charAt(0).toUpperCase() + item.name.slice(1);
       paragraph.append(label, ': ');
@@ -1716,7 +1934,7 @@ $('#measurement-list').addEventListener('click', (event) => {
 $('#add-measurement').addEventListener('click', () => {
   const property = namedProperties()[0];
   if (!property || state.measurements.length >= MAX_MEASUREMENTS) return;
-  const measurement = blankMeasurement(property.id, state.plastic.batch);
+  const measurement = blankMeasurement(property.id, state.plastic);
   state.measurements.push(measurement);
   saveState();
   renderMeasurements(measurement.id);

@@ -177,7 +177,33 @@ function renderMeasurements(focusId = '') {
     remove.setAttribute('aria-label', 'Remove this measurement');
     remove.textContent = '×';
 
-    row.append(propertyControl, phrase('on', version), phrase('from', batch), phrase('was', value, unit), remove);
+    const plasticLine = document.createElement('div');
+    plasticLine.className = 'measurement-plastic';
+    function plasticPhrase(word, field, label, placeholder) {
+      const wrap = document.createElement('span');
+      wrap.className = 'plastic-phrase';
+      const text = document.createElement('span');
+      text.className = 'word';
+      text.textContent = word;
+      const input = document.createElement('input');
+      input.className = `m-${field}`;
+      input.dataset.field = field;
+      input.type = 'text';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.placeholder = placeholder;
+      input.setAttribute('aria-label', label);
+      input.value = measurement[field] || '';
+      wrap.append(text, input);
+      return wrap;
+    }
+    plasticLine.append(
+      plasticPhrase('made with', 'plasticType', 'Plastic type for this piece', 'plastic type'),
+      plasticPhrase('mixed with', 'mix', 'Mix for this piece', 'mix'),
+      plasticPhrase('dirt', 'dirt', 'Dirt or other plastic for this piece', 'other plastic'),
+    );
+
+    row.append(propertyControl, phrase('on', version), phrase('from', batch), phrase('was', value, unit), remove, plasticLine);
     list.append(row);
   });
 
@@ -205,7 +231,7 @@ function renderAnswer() {
   body.replaceChildren();
   answer.items.forEach((item) => {
     const paragraph = document.createElement('p');
-    if (item.name && (item.kind === 'batch' || item.kind === 'product')) {
+    if (item.name && ['inside', 'outside', 'all-outside', 'uncovered'].includes(item.kind)) {
       const label = document.createElement('b');
       label.textContent = item.name.charAt(0).toUpperCase() + item.name.slice(1);
       paragraph.append(label, ': ');
@@ -334,7 +360,7 @@ $('#measurement-list').addEventListener('click', (event) => {
 $('#add-measurement').addEventListener('click', () => {
   const property = namedProperties()[0];
   if (!property || state.measurements.length >= MAX_MEASUREMENTS) return;
-  const measurement = blankMeasurement(property.id, state.plastic.batch);
+  const measurement = blankMeasurement(property.id, state.plastic);
   state.measurements.push(measurement);
   saveState();
   renderMeasurements(measurement.id);

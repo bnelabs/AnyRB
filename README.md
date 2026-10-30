@@ -15,22 +15,32 @@ no research library in the app.
 2. **What has to stay steady?** Any property, with your own unit and a low/high range. Weight, thickness,
    strength, stiffness, sound insulation — or a property that is not on that list.
 3. **What plastic are you using?** Plastic type, this batch, what it is mixed with, dirt or other plastic.
-4. **What have you measured?** A number taken from the actual product, with the version and batch it came
-   from. A plastic name or a number from a material sheet is not a measurement.
+4. **What have you measured?** A number taken from the actual product, with the version, the batch, and
+   the plastic that piece was made with. A plastic name or a number from a material sheet is not a
+   measurement.
 
-## The three answers
+## How the answer is built
 
-- **You have measurements from more than one batch.** AnyRB gives the measured range, says whether it is
-  inside your range, names the version to make and the version to drop when that split was measured, and
-  says whether the batch you have is safe to ship.
-- **You have a measurement from one batch only.** AnyRB says whether that batch is inside your range,
-  says the next batch is unknown until you check it the same way, and gives the one check to do.
-- **You have no measurement for this product and property.** AnyRB shows no number and no pass. It says
-  what to measure. For weight: the actual piece, or the density of this plastic times the volume of the
-  piece. For sound insulation: a sound test on the actual piece. For strength or stiffness: a test on the
-  piece. Then it stops.
+For every property, AnyRB compares the plastic you described with the plastic recorded on each measured
+piece: the type, the batch, the mix, and the dirt or other plastic.
 
-No number is filled from a product name, a plastic name, a material sheet, a preset, or a guess.
+- **The numbers cover this batch.** AnyRB gives the measured range, says whether this batch is inside,
+  and says by how much it misses when it is outside. It says not to ship an outside batch and names the
+  measured version that stayed inside, if one exists.
+- **One measured version is inside and another is outside.** AnyRB names the version to make and the
+  version to drop. It does not suggest an unmeasured build.
+- **Every measured piece of this plastic/mix/dirt is outside.** AnyRB says which property missed and
+  whether the numbers are high or low, says not to ship the combination, and gives one changed-piece test
+  as the next action.
+- **The measured pieces are from another batch, mix, dirt, or plastic.** AnyRB says the numbers on hand
+  do not cover this plastic or batch, says not to ship it, and gives the one test to run on a piece from
+  this batch. It does not show a result or a pass.
+- **Nothing is measured.** AnyRB shows no number and no pass. It says what to measure: weigh the actual
+  piece, or do the one test that matches the property. Then it stops.
+
+Every next line is a concrete action: make a named measured version, hold a named batch, run one named
+test, or measure one changed piece. No number is filled from a product name, a plastic name, a material
+sheet, a preset, or a guess.
 
 ## Open it
 
@@ -63,7 +73,7 @@ anyrb/
 ├── app/
 │   ├── index.html      the one page: masthead, four questions, answer
 │   ├── styles.css      paper, one accent, one column
-│   ├── product.js      pure answer logic: product / batch / missing
+│   ├── product.js      pure answer logic: plastic coverage, range, next action
 │   ├── main.js         small DOM layer and localStorage
 │   ├── build.py        inlines everything into one standalone page
 │   └── tests/          model tests
@@ -73,7 +83,7 @@ anyrb/
 ├── engine/             historical bracket engine and tests
 ├── server/             historical local AI backend for the bracket prototype
 ├── validation/         historical validation suite for the bracket engine
-├── demo/screenshots/v7/  the five checked screens
+├── demo/screenshots/v7/  the checked screens
 └── V0_7_SPEC.md        the one-product contract
 ```
 

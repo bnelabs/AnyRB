@@ -13,18 +13,21 @@ python3 -m http.server 8000
 
 No backend, no network, no key. The page saves the current entry in this browser.
 
-## The five checked screens (`screenshots/v7/`)
+## The checked screens (`screenshots/v7/`)
 
 1. `01-first-open.png` — first open. The page asks what the person is making and shows the empty answer
    with the next step.
 2. `02-no-measurements.png` — product, range and plastic entered; no measurement. No number or pass.
-   The answer says to test stiffness on a finished piece and gives one next check.
+   The answer says to run the stiffness test on a piece from this batch and gives the next check.
 3. `03-one-batch.png` — one batch measured at 2,100 MPa inside 1,800–2,400 MPa. The next batch is
    unknown until checked the same way.
-4. `04-two-versions.png` — four measurements over two batches. The 3 mm wall version stays inside; the
-   2 mm wall version is outside. The answer names the version to make and the version to drop, and
-   holds the current April batch for the outside version.
+4. `04-two-versions.png` — four measurements over two batches, all carrying the plastic they were made
+   with. Part of the April batch is outside; the 3 mm wall version stays inside and the 2 mm wall version
+   is outside. The answer names the version to make and the version to drop.
 5. `05-phone.png` — the same split at 390 px, one column, no horizontal overflow.
+6. `06-mix-mismatch.png` — the current plastic has a different mix from the measured pieces. The numbers
+   on hand do not cover this plastic; the answer says not to ship it and gives one test on a piece from
+   this batch.
 
 ## Reproduce
 

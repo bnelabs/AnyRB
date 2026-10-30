@@ -19,7 +19,10 @@ One page, one job: can this recycled plastic make the product the person named, 
   properties: [{ id, name: "stiffness", unit: "MPa", min: "1800", max: "2400" }],
   plastic: { type: "recycled polypropylene", batch: "April", mix: "20% HDPE", dirt: "labels" },
   measurements: [
-    { id, propertyId, version: "3 mm wall", batch: "March", value: "2050" }
+    {
+      id, propertyId, version: "3 mm wall", batch: "March", value: "2050",
+      plasticType: "recycled polypropylene", mix: "20% HDPE", dirt: "labels"
+    }
   ]
 }
 ```
@@ -28,15 +31,21 @@ Saved under `anyrb.one-product.v1` in localStorage.
 
 ## Answers
 
-For each property:
+For each property, the current plastic (type, batch, mix, dirt) is matched against each measurement's
+plastic. Then:
 
 - `missing` — no usable measured number. No number or pass is invented. The instruction depends only on
   the property name: weight, sound, strength/stiffness, size, or a general measure.
-- `batch` — one named batch measured. State inside/outside, say the next batch is unknown, give one check.
-- `product` — two or more named batches measured. Give the measured range, the version split if present,
-  and the batch action. A version is named only when that version was measured.
+- `uncovered` — no measured piece has this batch and this plastic/mix/dirt. Show no number; say the
+  numbers do not cover this batch or plastic; give one test on a piece from this batch.
+- `inside` — this batch is inside. If this is the only batch, say the next batch is unknown and give one
+  next-batch check. If a measured version is outside, name the version to make and drop.
+- `outside` — this batch is outside. Say by how much, say not to ship it, name any measured version that
+  stayed inside, and give one version or test action.
+- `all-outside` — every measured piece of this plastic/mix/dirt is outside. Say high or low, say not to
+  ship the combination, and give one changed-piece test.
 
-The version recommendation is not a prediction. It names only measured versions.
+A version is named only when that version was measured.
 
 ## Build
 
