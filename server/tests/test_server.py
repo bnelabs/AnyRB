@@ -477,7 +477,9 @@ def test_static_serving_is_safe(tmp_path):
     assert r.status_code == 200
     assert "AnyRB" in r.text[:5000]
     # frontend source + data are served
-    assert client.get("/app/config.js").status_code == 200
+    assert client.get("/app/product.js").status_code == 200
+    assert client.get("/app/main.js").status_code == 200
+    assert client.get("/app/styles.css").status_code == 200
     assert client.get("/data/feedstock_library.json").status_code == 200
     # secrets/venv/source server must never be served
     for path in ("/server/.env", "/server/app.py", "/.venv/pyvenv.cfg", "/.env.example",

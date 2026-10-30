@@ -26,7 +26,7 @@ an assumed coefficient of variation, a new model, or the bracket solver is not a
   coupon study 2024 ([10.3390/polym16162301](https://doi.org/10.3390/polym16162301)).
 
 **Full search notes:** [`06b-primary-links.md`](06b-primary-links.md). **App data:**
-[`../app/evidence.js`](../app/evidence.js) (only the rows the app may use are encoded there).
+[`../history/v0.6-app/evidence.js`](../history/v0.6-app/evidence.js) (only the rows the app may use are encoded there).
 
 ---
 

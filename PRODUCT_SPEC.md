@@ -1,5 +1,7 @@
 # AnyRB — Product & Engineering Specification (v0.1, 2026-10-29)
 
+> **Historical note:** this document describes an earlier AnyRB prototype (v0.6 and earlier). The active product is the one-page v0.7 app; see [`README.md`](README.md).
+
 **One line:** Design software that makes a recycled-polymer product behave reliably *despite* batch-to-batch variation — by designing the internal geometry for the batch distribution, and by adapting the print recipe to the batch you actually received. No physical testing required to use it; the physics, statistics and material data are virtual.
 
 **Why this project exists (evidence anchors, to be expanded in research/):**

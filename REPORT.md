@@ -1,5 +1,7 @@
 # AnyRB — can software substitute for physical testing when designing reliable products from variable recyclate?
 
+> **Historical note:** this document describes an earlier AnyRB prototype (v0.6 and earlier). The active product is the one-page v0.7 app; see [`README.md`](README.md).
+
 **Research synthesis and prototype report · v1.1 (AI product build) · 2026-10-29**
 
 > *Question:* Recycled polymer → material properties → AI-designed internal geometry → a useful product.

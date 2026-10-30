@@ -15,8 +15,8 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, "..", ".."))
-APP_ENGINE = os.path.join(PROJECT, "app", "engine.js")
-FIXTURES = os.path.join(PROJECT, "app", "tests", "fixtures", "reference.json")
+APP_ENGINE = os.path.join(PROJECT, "history", "v0.6-app", "engine.js")
+FIXTURES = os.path.join(PROJECT, "history", "v0.6-app", "tests", "fixtures", "reference.json")
 NODE = shutil.which("node")
 
 KEY_MAP = {"rpetg": "rPETG", "rpet": "rPET", "rhdpe": "rHDPE", "rpp": "rPP"}

@@ -1226,7 +1226,7 @@ def check_G():
 # H. Cross-implementation / fixture determinism
 # ===========================================================================
 def check_H(lat):
-    fixture_path = ROOT / "app" / "tests" / "fixtures" / "reference.json"
+    fixture_path = ROOT / "history" / "v0.6-app" / "tests" / "fixtures" / "reference.json"
     fx = json.loads(fixture_path.read_text())
 
     # H1: recompute every case from its stored controls with engine, compare fields
@@ -1246,7 +1246,7 @@ def check_H(lat):
         max_rel = max(max_rel, dw / max(np.max(case["widths_mm"]), 1e-30))
     record("H1", "H: cross-implementation", "Frozen fixtures reproduce from the current Python engine",
            "Every fixture case recomputes from its stored controls to machine precision",
-           f"{len(fx['cases'])} cases in app/tests/fixtures/reference.json",
+           f"{len(fx['cases'])} cases in history/v0.6-app/tests/fixtures/reference.json",
            "deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12",
            f"max rel {max_rel:.2e} ({worst}), max |dP_f| {max_abs_pf:.2e}",
            status_for(max_rel <= 1e-12 and max_abs_pf <= 1e-12))
@@ -1340,21 +1340,21 @@ def check_H(lat):
 
     # H3: JavaScript engine/fixture cross-language tests (scoped via the runner's filter)
     t0 = time.time()
-    proc = subprocess.run(["node", "app/tests/run.mjs", "fixture"], cwd=str(ROOT),
+    proc = subprocess.run(["node", "history/v0.6-app/tests/run.mjs", "fixture"], cwd=str(ROOT),
                           capture_output=True, text=True, timeout=300)
     out = (proc.stdout or "") + (proc.stderr or "")
     import re as _re
     m = _re.search(r"(\d+) passed, (\d+) failed, (\d+) skipped", out)
     npass, nfail, nskip = (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else (0, -1, 0)
     # full app suite is informational (it mixes engine and v0.2 app-layer tests)
-    full = subprocess.run(["node", "app/tests/run.mjs"], cwd=str(ROOT),
+    full = subprocess.run(["node", "history/v0.6-app/tests/run.mjs"], cwd=str(ROOT),
                           capture_output=True, text=True, timeout=300)
     full_out = (full.stdout or "") + (full.stderr or "")
     fm = _re.search(r"(\d+) passed, (\d+) failed, (\d+) skipped", full_out)
     full_fail = [ln.strip()[2:] for ln in full_out.splitlines() if ln.strip().startswith("- ")]
     record("H3", "H: cross-implementation", "JavaScript engine/fixture cross-language tests pass",
            "The JS engine reproduces the frozen fixtures; full app suite reported informationally",
-           "node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency",
+           "node history/v0.6-app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency",
            "filtered engine/fixture tests: exit 0 and 0 failures",
            f"{npass} passed, {nfail} failed, {nskip} skipped (filter 'fixture'), exit {proc.returncode}, "
            f"{time.time()-t0:.1f} s",
@@ -1368,8 +1368,8 @@ def check_H(lat):
     # H4: live JS-vs-Python max relative difference on the fixture cases
     js_path = ART / "js_crosscheck.mjs"
     js_path.write_text("""import fs from 'node:fs';
-import * as E from '../../app/engine.js';
-const fxPath = new URL('../../app/tests/fixtures/reference.json', import.meta.url);
+import * as E from '../../history/v0.6-app/engine.js';
+const fxPath = new URL('../../history/v0.6-app/tests/fixtures/reference.json', import.meta.url);
 const fx = JSON.parse(fs.readFileSync(fxPath, 'utf8'));
 const out = { cases: [] };
 for (const c of fx.cases) {
@@ -1397,7 +1397,7 @@ console.log(JSON.stringify(out));
         obs_h4 = f"max rel {max_rel:.2e} ({worst}), max |dP_f| {max_abs_pf:.2e} over {len(js['cases'])} cases"
     record("H4", "H: cross-implementation", "Live JavaScript vs Python cross-implementation agreement",
            "JS analyzeLattice/probabilityOfFailure reproduce Python fixture values within the contract",
-           "node ESM cross-check script computing all five cases in app/engine.js",
+           "node ESM cross-check script computing all five cases in the historical bracket engine",
            "deterministic fields rel <= 1e-6; P_f abs <= 1e-8",
            obs_h4, status_for(ok_h4))
     return
@@ -1707,7 +1707,8 @@ def check_v04():
                      "lot_record_supplied", "validation"]
     html_path = ROOT / "reports" / "qualification_report.html"
     html = html_path.read_text() if html_path.exists() else ""
-    app_ui = (ROOT / "app" / "ui.js").read_text() if (ROOT / "app" / "ui.js").exists() else ""
+    historical_ui = ROOT / "history" / "v0.6-app" / "ui.js"
+    app_ui = historical_ui.read_text() if historical_ui.exists() else ""
     br = summary.get("brittle_screen", {})
     ass = summary.get("assumptions", {})
     val = summary.get("validation", {})
@@ -1753,7 +1754,7 @@ def check_v04():
     record("K8", "I: claim scope" if False else "K: v0.4 features",
            "Design-stage report and app export carry the v0.4 disclosures",
            "Report summary/HTML must contain the brittle screen, assumption bounds, process compatibility, validation counts and the no-delivered-lot statement; app Prove export carries lot identity",
-           "reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit)",
+           "reports/summary.json + reports/qualification_report.html + historical bracket app export (static audit)",
            "all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports)",
            f"fields_ok={fields_ok}, html_ok={html_ok}, app_lot_identity={app_ok}, "
            f"v0.4-hardening wording={wording_ok}, "
@@ -2560,7 +2561,7 @@ def compute_env():
     h = hashlib.sha256()
     for p in sorted(engine_dir.glob("*.py")):
         h.update(p.name.encode()); h.update(p.read_bytes())
-    fixture = ROOT / "app" / "tests" / "fixtures" / "reference.json"
+    fixture = ROOT / "history" / "v0.6-app" / "tests" / "fixtures" / "reference.json"
     fixture_sha = hashlib.sha256(fixture.read_bytes()).hexdigest() if fixture.exists() else "missing"
     node = subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip()
     return {"python": platform.python_version(), "numpy": np.__version__,

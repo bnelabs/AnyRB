@@ -1,12 +1,12 @@
 # AnyRB independent validation report (v0.4)
 
-Generated: 2026-10-30T11:01:16+00:00 · Suite runtime 58.0 s · Python 3.15.2 · NumPy 2.5.4 · SciPy 1.18.1 · Matplotlib 3.11.2
+Generated: 2026-10-30T11:49:46+00:00 · Suite runtime 53.8 s · Python 3.15.2 · NumPy 2.5.4 · SciPy 1.18.1 · Matplotlib 3.11.2
 
 **Independent** means: the frame element is re-implemented here, the global stiffness matrix is assembled here, reliability is re-derived with SciPy quadrature/CDF/Monte-Carlo, and the optimiser is checked against a brute-force grid. The engine is imported only where a check is explicitly *engine vs independent*. The suite is reproducible with `cd AnyRB && .venv/bin/python validation/run_validation.py`.
 
 ## For the app — quotable summary (generated)
 
-- **Validation:** 56 PASS, 2 WARN, 0 FAIL across 58 independent checks (runtime 58 s, reproducible with `make validate`).
+- **Validation:** 56 PASS, 2 WARN, 0 FAIL across 58 independent checks (runtime 54 s, reproducible with `make validate`).
 - **Claim level:** L0 (code verified) and L1 (solution verified) are demonstrated; L2 is partial; L3 is pre-registered only (coupon plan, no data); L4-L6 absent.
 - **WARN F4:** corrected analytic over-count (of printed union): w=1: +5.6%, w=2: +12.2%, w=4: +27.9%; shipped robust +9.5% (analytic 50.81 g vs printed union 46.39 g, independent MC +/-0.04 g); engine Halton printed 46.40 g
 - **WARN F5:** max |dev| 0.35% (worst uniform_w1); uniform_w1: -0.35%; uniform_w2: +0.10%; uniform_w4: -0.04%; robust: +0.01%; uniform_target: -0.08%; nominal_sf15: +0.04%; mean_only: +0.04%
@@ -50,7 +50,7 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | C7 | C | Two-level variance decomposition and hierarchical sampling | Parameter identity + 2000 lots x 500 within-lot specimens | CV^2 identity <= 1e-6 (fractions rounded to 5 dp); sigma^2 identity <= 1e-4; hierarchical CV rel <= 2% | param identity 6.9e-08, sigma^2 identity 1.3e-05, hierarchical CV 0.0994 vs 0.1 (-6.13e-03) | **PASS** |
 | C8 | C | Measured-lot override changes the distribution level correctly | Semantics + P_f for measured lot 2300 MPa / 50 MPa against robust-design demands | exact semantics; known-lot P_f < 1e-3 and lot-level equals within-level (zero lot CV) | semantics=True, P_f known 7.22e-16, lot-level 0.00e+00 | **PASS** |
 | C9 | C | Degenerate (zero-variance) marginal and extreme-threshold limits | Constructed degenerate Material; compare P_f to deterministic indicator; extreme demands | exact indicator match <= 1e-15; finite results for extreme demands | degenerate ok=True, extreme sum=1.000000 | **PASS** |
-| D1 | D | Brute-force grid baseline on the reduced 2-parameter family | 2109 evaluations of anyrb.evaluate (~4.8 s) | grid must contain feasible designs | best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346 | **PASS** |
+| D1 | D | Brute-force grid baseline on the reduced 2-parameter family | 2109 evaluations of anyrb.evaluate (~4.4 s) | grid must contain feasible designs | best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346 | **PASS** |
 | D2 | D | Production pattern search vs brute-force grid (2 parameters) | 4 deterministic starts x up to 1500 evals (~0.9 s) via an 8-D wrapper | feasible (P_f <= target) and mass <= grid best * 1.01 | mass 52.812 g vs grid 53.311 g (-0.94%), pf 0.0078, w0=1.34, g=0.40 | **PASS** |
 | D3 | D | 200 random designs cannot beat the optimiser by > 2% | 200 uniform random (w0, g) designs vs the fixed optimiser result | no feasible random design lighter than 0.98 x optimiser mass | random best 56.161 g (feasible 134/200) vs 53.311 g | **PASS** |
 | D4 | D | Shipped robust design is feasible and independently reproducible | Recompute demands with independent assembly; P_f via SciPy bivariate normal; mass from widths | pf <= target; |pf_diff| <= 1e-8; mass rel diff <= 1e-10; widths in bounds | reported pf 0.009956 vs independent 0.009956; mass 50.809 g vs independent 50.809 g; widths [1.24,1.99] mm; target 0.01 | **PASS** |
@@ -71,10 +71,10 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | G2 | G | Two-level CV split: CV_lot^2 + CV_within^2 = CV_total^2 | Engine params('lot'/'within'/'total') + fractions identity | identity <= 1e-6 and combined fraction within 1e-5 of 1 (fractions rounded to 5 dp) | identity 6.9e-08, combined fraction 0.999996546, variance split 0.8500/0.1500 | **PASS** |
 | G3 | G | Hierarchical lot->specimen sampling reproduces total CV | Draw lot means with CV_lot then specimens with CV_within; estimate total CV | relative error <= 1% | total CV 0.1003 vs 0.1 (+2.74e-03) | **PASS** |
 | G4 | G | Measured-lot path uses within-lot distribution | Compare lot_pass_probability with failure_probability(level='within') | exact equality; input material not mutated | 4.947828e-06 vs 4.947828e-06 | **PASS** |
-| H1 | H | Frozen fixtures reproduce from the current Python engine | 5 cases in app/tests/fixtures/reference.json | deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12 | max rel 0.00e+00 (), max \|dP_f\| 0.00e+00 | **PASS** |
+| H1 | H | Frozen fixtures reproduce from the current Python engine | 5 cases in history/v0.6-app/tests/fixtures/reference.json | deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12 | max rel 0.00e+00 (), max \|dP_f\| 0.00e+00 | **PASS** |
 | H2 | H | Frozen fixture regenerates byte-identically | Reconstructed fixture dict (robust controls taken from fixture) re-serialised with json.dump(indent=1) | byte-identical files | identical (32601 vs 32601 bytes); regenerated at artifacts/reference_regenerated.json | **PASS** |
-| H3 | H | JavaScript engine/fixture cross-language tests pass | node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency | filtered engine/fixture tests: exit 0 and 0 failures | 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 20.3 s | **PASS** |
-| H4 | H | Live JavaScript vs Python cross-implementation agreement | node ESM cross-check script computing all five cases in app/engine.js | deterministic fields rel <= 1e-6; P_f abs <= 1e-8 | max rel 4.77e-14 (uniform_w1.5:sigma_req_MPa), max \|dP_f\| 1.07e-13 over 5 cases | **PASS** |
+| H3 | H | JavaScript engine/fixture cross-language tests pass | node history/v0.6-app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency | filtered engine/fixture tests: exit 0 and 0 failures | 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 19.5 s | **PASS** |
+| H4 | H | Live JavaScript vs Python cross-implementation agreement | node ESM cross-check script computing all five cases in the historical bracket engine | deterministic fields rel <= 1e-6; P_f abs <= 1e-8 | max rel 4.77e-14 (uniform_w1.5:sigma_req_MPa), max \|dP_f\| 1.07e-13 over 5 cases | **PASS** |
 | J1 | J | Cell-size / topology model-form band on the fixed 140x60 envelope | Independent frame solver on generalised lattices with the same bilinear log-width field; same-width and mass-matched (analytic strut volume matched to 7x3) comparisons | 7x3 generic model reproduces engine demands <=1e-9; report the spread as a model-form band (no pass/fail target) | 7x3 vs engine rel 4.7e-15; same-width spread: u_tip 88%, sigma_req 34%, E_req 495%; mass-matched spread: u_tip 58%, sigma_req 98%, E_req 23% | **PASS** |
 | J2 | J | Joint-stiffness / topology model-form: rigid frame vs pin-jointed truss | 2-DOF/node pin-jointed truss solver vs the rigid-joint frame; tip stiffness, sigma_req and E_req ratios | report the ratio band; frame demands should not be below the pin-jointed idealisation | stiffness frame/truss 1.004; sigma_req frame/truss 1.141; E_req frame/truss 0.997 | **PASS** |
 | K1 | K | Sustained-load / creep advisory bound (compression x0.8, creep x2.0) | Independent recomputation of E_req*2, sigma_req/0.8, its P_f and deflection bound vs engine sustained_bound() | engine vs independent rel diff <=1e-12; P_f_bound > P_f_static; deflection_bound > u_lim | static P_f 0.0100; bound P_f 1.000000 (>=1 means essentially certain); E_req_bound 3376 MPa; sigma_req_bound 23.51 MPa; deflection_bound 4.02 mm (> 2.5 limit) | **PASS** |
@@ -83,9 +83,9 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 | L1 | L | Frozen coupon/bracket predictions, protocol and comparison tool are pre-registered | COUPON_TEST_PLAN.md + coupon_predictions.json (hash) + compare_measurements.py; predictions recomputed from current engine/model | files exist, pre-registration hash matches canonical payload, stiffness/first-yield/strain/brittle predictions reproduce <=1e-9, tool template parses | hash OK; bracket prediction recompute rel 0.0e+00, coupon 0.0e+00; compare tool OK | **PASS** |
 | K4 | K | Printed-process gate: only FDM/FFF data may enter the printed-bracket model | Engine family_feasibility and Material.print_process_ok vs independent process-string classification (rPETG FDM vs rPET/rHDPE/rPP IM/compression) | rPETG process_ok/feasible true; all non-printed presets process_ok=false, feasible=false, reason=process_mismatch, min_pf=None; print_process_ok probes all correct | rPETG process_ok/feasible=True/True; rpet(IM): process_ok=False, feasible=False, reason=process_mismatch; rhdpe(IM/compression): process_ok=False, feasible=False, reason=process_mismatch; rpp(IM): process_ok=False, feasible=False, reason=process_mismatch; probes correct=True | **PASS** |
 | K5 | K | Elongation / brittle-lot screen verified with its own lot/within split (add-on estimate, not a formal bound) | Independent scipy.stats.lognorm / direct normal CDF using the elongation-specific split (lot sqrt(frac), within sqrt(1-frac), measured lot f=1), supplied reference values, monotonicity, zero-CV/NaN limits, evaluate() strain_req consistency, fixed 1% brittle_ok threshold | max |engine - independent| <= 1e-12; Lead reference values reproduced to 1e-12; measured-lot elongation CV 0.1854723699099141 exact; deg limits exact; brittle_ok matches pf_brittle <= 1% threshold | max abs err 6.7e-16; ref 0.02=6.010388e-07, 0.04=5.280468e-01 (rel err 0.0e+00); lot split sqrt(0.50); measured-lot elong CV 0.185472 (ref 0.185472); strain_req 0.896% == sigma_req/E_mean; pf_brittle 0.00e+00; headline pf 0.00996 + add-on = estimate 0.00996; 1% screen threshold verified (pass/fail boundary found) | **PASS** |
-| K6 | K | Union-mass final polish is recorded, bounded and correctly accepted/declined | Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime | final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s | pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 5.4 s; 60k-vs-independent-union +0.01%; mode=declined | **PASS** |
+| K6 | K | Union-mass final polish is recorded, bounded and correctly accepted/declined | Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime | final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s | pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 4.7 s; 60k-vs-independent-union +0.01%; mode=declined | **PASS** |
 | K7 | K | Assumption bounds are computed correctly and labelled as assumption sensitivity, not validation | Engine assumption_bounds vs independent SciPy closed-form P_f at each assumption setting | engine vs independent <= 1e-12; pf_min/pf_max match the four settings; split monotone | corr 0.30/0.70 -> 0.00996/0.00996 (insensitive=True); split 75/95% -> 0.00200/0.01201; range [0.00200, 0.01201], max err 3.1e-17 | **PASS** |
-| K8 | K | Design-stage report and app export carry the v0.4 disclosures | reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit) | all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports) | fields_ok=True, html_ok=True, app_lot_identity=True, v0.4-hardening wording=True, report validation 56P/2W/0F of 58 (expected for this run if K8 passes: 56P/2W/0F of 58) | **PASS** |
+| K8 | K | Design-stage report and app export carry the v0.4 disclosures | reports/summary.json + reports/qualification_report.html + historical bracket app export (static audit) | all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports) | fields_ok=True, html_ok=True, app_lot_identity=True, v0.4-hardening wording=True, report validation 56P/2W/0F of 58 (expected for this run if K8 passes: 56P/2W/0F of 58) | **PASS** |
 | I1 | I | Claim-ladder mapping (L0-L2) updated by this validation | Mapping of A-L results onto the dossier-05 claim ladder | documentation consistent with evidence (no over-claim) | L0 achieved, L1 achieved, L2 partial, L3 pre-registered only, L4-L6 absent | **PASS** |
 | I2 | I | Model-form limitations are enumerated and quantified where possible | Limitations register compiled from PRODUCT_SPEC §7, REPORT §6 and checks A-H | all known major limitations listed | 19 limitations documented | **PASS** |
 
@@ -247,7 +247,7 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 ### D1 — Brute-force grid baseline on the reduced 2-parameter family [PASS]
 
 - **Claim:** A 57x37 grid establishes the reference optimum of the uniform-width + root-gradient family
-- **Method:** 2109 evaluations of anyrb.evaluate (~4.8 s)
+- **Method:** 2109 evaluations of anyrb.evaluate (~4.4 s)
 - **Tolerance:** grid must contain feasible designs
 - **Observed:** best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346
 
@@ -413,7 +413,7 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 ### H1 — Frozen fixtures reproduce from the current Python engine [PASS]
 
 - **Claim:** Every fixture case recomputes from its stored controls to machine precision
-- **Method:** 5 cases in app/tests/fixtures/reference.json
+- **Method:** 5 cases in history/v0.6-app/tests/fixtures/reference.json
 - **Tolerance:** deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12
 - **Observed:** max rel 0.00e+00 (), max |dP_f| 0.00e+00
 
@@ -427,15 +427,15 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 ### H3 — JavaScript engine/fixture cross-language tests pass [PASS]
 
 - **Claim:** The JS engine reproduces the frozen fixtures; full app suite reported informationally
-- **Method:** node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency
+- **Method:** node history/v0.6-app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency
 - **Tolerance:** filtered engine/fixture tests: exit 0 and 0 failures
-- **Observed:** 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 20.3 s
+- **Observed:** 1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 19.5 s
 - **Notes:** Full app suite: 54 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.
 
 ### H4 — Live JavaScript vs Python cross-implementation agreement [PASS]
 
 - **Claim:** JS analyzeLattice/probabilityOfFailure reproduce Python fixture values within the contract
-- **Method:** node ESM cross-check script computing all five cases in app/engine.js
+- **Method:** node ESM cross-check script computing all five cases in the historical bracket engine
 - **Tolerance:** deterministic fields rel <= 1e-6; P_f abs <= 1e-8
 - **Observed:** max rel 4.77e-14 (uniform_w1.5:sigma_req_MPa), max |dP_f| 1.07e-13 over 5 cases
 
@@ -527,9 +527,9 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 - **Claim:** Multi-start ranks analytic mass; the short local polish minimises printed Halton mass subject to target P_f and printability; acceptance requires a genuine 60k printed-mass improvement
 - **Method:** Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime
 - **Tolerance:** final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s
-- **Observed:** pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 5.4 s; 60k-vs-independent-union +0.01%; mode=declined
+- **Observed:** pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 4.7 s; 60k-vs-independent-union +0.01%; mode=declined
 - **Notes:** The global search still ranks with the analytic upper bound (disclosed); only the final selection/polish uses the printed union. The default rPETG design correctly declines the polish when no compliant improvement exists.
-- **Evidence:** `{"pre_polish_printed_g": 46.40025605333333, "final_printed_g": 46.40025605333333, "relative_change_pct": 0.0, "union_polished": false, "union_evals": 0, "runtime_s": 5.4258504579775035, "final_pf": 0.009956387330703032, "printability": {"min_width_mm": 1.2427942708684527, "max_width_mm": 1.9859795900725021, "max_slenderness": 21.915259138263814, "max_neighbour_width_ratio": 1.3754074300634593, "out_of_bounds": false}, "printed_vs_independent_union_pct": 0.012012736372124522, "decline_check": {"candidate_printed_g": 46.42023989333333, "candidate_pf": 0.009985892444542066, "would_accept": false, "improve": false, "printability": {"min_width_mm": 1.2121095709900265, "max_width_mm": 2.074794865235298, "max_slenderness": 21.335241624351426, "max_neighbour_width_ratio": 1.4231384137242973, "out_of_bounds": false}}}`
+- **Evidence:** `{"pre_polish_printed_g": 46.40025605333333, "final_printed_g": 46.40025605333333, "relative_change_pct": 0.0, "union_polished": false, "union_evals": 0, "runtime_s": 4.727206541982014, "final_pf": 0.009956387330703032, "printability": {"min_width_mm": 1.2427942708684527, "max_width_mm": 1.9859795900725021, "max_slenderness": 21.915259138263814, "max_neighbour_width_ratio": 1.3754074300634593, "out_of_bounds": false}, "printed_vs_independent_union_pct": 0.012012736372124522, "decline_check": {"candidate_printed_g": 46.42023989333333, "candidate_pf": 0.009985892444542066, "would_accept": false, "improve": false, "printability": {"min_width_mm": 1.2121095709900265, "max_width_mm": 2.074794865235298, "max_slenderness": 21.335241624351426, "max_neighbour_width_ratio": 1.4231384137242973, "out_of_bounds": false}}}`
 
 ### K7 — Assumption bounds are computed correctly and labelled as assumption sensitivity, not validation [PASS]
 
@@ -542,7 +542,7 @@ Interpretation: **PASS** = observed within the pre-registered tolerance. **WARN*
 ### K8 — Design-stage report and app export carry the v0.4 disclosures [PASS]
 
 - **Claim:** Report summary/HTML must contain the brittle screen, assumption bounds, process compatibility, validation counts and the no-delivered-lot statement; app Prove export carries lot identity
-- **Method:** reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit)
+- **Method:** reports/summary.json + reports/qualification_report.html + historical bracket app export (static audit)
 - **Tolerance:** all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports)
 - **Observed:** fields_ok=True, html_ok=True, app_lot_identity=True, v0.4-hardening wording=True, report validation 56P/2W/0F of 58 (expected for this run if K8 passes: 56P/2W/0F of 58)
 - **Notes:** Reports are generated artifacts: run `make report` after the validation suite so the report embeds the current counts and the hardened brittle-screen wording (the check then flips to PASS). The no-lot statement is required because the design-stage report is generic; the app Prove export carries lot ID, supplier, measurement source/CV and recycled-content %.

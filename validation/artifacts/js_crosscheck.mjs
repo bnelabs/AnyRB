@@ -1,6 +1,6 @@
 import fs from 'node:fs';
-import * as E from '../../app/engine.js';
-const fxPath = new URL('../../app/tests/fixtures/reference.json', import.meta.url);
+import * as E from '../../history/v0.6-app/engine.js';
+const fxPath = new URL('../../history/v0.6-app/tests/fixtures/reference.json', import.meta.url);
 const fx = JSON.parse(fs.readFileSync(fxPath, 'utf8'));
 const out = { cases: [] };
 for (const c of fx.cases) {

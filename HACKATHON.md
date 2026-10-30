@@ -1,5 +1,7 @@
 # AnyRB (Any Recycled Batch) — Meta Global AI Developer Hackathon submission pack
 
+> **Historical note:** this document describes an earlier AnyRB prototype (v0.6 and earlier). The active product is the one-page v0.7 app; see [`README.md`](README.md).
+
 **Track:** Indie Developer · "Push the Frontier" · solo builder
 **Deadline:** internal Tue Nov 3 18:00 ET · hard Wed Nov 4 21:00 ET (Thu Nov 5 05:00 Istanbul)
 

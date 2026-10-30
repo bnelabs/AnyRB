@@ -1,6 +1,6 @@
 """Generate cross-language reference fixtures for the JS demo engine.
 
-Writes app/tests/fixtures/reference.json.  The JS implementation of the FE
+Writes history/v0.6-app/tests/fixtures/reference.json.  The JS implementation of the FE
 model + reliability must reproduce the deterministic fields to ~1e-6 relative in the test
 (and P_f ~1e-8 absolute, because it solves the same closed form).
 """
@@ -23,7 +23,7 @@ from anyrb.mechanics import evaluate, demands
 from anyrb.reliability import phi2, failure_probability
 from anyrb.optimize import optimize_robust
 
-OUT = os.path.join(HERE, "..", "app", "tests", "fixtures", "reference.json")
+OUT = os.path.join(HERE, "..", "history", "v0.6-app", "tests", "fixtures", "reference.json")
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 lat = build_lattice()

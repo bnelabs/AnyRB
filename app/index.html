@@ -3,613 +3,96 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AnyRB — recycled-plastic consistency and evidence</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='4' fill='%23F7F5F0'/%3E%3Cpath d='M3 15.5 10 4l7 11.5M6.2 11h7.6' fill='none' stroke='%2315171A' stroke-width='1.5'/%3E%3C/svg%3E">
-<meta name="description" content="Keep a recycled-plastic product consistent while the batch changes: record the product, the result and target, enter measured links, and use only the evidence map’s PNAS {8,5} case as a labelled simulation. The historical bracket studio is separate.">
+<title>AnyRB — can this plastic make your product?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='4' fill='%23f4efe5'/%3E%3Cpath d='M3 15.5 10 4l7 11.5M6.2 11h7.6' fill='none' stroke='%231f1d18' stroke-width='1.5'/%3E%3C/svg%3E">
+<meta name="description" content="A plain answer for a product made from recycled plastic. Set the range that must hold, add what you have measured, and see what to do next.">
 <link rel="stylesheet" href="styles.css">
-<script data-dev-only>
-  // Dev shell only: ES modules need an HTTP server. The standalone build
-  // (anyrb/index.html) has everything inlined and opens by double-click.
-  (function () {
-    if (location.protocol === 'file:') document.documentElement.classList.add('file-protocol');
-  })();
-</script>
 </head>
-<body data-view="consistency">
+<body>
 <a class="skip-link" href="#main">Skip to content</a>
-<div class="dev-note" data-dev-only hidden style="background:#3a2a12;color:#fde68a;padding:10px 18px;font:13px -apple-system,sans-serif">
-  <strong>Dev shell.</strong> This page uses ES modules and must be served over HTTP:
-  <code>python3 -m http.server 8000</code> from <code>anyrb/</code>, then open
-  <code>http://localhost:8000/app/</code>. For double-click use, open
-  <code>anyrb/index.html</code> (run <code>python3 app/build.py</code> first).
-</div>
-<div class="loading-veil" id="loading-veil" aria-hidden="true">
-  <div>
-    <div class="lv-mark">AnyRB</div>
-    <div class="lv-sub">Recycled-plastic consistency and evidence · loading</div>
-  </div>
-</div>
 
-<!-- ============================ TOP BAR ============================ -->
-<header class="topbar" role="banner">
-  <a class="brand" href="#main" aria-label="AnyRB home">
-    <span class="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 15.5 10 4l7 11.5M6.2 11h7.6" />
-      </svg>
-    </span>
-    <span>
-      <span class="wordmark">AnyRB</span>
-      <span class="brand-sub" style="display:block">Recycled-plastic design &amp; consistency</span>
-    </span>
-  </a>
-  <nav class="view-switch" id="view-switch" aria-label="Workspace">
-    <button type="button" id="view-consistency" data-view="consistency" aria-pressed="true">Consistency</button>
-    <button type="button" id="view-evidence" data-view="evidence" aria-pressed="false">Evidence map</button>
-  </nav>
-  <div class="project-switcher" id="project-switcher" aria-live="polite">
-    <span class="dot-sep" aria-hidden="true">/</span>
-    <span class="project-name" id="project-name">Untitled record</span>
-  </div>
-  <div class="topbar-spacer"></div>
-  <div class="topbar-actions">
-    <button class="ai-pill" id="ai-pill" type="button" data-mode="offline" aria-haspopup="menu" aria-expanded="false" aria-label="AI status and modes">
-      <span class="dot" aria-hidden="true"></span>
-      <span id="ai-pill-label">Offline · fallback on</span>
-      <svg class="chev" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
-    </button>
-    <button class="lab-toggle" id="btn-lab" type="button" aria-pressed="false" aria-label="Toggle lab mode">
-      <span class="switch" aria-hidden="true"></span>
-      <span class="lab-label">Advanced</span>
-    </button>
-    <button class="icon-btn" id="btn-help" type="button" aria-label="Help and limitations" title="Help">
-      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 14v0M10 11c0-1.8 2.4-2 2.4-3.8A2.4 2.4 0 0 0 10 4.8a2.5 2.5 0 0 0-2.3 1.4"/></svg>
-    </button>
-  </div>
-  <!-- AI mode menu -->
-  <div class="ai-menu" id="ai-menu" role="menu" aria-label="AI mode" hidden>
-    <button type="button" role="menuitemradio" aria-checked="true" data-mode="live" id="ai-mode-live">
-      <span class="m-title"><span class="m-dot" style="background:var(--verify)"></span>Live · Meta models</span>
-      <span class="m-sub">Muse Spark, Muse Image, Muse Voice Transcribe, SAM 3.1</span>
-    </button>
-    <button type="button" role="menuitemradio" aria-checked="false" data-mode="cached" id="ai-mode-cached">
-      <span class="m-title"><span class="m-dot" style="background:var(--ink)"></span>Cached session</span>
-      <span class="m-sub">Show earlier responses; no new requests</span>
-    </button>
-    <button type="button" role="menuitemradio" aria-checked="false" data-mode="offline" id="ai-mode-offline">
-      <span class="m-title"><span class="m-dot" style="background:transparent;border:1.5px solid var(--muted)"></span>Offline assistant</span>
-      <span class="m-sub">Built-in text; the calculator still runs locally</span>
-    </button>
-    <hr>
-    <button type="button" role="menuitem" id="ai-menu-prov" style="width:100%;text-align:left;background:transparent;border:0;border-radius:12px;padding:11px 12px;cursor:pointer">
-      <span class="m-title">AI activity log</span>
-      <span class="m-sub" id="ai-menu-prov-sub">Which model · time · cached · fallback</span>
-    </button>
-  </div>
+<header class="masthead">
+  <span class="brand">AnyRB</span>
+  <button class="start-over" id="start-over" type="button">Start over</button>
 </header>
 
-<!-- ============================ APP SHELL ============================ -->
-<div class="shell">
-  <!-- Rail: stepper + session -->
-  <aside class="rail" aria-label="Steps and session">
-    <nav class="stepper" aria-label="Steps">
-      <button class="step" id="step-brief" type="button" data-step="brief" aria-current="step" data-state="active">
-        <span class="step-num">01</span>
-        <span class="step-body"><span class="step-name">Brief</span><span class="step-sub">What are we making?</span></span>
-        <svg class="step-tick" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10.5 4 4 8-9"/></svg>
-      </button>
-      <button class="step" id="step-design" type="button" data-step="design" data-state="future">
-        <span class="step-num">02</span>
-        <span class="step-body"><span class="step-name">Design</span><span class="step-sub">AI suggests, the maths decides</span></span>
-        <svg class="step-tick" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10.5 4 4 8-9"/></svg>
-      </button>
-      <button class="step" id="step-prove" type="button" data-step="prove" data-state="future">
-        <span class="step-num">03</span>
-        <span class="step-body"><span class="step-name">Prove</span><span class="step-sub">Can we ship this batch?</span></span>
-        <svg class="step-tick" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10.5 4 4 8-9"/></svg>
-      </button>
-    </nav>
-    <div class="rail-meta" id="session-card">
-      <div class="rm-title">This run</div>
-      <div class="rm-row"><span>Run ID</span><b id="session-seed">20251029</b></div>
-      <div class="rm-row"><span>Model</span><b id="session-engine">v0.6</b></div>
-      <div class="rm-row"><span>Checks</span><b id="session-valid">—</b></div>
-      <div class="rm-claims">Evidence <b id="session-claims">model checked</b></div>
-      <button class="btn btn--sm btn--ghost" id="btn-provenance" type="button" style="justify-content:flex-start;padding-left:0">AI activity <span id="prov-count" class="pill pill--muted" style="height:20px">0 requests</span></button>
-    </div>
-  </aside>
+<main id="main">
+  <section class="intro" aria-labelledby="page-title">
+    <h1 id="page-title">Can this plastic make your product?</h1>
+    <p class="intro-copy">Tell me what you are making, the range that must hold, and what you have measured. If something is missing, you will see what to check next.</p>
+  </section>
 
-  <!-- Main -->
-  <main class="main" id="main">
-    <div class="banner" id="banner" data-kind="offline" hidden role="status">
-      <span class="b-icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 6.5v4M10 13.5v0"/></svg>
-      </span>
-      <div>
-        <div class="b-title" id="banner-title">Offline assistant</div>
-        <div class="b-body" id="banner-body">The AI service is not reachable. The calculator still runs locally; AI text comes from built-in templates.</div>
-        <div class="b-actions" id="banner-actions"></div>
+  <form id="product-form" novalidate>
+    <section class="question" aria-labelledby="q-product">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">01</span>
+        <h2 id="q-product">What are you making?</h2>
       </div>
-    </div>
+      <input class="product-line" id="product" type="text" autocomplete="off" spellcheck="false" aria-labelledby="q-product" placeholder="a bench slat, a plant pot…">
+    </section>
 
-    <!-- ======================= CONSISTENCY RECORD ======================= -->
-    <section class="screen" id="screen-consistency" data-screen="consistency" data-active="true" aria-labelledby="consistency-h1">
-      <div class="screen-head">
-        <div class="eyebrow">Quality consistency · open record</div>
-        <h1 id="consistency-h1">Keep the product the same while the batch changes.</h1>
-        <p class="deck">Name the product and the result that has to stay inside your range. Describe the recycled input that varies, then enter the measurement that links the two. A result appears only when that link exists for this product and this result.</p>
+    <section class="question" aria-labelledby="q-properties">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">02</span>
+        <h2 id="q-properties">What has to stay steady?</h2>
       </div>
-      <div class="consistency-layout">
-        <div class="consistency-left">
-          <div class="card record-card">
-            <div id="consistency-form"></div>
-          </div>
-        </div>
-        <aside class="consistency-right" aria-label="What the record can say now">
-          <div class="card outcome-panel" id="consistency-outcomes" aria-live="polite"></div>
-          <div class="card calc-card" id="consistency-calc"></div>
-          <div class="card consistency-note">
-            <div class="micro">What this screen does not do</div>
-            <p>It does not load a product catalog or a material preset. A product name is not evidence. The only calculation is the separate, simulation-labelled PNAS {8,5} case; an empty record stays empty until you bring a measurement. <a href="#evidence" style="text-decoration:underline;text-underline-offset:2px">Open the evidence map</a>.</p>
-            <button class="btn btn--sm btn--ghost" type="button" id="consistency-open-studio">Open the historical bracket studio →</button>
-          </div>
-        </aside>
+      <p class="help">Add one line for each property. Weight, thickness, strength, stiffness, sound insulation — or anything else you can put a number on.</p>
+      <div id="property-list" class="line-list"></div>
+      <button class="add" id="add-property" type="button">Add another property</button>
+    </section>
+
+    <section class="question" aria-labelledby="q-plastic">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">03</span>
+        <h2 id="q-plastic">What plastic are you using?</h2>
+      </div>
+      <p class="help">Use plain names. Say what changes from one delivery to the next.</p>
+      <div class="two-up">
+        <label class="field">
+          <span>Plastic type</span>
+          <input id="plastic-type" type="text" autocomplete="off" placeholder="e.g. recycled polypropylene">
+        </label>
+        <label class="field">
+          <span>This batch</span>
+          <input id="plastic-batch" type="text" autocomplete="off" placeholder="e.g. 14 March">
+        </label>
+      </div>
+      <div class="two-up">
+        <label class="field">
+          <span>Mixed with</span>
+          <input id="plastic-mix" type="text" autocomplete="off" placeholder="e.g. some HDPE">
+        </label>
+        <label class="field">
+          <span>Dirt or other plastic</span>
+          <input id="plastic-dirt" type="text" autocomplete="off" placeholder="e.g. labels and grit">
+        </label>
       </div>
     </section>
 
-    <!-- ======================= EVIDENCE MAP ======================= -->
-    <section class="screen" id="screen-evidence" data-screen="evidence" aria-labelledby="evidence-h1">
-      <div class="screen-head">
-        <div class="eyebrow">Research · evidence map</div>
-        <h1 id="evidence-h1">What is actually measured, modelled, or absent.</h1>
-        <p class="deck">This is the map behind the one allowed calculation. A citation is not a result on your batch; a product-class formulation result is not a batch link. The consistency record stays blank wherever no measured link exists.</p>
+    <section class="question" aria-labelledby="q-measured">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">04</span>
+        <h2 id="q-measured">What have you measured?</h2>
       </div>
-      <div class="evidence-layout">
-        <div class="card evidence-summary" id="evidence-summary"></div>
-        <div class="evidence-rows" id="evidence-rows"></div>
-        <div class="card evidence-note" id="evidence-note"></div>
-      </div>
+      <p class="help">Enter the number you measured on the piece you made.</p>
+      <div id="measurement-list" class="line-list"></div>
+      <p class="empty" id="measurement-empty">No measured numbers yet.</p>
+      <button class="add" id="add-measurement" type="button">Add a measurement</button>
     </section>
+  </form>
 
-    <!-- ======================= 01 BRIEF ======================= -->
-    <section class="screen" id="screen-brief" data-screen="brief" data-active="true" aria-labelledby="brief-h1">
-      <div class="screen-head">
-        <div class="eyebrow">01 · Brief</div>
-        <h1 id="brief-h1">Tell us what the part must survive.</h1>
-        <p class="deck">Describe the part, the load it must carry, and the batch you actually have. The studio turns it into a design brief — every field is editable.</p>
-      </div>
-      <div class="brief-stack">
-        <div class="scope-note" role="note">
-          <span class="micro">Historical bracket studio · one simulated product</span>
-          <p>Historical evidence, not the default path. This page is a 2-D frame simulation of the rPETG wall bracket. It is not a 3-D product simulator, and its numbers do not apply to the products in your consistency record.</p>
-          <button class="btn btn--sm btn--ghost" type="button" id="studio-open-record">Open the consistency record →</button>
-        </div>
-        <div class="prompt" id="prompt-card">
-          <label class="p-label" for="brief-text">Your brief</label>
-          <textarea id="brief-text" spellcheck="true" placeholder="Describe the part, the load, the limits and the batch…">A wall bracket for a recycled PETG shelf unit. 150 N tip load, 2.5 mm max tip deflection, 1 % failure target across delivered lots. Print it upright in rPETG on a 0.4 mm nozzle.</textarea>
-          <div class="prompt-chips" aria-label="Example briefs">
-            <span class="micro">Try an example</span>
-            <button class="chip" type="button" data-example="bracket">Shelf bracket · 150 N</button>
-            <button class="chip" type="button" data-example="tighter">Tighter deflection</button>
-            <button class="chip" type="button" data-example="heavy">Heavy duty · 300 N</button>
-          </div>
-          <div class="prompt-foot">
-            <span class="count" id="word-count">78 words</span>
-            <button class="mic" id="btn-mic" type="button" aria-label="Describe it out loud">
-              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="2.5" width="5" height="9" rx="2.5"/><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5"/></svg>
-              <span id="mic-label">Describe it out loud</span>
-            </button>
-            <span class="spacer"></span>
-            <button class="btn btn--primary" id="btn-design" type="button">
-              Design with AI
-              <svg class="chev" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5"/></svg>
-            </button>
-          </div>
-        </div>
+  <section class="answer" id="answer" aria-labelledby="answer-headline">
+    <p class="answer-label">Your answer</p>
+    <h2 id="answer-headline"></h2>
+    <div class="answer-body" id="answer-body"></div>
+    <p class="next" id="answer-next">
+      <span class="next-label">Next</span>
+      <span id="next-text"></span>
+    </p>
+  </section>
+  <div class="sr-only" id="live-answer" aria-live="polite" aria-atomic="true"></div>
+</main>
 
-        <div class="activity" id="activity" hidden aria-live="polite">
-          <span class="a-step" id="act-1" data-state="future"><span class="a-mark"></span>Reading your brief</span>
-          <span class="a-step" id="act-2" data-state="future"><span class="a-mark"></span>Planning design options</span>
-          <span class="a-step" id="act-3" data-state="future"><span class="a-mark"></span>Running the verified solver</span>
-          <span class="a-elapsed" id="activity-elapsed">—</span>
-        </div>
-
-        <div class="card family-gate" id="family-gate" role="alert" hidden>
-          <div class="fg-head"><span class="fg-icon" aria-hidden="true">!</span><div><h3 style="margin:0">Infeasible for this bracket family</h3>
-          <p class="card-sub" style="margin:2px 0 0">Even the widest printable uniform lattice (4.0 mm struts) cannot meet the reliability target with this batch. Design is blocked — no AI candidate is drawn.</p></div></div>
-          <div class="fg-facts" id="family-gate-facts">—</div>
-        </div>
-
-        <div class="card family-gate process-gate" id="process-gate" role="alert" hidden>
-          <div class="fg-head"><span class="fg-icon" aria-hidden="true">!</span><div><h3 style="margin:0">These material numbers are not from printed parts</h3>
-          <p class="card-sub" style="margin:2px 0 0" id="process-gate-sub">Moulded-part data does not describe a 3D-printed lattice. Choose rPETG (printed), or use this preset only for comparison.</p></div></div>
-          <div class="fg-facts" id="process-gate-facts">—</div>
-        </div>
-
-        <div class="brief-cols">
-          <div class="card understanding" id="understanding-card">
-            <div class="u-head">
-              <div>
-                <h3>What we understood</h3>
-                <div class="card-sub" id="understanding-sub">We read these from your brief — edit anything.</div>
-              </div>
-              <div class="u-badges">
-                <span class="badge-model" id="understand-badge" data-kind="fallback"><span class="b-dot"></span>offline-assistant</span>
-                <span class="pill" id="understand-confidence">Confidence —</span>
-              </div>
-            </div>
-            <div id="understanding-empty" class="state-note" hidden>
-              <span class="dot-pulse"></span>No brief yet — describe the part on the left, or start from an example.
-            </div>
-            <div id="understanding-loading" class="skel-lines" hidden>
-              <div class="state-note"><span class="dot-pulse"></span>Muse Spark is reading your brief…</div>
-              <div class="skel-line is-skel" style="width:72%"></div>
-              <div class="skel-line is-skel" style="width:58%"></div>
-              <div class="skel-line is-skel" style="width:64%"></div>
-            </div>
-            <div id="understanding-error" class="banner" data-kind="error" hidden style="margin:12px 0 0">
-              <div><div class="b-title">The AI service didn’t respond.</div><div class="b-body">We used the built-in reader instead. Your brief is safe and the calculated numbers do not change.</div>
-                <div class="b-actions"><button class="btn btn--sm" id="btn-retry-brief" type="button">Retry AI</button></div></div>
-            </div>
-            <div class="kv-fields" id="understanding-fields"></div>
-            <p class="u-note">Nothing is hidden. Edit any field before the engine runs.</p>
-          </div>
-
-          <div class="card lot-card" id="lot-card">
-            <div class="card-head" style="margin-bottom:4px">
-              <h3 style="margin:0">This batch</h3>
-              <span class="pill pill--verify" id="lot-badge"><span class="p-dot"></span>Published data</span>
-            </div>
-            <div class="lot-name" id="lot-name">rPETG · 3D-printed</div>
-            <div class="lot-source" id="lot-source">Published tests of 3D-printed recycled PETG</div>
-            <div class="lot-stats" id="lot-stats">
-              <div class="lot-stat"><div class="ls-k">Stiffness</div><div class="ls-v" id="lot-E">2,100 MPa</div></div>
-              <div class="lot-stat"><div class="ls-k">Stiffness spread</div><div class="ls-v" id="lot-Ecv">10 %</div></div>
-              <div class="lot-stat"><div class="ls-k">Strength</div><div class="ls-v" id="lot-sy">46 MPa</div></div>
-              <div class="lot-stat"><div class="ls-k">Strength spread</div><div class="ls-v" id="lot-sycv">10 %</div></div>
-            </div>
-            <div class="lot-insight" id="lot-insight">About 85 % of the spread is between batches — that is the problem this tool is built for.</div>
-            <div class="lot-actions">
-              <button class="btn btn--sm" id="btn-change-preset" type="button">Change preset</button>
-              <button class="btn btn--sm" id="btn-paste-datasheet" type="button" aria-expanded="false">Paste material sheet →</button>
-            </div>
-            <div class="lot-paste" id="lot-paste" hidden>
-              <label class="micro" for="lot-text" style="display:block;margin-bottom:6px">Supplier material sheet or certificate text</label>
-              <textarea id="lot-text" placeholder="Paste the supplier sheet here — for example: stiffness 2100 MPa, strength 46 MPa, density 1.24 g/cm³."></textarea>
-              <div class="lp-foot">
-                <button class="btn btn--sm btn--ghost" id="btn-lot-cancel" type="button">Cancel</button>
-                <button class="btn btn--sm btn--ink" id="btn-lot-parse" type="button">Extract with AI</button>
-              </div>
-            </div>
-            <div class="preset-menu" id="preset-menu" hidden style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px"></div>
-          </div>
-        </div>
-
-        <div class="card card--flat" style="padding:22px 26px">
-          <div class="card-head" style="margin-bottom:12px">
-            <h3 style="margin:0">How the studio will explore</h3>
-            <span class="badge-model" id="plan-badge" data-kind="fallback"><span class="b-dot"></span>3 AI-proposed priors</span>
-          </div>
-          <div class="plan" id="plan-preview"></div>
-        </div>
-
-        <details class="disclosure lab-only" id="advanced-brief">
-          <summary>
-            <svg class="chev" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 5 5 5-5 5"/></svg>
-            Advanced model inputs
-          </summary>
-          <div class="disclosure-body">
-            <div class="adv-grid">
-              <div class="adv-cell"><div class="ac-k">Lattice topology</div><div class="ac-v">94 frame elements</div></div>
-              <div class="adv-cell"><div class="ac-k">Width field</div><div class="ac-v">4 × 2 control points</div></div>
-              <div class="adv-cell"><div class="ac-k">Lot / within split</div><div class="ac-v">85 / 15 %</div></div>
-              <div class="adv-cell"><div class="ac-k">Deflection limit</div><div class="ac-v" id="adv-defl">2.5 mm</div></div>
-            </div>
-            <div class="adv-controls" id="adv-controls"></div>
-          </div>
-        </details>
-        <p class="micro" id="brief-meta" style="padding-top:2px">Draft saved locally · session 20251029</p>
-      </div>
-    </section>
-
-    <!-- ======================= 02 DESIGN ======================= -->
-    <section class="screen" id="screen-design" data-screen="design" aria-labelledby="design-h1">
-      <div class="screen-head">
-        <div class="eyebrow">02 · Design</div>
-        <h1 id="design-h1">AI suggests. The maths decides.</h1>
-        <p class="deck">Three starting points, each checked by the calculator against your batch spread. Pick the trade-off you can defend. <span class="family-scope" id="design-family-scope">Best of this one bracket family — not a general best-shape search.</span></p>
-      </div>
-      <div class="stack-16">
-        <div class="design-hero">
-        <div class="card viz-card">
-          <div class="viz-head">
-            <div>
-              <h3 style="margin:0">Internal lattice · side view</h3>
-              <div class="card-sub" id="viz-meta">150 × 60 × 10 mm · rPETG printed · 150 N tip load</div>
-            </div>
-            <div class="segmented" id="view-toggle" role="group" aria-label="Visualisation mode">
-              <button type="button" data-view="geometry" aria-pressed="true">Geometry</button>
-              <button type="button" data-view="stress" aria-pressed="false">Where it bends</button>
-              <button type="button" data-view="width" aria-pressed="false">Strut sizes</button>
-            </div>
-          </div>
-          <div id="lattice-stage" role="img" aria-label="Internal lattice bracket side-view drawing"></div>
-          <div class="viz-caption">
-            <span id="viz-caption-text">Showing: Balanced · robust</span>
-            <span class="viz-meta" id="viz-caption-meta">not to scale · illustrative rendering</span>
-          </div>
-          <div class="viz-legend" aria-hidden="true">
-            <span class="vl"><span class="swatch" id="legend-1"></span><span>low stress</span></span>
-            <span class="vl"><span class="swatch" id="legend-2"></span><span>high stress</span></span>
-            <span class="vl"><span class="swatch" id="legend-3" style="background:var(--ink)"></span><span>strut size</span></span>
-            <span class="vl">dashed line = exaggerated bend</span>
-          </div>
-        </div>
-
-          <div class="card metrics-panel" id="metrics">
-<div class="metric">
-            <div class="m-label">Estimated printed mass</div>
-            <div class="m-value" id="metric-mass-value">—</div>
-            <div class="m-sub" id="metric-mass-sub">simulated print volume × material density</div>
-            <details class="why"><summary><svg class="chev" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 5 5 5-5 5"/></svg>Why this number?</summary><div class="why-body">The calculator searched for the lightest design that still meets your failure target. It is a model result, not a measurement.</div></details>
-            </div>
-          <div class="metric">
-            <div class="m-label">Chance of failure across batches</div>
-            <div class="m-value" id="metric-pf-value">—</div>
-            <div class="m-sub" id="metric-pf-sub">your target: no more than 1.00 %</div>
-            <details class="why"><summary><svg class="chev" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 5 5 5-5 5"/></svg>Why this number?</summary><div class="why-body">A probability calculated from the batch-to-batch spread, covering strength, strut buckling and bending. It is a model result, not a measurement.</div></details>
-          </div>
-          <div class="metric">
-            <div class="m-label">What would break it</div>
-            <div class="m-value" id="metric-mode-value" style="font-family:var(--sans);font-size:26px;line-height:1.25;letter-spacing:-0.01em">—</div>
-            <div class="m-sub" id="metric-mode-sub">the weak point that drives the risk</div>
-            <details class="why"><summary><svg class="chev" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 5 5 5-5 5"/></svg>Why this number?</summary><div class="why-body">For this design the part is limited by bending and strut buckling, not by breaking. It is a model result, not a measurement.</div></details>
-          </div>
-          <p class="micro" id="mass-footnote" style="padding:14px 2px 4px;border-top:1px solid var(--line);line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">The mass figure is the estimated printed mass (simulated print volume). A cautious high-side estimate is shown separately.</p>
-        </div>
-
-        </div>
-        <div class="card optimised-hero" id="optimised-hero">
-          <div class="hero-head">
-            <div>
-              <span class="pill pill--verify"><span class="p-dot"></span>Recommended · best of this family</span>
-              <h3 style="margin:10px 0 2px">The design we would print</h3>
-              <p class="card-sub">The best design the calculator found, picked by estimated printed mass and checked for printability. Shown separately from the AI starting points below.</p>
-            </div>
-            <button class="btn btn--sm" id="btn-select-hero" type="button" aria-pressed="true">Selected</button>
-          </div>
-          <div class="hero-metrics">
-            <div><span class="micro">Estimated printed mass</span><b id="hero-mass">—</b></div>
-            <div><span class="micro">High-side estimate</span><b id="hero-ub">—</b></div>
-            <div><span class="micro">Chance of failure</span><b id="hero-pf">—</b></div>
-            <div><span class="micro">Can it be printed?</span><b id="hero-print">—</b></div>
-            <div><span class="micro">Weak point</span><b id="hero-mode">—</b></div>
-          </div>
-          <p class="micro" id="hero-polish" style="margin-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">Checking the finish…</p>
-        </div>
-
-        <div class="candidates-head row-between">
-          <div><h2 style="font-size:26px">Three AI suggestions, checked as proposed</h2><p class="card-sub" style="margin-top:4px">Each suggestion is checked exactly as the AI proposed it, without quietly optimising it first, so the trade-offs stay distinct. Pick one and the calculator improves it from there.</p></div>
-          <span class="badge-model" id="plan-badge-design" data-kind="fallback"><span class="b-dot"></span>3 AI suggestions</span>
-        </div>
-        <div class="candidates" id="candidates" aria-label="Design suggestions"></div>
-
-        <div class="design-bottom">
-          <div class="card memo" id="design-memo">
-            <div class="card-head">
-              <h3 style="margin:0">Design memo</h3>
-              <span class="badge-model" id="design-memo-badge" data-kind="fallback"><span class="b-dot"></span>offline-assistant</span>
-            </div>
-            <div class="memo-body" id="design-memo-body">Run the AI design step to see the memo.</div>
-            <div class="memo-actions" id="design-memo-actions"></div>
-            <div class="memo-footer">
-              <span>AI-written from computed outputs · numbers injected</span>
-              <button class="btn btn--sm btn--ghost" id="btn-why-memo" type="button">How this was written →</button>
-            </div>
-          </div>
-          <div class="card vs" id="vs-card">
-            <div class="vs-head"><h3 style="margin:0">vs conventional</h3><span class="micro">mass · g · lower is better</span></div>
-            <div class="vs-bars" id="vs-bars"></div>
-            <p class="vs-takeaway" id="vs-takeaway">—</p>
-          </div>
-        </div>
-
-        <div class="card brittle-card" id="brittle-card">
-          <div class="card-head">
-            <div><h3 style="margin:0">Brittleness check <span class="pill pill--accent" style="height:20px;vertical-align:2px">kept separate</span></h3>
-            <div class="card-sub">How likely the material is to crack before it stretches as far as the design needs. A separate estimate, not part of the main failure chance.</div></div>
-            <span class="badge-model" id="brittle-badge" data-kind="engine"><span class="b-dot"></span>separate check</span>
-          </div>
-          <div class="brittle-grid" id="brittle-values">—</div>
-          <p class="micro" id="brittle-note" style="margin-top:8px">Assumes a typical link between stiffness and stretch (not measured). Kept out of the main failure chance.</p>
-        </div>
-
-        <div class="design-ctas">
-          <button class="btn btn--ghost" id="btn-back-brief" type="button">← Back to brief</button>
-          <div class="row-between">
-            <span class="cta-note" id="design-cta-note">Pick a design, then continue to proof.</span>
-            <button class="btn btn--primary" id="btn-continue" type="button">
-              Continue to proof
-              <svg class="chev" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5"/></svg>
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ======================= 03 PROVE ======================= -->
-    <section class="screen" id="screen-prove" data-screen="prove" aria-labelledby="prove-h1">
-      <div class="screen-head">
-        <div class="screen-head-row">
-          <div>
-            <div class="eyebrow">03 · Prove</div>
-            <h1 id="prove-h1">The page you can hand to a reviewer.</h1>
-            <p class="deck">One page that says what the design is, which batches it accepts, and what the model cannot tell you. <span class="family-scope" id="prove-family-scope">Scope: best of this one bracket family — not a general best-shape search.</span></p>
-          </div>
-          <span class="status-chip" id="prove-status"><span class="p-dot" style="background:currentColor"></span>Waiting for a design</span>
-        </div>
-      </div>
-      <div class="prove-grid">
-        <div class="card" id="gauge-card">
-          <div class="card-head"><h3 style="margin:0">Chance of failure</h3><span class="micro">across delivered batches</span></div>
-          <div class="gauge-wrap">
-            <div class="gauge-svg" id="gauge" role="img" aria-label="Reliability gauge"></div>
-            <div class="gauge-facts">
-              <div class="gauge-fact"><span>Weak point</span><b id="gauge-mode">—</b></div>
-              <div class="gauge-fact"><span>Estimated printed mass</span><b id="gauge-mass">—</b></div>
-              <div class="gauge-fact"><span>High-side estimate</span><b id="gauge-mass-ub">—</b></div>
-              <div class="gauge-fact"><span>Can it be printed?</span><b id="gauge-print">—</b></div>
-              <div class="gauge-fact"><span>Chance it holds up</span><b id="gauge-rel">—</b></div>
-            </div>
-          </div>
-          <p class="micro" id="proof-mass-note" style="padding-top:12px;line-height:1.5;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)">The headline mass is the estimated printed mass (simulated print volume). The higher figure is a cautious upper estimate. All comparison bars use the printed mass.</p>
-        </div>
-
-        <div class="card" id="passport-card">
-          <div class="card-head">
-            <div><h3 style="margin:0">Print recipe for this batch</h3><div class="card-sub">Uses your measured values and their uncertainty to resize eight zones of the lattice, not one global scale.</div></div>
-            <span class="badge-model" id="recipe-badge" data-kind="engine"><span class="b-dot"></span>calculated</span>
-          </div>
-          <div class="qc-grid" id="qc-fields">
-            <div class="qc-field"><label for="qc-lot-id">Lot ID</label><input id="qc-lot-id" type="text" placeholder="LOT-2026-014"></div>
-            <div class="qc-field"><label for="qc-supplier">Supplier</label><input id="qc-supplier" type="text" placeholder="Supplier / recycler"></div>
-            <div class="qc-field"><label for="qc-recycled">Recycled content · % <span class="qc-tag">paperwork claim</span></label><input id="qc-recycled" type="number" min="0" max="100" step="1" placeholder="78"></div>
-            <div class="qc-field"><label for="qc-e">Measured lot E · MPa</label><input id="qc-e" type="number" step="10" min="200" max="6000"></div>
-            <div class="qc-field"><label for="qc-sy">Measured strength · MPa</label><input id="qc-sy" type="number" step="1" min="5" max="120"></div>
-            <div class="qc-field"><label for="qc-cv">Measurement CV · %</label><input id="qc-cv" type="number" step="1" min="1" max="40" value="12"></div>
-            <div class="qc-field"><label for="qc-mfi">MFI · g/10 min <span class="qc-tag">not used — no calibrated proxy</span></label><input id="qc-mfi" type="number" step="0.1" min="0" placeholder="e.g. 18"></div>
-            <div class="qc-field"><label for="qc-density">Density · g/cm³ <span class="qc-tag">not used — no calibrated proxy</span></label><input id="qc-density" type="number" step="0.01" min="0.5" placeholder="e.g. 1.24"></div>
-            <div class="qc-field"><label for="qc-tensile-row">Tensile test row / certificate <span class="qc-tag">traceability only</span></label><input id="qc-tensile-row" type="text" placeholder="e.g. tensile report, row 3"></div>
-          </div>
-          <p class="micro" id="qc-notused" style="margin-top:8px;text-transform:none;letter-spacing:0;line-height:1.5">Melt index, density and tensile-row notes are kept for the record only and are <b>not used</b> in the model — no calibration exists yet. Stiffness and strength above are the numbers actually used.</p>
-          <div class="chip-row" style="margin:10px 0 4px">
-            <button class="chip" type="button" data-lot="nominal">Nominal lot</button>
-            <button class="chip" type="button" data-lot="weak">Weak lot · E ×0.8</button>
-            <button class="chip" type="button" data-lot="reject">Reject lot · E ×0.5</button>
-            <span class="spacer"></span>
-            <button class="btn btn--sm" id="btn-recipe" type="button">Recompute recipe</button>
-          </div>
-          <div class="recipe-grid" id="recipe-multipliers" aria-label="Per-control width multipliers"></div>
-          <div class="recipe-summary" id="recipe-summary">Recompute to see the lot-specific recipe.</div>
-          <div class="verdict" id="passport-verdict" data-kind="pass">
-            <div class="v-head"><span id="verdict-icon" aria-hidden="true">✓</span><span id="verdict-title">PASS</span></div>
-            <div class="v-body" id="verdict-body">Waiting for measured lot data.</div>
-          </div>
-          <p class="micro" style="margin-top:10px" id="recipe-note">Global equivalent scale is only a slicer fallback; the recipe above is a lot-specific 8-control resize with measurement uncertainty retained. Recycled-content % is a paperwork claim (not simulated).</p>
-        </div>
-
-        <div class="card advisory" id="sustained-card">
-          <div class="card-head">
-            <div><h3 style="margin:0">Long-term load check</h3><div class="card-sub">A rough check for months under load. Not the main design result.</div></div>
-            <span class="badge-model" id="sustained-badge" data-kind="engine"><span class="b-dot"></span>rough check</span>
-          </div>
-          <div class="advisory-body" id="sustained-values">—</div>
-          <p class="micro" id="sustained-note" style="margin-top:8px">A rough check only. The main result above is unchanged.</p>
-        </div>
-
-        <div class="card brittle-card" id="brittle-proof-card">
-          <div class="card-head">
-            <div><h3 style="margin:0">Brittleness check <span class="pill pill--accent" style="height:20px;vertical-align:2px">kept separate</span></h3>
-            <div class="card-sub">How likely the material is to crack before it stretches far enough. A separate estimate, not the main failure chance.</div></div>
-            <span class="badge-model" id="proof-brittle-badge" data-kind="engine"><span class="b-dot"></span>separate check</span>
-          </div>
-          <div class="brittle-grid" id="proof-brittle-values">—</div>
-          <p class="micro" id="proof-brittle-note" style="margin-top:8px">Assumes a typical link between stiffness and stretch (not measured).</p>
-        </div>
-
-        <div class="card" id="assumptions-card">
-          <div class="card-head">
-            <div><h3 style="margin:0">What if our assumptions are wrong?</h3>
-            <div class="card-sub" id="assumptions-sub">How far the failure chance moves if two unmeasured inputs are different. A sensitivity check, not validation.</div></div>
-            <span class="badge-model" id="assumptions-badge" data-kind="fallback"><span class="b-dot"></span>range</span>
-          </div>
-          <div class="assumption-body" id="assumptions-values">—</div>
-          <p class="micro" style="margin-top:8px">Stiffness–strength link 0.30 / 0.70 · batch-vs-within spread 75 % / 95 %. This is a sensitivity check, <b>not validation</b>.</p>
-        </div>
-
-        <div class="card" id="acceptance-card" style="grid-column:1/-1">
-          <div class="card-head"><div><h3 style="margin:0">Which batches pass?</h3><div class="card-sub" id="acceptance-caption">Batch-average stiffness and strength. The calculator draws the exact boundary.</div></div><span class="pill" id="acceptance-target">target —</span></div>
-          <div id="acceptance-chart" role="img" aria-label="Batch acceptance window chart"></div>
-        </div>
-
-        <div class="card" id="validation-card">
-          <div class="card-head"><div><h3 style="margin:0">Independent checks</h3><div class="card-sub" id="validation-sub">The maths and code were checked by a separate script. No physical tests yet.</div></div><span class="pill pill--verify" id="validation-pill"><span class="p-dot"></span>model checked</span></div>
-          <div class="checklist" id="validation-list"></div>
-          <div class="check-foot"><span id="validation-foot">—</span><a href="#" id="validation-link" class="mono" style="color:var(--muted)">Validation report ↗</a></div>
-        </div>
-
-        <div class="card memo" id="proof-memo">
-          <div class="card-head"><h3 style="margin:0">Qualification memo</h3><span class="badge-model" id="proof-memo-badge" data-kind="fallback"><span class="b-dot"></span>offline-assistant</span></div>
-          <div class="memo-body" id="proof-memo-body">The qualification memo appears after the proof step runs.</div>
-          <div class="memo-actions" id="proof-memo-actions"></div>
-          <div class="memo-footer"><span>AI-written from computed outputs · numbers injected</span><span id="proof-memo-risk"></span></div>
-        </div>
-
-        <div class="card render-card" id="render-card">
-          <div class="card-head"><h3 style="margin:0">Concept render</h3><span class="badge-model" id="render-badge" data-kind="fallback"><span class="b-dot"></span>—</span></div>
-          <div class="render-frame" id="render-frame"></div>
-          <div class="render-caption"><span id="render-caption">AI illustration — not the CAD model.</span><span class="micro">illustrative only</span></div>
-        </div>
-
-        <div class="card" id="exports-card">
-          <div class="card-head"><h3 style="margin:0">Export</h3><span class="micro">local files · nothing uploaded</span></div>
-          <div class="exports" id="export-buttons">
-            <button class="export-btn" type="button" data-export="report">
-              <span class="e-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h7l3 3v12H5z"/><path d="M12 2.5v3h3M7.5 11h5M7.5 14h5"/></svg></span>
-              <span><span class="e-name">Qualification report</span><span class="e-meta">HTML · self-contained</span></span>
-            </button>
-            <button class="export-btn" type="button" data-export="stl">
-              <span class="e-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 2 7 4v8l-7 4-7-4V6z"/><path d="m10 2v8m0 0 7-4m-7 4-7-4m7 12v-8"/></svg></span>
-              <span><span class="e-name">STL</span><span class="e-meta" id="stl-meta">box-per-strut</span></span>
-            </button>
-            <button class="export-btn" type="button" data-export="json">
-              <span class="e-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H5v14h2M13 3h2v14h-2"/><path d="m8.5 8 3 2-3 2"/></svg></span>
-              <span><span class="e-name">Design JSON</span><span class="e-meta">material · design · metrics</span></span>
-            </button>
-            <button class="export-btn" type="button" data-export="provenance">
-              <span class="e-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v4l2.5 2"/></svg></span>
-              <span><span class="e-name">AI activity log</span><span class="e-meta">model · time · fallback</span></span>
-            </button>
-          </div>
-        </div>
-
-        <div class="card" id="claims-card">
-          <div class="card-head"><h3 style="margin:0">What this can and can’t prove</h3><span class="micro" id="claims-badge">plain limits</span></div>
-          <div class="claims" id="claims-list"></div>
-          <p class="limitations-note" id="limitations-note">These are computer estimates, not measurements. The part is modelled in 2-D with simplified physics; material data comes from published studies; the design is a local best, not a proven global one; and nothing has been physically tested. Use it to compare options, then confirm the final choice with a physical test.</p>
-        </div>
-      </div>
-    </section>
-  </main>
-</div>
-
-<footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · recycled-plastic design &amp; consistency · v0.6</span>
-  <span class="f-honest">Confirm production choices with a physical test.</span>
-  <span>Consistency: measured links + one PNAS case · bracket studio: historical 2-D simulation</span>
-</footer>
-
-<!-- overlays -->
-<div class="scrim" id="scrim"></div>
-<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
-  <div class="drawer-head">
-    <div>
-      <h2 id="drawer-title">AI activity</h2>
-      <div class="drawer-sub" id="drawer-sub">Every AI call this session — model, latency, cache, fallback.</div>
-    </div>
-    <button class="icon-btn" id="drawer-close" type="button" aria-label="Close AI activity panel">
-      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg>
-    </button>
-  </div>
-  <div class="drawer-body" id="drawer-body"><div class="drawer-empty">No AI calls yet this session.</div></div>
-  <div class="drawer-foot">
-    <span class="micro">No API key ever reaches the browser</span>
-    <button class="btn btn--sm" id="drawer-copy" type="button">Copy log</button>
-  </div>
-</aside>
-<div class="toast-region" id="toast-region" aria-live="polite"></div>
-
-<script type="module" src="ui.js"></script>
+<script type="module" src="main.js"></script>
 </body>
 </html>

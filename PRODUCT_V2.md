@@ -1,5 +1,7 @@
 # AnyRB (Any Recycled Batch) v0.2 — Product redesign + Meta AI integration PRD
 
+> **Historical note:** this document describes an earlier AnyRB prototype (v0.6 and earlier). The active product is the one-page v0.7 app; see [`README.md`](README.md).
+
 **Track:** Meta Global AI Developer Hackathon · Indie Developer · "Push the Frontier" (deadline 2026-11-04).
 **One line:** *AnyRB is an AI reliability studio for recycled plastics — describe the part you need, give it the batch you actually have, and it designs internal geometry that behaves reliably; the AI acts as the design partner, the verified physics does the math.*
 

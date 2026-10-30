@@ -1,7 +1,7 @@
 {
  "suite": "AnyRB independent scientific validation",
  "version": "v0.3-validation",
- "generated_utc": "2026-10-30T11:01:16+00:00",
+ "generated_utc": "2026-10-30T11:49:46+00:00",
  "environment": {
   "python": "3.15.2",
   "numpy": "2.5.4",
@@ -18,7 +18,7 @@
   "PASS": 56,
   "WARN": 2,
   "FAIL": 0,
-  "runtime_s": 58.0,
+  "runtime_s": 53.8,
   "exit_code": 0
  },
  "claim_ladder": {
@@ -580,7 +580,7 @@
    "category": "D: optimiser",
    "title": "Brute-force grid baseline on the reduced 2-parameter family",
    "claim": "A 57x37 grid establishes the reference optimum of the uniform-width + root-gradient family",
-   "method": "2109 evaluations of anyrb.evaluate (~4.8 s)",
+   "method": "2109 evaluations of anyrb.evaluate (~4.4 s)",
    "tolerance": "grid must contain feasible designs",
    "observed": "best mass 53.311 g (w0=1.35, g=0.40, pf=0.0028); feasible 1346",
    "status": "PASS",
@@ -925,7 +925,7 @@
    "category": "H: cross-implementation",
    "title": "Frozen fixtures reproduce from the current Python engine",
    "claim": "Every fixture case recomputes from its stored controls to machine precision",
-   "method": "5 cases in app/tests/fixtures/reference.json",
+   "method": "5 cases in history/v0.6-app/tests/fixtures/reference.json",
    "tolerance": "deterministic fields rel diff <= 1e-12; P_f abs diff <= 1e-12",
    "observed": "max rel 0.00e+00 (), max |dP_f| 0.00e+00",
    "status": "PASS",
@@ -949,9 +949,9 @@
    "category": "H: cross-implementation",
    "title": "JavaScript engine/fixture cross-language tests pass",
    "claim": "The JS engine reproduces the frozen fixtures; full app suite reported informationally",
-   "method": "node app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency",
+   "method": "node history/v0.6-app/tests/run.mjs fixture (engine/fixture scope) + full suite for transparency",
    "tolerance": "filtered engine/fixture tests: exit 0 and 0 failures",
-   "observed": "1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 20.3 s",
+   "observed": "1 passed, 0 failed, 0 skipped (filter 'fixture'), exit 0, 19.5 s",
    "status": "PASS",
    "notes": "Full app suite: 54 passed, 0 failed, 0 skipped; no app-layer failures. Failures outside the engine/fixture contract (v0.2 app schema/grounding) are reported here for transparency and are not scored against the engine.",
    "evidence": {}
@@ -961,7 +961,7 @@
    "category": "H: cross-implementation",
    "title": "Live JavaScript vs Python cross-implementation agreement",
    "claim": "JS analyzeLattice/probabilityOfFailure reproduce Python fixture values within the contract",
-   "method": "node ESM cross-check script computing all five cases in app/engine.js",
+   "method": "node ESM cross-check script computing all five cases in the historical bracket engine",
    "tolerance": "deterministic fields rel <= 1e-6; P_f abs <= 1e-8",
    "observed": "max rel 4.77e-14 (uniform_w1.5:sigma_req_MPa), max |dP_f| 1.07e-13 over 5 cases",
    "status": "PASS",
@@ -1234,7 +1234,7 @@
    "claim": "Multi-start ranks analytic mass; the short local polish minimises printed Halton mass subject to target P_f and printability; acceptance requires a genuine 60k printed-mass improvement",
    "method": "Independent replication of the pre-polish multi-start selection vs engine optimize_robust; compare 60k printed masses, feasibility, printability, decline logic, runtime",
    "tolerance": "final feasible + printable; accepted printed mass <= pre-polish within Halton tolerance; if declined, controls unchanged and decline verified; runtime < 120 s",
-   "observed": "pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 5.4 s; 60k-vs-independent-union +0.01%; mode=declined",
+   "observed": "pre-polish printed 46.400 g -> final 46.400 g (+0.000%); union_polished=False, union_evals=0; final pf 0.00996, neighbour ratio 1.375, slenderness 21.9; runtime 4.7 s; 60k-vs-independent-union +0.01%; mode=declined",
    "status": "PASS",
    "notes": "The global search still ranks with the analytic upper bound (disclosed); only the final selection/polish uses the printed union. The default rPETG design correctly declines the polish when no compliant improvement exists.",
    "evidence": {
@@ -1243,7 +1243,7 @@
     "relative_change_pct": 0.0,
     "union_polished": false,
     "union_evals": 0,
-    "runtime_s": 5.4258504579775035,
+    "runtime_s": 4.727206541982014,
     "final_pf": 0.009956387330703032,
     "printability": {
      "min_width_mm": 1.2427942708684527,
@@ -1285,7 +1285,7 @@
    "category": "K: v0.4 features",
    "title": "Design-stage report and app export carry the v0.4 disclosures",
    "claim": "Report summary/HTML must contain the brittle screen, assumption bounds, process compatibility, validation counts and the no-delivered-lot statement; app Prove export carries lot identity",
-   "method": "reports/summary.json + reports/qualification_report.html + app/ui.js content (static audit)",
+   "method": "reports/summary.json + reports/qualification_report.html + historical bracket app export (static audit)",
    "tolerance": "all required fields present and internally consistent; validation counts match the current results.json (else WARN: regenerate reports)",
    "observed": "fields_ok=True, html_ok=True, app_lot_identity=True, v0.4-hardening wording=True, report validation 56P/2W/0F of 58 (expected for this run if K8 passes: 56P/2W/0F of 58)",
    "status": "PASS",

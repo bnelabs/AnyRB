@@ -23,7 +23,7 @@ sweep:
 	$(PY) -m anyrb.cli sweep
 
 app-test:
-	node app/tests/run.mjs
+	node app/tests/model.test.mjs
 
 app-build:
 	$(PY) app/build.py
@@ -44,7 +44,7 @@ validate:
 	$(PY) validation/run_validation.py
 
 verify: test
-	node app/tests/run.mjs
+	node app/tests/model.test.mjs
 	AI_MOCK=1 $(PY) -m pytest server/tests -q
 	$(PY) validation/run_validation.py
 	$(PY) -c "import json,os; s=json.load(open('reports/summary.json')); assert os.path.getsize('reports/qualification_report.html')>100000; assert os.path.getsize('reports/robust_design.stl')>10000; print('deliverables OK:', s['robust']['mass_g'], 'g, P_f', s['robust']['pf'])"
