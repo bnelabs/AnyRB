@@ -7,8 +7,8 @@ AnyRB — inline the dev sources into a single standalone HTML file.
 Reads:
     app/index.html, app/styles.css,
     app/config.js, app/engine.js, app/optimize.js, app/stl.js, app/aicore.js,
-    app/ai.js, app/product_render.js, app/consistency.js, app/consistency_ui.js,
-    app/ui.js
+    app/ai.js, app/product_render.js, app/consistency.js, app/evidence.js,
+    app/consistency_ui.js, app/evidence_ui.js, app/ui.js
 Writes:
     anyrb/index.html   (primary double-clickable standalone build)
     app/standalone.html   (identical convenience copy)
@@ -39,7 +39,9 @@ SOURCES = [
     ("ai", APP / "ai.js"),
     ("product_render", APP / "product_render.js"),
     ("consistency", APP / "consistency.js"),
+    ("evidence", APP / "evidence.js"),
     ("consistency_ui", APP / "consistency_ui.js"),
+    ("evidence_ui", APP / "evidence_ui.js"),
     ("ui", APP / "ui.js"),
 ]
 

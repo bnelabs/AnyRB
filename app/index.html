@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AnyRB — recycled-plastic design and consistency</title>
+<title>AnyRB — recycled-plastic consistency and evidence</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='4' fill='%23F7F5F0'/%3E%3Cpath d='M3 15.5 10 4l7 11.5M6.2 11h7.6' fill='none' stroke='%2315171A' stroke-width='1.5'/%3E%3C/svg%3E">
-<meta name="description" content="Keep a recycled-plastic product consistent while the batch changes: record the product, the result and its target range, then see a range only when a measured link exists. The bracket studio remains a separate 2-D simulation.">
+<meta name="description" content="Keep a recycled-plastic product consistent while the batch changes: record the product, the result and target, enter measured links, and use only the evidence map’s PNAS {8,5} case as a labelled simulation. The historical bracket studio is separate.">
 <link rel="stylesheet" href="styles.css">
 <script data-dev-only>
   // Dev shell only: ES modules need an HTTP server. The standalone build
@@ -26,7 +26,7 @@
 <div class="loading-veil" id="loading-veil" aria-hidden="true">
   <div>
     <div class="lv-mark">AnyRB</div>
-    <div class="lv-sub">Recycled-plastic design and consistency · loading</div>
+    <div class="lv-sub">Recycled-plastic consistency and evidence · loading</div>
   </div>
 </div>
 
@@ -45,7 +45,7 @@
   </a>
   <nav class="view-switch" id="view-switch" aria-label="Workspace">
     <button type="button" id="view-consistency" data-view="consistency" aria-pressed="true">Consistency</button>
-    <button type="button" id="view-studio" data-view="studio" aria-pressed="false">Bracket studio</button>
+    <button type="button" id="view-evidence" data-view="evidence" aria-pressed="false">Evidence map</button>
   </nav>
   <div class="project-switcher" id="project-switcher" aria-live="polite">
     <span class="dot-sep" aria-hidden="true">/</span>
@@ -112,7 +112,7 @@
     <div class="rail-meta" id="session-card">
       <div class="rm-title">This run</div>
       <div class="rm-row"><span>Run ID</span><b id="session-seed">20251029</b></div>
-      <div class="rm-row"><span>Model</span><b id="session-engine">v0.5</b></div>
+      <div class="rm-row"><span>Model</span><b id="session-engine">v0.6</b></div>
       <div class="rm-row"><span>Checks</span><b id="session-valid">—</b></div>
       <div class="rm-claims">Evidence <b id="session-claims">model checked</b></div>
       <button class="btn btn--sm btn--ghost" id="btn-provenance" type="button" style="justify-content:flex-start;padding-left:0">AI activity <span id="prov-count" class="pill pill--muted" style="height:20px">0 requests</span></button>
@@ -147,12 +147,27 @@
         </div>
         <aside class="consistency-right" aria-label="What the record can say now">
           <div class="card outcome-panel" id="consistency-outcomes" aria-live="polite"></div>
+          <div class="card calc-card" id="consistency-calc"></div>
           <div class="card consistency-note">
             <div class="micro">What this screen does not do</div>
-            <p>It does not load a product catalog, a material preset or the bracket model. A product name is not evidence. An empty record stays an empty record until you bring a measurement.</p>
-            <button class="btn btn--sm btn--ghost" type="button" id="consistency-open-studio">Open the bracket studio →</button>
+            <p>It does not load a product catalog or a material preset. A product name is not evidence. The only calculation is the separate, simulation-labelled PNAS {8,5} case; an empty record stays empty until you bring a measurement. <a href="#evidence" style="text-decoration:underline;text-underline-offset:2px">Open the evidence map</a>.</p>
+            <button class="btn btn--sm btn--ghost" type="button" id="consistency-open-studio">Open the historical bracket studio →</button>
           </div>
         </aside>
+      </div>
+    </section>
+
+    <!-- ======================= EVIDENCE MAP ======================= -->
+    <section class="screen" id="screen-evidence" data-screen="evidence" aria-labelledby="evidence-h1">
+      <div class="screen-head">
+        <div class="eyebrow">Research · evidence map</div>
+        <h1 id="evidence-h1">What is actually measured, modelled, or absent.</h1>
+        <p class="deck">This is the map behind the one allowed calculation. A citation is not a result on your batch; a product-class formulation result is not a batch link. The consistency record stays blank wherever no measured link exists.</p>
+      </div>
+      <div class="evidence-layout">
+        <div class="card evidence-summary" id="evidence-summary"></div>
+        <div class="evidence-rows" id="evidence-rows"></div>
+        <div class="card evidence-note" id="evidence-note"></div>
       </div>
     </section>
 
@@ -165,8 +180,8 @@
       </div>
       <div class="brief-stack">
         <div class="scope-note" role="note">
-          <span class="micro">Bracket studio · one simulated product</span>
-          <p>This page is a 2-D frame simulation of the rPETG wall bracket. It is not a 3-D product simulator, and its numbers do not apply to the products in your consistency record.</p>
+          <span class="micro">Historical bracket studio · one simulated product</span>
+          <p>Historical evidence, not the default path. This page is a 2-D frame simulation of the rPETG wall bracket. It is not a 3-D product simulator, and its numbers do not apply to the products in your consistency record.</p>
           <button class="btn btn--sm btn--ghost" type="button" id="studio-open-record">Open the consistency record →</button>
         </div>
         <div class="prompt" id="prompt-card">
@@ -570,9 +585,9 @@
 </div>
 
 <footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · design studio for recycled plastics · v0.5</span>
+  <span><b style="color:var(--ink)">AnyRB</b> · recycled-plastic design &amp; consistency · v0.6</span>
   <span class="f-honest">Confirm production choices with a physical test.</span>
-  <span>Bracket studio: simulation · consistency record: your measured links only</span>
+  <span>Consistency: measured links + one PNAS case · bracket studio: historical 2-D simulation</span>
 </footer>
 
 <!-- overlays -->

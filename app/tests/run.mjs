@@ -25,6 +25,7 @@ import * as E from '../engine.js';
 import * as O from '../optimize.js';
 import * as AC from '../aicore.js';
 import * as C from '../consistency.js';
+import * as EV from '../evidence.js';
 import { DEFAULTS, GEOMETRY, MATERIAL_PRESETS } from '../config.js';
 
 const FIXTURE_URL = new URL('./fixtures/reference.json', import.meta.url);
@@ -1068,6 +1069,122 @@ test('v0.5 incomplete measurements never become a range', () => {
   const invalidTarget = cOutcome(cRecord({ results: [cResult({ min: 50, max: 40 })] }));
   assert(invalidTarget.target.valid === false && invalidTarget.target.error === 'min-above-max', 'invalid target reported');
   assert(/min is above max/i.test(C.targetLabel(invalidTarget.target)), 'target label explains');
+});
+
+
+// ---------------------------------------------------------------------------
+// v0.6 evidence map and the one PNAS baseline-anchored calculation
+// ---------------------------------------------------------------------------
+function calcMeta(overrides = {}) {
+  return { kind: 'stiffness', unit: 'MPa', target: { min: 15, max: 18, valid: true }, ...overrides };
+}
+function calcInput(overrides = {}) {
+  return {
+    caseId: EV.CALC_CASE.id,
+    resultId: 'res-1',
+    productConfirmed: true,
+    distributionMode: 'paper',
+    measured: { meanMPa: null, cvPct: null, n: null, source: '' },
+    baseline: { inputMeanMPa: 1350, outputMeanMPa: 16.5, n: 5, source: 'Lab tensile report 2026-03, row 2' },
+    ...overrides,
+  };
+}
+test('v0.6 evidence map has one calculation case and the right grades', () => {
+  const pnas = EV.EVIDENCE_ROWS.find((r) => r.id === 'pnas-2025-8x5-modulus');
+  const film = EV.EVIDENCE_ROWS.find((r) => r.id === 'pnas-2025-8x7-stretch-film-model');
+  assert(pnas && pnas.grade === 'measured_on_product_class', 'PNAS {8,5} measured row');
+  assert(/18 %/.test(pnas.moved) && /4 %/.test(pnas.moved), 'measured 18 -> 4 CV is recorded');
+  assert(film && film.grade === 'model_only', 'stretch film is model only');
+  assert(/93 %/.test(film.moved) && /26 %/.test(film.moved), '93% carries its 26% denominator');
+  assert(film.calcEligible === false, 'stretch-film model is not a calculation case');
+  assert(EV.EVIDENCE_ROWS.filter((r) => r.calcEligible).length === 1, 'exactly one calculation case');
+  for (const id of ['counterweight-mass', 'sound-insulation-sheet', 'other-plastic-mix-contamination-product', 'recyclate-batch-any-product']) {
+    const row = EV.EVIDENCE_ROWS.find((r) => r.id === id);
+    assert(row && row.grade === 'absent', `${id} must be absent`);
+    assert(row.calcEligible === false, `${id} must have no calculation`);
+  }
+  const summary = EV.evidenceSummary();
+  assert(summary.total === EV.EVIDENCE_ROWS.length, 'summary total');
+  assert(summary.counts.measured_on_product_class >= 4, 'measured rows counted');
+});
+
+test('v0.6 PNAS case architecture is the paper {8,5} case', () => {
+  const a = EV.CALC_CASE.architecture;
+  assert(a.N === 8 && a.M === 5, 'N=8, M=5');
+  assert(a.plateletLengthMm === 20 && a.plateletHeightMm === 8 && a.plateletWidthMm === 4.75 && a.cohesiveThicknessMm === 3, 'paper dimensions');
+  assert(Math.abs(a.plateletVolumeFraction - 0.707) < 1e-12, '70.7% volume fraction');
+  assert(/W\(7\.00, 0\.15\)/.test(a.ct) && /W\(7\.00, 0\.20\)/.test(a.cs), 'Table S3 interface parameters');
+});
+
+test('v0.6 PNAS calculation blocks without the measured baseline or distribution', () => {
+  const base = { caseId: EV.CALC_CASE.id, resultId: 'res-1', productConfirmed: true, distributionMode: 'paper', measured: { meanMPa: null, cvPct: null, n: null, source: '' }, baseline: { inputMeanMPa: null, outputMeanMPa: null, n: null, source: '' } };
+  const blocked = EV.calcAvailability(base, calcMeta());
+  assert(blocked.ok === false, 'no baseline blocks');
+  assert(blocked.missing.some((m) => /baseline effective modulus/i.test(m)), 'names the baseline measurement');
+  assert(/n ≥ 3/.test(blocked.testNeeded), 'names the test');
+  const run = EV.calculatePnasCase(base, calcMeta());
+  assert(run.ok === false && run.result === null, 'no result when blocked');
+  const measuredMissing = EV.calcAvailability({ ...base, distributionMode: 'measured', baseline: { inputMeanMPa: 1350, outputMeanMPa: 16.5, n: 5, source: 'lab' } }, calcMeta());
+  assert(measuredMissing.ok === false, 'measured distribution needs all fields');
+  assert(measuredMissing.missing.some((m) => /mean/i.test(m)), 'names missing mean');
+  assert(measuredMissing.missing.some((m) => /CV/i.test(m)), 'names missing CV');
+  assert(measuredMissing.missing.some((m) => /3 measured/.test(m)), 'names n>=3');
+  assert(measuredMissing.missing.some((m) => /source/i.test(m)), 'names source');
+});
+
+test('v0.6 PNAS calculation is baseline-anchored and labelled simulation', () => {
+  const calc = calcInput();
+  const availability = EV.calcAvailability(calc, calcMeta());
+  assert(availability.ok, `availability: ${availability.missing.join('; ')}`);
+  const run = EV.calculatePnasCase(calc, calcMeta());
+  assert(run.ok, 'run completes with paper distribution + measured baseline');
+  const r = run.result;
+  assert(r.simulation === true, 'simulation label');
+  assert(Math.abs(r.meanMPa - 16.5) < 1e-12, `mean ${r.meanMPa}`);
+  assert(Math.abs(r.cvPct - (17.7 * (0.04 / 0.18))) < 1e-12, `cv ${r.cvPct}`);
+  assert(r.p5MPa < r.meanMPa && r.p95MPa > r.meanMPa, 'P5/P95 around mean');
+  assert(r.inside === true, 'target 15-18 holds for this baseline');
+  assert(r.caseId === EV.CALC_CASE.id, 'case id');
+  assert(r.meanMPa !== 554 && /not used/.test(r.sourceNote), 'the 554 MPa / 93% film model is not used');
+  assert(/18 %/.test(r.sourceNote) && /4 %/.test(r.sourceNote), 'measured CV ratio is cited');
+  const own = EV.calculatePnasCase(calcInput({
+    distributionMode: 'measured',
+    measured: { meanMPa: 1200, cvPct: 25, n: 6, source: 'supplier modulus report' },
+    baseline: { inputMeanMPa: 1350, outputMeanMPa: 16.5, n: 5, source: 'lab' },
+  }), calcMeta());
+  assert(own.ok, 'own measured distribution runs');
+  assert(Math.abs(own.result.meanMPa - 16.5 * (1200 / 1350)) < 1e-12, 'baseline scaling');
+  assert(Math.abs(own.result.cvPct - 25 * (0.04 / 0.18)) < 1e-12, 'CV ratio scaling');
+  const outside = EV.calculatePnasCase(calcInput(), calcMeta({ target: { min: 17, max: 18, valid: true } }));
+  assert(outside.ok && outside.result.inside === false, 'outside target reported');
+});
+
+test('v0.6 PNAS calculation refuses non-modulus, non-MPa, unconfirmed or incomplete inputs', () => {
+  const base = calcInput();
+  assert(EV.calcAvailability(base, calcMeta({ kind: 'strength' })).ok === false, 'strength blocked');
+  assert(EV.calcAvailability(base, calcMeta({ unit: 'GPa' })).ok === false, 'GPa blocked unless converted');
+  assert(EV.calcAvailability({ ...base, productConfirmed: false }, calcMeta()).ok === false, 'product class confirmation required');
+  assert(EV.calcAvailability(base, calcMeta({ target: { valid: false } })).ok === false, 'target required');
+  assert(EV.calcAvailability({ ...base, caseId: 'other' }, calcMeta()).ok === false, 'only the mapped case');
+});
+
+test('v0.6 calculation state round-trips and does not alter the v0.5 outcomes', () => {
+  const rec = C.blankRecord();
+  rec.product = 'Platelet-matrix demonstrator';
+  rec.results[0].name = 'effective modulus';
+  rec.results[0].unit = 'MPa';
+  rec.results[0].min = 15;
+  rec.results[0].max = 18;
+  rec.calculation = calcInput();
+  const normalized = C.normalizeRecord(rec);
+  assert(normalized.calculation.caseId === EV.CALC_CASE.id, 'case persisted');
+  assert(normalized.calculation.baseline.outputMeanMPa === 16.5, 'baseline persisted');
+  const evaluated = C.evaluateRecord(normalized);
+  assert(evaluated.results[0].mode === 'missing', 'no measured link still means missing');
+  assert(evaluated.results[0].range === null && evaluated.results[0].value === null, 'calculation does not fill the record result');
+  const imported = C.importRecord(JSON.parse(JSON.stringify(C.exportRecord(normalized))));
+  assert(imported.calculation.caseId === EV.CALC_CASE.id, 'calculation survives export/import');
+  assert(imported.calculation.baseline.source === 'Lab tensile report 2026-03, row 2', 'baseline source preserved');
 });
 
 // ---------------------------------------------------------------------------

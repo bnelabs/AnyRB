@@ -4,8 +4,18 @@
 **Deadline:** internal Tue Nov 3 18:00 ET · hard Wed Nov 4 21:00 ET (Thu Nov 5 05:00 Istanbul)
 
 > **One line:** *AnyRB keeps a named recycled-plastic product's result inside a target only when a
-> measured link exists for that product and result — and keeps a separate 2-D bracket studio where Meta
-> models help design one printed bracket. No product catalog, no preset, no model fills a missing result.*
+> measured link exists for that product and result — then offers one evidence-map calculation (PNAS {8,5})
+> only with its required measured inputs, and keeps a historical 2-D bracket studio where Meta models help
+> design one printed bracket. No product catalog, no preset, no model fills a missing result.*
+
+## v0.6 evidence-map highlights
+
+- **Research gate first:** `research/06-evidence-map.md` grades product-class links as measured, model only or absent. It was written before the new calculation code.
+- **One calculation only:** PNAS 2025 `{8,5}` rHDPE-platelet / PDMS-matrix modulus case. Requires explicit product-class confirmation, a modulus result in MPa with a target, a measured recyclate stiffness distribution, and a measured composite modulus baseline (n ≥ 3, named source). Labelled simulation.
+- **The measured PNAS result:** modulus scatter **18 % → 4 %** on those composite specimens (n=5 composite; n=50/10 plates feedstock). The paper reports no absolute measured composite mean, so no absolute MPa range runs without a measured baseline.
+- **The 93 % film result is model-only** (`{8,7}` stretch film, 554 ± 10 MPa, CV 2 %, relative to modelled ≈26 % input) and is not copied.
+- **Blank rows stay blank:** counterweight mass, sheet acoustics, another plastic/mix/contamination, pipe ring stiffness and any batch→product link are absent. No 3-D, catalog or optimizer added.
+- **Default path:** consistency record + evidence map. The historical 2-D bracket studio, voice brief and concept image are off the default path.
 
 ## v0.5 consistency-record highlights
 
@@ -69,6 +79,7 @@ The browser never sees the API key; it stays in a local server process.
 | Oct 28–29 | v0.1 science: verified 2-D frame engine (94 elements), closed-form bivariate-lognormal reliability, multi-start robust lattice optimiser, batch passport, qualification report + STL, independent audit (SHIP) |
 | Oct 29 (this phase) | v0.2 product: 3-step AI studio redesign, live Meta AI backend (4 models), number-grounded AI memos, independent scientific-validation suite, hackathon packaging |
 | Oct 30 (this phase) | v0.5 open consistency record: measurement-only outcomes, 3-D gate, saved records, tests/docs; bracket studio kept as the separate 2-D simulation |
+| Oct 30 (v0.6) | evidence map + primary search; one PNAS {8,5} baseline-anchored simulation; record/evidence navigation; bracket/voice/image demoted to a historical link; 54 tests |
 | Oct 30–Nov 2 | demo video, polish from feedback, final verification, public repo |
 | Nov 3–4 | submission + confirmation |
 
@@ -81,18 +92,17 @@ The browser never sees the API key; it stays in a local server process.
    blank result and the named test. Add one batch → "one batch only". Add a second input level with source
    and what varied → measured range and measured product choice. Show the 3-D line: no 3-D result / not
    applicable, and why. No preset or bracket model is involved.
-3. **0:50–1:25 — Brief (AI intake).** Speak the brief (Muse Voice Transcribe): *"A shelf bracket for 15 kg,
-   1 % failure risk, under 60 g, recycled PETG."* Show the transcript, then Muse Spark's structured
-   understanding card. Paste a supplier datasheet; Spark extracts E, σy, CVs with provenance.
-4. **1:25–2:05 — Design (AI proposes, physics disposes).** Show three AI-proposed candidates; the verified
+3. **0:50–1:15 — Evidence map + one calculation.** Open **Evidence map**: show measured vs model vs absent; point at the PNAS measured row (18 %→4 % on its composite), and the 93 % model-only film case with its 26 % denominator. In the record, select the PNAS case, confirm product class, enter a baseline; it runs only when the required measurement is present, and shows a simulated P5–P95 with a **simulation** label. It never fills the record's missing measured result.
+4. **1:15–1:50 — Brief (AI intake, historical studio).** Open the historical bracket studio. Speak the brief (Muse Voice Transcribe): *"A shelf bracket for 15 kg, 1 % failure risk, under 60 g, recycled PETG."* Show the transcript, then Muse Spark's structured understanding card. Paste a supplier datasheet; Spark extracts E, σy, CVs with provenance.
+5. **1:50–2:25 — Design (AI proposes, physics disposes).** Show three AI-proposed candidates; the verified
    engine ranks them. Pick the balanced one and optimise: 55.9 g printed prior → 46.4 g printed optimum (analytic 62.7 → 50.8 g) at ~1 % failure probability.
    Show the lattice, the binding failure mode and the AI memo.
-5. **2:05–2:40 — Prove.** Batch passport: a lot with 90 % of nominal E needs a 1.15× global-equivalent scale (+14.9 % printed mass, conditional); an 80 %-E lot needs 1.39× (+22.0 %, conditional); a 50 %-E lot is rejected. The recipe is a lot-specific 8-control resize with 12 % measurement uncertainty retained. Scientific validation checklist (L0–L1 verified, L2 partial, no
+6. **2:25–2:55 — Prove.** Batch passport: a lot with 90 % of nominal E needs a 1.15× global-equivalent scale (+14.9 % printed mass, conditional); an 80 %-E lot needs 1.39× (+22.0 %, conditional); a 50 %-E lot is rejected. The recipe is a lot-specific 8-control resize with 12 % measurement uncertainty retained. Scientific validation checklist (L0–L1 verified, L2 partial, no
    physical tests). Muse Spark writes the qualification narrative; Muse Image renders the illustrative product.
-6. **2:40–3:10 — Why it matters.** 58 % lighter than a solid plate at the same simulated risk; 14 % lighter than
+7. **2:55–3:20 — Why it matters.** 58 % lighter than a solid plate at the same simulated risk; 14 % lighter than
    a uniform lattice; conventional FoS-1.5 over-pays. The claim ladder and minimum validation programme
-   (T1/T2/T3) are on screen: decision support, not certification.
-7. **3:10–3:30 — Close.** "Recycled plastic is not a second-class material. It's a distribution. AnyRB
+   (T1/T2/T3) are on screen.
+8. **3:20–3:30 — Close.** "Recycled plastic is not a second-class material. It's a distribution. AnyRB
    designs for the distribution." Repo URL + live-run command.
 
 ## Run it
@@ -104,7 +114,7 @@ cp server/.env.example server/.env   # add your Meta API key (never committed)
 # offline fallback: open index.html directly (deterministic assistant, clearly labelled)
 ```
 
-Tests: `make test` (engine, 33) · `make test-server` (API, 51+1, mock) · `node app/tests/run.mjs` (UI/engine/record, 48) ·
+Tests: `make test` (engine, 33) · `make test-server` (API, 51+1, mock) · `node app/tests/run.mjs` (UI/engine/record/evidence, 54) ·
 `make validate` (independent scientific validation) · `make verify-live` (real Meta calls → evidence file).
 
 ## Submission checklist
@@ -132,6 +142,13 @@ stored in the record. One batch is not a range; no measurement is not a result. 
 unmeasured batch, does not infer a missing result from a product name, preset or the bracket model, and does
 not run a generic 3-D simulator. The 3-D gate is deliberately conservative. A measured range is evidence
 from the measured input levels, not a guarantee for the next delivered batch.
+
+**PNAS case:** the measured result is 18 %→4 % modulus scatter on the fabricated `{8,5}` rHDPE-platelet
+/ PDMS-matrix specimens; the paper does not report an absolute measured composite mean. The 93 % is the
+`{8,7}` stretch-film model relative to a modelled ≈26 % input (554 ± 10 MPa, CV 2 %) and is not copied.
+The app calculation is baseline-anchored case scaling, not the full UATSC network and not a physical test
+of the user's product. It cannot run without the measured distribution and baseline; it does not fill the
+record's outcome.
 
 **Independent validation (58 checks):** 56 PASS / 2 WARN / 0 FAIL — re-implemented frame element, energy
 minimisation vs direct stiffness, SciPy/quad/1e6-MC reliability cross-checks, periodic unit-cell

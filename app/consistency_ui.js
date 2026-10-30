@@ -7,6 +7,7 @@
  */
 
 import * as C from './consistency.js';
+import * as EV from './evidence.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -383,6 +384,146 @@ function renderOutcome(outcome) {
   </article>`;
 }
 
+// ---------------------------------------------------------------------------
+// Evidence-backed calculation (one PNAS {8,5} case; simulation only)
+// ---------------------------------------------------------------------------
+function stiffnessResults(record) {
+  return record.results.filter((r) => C.effectiveKind(r) === 'stiffness');
+}
+function calcResult(record) {
+  const list = stiffnessResults(record);
+  if (!list.length) return null;
+  const id = record.calculation && record.calculation.resultId;
+  return list.find((r) => r.id === id) || list[0];
+}
+function calcResultMeta(result) {
+  return {
+    kind: C.effectiveKind(result),
+    unit: result && result.unit,
+    target: C.targetState(result),
+  };
+}
+function numOrNull(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+function formatRange(result) {
+  if (!Number.isFinite(result.p5MPa) || !Number.isFinite(result.p95MPa)) return '—';
+  return `${C.formatNumber(result.p5MPa)}–${C.formatValue(result.p95MPa, 'MPa')}`;
+}
+function calcOutputHtml(record, result) {
+  const calc = record.calculation;
+  const meta = calcResultMeta(result);
+  const availability = EV.calcAvailability(calc, meta);
+  if (!availability.ok) {
+    return `<div class="calc-blocked"><b>Not run.</b> ${esc(availability.missing[0] || 'A required input is missing.')}
+      ${availability.missing.length > 1 ? `<ul>${availability.missing.slice(1).map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
+    </div>
+    <div class="calc-test-needed"><b>Test still needed:</b> ${esc(availability.testNeeded)}</div>`;
+  }
+  const run = EV.calculatePnasCase(calc, meta);
+  if (!run.ok) {
+    return `<div class="calc-blocked">Not run. ${esc((run.availability.missing || []).join(' '))}</div>`;
+  }
+  const r = run.result;
+  const insideText = r.inside ? 'P5–P95 is inside your target.' : 'P5–P95 is outside your target.';
+  return `<div class="calc-output-head">
+      <div><div class="calc-range">${formatRange(r)}<small>${esc(r.rangeLabel)} simulated range</small></div></div>
+      <span class="calc-sim-badge">simulation</span>
+    </div>
+    <div class="calc-result-meta">
+      <span>Simulated mean <b>${C.formatValue(r.meanMPa, 'MPa')}</b> · simulated CV <b>${C.formatNumber(r.cvPct, 1)} %</b></span>
+      <span>Your target <b>${C.formatRange({ min: r.target.min, max: r.target.max }, 'MPa')}</b> · ${insideText}</span>
+      <span>Input distribution: <b>${esc(r.selectedDistribution.mode === 'paper' ? 'paper’s measured rHDPE' : 'your measured recyclate')}</b>${r.selectedDistribution.source ? ` · ${esc(r.selectedDistribution.source)}` : ''}</span>
+      <span>Measured baseline: <b>${C.formatValue(r.baseline.outputMeanMPa, 'MPa')}</b> at recyclate mean <b>${C.formatValue(r.baseline.inputMeanMPa, 'MPa')}</b>${r.baseline.source ? ` · ${esc(r.baseline.source)}` : ''}</span>
+    </div>
+    <div class="calc-note">${esc(r.methodNote)}</div>
+    <div class="calc-case-note"><b>${esc(r.caseLabel)}</b> · ${esc(r.notYourProduct)}</div>
+    <div class="calc-case-note">${esc(r.sourceNote)}</div>`;
+}
+
+function renderCalcOutput() {
+  const host = $('#calc-output', root);
+  const record = activeRecord();
+  if (!host || !record) return;
+  const result = calcResult(record);
+  if (!result) { host.innerHTML = ''; return; }
+  host.innerHTML = calcOutputHtml(record, result);
+}
+
+function renderCalculation() {
+  const host = $('#consistency-calc', root);
+  if (!host) return;
+  const record = activeRecord();
+  if (!record) { host.innerHTML = ''; return; }
+  const calc = record.calculation || C.blankCalculation();
+  const list = stiffnessResults(record);
+  const result = calcResult(record);
+  const caseDef = EV.getCalcCase(calc.caseId);
+  const caseValid = !!caseDef;
+  const caseOptions = `<option value="">No evidence-backed calculation</option>
+    <option value="${esc(EV.CALC_CASE.id)}"${caseValid ? ' selected' : ''}>${esc(EV.CALC_CASE.label)}</option>`;
+  let body = '';
+  if (!caseValid) {
+    body = `<p class="calc-intro">No calculation selected. The measured outcomes above are unchanged. The evidence map contains exactly one calculation case.</p>`;
+  } else if (!list.length) {
+    body = `<div class="calc-blocked"><b>No modulus result yet.</b> Add a result named e.g. “effective modulus”, set unit MPa and give it a target range; then this case can be configured. The paper's result is a modulus result only.</div>
+      <div class="calc-test-needed">Test still needed: measure the composite's effective modulus at a known recyclate mean (n ≥ 3, named source).</div>`;
+  } else {
+    const selected = result;
+    const resultOptions = list.length > 1
+      ? `<label class="field field--wide"><span class="field-label">Matching result</span><select class="input" data-calc-field="resultId">${list.map((r) => `<option value="${esc(r.id)}"${r.id === selected.id ? ' selected' : ''}>${esc(r.name || 'Untitled result')} · ${esc(r.unit || 'no unit')}</option>`).join('')}</select></label>`
+      : '';
+    const meta = calcResultMeta(selected);
+    const measured = calc.measured || {};
+    const baseline = calc.baseline || {};
+    const showMeasured = calc.distributionMode === 'measured';
+    body = `
+      <div class="calc-case-select">${resultOptions}
+        <label class="field field--wide"><span class="field-label">Product class match</span>
+          <span class="calc-check"><input type="checkbox" data-calc-field="productConfirmed"${calc.productConfirmed ? ' checked' : ''}> <span>My product is the PNAS {8,5} platelet–matrix composite kind, not just a product whose name contains “composite”.</span></span>
+        </label>
+      </div>
+      <div class="calc-block">
+        <label class="field field--wide"><span class="field-label">Recyclate stiffness distribution</span>
+          <select class="input" data-calc-field="distributionMode">
+            <option value="paper"${calc.distributionMode === 'paper' ? ' selected' : ''}>Paper’s measured rHDPE: 1,350 MPa · SD 239 · n=50/10 plates</option>
+            <option value="measured"${showMeasured ? ' selected' : ''}>My measured recyclate stiffness distribution</option>
+          </select>
+        </label>
+        ${showMeasured ? `<div class="calc-fields" style="margin-top:10px">
+          <label class="field"><span class="field-label">Mean modulus · MPa</span><input class="input" type="number" step="any" data-calc-field="measured.meanMPa" value="${measured.meanMPa == null ? '' : esc(measured.meanMPa)}"></label>
+          <label class="field"><span class="field-label">CV · %</span><input class="input" type="number" step="any" data-calc-field="measured.cvPct" value="${measured.cvPct == null ? '' : esc(measured.cvPct)}"></label>
+          <label class="field"><span class="field-label">Specimens / lots · n</span><input class="input" type="number" step="1" min="1" data-calc-field="measured.n" value="${measured.n == null ? '' : esc(measured.n)}"></label>
+          <label class="field field--wide"><span class="field-label">Source</span><input class="input" type="text" data-calc-field="measured.source" value="${esc(measured.source || '')}" placeholder="report / certificate / row"></label>
+        </div>` : `<p class="calc-note">Paper distribution: 50 ASTM D638-I specimens from 10 rHDPE plates. This is a literature/paper dataset, not your batch.</p>`}
+      </div>
+      <div class="calc-block">
+        <div class="micro" style="margin:0 0 4px">Required measured baseline</div>
+        <p class="calc-note">The paper reports the measured 18 %→4 % CV ratio but no absolute measured E_eff mean. Enter your own measured composite modulus at a known recyclate mean; otherwise the absolute MPa range is blocked.</p>
+        <div class="calc-fields">
+          <label class="field"><span class="field-label">Recyclate mean at baseline · MPa</span><input class="input" type="number" step="any" data-calc-field="baseline.inputMeanMPa" value="${baseline.inputMeanMPa == null ? '' : esc(baseline.inputMeanMPa)}"></label>
+          <label class="field"><span class="field-label">Measured composite modulus · MPa</span><input class="input" type="number" step="any" data-calc-field="baseline.outputMeanMPa" value="${baseline.outputMeanMPa == null ? '' : esc(baseline.outputMeanMPa)}"></label>
+          <label class="field"><span class="field-label">Baseline specimens · n</span><input class="input" type="number" step="1" min="1" data-calc-field="baseline.n" value="${baseline.n == null ? '' : esc(baseline.n)}"></label>
+          <label class="field field--wide"><span class="field-label">Baseline source</span><input class="input" type="text" data-calc-field="baseline.source" value="${esc(baseline.source || '')}" placeholder="lab report / test sheet and row"></label>
+        </div>
+      </div>
+      <details class="calc-architecture"><summary>Paper architecture (fixed): {8,5} · 20 × 8 × 4.75 mm platelets · 70.7 %</summary>
+        <p>N=8, M=5 · l=20 mm · h=8 mm · w=4.75 mm · t=3 mm · specimen 195 × 53 mm · Vpl/Vtotal 70.7 %.</p>
+        <p>CT: σmax,CT W(7.00, 0.15) MPa; δe 0.80 mm; δcr N(1.20, 0.18²) mm. CS: τmax,CS W(7.00, 0.20) MPa; δe 0.40 mm; δcr N(0.80, 0.12²) mm.</p>
+        <p>These are the paper's measured {8,5} case parameters (SI Table S3). They are not a general material model.</p>
+      </details>
+      <div id="calc-output">${calcOutputHtml(record, selected)}</div>`;
+  }
+  host.innerHTML = `
+    <div class="micro">Evidence-backed calculation · simulation only</div>
+    <h3>PNAS 2025 {8,5} platelet–matrix modulus case</h3>
+    <p class="calc-intro">One case, not a product catalog. It applies only to a platelet–matrix composite product and a modulus/stiffness result in MPa. It is a case-scaled simulation, not a physical test of your product. <a href="#evidence" style="text-decoration:underline;text-underline-offset:2px">Read the evidence map</a>.</p>
+    <label class="field field--wide" style="margin-top:14px"><span class="field-label">Evidence case</span><select class="input" data-calc-field="caseId">${caseOptions}</select></label>
+    ${body}`;
+}
+
 function renderOutcomes() {
   if (!root) return;
   const host = $('#consistency-outcomes', root);
@@ -398,6 +539,7 @@ function renderOutcomes() {
     </div>
     <div class="outcome-list">${evaluated.results.map(renderOutcome).join('')}</div>
     <p class="outcome-foot">No chart, score or overall pass/fail. Each result is answered separately from its own measurements.</p>`;
+  renderCalculation();
 }
 
 // ---------------------------------------------------------------------------
@@ -432,10 +574,59 @@ function updateResultFromInput(record, el) {
   return false;
 }
 
+function setCalcField(el) {
+  const record = activeRecord();
+  if (!record) return false;
+  if (!record.calculation) record.calculation = C.blankCalculation();
+  const calc = record.calculation;
+  const path = el.dataset.calcField;
+  const raw = el.value;
+  if (path === 'caseId') {
+    calc.caseId = raw;
+    if (!calc.caseId) calc.resultId = '';
+    else {
+      const list = stiffnessResults(record);
+      if (!calc.resultId && list.length) calc.resultId = list[0].id;
+    }
+    return true;
+  }
+  if (path === 'resultId') { calc.resultId = raw; return true; }
+  if (path === 'productConfirmed') { calc.productConfirmed = el.checked === true; return true; }
+  if (path === 'distributionMode') { calc.distributionMode = raw === 'measured' ? 'measured' : 'paper'; return true; }
+  if (path.startsWith('measured.')) {
+    const field = path.slice('measured.'.length);
+    if (field === 'meanMPa' || field === 'cvPct' || field === 'n') calc.measured[field] = numOrNull(raw);
+    else if (field === 'source') calc.measured.source = String(raw || '').slice(0, 220);
+    return false;
+  }
+  if (path.startsWith('baseline.')) {
+    const field = path.slice('baseline.'.length);
+    if (field === 'inputMeanMPa' || field === 'outputMeanMPa' || field === 'n') calc.baseline[field] = numOrNull(raw);
+    else if (field === 'source') calc.baseline.source = String(raw || '').slice(0, 220);
+    return false;
+  }
+  return false;
+}
+
+function markCalcChanged(structural) {
+  const record = activeRecord();
+  if (record) record.updatedAt = new Date().toISOString();
+  scheduleSave();
+  notify();
+  if (structural) renderCalculation();
+  else renderCalcOutput();
+}
+
 function onFieldInput(event) {
   const el = event.target;
   if (!(el instanceof HTMLElement)) return;
   if (!el.matches('input, textarea, select')) return;
+  if (el.dataset && el.dataset.calcField) {
+    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') return;
+    const structural = setCalcField(el);
+    markCalcChanged(structural);
+    return;
+  }
   const record = activeRecord();
   if (!record) return;
   let changed = false;
@@ -592,6 +783,11 @@ function onChange(event) {
   const el = event.target;
   if (el.id === 'record-select') { setActiveRecord(el.value); return; }
   if (el.id === 'record-import-file') { importRecordFile(el.files && el.files[0]); el.value = ''; return; }
+  if (el.dataset && el.dataset.calcField) {
+    const structural = setCalcField(el);
+    markCalcChanged(structural);
+    return;
+  }
   // A typed result name can tell us which model limits apply; keep an explicit
   // user choice, but replace the generic "other" default on blur.
   if (el.dataset && el.dataset.resultField === 'name' && el.dataset.resultId) {

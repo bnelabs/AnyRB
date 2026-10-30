@@ -644,7 +644,7 @@
   "type": "journal",
   "evidence_grade": "A",
   "used_for": "Published experimental/model result available as an external literature-reproduction test (model + measured variability)",
-  "quote_or_locator": "PNAS 122(33):e2502613122; abstract: UATSC model combining Monte Carlo with literature distributions, validated on rHDPE/PDMS; 93% modulus variability reduction and >=68% strain variability reduction in a stretch-film case study",
+  "quote_or_locator": "PNAS 122(33):e2502613122; abstract: UATSC model combining Monte Carlo with literature distributions, validated on rHDPE/PDMS; model-only 93% modulus variability reduction relative to a modelled 26% input and >=68% strain variability reduction in a {8,7} stretch-film case study; measured {8,5} composite modulus CV 18%->4% (n=5)",
   "verified": "Crossref API metadata retrieved 2026-10-29; DOI resolves"
  },
  {

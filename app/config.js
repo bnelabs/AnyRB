@@ -215,7 +215,7 @@ export const APP_META = {
   subtitle: 'Any Recycled Batch — design software for recycled-plastic parts',
   thesis:
     'Two workspaces: an open consistency record that shows a result only when a measurement links this product and this result, and a 2-D bracket studio that simulates one printed bracket. Product names, presets and the bracket model are not measurements.',
-  version: 'v0.5 · consistency record',
+  version: 'v0.6 · consistency record + evidence map',
   calibration:
     'Demo version. The calculations were cross-checked against a separate reference implementation.',
   strengthNote:
@@ -312,4 +312,16 @@ export const V05 = {
   outcomeModes: ['link', 'batch', 'missing'],
   note: 'A product name, a material preset, an assumed CV and the bracket model are not measured links. A result is shown only from a measurement of this product and this result, with a named source and what varied. One batch stays one batch. No measurement means the result stays blank with the test still needed.',
   threeDNote: 'No generic 3-D simulator is added. A 3-D model is applicable only when the result depends on shape and the required measured density (mass) or measured modulus and strength (strength/stiffness) is present. Sound insulation is not a structural 3-D result. The bracket studio remains a labelled 2-D simulation for the bracket only.',
+};
+
+
+// ---------------------------------------------------------------------------
+// v0.6 evidence map + one allowed PNAS calculation
+// ---------------------------------------------------------------------------
+export const V06 = {
+  evidenceMap: 'research/06-evidence-map.md',
+  evidenceJson: 'research/evidence_map.json',
+  pnasDoi: '10.1073/pnas.2502613122',
+  pnasPmid: '40794839',
+  note: 'One evidence-backed calculation is allowed: the PNAS 2025 {8,5} platelet-matrix modulus case. It is a baseline-anchored, case-scaled simulation, not the paper’s full UATSC model and not a physical test of the user’s product. It requires the selected product class, a modulus result in MPa with a target, a measured recyclate stiffness distribution, and a measured composite modulus baseline. The paper reports 18%→4% CV but no absolute measured mean; the 93% stretch-film model result is never used.',
 };

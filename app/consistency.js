@@ -90,6 +90,42 @@ export function blankPoint() {
   return { id: newId('m'), choice: '', input: '', value: null, source: '' };
 }
 
+export function blankCalculation() {
+  return {
+    caseId: '',
+    resultId: '',
+    productConfirmed: false,
+    distributionMode: 'paper',
+    measured: { meanMPa: null, cvPct: null, n: null, source: '' },
+    baseline: { inputMeanMPa: null, outputMeanMPa: null, n: null, source: '' },
+  };
+}
+
+export function normalizeCalculation(raw = {}) {
+  const base = blankCalculation();
+  if (!raw || typeof raw !== 'object') return base;
+  const measured = raw.measured && typeof raw.measured === 'object' ? raw.measured : {};
+  const baseline = raw.baseline && typeof raw.baseline === 'object' ? raw.baseline : {};
+  return {
+    caseId: clean(raw.caseId, 80),
+    resultId: clean(raw.resultId, 80),
+    productConfirmed: raw.productConfirmed === true,
+    distributionMode: raw.distributionMode === 'measured' ? 'measured' : 'paper',
+    measured: {
+      meanMPa: numOrNull(measured.meanMPa),
+      cvPct: numOrNull(measured.cvPct),
+      n: numOrNull(measured.n),
+      source: clean(measured.source, 220),
+    },
+    baseline: {
+      inputMeanMPa: numOrNull(baseline.inputMeanMPa),
+      outputMeanMPa: numOrNull(baseline.outputMeanMPa),
+      n: numOrNull(baseline.n),
+      source: clean(baseline.source, 220),
+    },
+  };
+}
+
 export function blankRecord() {
   const stamp = nowIso();
   return {
@@ -100,6 +136,7 @@ export function blankRecord() {
     product: '',
     input: { plasticType: '', batch: '', mix: '', contamination: '' },
     results: [blankResult()],
+    calculation: blankCalculation(),
   };
 }
 
@@ -150,6 +187,7 @@ export function normalizeRecord(raw = {}) {
       contamination: clean(input.contamination, 180),
     },
     results: results.length ? results : [blankResult()],
+    calculation: normalizeCalculation(source.calculation),
   };
 }
 

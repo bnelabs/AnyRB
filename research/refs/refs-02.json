@@ -23,8 +23,8 @@
       "type": "journal-article",
       "evidence_grade": "A",
       "status": "verified",
-      "used_for": "Anchor paper: nacre-inspired brick-and-mortar composite; UATSC uncertainty-aware tension-shear-chain model; quantified variability suppression (93 % modelled, 78 % measured for modulus; 68 % for permissible strain); design rules; explicit limitations.",
-      "quote_or_locator": "Abstract + Results 'UATSC Network Model'; 'Model-Experiment Comparison' (CV 18 % -> 4 %, Fig. 5); 'Case Study' (E_eff = 554 +/- 10 MPa, CV 2 %, eps_W = 0.10 +/- 0.01, Fig. 6); Discussion (interface CV guidance, K_CT+/K_CS+ ratio). Note: first author is Georgiou, not 'Ghosh'."
+      "used_for": "Anchor paper: nacre-inspired brick-and-mortar composite; UATSC uncertainty-aware tension-shear-chain model; measured {8,5} rHDPE-platelet/PDMS composite modulus CV 18%->4% (n=5; 78% reduction); 93% and 554 MPa are model-only for the {8,7} stretch-film case relative to a modelled 26% input; 68% permissible-strain reduction is model-only. No absolute measured composite E_eff mean is reported.",
+      "quote_or_locator": "Abstract + Results 'UATSC Network Model'; 'Model-Experiment Comparison' (CV 18 % -> 4 %, Fig. 5); 'Case Study' model-only {8,7} stretch film (E_eff = 554 +/- 10 MPa, CV 2 %, eps_W = 0.10 +/- 0.01, Fig. 6); Discussion (interface CV guidance, K_CT+/K_CS+ ratio). Note: first author is Georgiou, not 'Ghosh'."
     },
     {
       "id": "R02",

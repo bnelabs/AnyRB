@@ -1,9 +1,10 @@
 /**
- * AnyRB v0.5 — UI controller.
+ * AnyRB v0.6 — UI controller.
  *
- * Two workspaces:
+ * Three surfaces:
  *   1. the open consistency record (measurements only; no presets or bracket model)
- *   2. the existing three-step bracket studio (2-D simulation, bracket only)
+ *   2. the evidence map (reading surface + one PNAS simulation case)
+ *   3. the historical three-step bracket studio (2-D simulation, bracket only)
  *
  * The verified engine (engine.js / optimize.js) does every bracket number; the AI
  * layer (ai.js + aicore.js) proposes, parses and explains in the studio. The
@@ -20,6 +21,7 @@ import * as AC from './aicore.js';
 import { createAIClient } from './ai.js';
 import { PRODUCT_RENDER_DATA_URL, PRODUCT_RENDER_LABEL, PRODUCT_RENDER_MODEL } from './product_render.js';
 import { initConsistencyScreen } from './consistency_ui.js';
+import { initEvidenceScreen } from './evidence_ui.js';
 
 // ---------------------------------------------------------------------------
 // DOM + format helpers
@@ -121,7 +123,8 @@ const state = {
 };
 
 let consistencyUI = null;
-const WORKSPACES = ['consistency', 'studio'];
+let evidenceUI = null;
+const WORKSPACES = ['consistency', 'evidence', 'studio'];
 
 const ai = createAIClient({ demo: { mock: demo.mock, forceOffline: demo.forceOffline } });
 state.ai = ai;
@@ -163,7 +166,7 @@ function restoreDraft() {
     if (d.lot && Number.isFinite(d.lot.E_mean)) { state.lot = d.lot; state.material = AC.materialFromLot(d.lot); }
     if (typeof d.lab === 'boolean') state.lab = d.lab;
     if (typeof d.view === 'string') state.view = d.view;
-    if (d.workspace === 'studio' || d.workspace === 'consistency') state.workspace = d.workspace;
+    if (d.workspace === 'studio' || d.workspace === 'consistency' || d.workspace === 'evidence') state.workspace = d.workspace;
   } catch (err) { /* ignore corrupt draft */ }
 }
 
@@ -274,6 +277,7 @@ function setView(view, { force = false } = {}) {
   const current = document.body.dataset.view;
   if (!force && current === view) {
     if (view === 'consistency') consistencyUI?.refresh();
+    if (view === 'evidence') evidenceUI?.refresh();
     updateProjectName();
     return;
   }
@@ -282,20 +286,24 @@ function setView(view, { force = false } = {}) {
   document.documentElement.setAttribute('data-anyrb-workspace', view);
   $$('#view-switch button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'));
   const consistencyScreen = $('#screen-consistency');
-  if (view === 'consistency') {
+  const evidenceScreen = $('#screen-evidence');
+  if (view === 'consistency' || view === 'evidence') {
     const aiMenu = $('#ai-menu');
     if (aiMenu) aiMenu.hidden = true;
     const drawer = $('#drawer');
     if (drawer) { drawer.classList.remove('is-open'); drawer.setAttribute('aria-hidden', 'true'); }
     $('#scrim')?.classList.remove('is-open');
-    $$('.screen').forEach((sec) => { sec.dataset.active = sec.id === 'screen-consistency' ? 'true' : 'false'; });
-    document.body.dataset.screen = 'consistency';
-    consistencyUI?.refresh();
+    const activeId = view === 'consistency' ? 'screen-consistency' : 'screen-evidence';
+    $$('.screen').forEach((sec) => { sec.dataset.active = sec.id === activeId ? 'true' : 'false'; });
+    document.body.dataset.screen = view;
+    if (view === 'consistency') consistencyUI?.refresh();
+    else evidenceUI?.refresh();
     updateProjectName();
-    try { if (location.hash !== '#consistency') history.replaceState(null, '', '#consistency'); } catch (err) { /* file:// or sandbox */ }
+    try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch (err) { /* file:// or sandbox */ }
     try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (err) { window.scrollTo(0, 0); }
   } else {
     if (consistencyScreen) consistencyScreen.dataset.active = 'false';
+    if (evidenceScreen) evidenceScreen.dataset.active = 'false';
     setStep(state.step, { force: true });
     updateProjectName();
     try { if (location.hash !== '#studio') history.replaceState(null, '', '#studio'); } catch (err) { /* file:// or sandbox */ }
@@ -306,16 +314,19 @@ function wireWorkspace() {
   $$('#view-switch button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
   $('#consistency-open-studio')?.addEventListener('click', () => setView('studio'));
   $('#studio-open-record')?.addEventListener('click', () => setView('consistency'));
+  $('#open-historical-studio')?.addEventListener('click', () => setView('studio'));
   window.addEventListener('hashchange', () => {
     if (location.hash === '#studio') setView('studio');
     else if (location.hash === '#consistency') setView('consistency');
+    else if (location.hash === '#evidence') setView('evidence');
   });
 }
 function initialWorkspace() {
   if (location.hash === '#studio') return 'studio';
   if (location.hash === '#consistency') return 'consistency';
+  if (location.hash === '#evidence') return 'evidence';
   if (demo.screen) return 'studio';
-  return state.workspace === 'studio' ? 'studio' : 'consistency';
+  return 'consistency';
 }
 
 // ---------------------------------------------------------------------------
@@ -342,16 +353,16 @@ function updateProjectName() {
   const pn = $('#project-name');
   if (!pn) return;
   const view = document.body.dataset.view || state.workspace;
-  pn.textContent = view === 'consistency' ? (state.consistencyTitle || 'Untitled record') : state.project;
+  pn.textContent = view === 'consistency' ? (state.consistencyTitle || 'Untitled record') : view === 'evidence' ? 'Evidence map' : state.project;
   const switcher = $('#project-switcher');
-  if (switcher) switcher.setAttribute('aria-label', view === 'consistency' ? `Open consistency record: ${pn.textContent}` : `Current bracket project: ${pn.textContent}`);
+  if (switcher) switcher.setAttribute('aria-label', view === 'consistency' ? `Open consistency record: ${pn.textContent}` : view === 'evidence' ? 'Evidence map' : `Current bracket project: ${pn.textContent}`);
 }
 function renderProject() {
   updateProjectName();
   const seed = $('#session-seed');
   if (seed) seed.textContent = String(DEFAULTS.seed);
   const engine = $('#session-engine');
-  if (engine) engine.textContent = 'v0.5';
+  if (engine) engine.textContent = 'v0.6';
   const valid = $('#session-valid');
   if (valid) {
     const v = state.validation || {};
@@ -1818,6 +1829,10 @@ function wireHelp() {
       toast('This record uses your measurements only. AI does not fill a missing result.');
       return;
     }
+    if (document.body.dataset.view === 'evidence') {
+      toast('The evidence map is a reading surface. It does not fill any record result.');
+      return;
+    }
     openDrawer();
     toast('Every AI sentence is grounded in calculated numbers. See “What this can and can’t prove” on Prove.');
   });
@@ -1968,7 +1983,7 @@ function buildReportHtml() {
   .memo{background:#FCFBF7} .lim{font-size:12px;color:var(--muted)}
   .tag{color:var(--verify)} .warn{color:#B8361A}
 </style></head><body>
-<div class="micro">AnyRB v0.5 · bracket simulation and consistency record</div>
+<div class="micro">AnyRB v0.6 · consistency record and evidence map</div>
 <h1>${esc(state.project)}</h1>
 <div class="badge">Generated ${new Date().toISOString()} · AI mode: ${esc(state.aiMode)} · seed ${DEFAULTS.seed}</div>
 <div class="card"><div class="micro">Brief</div>
@@ -2143,6 +2158,10 @@ async function boot() {
       state.consistencyTitle = title;
       if (document.body.dataset.view === 'consistency') updateProjectName();
     },
+  });
+  evidenceUI = initEvidenceScreen({
+    onOpenRecord: () => setView('consistency'),
+    onOpenStudio: () => setView('studio'),
   });
   restoreDraft();
   renderProject();

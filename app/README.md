@@ -1,16 +1,19 @@
-# AnyRB v0.5 — consistency record + bracket studio
+# AnyRB v0.6 — consistency record + evidence map + historical bracket studio
 
 **One line:** AnyRB keeps a user-named recycled-plastic product's result inside a target
 range only when the record holds a measurement that links this product and this result —
-and keeps a separate 2-D bracket studio as the one simulated product in the repo.
+and keeps one evidence-backed PNAS case as a separately labelled simulation, plus a
+historical 2-D bracket studio.
 
-This folder is the judged hackathon artifact. It has two workspaces:
+This folder is the judged hackathon artifact. It has three surfaces:
 
 - **Consistency record** (default): one open record type for any product/result. Uses
   measurements only. No product catalog, no material preset, no bracket model, no AI.
-- **Bracket studio**: the existing three-step rPETG wall-bracket study (**01 Brief →
-  02 Design → 03 Prove**), wired to the FastAPI Meta backend, with a built-in offline
-  assistant. It is a 2-D frame simulation of that bracket, not a 3-D product simulator.
+- **Evidence map**: the research gate. It says what is measured on a product class, model
+  only, or absent. It can inform but never fill a record result.
+- **Historical bracket studio** (off the default path): the three-step rPETG wall-bracket
+  study (**01 Brief → 02 Design → 03 Prove**), wired to the FastAPI Meta backend. It is a
+  2-D frame simulation of that one bracket, not a 3-D product simulator.
 
 ---
 
@@ -32,7 +35,7 @@ in the top bar. The consistency record has no AI controls at all.
 
 ```bash
 python3 app/build.py        # inlines app sources -> anyrb/index.html (+ app/standalone.html)
-node app/tests/run.mjs      # 48 tests: engine fixtures, FE checks, v0.4 AI helpers, v0.5 consistency rules
+node app/tests/run.mjs      # 54 tests: engine fixtures, FE checks, v0.4 AI helpers, v0.5 record, v0.6 evidence/calculation
 ```
 
 ---
@@ -68,7 +71,32 @@ record screen), `../V0_5_SPEC.md`, `../audit/V0_5_PRODUCT_SUPPORT.md`.
 
 ---
 
-## 3. The bracket studio (2-D simulation, v0.4 path)
+## 3. Evidence map and the one PNAS calculation (v0.6)
+
+The evidence map is in `../research/06-evidence-map.md` and `../research/evidence_map.json`;
+the primary deep read is `../research/06a-pnas-deep-read.md`. It grades every candidate link
+as **measured on that product class**, **model only**, or **absent**.
+
+The only app calculation is the PNAS 2025 `{8,5}` rHDPE-platelet / PDMS-matrix modulus case.
+It runs only when the user selects and confirms that product class, has a modulus result in
+MPa with a target, supplies a measured recyclate stiffness distribution, and supplies a
+measured composite modulus baseline (n ≥ 3, named source). The paper reports 18 %→4 % CV but
+no absolute measured mean; the baseline is mandatory. Output is a baseline-anchored,
+case-scaled **simulation**, not the paper's full UATSC model and not a physical test of the
+user's product.
+
+The paper's **93 %** is model-only for the `{8,7}` stretch film relative to a modelled ≈26 %
+input; 554 ± 10 MPa / CV 2 % are model numbers. They are never used as this case's result.
+Counterweight mass, sound insulation, another plastic/mix/contamination and the historical
+bracket still stop with the missing test named. No generic 3-D simulator, optimizer or
+product catalog is added.
+
+`app/evidence.js` holds the data and calculation gate; `app/evidence_ui.js` renders the map;
+`app/consistency_ui.js` renders the calculation card.
+
+---
+
+## 4. The historical bracket studio (2-D simulation, v0.4 path)
 
 **01 · Brief** — large prompt (textarea + mic + examples); the AI parses it into an
 editable brief (part, load, deflection limit, reliability target, process, batch); the
@@ -99,7 +127,7 @@ grounding for every call.
 
 ---
 
-## 4. AI integration and honesty
+## 5. AI integration and honesty
 
 | Endpoint | Live model | Job | Fallback |
 |---|---|---|---|
@@ -127,13 +155,15 @@ ranking/comparison bars, and includes both in the exported report/JSON.
 
 ---
 
-## 5. Architecture
+## 6. Architecture
 
 ```
 app/
   index.html      dev shell (ES modules, needs HTTP)
   consistency.js  v0.5 pure record/outcome/3-D-gate rules (no DOM, no presets, no AI)
-  consistency_ui.js  v0.5 one open record screen (localStorage, import/export)
+  consistency_ui.js  v0.5 one open record + v0.6 PNAS calculation card
+  evidence.js     v0.6 evidence map data + baseline-anchored PNAS simulation gate
+  evidence_ui.js  v0.6 evidence map screen
   styles.css      v0.2 design system: exact DESIGN_SPEC tokens (warm paper, ink,
                   safety orange + verified green, serif display, tabular numerals)
   config.js       engine/material/optimiser defaults (unchanged v0.1 physics config)
@@ -160,7 +190,7 @@ runs `node --check` on the generated classic script. No external fonts, CDNs or 
 
 ---
 
-## 6. Results in the app (rPETG, 150 N, 2.5 mm, 1 % target)
+## 7. Results in the app (rPETG, 150 N, 2.5 mm, 1 % target)
 
 | Quantity | Value |
 |---|---|
@@ -177,13 +207,15 @@ fields ≤1e-9 relative, P_f ≤1e-6 absolute).
 
 ---
 
-## 7. Known limits / deviations from the prototype
+## 8. Known limits / deviations from the prototype
 
 - **Physics unchanged from v0.1:** linear-elastic 2-D frame; no plasticity, creep,
   fatigue, joints, out-of-plane/layer-normal loading or spatial material scatter; Euler
   buckling is pure axial with pinned–pinned effective length; feedstock distributions are
   literature-derived. The optimum is local (multi-start pattern search), not proven global.
 - **Analytic mass is conservative** (node overlap not unioned; validator F4 WARN).
+- **v0.6 PNAS case:** the measured result is 18 %→4 % modulus scatter on the paper's fabricated `{8,5}` rHDPE-platelet / PDMS-matrix specimens; the paper reports no absolute measured composite mean. The app requires a measured composite baseline. The 93 %/554 MPa figures are model-only for the `{8,7}` stretch film and are not used. The calculation is baseline-anchored case scaling, not the paper's full UATSC network.
+- **v0.6 blank rows:** counterweight mass, sound insulation, other plastic/mix/contamination, pipe ring stiffness and finished sheet/panel remain absent; they stay blank with the test named. No generic 3-D simulator, optimizer or product catalog was added.
 - **Batch passport/acceptance window** is illustrative v0.1 logic; replace assumed lot
   means with supplier measurements before production decisions.
 - **Design prototype adoption:** tokens, copy deck and screen order follow

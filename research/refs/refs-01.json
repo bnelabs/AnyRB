@@ -14,7 +14,7 @@
     "url": "https://doi.org/10.1073/pnas.2502613122",
     "type": "journal-article",
     "evidence_grade": "A",
-    "used_for": "Per-lot rHDPE E (1350±239 MPa, CV 17.7%, n=50 specimens/10 plates, ASTM D638 Type I); literature-compiled rHDPE E 1213±654 MPa (n=40); review of variability across rPET/rHDPE/rLDPE/rPP; architecture reduces modulus-variability up to 93%, strain variability >=68%.",
+    "used_for": "Per-lot rHDPE E (1350±239 MPa, CV 17.7%, n=50 specimens/10 plates, ASTM D638 Type I); literature-compiled rHDPE E 1213±654 MPa (n=40); review of variability across rPET/rHDPE/rLDPE/rPP; measured {8,5} rHDPE-platelet/PDMS composite modulus CV 18%->4% (n=5; 78% reduction). The 93% figure is the model-only {8,7} stretch-film case relative to a modelled 26% input, not a measured product result.",
     "quote_or_locator": "Main text: 'average tangent modulus was found to be 1,350 MPa, with a SD of 239 MPa'; 'E_hard = 1,213 MPa with a SD of 654 MPa (Sample size=40)'; Fig. 1A literature ranges; SI Table S3.",
     "status": "verified",
     "notes": "PNAS article is by Georgiou, Sun, Liu, Athanasiou (NOT 'Ghosh et al.' as written in PRODUCT_SPEC.md - spec author attribution needs correcting). Open access via PMC12377729."

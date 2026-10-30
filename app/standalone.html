@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AnyRB — recycled-plastic design and consistency</title>
+<title>AnyRB — recycled-plastic consistency and evidence</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='4' fill='%23F7F5F0'/%3E%3Cpath d='M3 15.5 10 4l7 11.5M6.2 11h7.6' fill='none' stroke='%2315171A' stroke-width='1.5'/%3E%3C/svg%3E">
-<meta name="description" content="Keep a recycled-plastic product consistent while the batch changes: record the product, the result and its target range, then see a range only when a measured link exists. The bracket studio remains a separate 2-D simulation.">
+<meta name="description" content="Keep a recycled-plastic product consistent while the batch changes: record the product, the result and target, enter measured links, and use only the evidence map’s PNAS {8,5} case as a labelled simulation. The historical bracket studio is separate.">
 <style>
 /* ============================================================================
    AnyRB v0.2 — editorial AI studio.
@@ -1101,6 +1101,100 @@ textarea.input { resize: vertical; min-height: 70px; font-size: 12.5px; }
   letter-spacing: .02em; white-space: nowrap;
 }
 
+/* ============================================================================
+   v0.6 — evidence map + one PNAS calculation
+   ========================================================================== */
+body[data-view="evidence"] .rail { display: none; }
+body[data-view="evidence"] .shell { grid-template-columns: minmax(0, 1fr); max-width: 1280px; }
+body[data-view="evidence"] .main { max-width: none; padding-top: 38px; }
+body[data-view="evidence"] .ai-pill,
+body[data-view="evidence"] .lab-toggle,
+body[data-view="evidence"] #banner { display: none !important; }
+body[data-view="evidence"] #screen-brief,
+body[data-view="evidence"] #screen-design,
+body[data-view="evidence"] #screen-prove,
+body[data-view="evidence"] #screen-consistency { display: none !important; }
+body[data-view="consistency"] #screen-evidence { display: none !important; }
+body[data-view="studio"] #screen-evidence { display: none !important; }
+
+.evidence-layout { display: flex; flex-direction: column; gap: 18px; max-width: 1120px; }
+.evidence-summary { padding: 26px 30px; }
+.evidence-summary h2 { font-size: 32px; max-width: 20ch; }
+.evidence-lede { margin-top: 10px; max-width: 80ch; color: var(--muted-strong); font-size: 13.5px; line-height: 1.6; }
+.evidence-counts { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.evidence-counts b { font-family: var(--serif); font-size: 25px; font-weight: 500; color: var(--ink); margin-right: 4px; }
+.evidence-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.evidence-rows { display: flex; flex-direction: column; gap: 14px; }
+.evidence-row {
+  background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--line-strong);
+  border-radius: var(--r-lg); padding: 20px 24px; box-shadow: var(--sh-xs);
+}
+.evidence-row.is-measured { border-left-color: var(--verify); }
+.evidence-row.is-model { border-left-color: #B7791F; background: var(--card-warm); }
+.evidence-row.is-absent { border-left-color: var(--accent); background: #FDF7F3; }
+.ev-head { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+.ev-head h3 { font-family: var(--serif); font-size: 24px; letter-spacing: -.015em; line-height: 1.15; margin-top: 4px; }
+.ev-detail { margin-top: 4px; font-size: 12px; color: var(--muted); }
+.ev-head-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: 0 0 auto; }
+.ev-grade { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r-pill); padding: 4px 10px; font-size: 10.5px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--line); color: var(--muted-strong); white-space: nowrap; }
+.ev-grade.is-measured { color: var(--verify); border-color: rgba(11,107,83,.25); background: var(--verify-soft); }
+.ev-grade.is-model { color: #8A5A14; border-color: rgba(183,121,31,.3); background: #FBF3E3; }
+.ev-grade.is-absent { color: var(--accent-ink); border-color: rgba(255,90,54,.25); background: var(--accent-soft); }
+.ev-calc-pill { font-size: 10px; }
+.ev-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin-top: 16px; }
+.ev-field { min-width: 0; }
+.ev-field .micro { display: block; margin-bottom: 3px; }
+.ev-field div { font-size: 12.5px; line-height: 1.5; color: var(--muted-strong); overflow-wrap: anywhere; }
+.ev-source { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.ev-source p { margin: 2px 0 0; }
+.ev-source a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.evidence-note { padding: 24px 28px; background: var(--card-warm); }
+.evidence-note h3 { margin-top: 5px; }
+.evidence-note p { margin-top: 8px; font-size: 12.5px; line-height: 1.6; color: var(--muted-strong); }
+.evidence-note .ev-warning { border-left: 3px solid var(--accent); padding-left: 12px; background: var(--accent-soft); padding: 10px 12px; border-radius: 0 8px 8px 0; }
+.evidence-note a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+
+/* PNAS calculation card inside the consistency record */
+.calc-card { padding: 22px 24px; border-color: var(--line-strong); background: linear-gradient(180deg, #FFFFFF 0%, #FCFBF7 100%); }
+.calc-card .micro { display: block; margin-bottom: 5px; }
+.calc-card h3 { font-family: var(--serif); font-size: 23px; line-height: 1.15; }
+.calc-intro { margin-top: 7px; font-size: 12px; line-height: 1.55; color: var(--muted); }
+.calc-case-select { margin-top: 14px; }
+.calc-block { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 13px; background: var(--card); }
+.calc-block .field + .field { margin-top: 10px; }
+.calc-note { margin-top: 9px; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.calc-architecture { margin-top: 12px; padding: 10px 12px; background: var(--paper-deep); border-radius: 10px; font-family: var(--mono); font-size: 10px; line-height: 1.55; color: var(--muted-strong); }
+.calc-architecture b { color: var(--ink); }
+.calc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 12px; }
+.calc-fields .field--wide { grid-column: 1 / -1; }
+.calc-check { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 11.5px; line-height: 1.45; color: var(--muted-strong); }
+.calc-check input { margin-top: 3px; accent-color: var(--accent); flex: 0 0 auto; }
+.calc-output { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 13px; }
+.calc-output-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.calc-range { font-family: var(--serif); font-size: 30px; line-height: 1; letter-spacing: -.02em; }
+.calc-range small { font-family: var(--sans); font-size: 10px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: block; margin-top: 4px; }
+.calc-result-meta { margin-top: 10px; display: grid; gap: 5px; font-size: 11.5px; color: var(--muted-strong); }
+.calc-result-meta b { color: var(--ink); font-family: var(--mono); font-weight: 600; }
+.calc-sim-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent-ink); border: 1px solid rgba(255,90,54,.28); padding: 3px 9px; font-size: 10px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.calc-blocked { border: 1px dashed var(--line-strong); border-radius: 10px; padding: 11px 12px; font-size: 11.5px; line-height: 1.55; color: var(--muted-strong); }
+.calc-blocked ul { margin: 6px 0 0; padding-left: 18px; }
+.calc-test-needed { margin-top: 9px; background: var(--paper-deep); border-radius: 8px; padding: 9px 10px; font-size: 11.5px; line-height: 1.5; color: var(--muted-strong); }
+.calc-case-note { margin-top: 8px; font-size: 10.5px; line-height: 1.5; color: var(--muted); }
+.calc-card .btn { margin-top: 10px; }
+
+@media (max-width: 760px) {
+  .ev-head { flex-direction: column; }
+  .ev-head-right { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+  .ev-grid { grid-template-columns: 1fr; }
+  .calc-fields { grid-template-columns: 1fr; }
+  .calc-fields .field--wide { grid-column: auto; }
+  .evidence-summary { padding: 20px 18px; }
+  .evidence-row { padding: 16px 16px; }
+  .evidence-note { padding: 18px; }
+}
+
+body[data-view="evidence"] .project-switcher { display: none; }
+
 </style>
 
 </head>
@@ -1110,7 +1204,7 @@ textarea.input { resize: vertical; min-height: 70px; font-size: 12.5px; }
 <div class="loading-veil" id="loading-veil" aria-hidden="true">
   <div>
     <div class="lv-mark">AnyRB</div>
-    <div class="lv-sub">Recycled-plastic design and consistency · loading</div>
+    <div class="lv-sub">Recycled-plastic consistency and evidence · loading</div>
   </div>
 </div>
 
@@ -1129,7 +1223,7 @@ textarea.input { resize: vertical; min-height: 70px; font-size: 12.5px; }
   </a>
   <nav class="view-switch" id="view-switch" aria-label="Workspace">
     <button type="button" id="view-consistency" data-view="consistency" aria-pressed="true">Consistency</button>
-    <button type="button" id="view-studio" data-view="studio" aria-pressed="false">Bracket studio</button>
+    <button type="button" id="view-evidence" data-view="evidence" aria-pressed="false">Evidence map</button>
   </nav>
   <div class="project-switcher" id="project-switcher" aria-live="polite">
     <span class="dot-sep" aria-hidden="true">/</span>
@@ -1196,7 +1290,7 @@ textarea.input { resize: vertical; min-height: 70px; font-size: 12.5px; }
     <div class="rail-meta" id="session-card">
       <div class="rm-title">This run</div>
       <div class="rm-row"><span>Run ID</span><b id="session-seed">20251029</b></div>
-      <div class="rm-row"><span>Model</span><b id="session-engine">v0.5</b></div>
+      <div class="rm-row"><span>Model</span><b id="session-engine">v0.6</b></div>
       <div class="rm-row"><span>Checks</span><b id="session-valid">—</b></div>
       <div class="rm-claims">Evidence <b id="session-claims">model checked</b></div>
       <button class="btn btn--sm btn--ghost" id="btn-provenance" type="button" style="justify-content:flex-start;padding-left:0">AI activity <span id="prov-count" class="pill pill--muted" style="height:20px">0 requests</span></button>
@@ -1231,12 +1325,27 @@ textarea.input { resize: vertical; min-height: 70px; font-size: 12.5px; }
         </div>
         <aside class="consistency-right" aria-label="What the record can say now">
           <div class="card outcome-panel" id="consistency-outcomes" aria-live="polite"></div>
+          <div class="card calc-card" id="consistency-calc"></div>
           <div class="card consistency-note">
             <div class="micro">What this screen does not do</div>
-            <p>It does not load a product catalog, a material preset or the bracket model. A product name is not evidence. An empty record stays an empty record until you bring a measurement.</p>
-            <button class="btn btn--sm btn--ghost" type="button" id="consistency-open-studio">Open the bracket studio →</button>
+            <p>It does not load a product catalog or a material preset. A product name is not evidence. The only calculation is the separate, simulation-labelled PNAS {8,5} case; an empty record stays empty until you bring a measurement. <a href="#evidence" style="text-decoration:underline;text-underline-offset:2px">Open the evidence map</a>.</p>
+            <button class="btn btn--sm btn--ghost" type="button" id="consistency-open-studio">Open the historical bracket studio →</button>
           </div>
         </aside>
+      </div>
+    </section>
+
+    <!-- ======================= EVIDENCE MAP ======================= -->
+    <section class="screen" id="screen-evidence" data-screen="evidence" aria-labelledby="evidence-h1">
+      <div class="screen-head">
+        <div class="eyebrow">Research · evidence map</div>
+        <h1 id="evidence-h1">What is actually measured, modelled, or absent.</h1>
+        <p class="deck">This is the map behind the one allowed calculation. A citation is not a result on your batch; a product-class formulation result is not a batch link. The consistency record stays blank wherever no measured link exists.</p>
+      </div>
+      <div class="evidence-layout">
+        <div class="card evidence-summary" id="evidence-summary"></div>
+        <div class="evidence-rows" id="evidence-rows"></div>
+        <div class="card evidence-note" id="evidence-note"></div>
       </div>
     </section>
 
@@ -1249,8 +1358,8 @@ textarea.input { resize: vertical; min-height: 70px; font-size: 12.5px; }
       </div>
       <div class="brief-stack">
         <div class="scope-note" role="note">
-          <span class="micro">Bracket studio · one simulated product</span>
-          <p>This page is a 2-D frame simulation of the rPETG wall bracket. It is not a 3-D product simulator, and its numbers do not apply to the products in your consistency record.</p>
+          <span class="micro">Historical bracket studio · one simulated product</span>
+          <p>Historical evidence, not the default path. This page is a 2-D frame simulation of the rPETG wall bracket. It is not a 3-D product simulator, and its numbers do not apply to the products in your consistency record.</p>
           <button class="btn btn--sm btn--ghost" type="button" id="studio-open-record">Open the consistency record →</button>
         </div>
         <div class="prompt" id="prompt-card">
@@ -1654,9 +1763,9 @@ textarea.input { resize: vertical; min-height: 70px; font-size: 12.5px; }
 </div>
 
 <footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · design studio for recycled plastics · v0.5</span>
+  <span><b style="color:var(--ink)">AnyRB</b> · recycled-plastic design &amp; consistency · v0.6</span>
   <span class="f-honest">Confirm production choices with a physical test.</span>
-  <span>Bracket studio: simulation · consistency record: your measured links only</span>
+  <span>Consistency: measured links + one PNAS case · bracket studio: historical 2-D simulation</span>
 </footer>
 
 <!-- overlays -->
@@ -1905,7 +2014,7 @@ const APP_META = {
   subtitle: 'Any Recycled Batch — design software for recycled-plastic parts',
   thesis:
     'Two workspaces: an open consistency record that shows a result only when a measurement links this product and this result, and a 2-D bracket studio that simulates one printed bracket. Product names, presets and the bracket model are not measurements.',
-  version: 'v0.5 · consistency record',
+  version: 'v0.6 · consistency record + evidence map',
   calibration:
     'Demo version. The calculations were cross-checked against a separate reference implementation.',
   strengthNote:
@@ -2004,7 +2113,19 @@ const V05 = {
   threeDNote: 'No generic 3-D simulator is added. A 3-D model is applicable only when the result depends on shape and the required measured density (mass) or measured modulus and strength (strength/stiffness) is present. Sound insulation is not a structural 3-D result. The bracket studio remains a labelled 2-D simulation for the bracket only.',
 };
 
-return { API, apiUrl, GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION, V03, V04, V05 };
+
+// ---------------------------------------------------------------------------
+// v0.6 evidence map + one allowed PNAS calculation
+// ---------------------------------------------------------------------------
+const V06 = {
+  evidenceMap: 'research/06-evidence-map.md',
+  evidenceJson: 'research/evidence_map.json',
+  pnasDoi: '10.1073/pnas.2502613122',
+  pnasPmid: '40794839',
+  note: 'One evidence-backed calculation is allowed: the PNAS 2025 {8,5} platelet-matrix modulus case. It is a baseline-anchored, case-scaled simulation, not the paper’s full UATSC model and not a physical test of the user’s product. It requires the selected product class, a modulus result in MPa with a target, a measured recyclate stiffness distribution, and a measured composite modulus baseline. The paper reports 18%→4% CV but no absolute measured mean; the 93% stretch-film model result is never used.',
+};
+
+return { API, apiUrl, GEOMETRY, LOAD, MATERIAL_PRESETS, numericMaterial, DEFAULTS, OPTIMIZER, UI_RANGES, APP_META, CITATIONS, CALIBRATION, V03, V04, V05, V06 };
 })();
 
 /* ===== engine.js ===== */
@@ -6120,6 +6241,42 @@ function blankPoint() {
   return { id: newId('m'), choice: '', input: '', value: null, source: '' };
 }
 
+function blankCalculation() {
+  return {
+    caseId: '',
+    resultId: '',
+    productConfirmed: false,
+    distributionMode: 'paper',
+    measured: { meanMPa: null, cvPct: null, n: null, source: '' },
+    baseline: { inputMeanMPa: null, outputMeanMPa: null, n: null, source: '' },
+  };
+}
+
+function normalizeCalculation(raw = {}) {
+  const base = blankCalculation();
+  if (!raw || typeof raw !== 'object') return base;
+  const measured = raw.measured && typeof raw.measured === 'object' ? raw.measured : {};
+  const baseline = raw.baseline && typeof raw.baseline === 'object' ? raw.baseline : {};
+  return {
+    caseId: clean(raw.caseId, 80),
+    resultId: clean(raw.resultId, 80),
+    productConfirmed: raw.productConfirmed === true,
+    distributionMode: raw.distributionMode === 'measured' ? 'measured' : 'paper',
+    measured: {
+      meanMPa: numOrNull(measured.meanMPa),
+      cvPct: numOrNull(measured.cvPct),
+      n: numOrNull(measured.n),
+      source: clean(measured.source, 220),
+    },
+    baseline: {
+      inputMeanMPa: numOrNull(baseline.inputMeanMPa),
+      outputMeanMPa: numOrNull(baseline.outputMeanMPa),
+      n: numOrNull(baseline.n),
+      source: clean(baseline.source, 220),
+    },
+  };
+}
+
 function blankRecord() {
   const stamp = nowIso();
   return {
@@ -6130,6 +6287,7 @@ function blankRecord() {
     product: '',
     input: { plasticType: '', batch: '', mix: '', contamination: '' },
     results: [blankResult()],
+    calculation: blankCalculation(),
   };
 }
 
@@ -6180,6 +6338,7 @@ function normalizeRecord(raw = {}) {
       contamination: clean(input.contamination, 180),
     },
     results: results.length ? results : [blankResult()],
+    calculation: normalizeCalculation(source.calculation),
   };
 }
 
@@ -6571,12 +6730,398 @@ const MISSING_REASON_TEXT = {
   'varied-missing': 'Say what varied between the measurements before this can be treated as a link.',
 };
 
-return { STORE_KEY, STORE_SCHEMA, RECORD_SCHEMA, EXPORT_FORMAT, DEFAULT_CHOICE, RESULT_KINDS, blankResult, blankPoint, blankRecord, normalizePoint, normalizeResult, normalizeRecord, recordTitle, newRecord, cloneRecord, classifyResultKind, effectiveKind, kindLabel, targetState, targetLabel, formatNumber, formatValue, formatRange, defaultTestNeeded, threeDStatus, outcomeFor, evaluateRecord, exportRecord, importRecord, MISSING_REASON_TEXT };
+return { STORE_KEY, STORE_SCHEMA, RECORD_SCHEMA, EXPORT_FORMAT, DEFAULT_CHOICE, RESULT_KINDS, blankResult, blankPoint, blankCalculation, normalizeCalculation, blankRecord, normalizePoint, normalizeResult, normalizeRecord, recordTitle, newRecord, cloneRecord, classifyResultKind, effectiveKind, kindLabel, targetState, targetLabel, formatNumber, formatValue, formatRange, defaultTestNeeded, threeDStatus, outcomeFor, evaluateRecord, exportRecord, importRecord, MISSING_REASON_TEXT };
+})();
+
+/* ===== evidence.js ===== */
+__modules.evidence = (function () {
+const {blankCalculation} = __modules.consistency;
+/**
+ * AnyRB v0.6 — evidence map and the one allowed evidence-backed calculation.
+ *
+ * The evidence map is the gate. A citation, a literature mean, an assumed CV,
+ * a coupon result, a model, or the historical bracket solver is not a measured
+ * link for the open record. Only the PNAS 2025 {8,5} platelet-matrix case is
+ * encoded as a calculation, and it stays a simulation.
+ *
+ * Data is deliberately small and explicit; the human-readable source is
+ * research/06-evidence-map.md and research/evidence_map.json.
+ */
+
+
+
+const EVIDENCE_VERSION = 'v0.6-evidence-map';
+const EVIDENCE_MAP_MD = 'research/06-evidence-map.md';
+const EVIDENCE_MAP_JSON = 'research/evidence_map.json';
+
+const GRADE_LABELS = {
+  measured_on_product_class: 'Measured on that product class',
+  model_only: 'Model only',
+  absent: 'Absent',
+};
+
+const PNAS_DOI = '10.1073/pnas.2502613122';
+const PNAS_PMID = '40794839';
+const PNAS_PMC = 'PMC12377729';
+
+const EVIDENCE_ROWS = [
+  {
+    id: 'pnas-2025-8x5-modulus',
+    productClass: 'Nacre-inspired rHDPE-platelet / PDMS-matrix composite',
+    detail: 'Fabricated {8,5} tensile specimen, 195 × 53 mm; platelet volume fraction 70.7 %',
+    result: 'Effective tensile modulus (E_eff)',
+    inputVaried: 'rHDPE platelet modulus: 50 specimens from 10 plates; mean 1,350 MPa, SD 239 MPa, CV 17.7 %',
+    measured: 'Uniaxial tension of 5 fabricated {8,5} composite specimens; feedstock modulus by ASTM D638-I; PDMS/rHDPE interface by ASTM D3163 lap shear',
+    sampleSize: 'Composite n = 5; feedstock n = 50 / 10 plates',
+    moved: 'Measured composite E_eff CV 4 % versus 18 % in the feedstock. The model predicted 3 % for this case. Measured strength 0.22 MPa, CV 13 %. The measured absolute E_eff mean is not reported.',
+    type: 'experiment',
+    notCovered: 'Structural products, sheets, acoustics, counterweights, other polymers, delivered batch variation, 3-D/large-strain/creep/fatigue, a user’s product',
+    grade: 'measured_on_product_class',
+    source: 'Georgiou, Sun, Liu & Athanasiou, PNAS 122(33):e2502613122 (2025)',
+    doi: PNAS_DOI,
+    pmid: PNAS_PMID,
+    pmcid: PNAS_PMC,
+    locator: 'Model–Experiment Comparison; Fig. 5; SI Tables S2–S5',
+    calcEligible: true,
+  },
+  {
+    id: 'pnas-2025-8x7-stretch-film-model',
+    productClass: 'Industrial HDPE stretch film, modelled {8,7} architecture',
+    detail: 'No film was fabricated or tested',
+    result: 'Effective modulus and maximum permissible strain',
+    inputVaried: 'Modelled constituent distributions; total introduced variability ≈ 26 % (RSS); Vpl/Vtotal 82.4 %',
+    measured: 'Nothing on a stretch film. Input rHDPE distribution came from the measured feedstock; interfaces were tuned assumptions; 200 simulations',
+    sampleSize: '200 simulations; 0 film specimens',
+    moved: 'Model E_eff 554 ± 10 MPa, CV 2 %; ε_W 0.10 ± 0.01; 93 % reduction relative to a modelled 26 % total introduced variability; ≥68 % ε_W reduction. Model only.',
+    type: 'model',
+    notCovered: 'No tested film, no product measurement, no user product, no acoustic, structural or counterweight result',
+    grade: 'model_only',
+    source: 'Georgiou et al., PNAS 2025, Case Study',
+    doi: PNAS_DOI,
+    pmid: PNAS_PMID,
+    pmcid: PNAS_PMC,
+    locator: 'Case Study; Fig. 6; SI Table S4',
+    calcEligible: false,
+  },
+  {
+    id: 'wpc-profile-formulation-2024',
+    productClass: 'Extruded wood-plastic composite profile (rHDPE + sawdust)',
+    detail: 'Formulation link, not a batch link',
+    result: 'Tensile strength, modulus, density, impact, water absorption',
+    inputVaried: 'Sawdust 55–70 wt %, rHDPE 25–40 wt %, coupling agent 1–3 %; one recyclate source',
+    measured: 'ASTM D638 Type IV tensile specimens machined from the finished profile; D570, D1822, D2240, helium pycnometry',
+    sampleSize: 'n = 5 per formulation; 13 design runs + initial formulation',
+    moved: 'Tensile strength 19.37 ± 1.68 → 12.53 ± 1.88 MPa; E 1,427.5 ± 127.2 → 2,206.7 ± 304.6 → 1,782.1 ± 119.3 MPa; density 1.20–1.34 g/cm³; impact 4.30 ± 0.68 → 8.18 ± 2.25 kJ/m²; water absorption 1.83–2.41 %',
+    type: 'experiment',
+    notCovered: 'Full-size profile/deck span test; no recyclate batch variation; one source; no sound insulation; no counterweight',
+    grade: 'measured_on_product_class',
+    source: 'Oliveros-Gaviria et al., Polymers 2024, 16(22):3136',
+    doi: '10.3390/polym16223136',
+    locator: '§3.1, Tables 9–13',
+    calcEligible: false,
+  },
+  {
+    id: 'wpc-board-formulation-2022',
+    productClass: 'WPC boards for decking-timber / outdoor-parquet use, 4 × 180 × 220 mm',
+    detail: 'Formulation link, not a batch link',
+    result: 'Flexural strength/modulus, tensile strength/modulus, elongation, density, Shore D',
+    inputVaried: 'Tetra Pak box vs pine wood flour at 0/10/20/30/40 % in recycled PE; 6 groups',
+    measured: 'ASTM D790 3-point bending on specimens from actual boards; ASTM D638-I tensile; ASTM D2240',
+    sampleSize: '4 boards/group, 4 specimens/board/test = 16 specimens per test; 24 boards',
+    moved: 'Density 942–1,017 kg/m³; flexural strength 13.5–19.8 MPa; flexural modulus up to 999 MPa; tensile strength and elongation decrease with wood flour; Shore D 51.3–57.4',
+    type: 'experiment',
+    notCovered: 'Full-size deck-board span/load test; one recycled-PE source; no batch variation; no acoustics; no counterweight',
+    grade: 'measured_on_product_class',
+    source: 'Bal, BioResources 2022, 17(4):6569–6577',
+    doi: '10.15376/biores.17.4.6569-6577',
+    locator: 'Experimental; Tables 2–4',
+    calcEligible: false,
+  },
+  {
+    id: 'recycled-hdpe-lumber-product-2020',
+    productClass: 'Full-size commercial recycled-HDPE plastic lumber, 140 × 38 mm',
+    detail: 'Product test; input varied is product type, not recyclate',
+    result: 'Flexural modulus/strength, 180-day flexural creep',
+    inputVaried: 'Recycled-HDPE lumber vs WPC lumber; not a recyclate batch or mix',
+    measured: 'ASTM D6109 4-point bending; 180-day creep at 7.5/15/30 % Fb; ASTM D6815 fractional-deflection criterion',
+    sampleSize: 'n = 5 per group; 30 specimens total; 5 per creep group',
+    moved: 'HDPE lumber E 0.93 ± 0.03 GPa, Fb 14.1 ± 0.70 MPa; WPC lumber E 4.34 ± 0.26 GPa, Fb 41.2 ± 4.53 MPa; 180-day fractional deflection 2.71/3.88/5.11 (HDPE) vs 1.22/1.33/1.28 (WPC)',
+    type: 'experiment',
+    notCovered: 'No recyclate source/batch variation; one commercial product; no acoustics; no counterweight',
+    grade: 'measured_on_product_class',
+    source: 'Alrubaie, Lopez-Anido & Gardner, Polymers 2020, 12(2):262',
+    doi: '10.3390/polym12020262',
+    locator: 'Table 1; Tables 2–3; §3.3',
+    calcEligible: false,
+  },
+  {
+    id: 'pipe-compound-coupons-2021',
+    productClass: 'Double-wall corrugated pipe compound — injection-moulded coupons only',
+    detail: 'Not a pipe test',
+    result: 'Tensile, flexural and impact coupon properties',
+    inputVaried: 'Recycled vs non-recycled HDPE/PPR blends 5–55 wt %',
+    measured: 'ASTM D638/D790/Izod coupons',
+    sampleSize: '≥5 specimens per composition; 13 formulations with/without compatibiliser',
+    moved: 'FS 19.05 ± 4.11 → 24.42 ± 3.72 MPa; FM 554 ± 11 → 1,342 ± 22 MPa; TS 16.08 ± 4.52 → 24.44 ± 6.95 MPa',
+    type: 'coupon',
+    notCovered: 'No finished pipe; no ISO 9969 ring stiffness; no pipe impact; no product-class result',
+    grade: 'absent',
+    source: 'Wang et al., ACS Omega 2021, 6(30):19705–19716',
+    doi: '10.1021/acsomega.1c02354',
+    locator: 'Tables 1, 4–5',
+    calcEligible: false,
+  },
+  {
+    id: 'counterweight-mass',
+    productClass: 'Counterweight / ballast product',
+    detail: 'No measured product link found',
+    result: 'Mass',
+    inputVaried: 'Recycled plastic type, batch, mix, contamination',
+    measured: 'No qualifying primary product test found',
+    sampleSize: '—',
+    moved: 'None. A library density is not a measured density of the stream.',
+    type: 'absent',
+    notCovered: 'Measured stream density, measured volume, finished counterweight mass',
+    grade: 'absent',
+    source: 'No qualifying source',
+    calcEligible: false,
+    blockedTest: 'Measure the density of the recycled stream and the volume of the actual counterweight, then weigh the product. A library density is not a substitute.',
+  },
+  {
+    id: 'sound-insulation-sheet',
+    productClass: 'Sound-insulation sheet / panel',
+    detail: 'No verified acoustic product link found',
+    result: 'Sound insulation (absorption / transmission loss)',
+    inputVaried: 'Recycled plastic type, batch, mix, filler',
+    measured: 'No verified primary sheet test with reported numbers. One acoustic-panel paper was abstract-only.',
+    sampleSize: 'Not verified',
+    moved: 'None verified',
+    type: 'absent',
+    notCovered: 'Acoustic measurement, thickness-to-insulation test, transmission loss, a sheet product',
+    grade: 'absent',
+    source: 'Candidate DOI 10.2478/sjce-2021-0003 (abstract only); no transmission-loss source found',
+    calcEligible: false,
+    blockedTest: 'Measure sound insulation on the same sheet build with a named acoustic method (e.g. impedance tube or transmission-loss suite). A structural or 3-D model cannot substitute.',
+  },
+  {
+    id: 'other-plastic-mix-contamination-product',
+    productClass: 'Another plastic, a mix, or a contaminated stream — any finished product',
+    detail: 'Coupon-level evidence only; not a product-class link',
+    result: 'Modulus, strength, elongation, mass, thickness, sound insulation',
+    inputVaried: 'Polymer type, mix, minor contamination',
+    measured: 'Material coupons: e.g. 10 % PET in PP gave +41.2 % tensile modulus and −46.8 % elongation; 10 % ABS/PS with a weld line gave −17.5 % strength and >80 % elongation loss; even 3 % contamination lowered strength',
+    sampleSize: 'Coupon study, not a product',
+    moved: 'Coupon-level numbers only; no finished-product result',
+    type: 'coupon',
+    notCovered: 'Finished product, product class, batch link',
+    grade: 'absent',
+    source: 'Polymers 2024, DOI 10.3390/polym16162301',
+    doi: '10.3390/polym16162301',
+    calcEligible: false,
+    blockedTest: 'Measure the chosen result on the actual product built from the stream. Coupon or library data cannot fill this record.',
+  },
+  {
+    id: 'recyclate-batch-any-product',
+    productClass: 'Any finished product vs a varying recyclate lot / batch',
+    detail: 'The headline gap of the primary search',
+    result: 'Any product result',
+    inputVaried: 'Delivered recyclate lot / batch',
+    measured: 'No primary study found',
+    sampleSize: '—',
+    moved: 'None',
+    type: 'absent',
+    notCovered: 'A measured product-class result against batch variation',
+    grade: 'absent',
+    source: 'No qualifying source; see 06b-primary-links.md',
+    calcEligible: false,
+  },
+];
+
+const CALC_CASE = {
+  id: 'pnas-2025-8x5-modulus',
+  label: 'PNAS 2025 · {8,5} platelet–matrix composite (modulus)',
+  shortLabel: 'PNAS {8,5} platelet–matrix modulus',
+  doi: PNAS_DOI,
+  pmcid: PNAS_PMC,
+  architecture: {
+    N: 8,
+    M: 5,
+    plateletLengthMm: 20,
+    plateletHeightMm: 8,
+    plateletWidthMm: 4.75,
+    cohesiveThicknessMm: 3,
+    specimenMm: '195 × 53',
+    plateletVolumeFraction: 0.707,
+    ct: 'σmax,CT W(7.00, 0.15) MPa; δe 0.80 mm; δcr N(1.20, 0.18²) mm',
+    cs: 'τmax,CS W(7.00, 0.20) MPa; δe 0.40 mm; δcr N(0.80, 0.12²) mm',
+  },
+  paperDistribution: {
+    label: 'Paper’s measured rHDPE platelets',
+    meanMPa: 1350,
+    cvPct: 17.7,
+    n: 50,
+    source: 'PNAS 2025: 50 ASTM D638-I specimens from 10 rHDPE plates',
+  },
+  measuredCvRatio: 0.04 / 0.18,
+  sourceNote: 'Measured rHDPE-platelet / PDMS-matrix {8,5} composite: n = 5, E_eff scatter reduced from 18 % to 4 % on those specimens; the paper does not report an absolute measured E_eff mean. The 93 % stretch-film model result is not used.',
+  minimumSamples: 3,
+  z90: 1.6448536269514722,
+};
+
+const CASE_BY_ID = { [CALC_CASE.id]: CALC_CASE };
+
+function getCalcCase(id) {
+  return CASE_BY_ID[id] || null;
+}
+
+function evidenceRowForCalc(id) {
+  return EVIDENCE_ROWS.find((row) => row.id === id) || null;
+}
+
+function defaultCalculationState() {
+  return blankCalculation();
+}
+
+function finitePositive(value) {
+  return Number.isFinite(value) && value > 0;
+}
+function finiteNonNegative(value) {
+  return Number.isFinite(value) && value >= 0;
+}
+
+/**
+ * Check only the inputs required by the PNAS case. The caller passes the
+ * selected result metadata (kind, unit, target) so this module stays free of
+ * the record engine.
+ */
+function calcAvailability(calc, resultMeta) {
+  const c = calc || blankCalculation();
+  const caseDef = getCalcCase(c.caseId);
+  const missing = [];
+  let testNeeded = '';
+
+  if (!caseDef) {
+    missing.push('Select the PNAS {8,5} platelet–matrix case.');
+    testNeeded = 'Select the evidence case and confirm the product class.';
+    return { ok: false, missing, testNeeded, caseDef: null };
+  }
+  if (!resultMeta || resultMeta.kind !== 'stiffness') {
+    missing.push('The matching result must be a modulus / stiffness result.');
+    testNeeded = 'Add a modulus or stiffness result with a target range in MPa.';
+    return { ok: false, missing, testNeeded, caseDef };
+  }
+  if (String(resultMeta.unit || '').trim().toLowerCase() !== 'mpa') {
+    missing.push('The result unit must be MPa for this case.');
+    testNeeded = 'Set the matching result unit to MPa.';
+    return { ok: false, missing, testNeeded, caseDef };
+  }
+  if (!resultMeta.target || !resultMeta.target.valid) {
+    missing.push('The matching result needs a valid target range.');
+    testNeeded = 'Set both target bounds on the matching result.';
+    return { ok: false, missing, testNeeded, caseDef };
+  }
+  if (c.productConfirmed !== true) {
+    missing.push('Confirm that the product is the platelet–matrix composite kind, not just a typed name.');
+    testNeeded = 'Confirm the product class. This case does not apply to arbitrary products.';
+    return { ok: false, missing, testNeeded, caseDef };
+  }
+
+  let selected = null;
+  let distributionMissing = false;
+  if (c.distributionMode === 'paper') {
+    selected = { ...caseDef.paperDistribution, mode: 'paper' };
+  } else {
+    const m = c.measured || {};
+    const before = missing.length;
+    if (!finitePositive(m.meanMPa)) missing.push('Enter a measured recyclate stiffness mean.');
+    if (!finitePositive(m.cvPct)) missing.push('Enter a measured recyclate stiffness CV.');
+    if (!(Number.isFinite(m.n) && m.n >= caseDef.minimumSamples)) missing.push('Enter at least 3 measured specimens/lots for the recyclate distribution.');
+    if (!String(m.source || '').trim()) missing.push('Name the source of the measured recyclate distribution.');
+    distributionMissing = missing.length > before;
+    if (!distributionMissing) {
+      selected = { meanMPa: m.meanMPa, cvPct: m.cvPct, n: m.n, source: m.source, mode: 'measured' };
+    }
+  }
+
+  let baselineMissing = false;
+  const b = c.baseline || {};
+  if (!finitePositive(b.inputMeanMPa)) { missing.push('Enter the recyclate mean at which the composite baseline was measured.'); baselineMissing = true; }
+  if (!finitePositive(b.outputMeanMPa)) { missing.push('Enter the measured baseline effective modulus of the composite.'); baselineMissing = true; }
+  if (!(Number.isFinite(b.n) && b.n >= caseDef.minimumSamples)) { missing.push('Enter at least 3 measured baseline specimens.'); baselineMissing = true; }
+  if (!String(b.source || '').trim()) { missing.push('Name the source of the measured composite baseline.'); baselineMissing = true; }
+
+  if (missing.length) {
+    if (distributionMissing && baselineMissing) {
+      testNeeded = 'Measure the recyclate stiffness distribution (mean, CV, n ≥ 3, named source) and the composite’s effective modulus at a known recyclate mean (n ≥ 3, named source). The paper reports the 18 %→4 % CV ratio but no absolute measured mean, so an absolute MPa range needs both.';
+    } else if (distributionMissing) {
+      testNeeded = 'Measure the recyclate stiffness mean and CV on at least 3 specimens/lots with a named source, then enter them here.';
+    } else {
+      testNeeded = 'Measure the composite’s effective modulus at a known recyclate mean (n ≥ 3, named source). The paper reports the 18 %→4 % CV ratio but no absolute measured mean, so an absolute MPa range needs your own baseline.';
+    }
+    return { ok: false, missing, testNeeded, caseDef, selected };
+  }
+  return { ok: true, missing: [], testNeeded: '', caseDef, selected, baseline: b };
+}
+
+/**
+ * Baseline-anchored, case-scaled simulation. Returns null if incomplete.
+ * This is NOT the paper's full UATSC model and is never a physical result.
+ */
+function calculatePnasCase(calc, resultMeta) {
+  const availability = calcAvailability(calc, resultMeta);
+  if (!availability.ok) return { ok: false, availability, result: null };
+  const c = calc;
+  const caseDef = availability.caseDef;
+  const selected = availability.selected;
+  const b = c.baseline;
+
+  const meanOut = b.outputMeanMPa * (selected.meanMPa / b.inputMeanMPa);
+  const cvOut = (selected.cvPct / 100) * caseDef.measuredCvRatio;
+  const sdOut = meanOut * cvOut;
+  const p5 = meanOut - caseDef.z90 * sdOut;
+  const p95 = meanOut + caseDef.z90 * sdOut;
+  const target = resultMeta.target;
+  const inside = p5 >= target.min && p95 <= target.max;
+
+  return {
+    ok: true,
+    availability,
+    result: {
+      simulation: true,
+      caseId: caseDef.id,
+      caseLabel: caseDef.label,
+      meanMPa: meanOut,
+      cvPct: cvOut * 100,
+      sdMPa: sdOut,
+      p5MPa: p5,
+      p95MPa: p95,
+      rangeLabel: 'P5–P95',
+      inside,
+      target,
+      selectedDistribution: selected,
+      baseline: { inputMeanMPa: b.inputMeanMPa, outputMeanMPa: b.outputMeanMPa, n: b.n, source: b.source },
+      measuredCvRatio: caseDef.measuredCvRatio,
+      measuredCvReductionPct: (1 - caseDef.measuredCvRatio) * 100,
+      sourceNote: caseDef.sourceNote,
+      methodNote: 'Baseline-anchored case scaling: the selected recyclate mean scales the measured baseline mean; the selected CV is multiplied by the measured 18 %→4 % CV ratio. P5/P95 assume a normal output distribution. This is a simulation.',
+      notYourProduct: 'This is the PNAS {8,5} platelet–matrix case, not a physical test of your product. Every number is a simulation until a physical test of the same product exists.',
+    },
+  };
+}
+
+function evidenceSummary() {
+  const counts = { measured_on_product_class: 0, model_only: 0, absent: 0 };
+  for (const row of EVIDENCE_ROWS) counts[row.grade] = (counts[row.grade] || 0) + 1;
+  return { counts, total: EVIDENCE_ROWS.length };
+}
+
+return { EVIDENCE_VERSION, EVIDENCE_MAP_MD, EVIDENCE_MAP_JSON, GRADE_LABELS, PNAS_DOI, PNAS_PMID, PNAS_PMC, EVIDENCE_ROWS, CALC_CASE, getCalcCase, evidenceRowForCalc, defaultCalculationState, calcAvailability, calculatePnasCase, evidenceSummary };
 })();
 
 /* ===== consistency_ui.js ===== */
 __modules.consistency_ui = (function () {
 const C = __modules.consistency;
+const EV = __modules.evidence;
 /**
  * AnyRB v0.5 — open consistency-record screen.
  *
@@ -6584,6 +7129,7 @@ const C = __modules.consistency;
  * Results are rendered only from stored measurements. This module never calls
  * the bracket engine, the material presets, the AI layer or a 3D simulator.
  */
+
 
 
 
@@ -6962,6 +7508,146 @@ function renderOutcome(outcome) {
   </article>`;
 }
 
+// ---------------------------------------------------------------------------
+// Evidence-backed calculation (one PNAS {8,5} case; simulation only)
+// ---------------------------------------------------------------------------
+function stiffnessResults(record) {
+  return record.results.filter((r) => C.effectiveKind(r) === 'stiffness');
+}
+function calcResult(record) {
+  const list = stiffnessResults(record);
+  if (!list.length) return null;
+  const id = record.calculation && record.calculation.resultId;
+  return list.find((r) => r.id === id) || list[0];
+}
+function calcResultMeta(result) {
+  return {
+    kind: C.effectiveKind(result),
+    unit: result && result.unit,
+    target: C.targetState(result),
+  };
+}
+function numOrNull(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+function formatRange(result) {
+  if (!Number.isFinite(result.p5MPa) || !Number.isFinite(result.p95MPa)) return '—';
+  return `${C.formatNumber(result.p5MPa)}–${C.formatValue(result.p95MPa, 'MPa')}`;
+}
+function calcOutputHtml(record, result) {
+  const calc = record.calculation;
+  const meta = calcResultMeta(result);
+  const availability = EV.calcAvailability(calc, meta);
+  if (!availability.ok) {
+    return `<div class="calc-blocked"><b>Not run.</b> ${esc(availability.missing[0] || 'A required input is missing.')}
+      ${availability.missing.length > 1 ? `<ul>${availability.missing.slice(1).map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
+    </div>
+    <div class="calc-test-needed"><b>Test still needed:</b> ${esc(availability.testNeeded)}</div>`;
+  }
+  const run = EV.calculatePnasCase(calc, meta);
+  if (!run.ok) {
+    return `<div class="calc-blocked">Not run. ${esc((run.availability.missing || []).join(' '))}</div>`;
+  }
+  const r = run.result;
+  const insideText = r.inside ? 'P5–P95 is inside your target.' : 'P5–P95 is outside your target.';
+  return `<div class="calc-output-head">
+      <div><div class="calc-range">${formatRange(r)}<small>${esc(r.rangeLabel)} simulated range</small></div></div>
+      <span class="calc-sim-badge">simulation</span>
+    </div>
+    <div class="calc-result-meta">
+      <span>Simulated mean <b>${C.formatValue(r.meanMPa, 'MPa')}</b> · simulated CV <b>${C.formatNumber(r.cvPct, 1)} %</b></span>
+      <span>Your target <b>${C.formatRange({ min: r.target.min, max: r.target.max }, 'MPa')}</b> · ${insideText}</span>
+      <span>Input distribution: <b>${esc(r.selectedDistribution.mode === 'paper' ? 'paper’s measured rHDPE' : 'your measured recyclate')}</b>${r.selectedDistribution.source ? ` · ${esc(r.selectedDistribution.source)}` : ''}</span>
+      <span>Measured baseline: <b>${C.formatValue(r.baseline.outputMeanMPa, 'MPa')}</b> at recyclate mean <b>${C.formatValue(r.baseline.inputMeanMPa, 'MPa')}</b>${r.baseline.source ? ` · ${esc(r.baseline.source)}` : ''}</span>
+    </div>
+    <div class="calc-note">${esc(r.methodNote)}</div>
+    <div class="calc-case-note"><b>${esc(r.caseLabel)}</b> · ${esc(r.notYourProduct)}</div>
+    <div class="calc-case-note">${esc(r.sourceNote)}</div>`;
+}
+
+function renderCalcOutput() {
+  const host = $('#calc-output', root);
+  const record = activeRecord();
+  if (!host || !record) return;
+  const result = calcResult(record);
+  if (!result) { host.innerHTML = ''; return; }
+  host.innerHTML = calcOutputHtml(record, result);
+}
+
+function renderCalculation() {
+  const host = $('#consistency-calc', root);
+  if (!host) return;
+  const record = activeRecord();
+  if (!record) { host.innerHTML = ''; return; }
+  const calc = record.calculation || C.blankCalculation();
+  const list = stiffnessResults(record);
+  const result = calcResult(record);
+  const caseDef = EV.getCalcCase(calc.caseId);
+  const caseValid = !!caseDef;
+  const caseOptions = `<option value="">No evidence-backed calculation</option>
+    <option value="${esc(EV.CALC_CASE.id)}"${caseValid ? ' selected' : ''}>${esc(EV.CALC_CASE.label)}</option>`;
+  let body = '';
+  if (!caseValid) {
+    body = `<p class="calc-intro">No calculation selected. The measured outcomes above are unchanged. The evidence map contains exactly one calculation case.</p>`;
+  } else if (!list.length) {
+    body = `<div class="calc-blocked"><b>No modulus result yet.</b> Add a result named e.g. “effective modulus”, set unit MPa and give it a target range; then this case can be configured. The paper's result is a modulus result only.</div>
+      <div class="calc-test-needed">Test still needed: measure the composite's effective modulus at a known recyclate mean (n ≥ 3, named source).</div>`;
+  } else {
+    const selected = result;
+    const resultOptions = list.length > 1
+      ? `<label class="field field--wide"><span class="field-label">Matching result</span><select class="input" data-calc-field="resultId">${list.map((r) => `<option value="${esc(r.id)}"${r.id === selected.id ? ' selected' : ''}>${esc(r.name || 'Untitled result')} · ${esc(r.unit || 'no unit')}</option>`).join('')}</select></label>`
+      : '';
+    const meta = calcResultMeta(selected);
+    const measured = calc.measured || {};
+    const baseline = calc.baseline || {};
+    const showMeasured = calc.distributionMode === 'measured';
+    body = `
+      <div class="calc-case-select">${resultOptions}
+        <label class="field field--wide"><span class="field-label">Product class match</span>
+          <span class="calc-check"><input type="checkbox" data-calc-field="productConfirmed"${calc.productConfirmed ? ' checked' : ''}> <span>My product is the PNAS {8,5} platelet–matrix composite kind, not just a product whose name contains “composite”.</span></span>
+        </label>
+      </div>
+      <div class="calc-block">
+        <label class="field field--wide"><span class="field-label">Recyclate stiffness distribution</span>
+          <select class="input" data-calc-field="distributionMode">
+            <option value="paper"${calc.distributionMode === 'paper' ? ' selected' : ''}>Paper’s measured rHDPE: 1,350 MPa · SD 239 · n=50/10 plates</option>
+            <option value="measured"${showMeasured ? ' selected' : ''}>My measured recyclate stiffness distribution</option>
+          </select>
+        </label>
+        ${showMeasured ? `<div class="calc-fields" style="margin-top:10px">
+          <label class="field"><span class="field-label">Mean modulus · MPa</span><input class="input" type="number" step="any" data-calc-field="measured.meanMPa" value="${measured.meanMPa == null ? '' : esc(measured.meanMPa)}"></label>
+          <label class="field"><span class="field-label">CV · %</span><input class="input" type="number" step="any" data-calc-field="measured.cvPct" value="${measured.cvPct == null ? '' : esc(measured.cvPct)}"></label>
+          <label class="field"><span class="field-label">Specimens / lots · n</span><input class="input" type="number" step="1" min="1" data-calc-field="measured.n" value="${measured.n == null ? '' : esc(measured.n)}"></label>
+          <label class="field field--wide"><span class="field-label">Source</span><input class="input" type="text" data-calc-field="measured.source" value="${esc(measured.source || '')}" placeholder="report / certificate / row"></label>
+        </div>` : `<p class="calc-note">Paper distribution: 50 ASTM D638-I specimens from 10 rHDPE plates. This is a literature/paper dataset, not your batch.</p>`}
+      </div>
+      <div class="calc-block">
+        <div class="micro" style="margin:0 0 4px">Required measured baseline</div>
+        <p class="calc-note">The paper reports the measured 18 %→4 % CV ratio but no absolute measured E_eff mean. Enter your own measured composite modulus at a known recyclate mean; otherwise the absolute MPa range is blocked.</p>
+        <div class="calc-fields">
+          <label class="field"><span class="field-label">Recyclate mean at baseline · MPa</span><input class="input" type="number" step="any" data-calc-field="baseline.inputMeanMPa" value="${baseline.inputMeanMPa == null ? '' : esc(baseline.inputMeanMPa)}"></label>
+          <label class="field"><span class="field-label">Measured composite modulus · MPa</span><input class="input" type="number" step="any" data-calc-field="baseline.outputMeanMPa" value="${baseline.outputMeanMPa == null ? '' : esc(baseline.outputMeanMPa)}"></label>
+          <label class="field"><span class="field-label">Baseline specimens · n</span><input class="input" type="number" step="1" min="1" data-calc-field="baseline.n" value="${baseline.n == null ? '' : esc(baseline.n)}"></label>
+          <label class="field field--wide"><span class="field-label">Baseline source</span><input class="input" type="text" data-calc-field="baseline.source" value="${esc(baseline.source || '')}" placeholder="lab report / test sheet and row"></label>
+        </div>
+      </div>
+      <details class="calc-architecture"><summary>Paper architecture (fixed): {8,5} · 20 × 8 × 4.75 mm platelets · 70.7 %</summary>
+        <p>N=8, M=5 · l=20 mm · h=8 mm · w=4.75 mm · t=3 mm · specimen 195 × 53 mm · Vpl/Vtotal 70.7 %.</p>
+        <p>CT: σmax,CT W(7.00, 0.15) MPa; δe 0.80 mm; δcr N(1.20, 0.18²) mm. CS: τmax,CS W(7.00, 0.20) MPa; δe 0.40 mm; δcr N(0.80, 0.12²) mm.</p>
+        <p>These are the paper's measured {8,5} case parameters (SI Table S3). They are not a general material model.</p>
+      </details>
+      <div id="calc-output">${calcOutputHtml(record, selected)}</div>`;
+  }
+  host.innerHTML = `
+    <div class="micro">Evidence-backed calculation · simulation only</div>
+    <h3>PNAS 2025 {8,5} platelet–matrix modulus case</h3>
+    <p class="calc-intro">One case, not a product catalog. It applies only to a platelet–matrix composite product and a modulus/stiffness result in MPa. It is a case-scaled simulation, not a physical test of your product. <a href="#evidence" style="text-decoration:underline;text-underline-offset:2px">Read the evidence map</a>.</p>
+    <label class="field field--wide" style="margin-top:14px"><span class="field-label">Evidence case</span><select class="input" data-calc-field="caseId">${caseOptions}</select></label>
+    ${body}`;
+}
+
 function renderOutcomes() {
   if (!root) return;
   const host = $('#consistency-outcomes', root);
@@ -6977,6 +7663,7 @@ function renderOutcomes() {
     </div>
     <div class="outcome-list">${evaluated.results.map(renderOutcome).join('')}</div>
     <p class="outcome-foot">No chart, score or overall pass/fail. Each result is answered separately from its own measurements.</p>`;
+  renderCalculation();
 }
 
 // ---------------------------------------------------------------------------
@@ -7011,10 +7698,59 @@ function updateResultFromInput(record, el) {
   return false;
 }
 
+function setCalcField(el) {
+  const record = activeRecord();
+  if (!record) return false;
+  if (!record.calculation) record.calculation = C.blankCalculation();
+  const calc = record.calculation;
+  const path = el.dataset.calcField;
+  const raw = el.value;
+  if (path === 'caseId') {
+    calc.caseId = raw;
+    if (!calc.caseId) calc.resultId = '';
+    else {
+      const list = stiffnessResults(record);
+      if (!calc.resultId && list.length) calc.resultId = list[0].id;
+    }
+    return true;
+  }
+  if (path === 'resultId') { calc.resultId = raw; return true; }
+  if (path === 'productConfirmed') { calc.productConfirmed = el.checked === true; return true; }
+  if (path === 'distributionMode') { calc.distributionMode = raw === 'measured' ? 'measured' : 'paper'; return true; }
+  if (path.startsWith('measured.')) {
+    const field = path.slice('measured.'.length);
+    if (field === 'meanMPa' || field === 'cvPct' || field === 'n') calc.measured[field] = numOrNull(raw);
+    else if (field === 'source') calc.measured.source = String(raw || '').slice(0, 220);
+    return false;
+  }
+  if (path.startsWith('baseline.')) {
+    const field = path.slice('baseline.'.length);
+    if (field === 'inputMeanMPa' || field === 'outputMeanMPa' || field === 'n') calc.baseline[field] = numOrNull(raw);
+    else if (field === 'source') calc.baseline.source = String(raw || '').slice(0, 220);
+    return false;
+  }
+  return false;
+}
+
+function markCalcChanged(structural) {
+  const record = activeRecord();
+  if (record) record.updatedAt = new Date().toISOString();
+  scheduleSave();
+  notify();
+  if (structural) renderCalculation();
+  else renderCalcOutput();
+}
+
 function onFieldInput(event) {
   const el = event.target;
   if (!(el instanceof HTMLElement)) return;
   if (!el.matches('input, textarea, select')) return;
+  if (el.dataset && el.dataset.calcField) {
+    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') return;
+    const structural = setCalcField(el);
+    markCalcChanged(structural);
+    return;
+  }
   const record = activeRecord();
   if (!record) return;
   let changed = false;
@@ -7171,6 +7907,11 @@ function onChange(event) {
   const el = event.target;
   if (el.id === 'record-select') { setActiveRecord(el.value); return; }
   if (el.id === 'record-import-file') { importRecordFile(el.files && el.files[0]); el.value = ''; return; }
+  if (el.dataset && el.dataset.calcField) {
+    const structural = setCalcField(el);
+    markCalcChanged(structural);
+    return;
+  }
   // A typed result name can tell us which model limits apply; keep an explicit
   // user choice, but replace the generic "other" default on blur.
   if (el.dataset && el.dataset.resultField === 'name' && el.dataset.resultId) {
@@ -7221,6 +7962,124 @@ function initConsistencyScreen(options = {}) {
 return { initConsistencyScreen };
 })();
 
+/* ===== evidence_ui.js ===== */
+__modules.evidence_ui = (function () {
+const EV = __modules.evidence;
+/**
+ * AnyRB v0.6 — evidence map screen.
+ *
+ * Renders the evidence map from app/evidence.js. It is a reading surface, not a
+ * product catalog and not a result generator: only the PNAS {8,5} row links to
+ * the one allowed, simulation-labelled calculation in the consistency record.
+ */
+
+
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const doiUrl = (doi) => (doi ? `https://doi.org/${doi}` : '');
+const pmcUrl = (pmc) => (pmc ? `https://pmc.ncbi.nlm.nih.gov/articles/${pmc}/` : '');
+
+let root = null;
+let callbacks = {};
+
+function gradeClass(grade) {
+  if (grade === 'measured_on_product_class') return 'is-measured';
+  if (grade === 'model_only') return 'is-model';
+  return 'is-absent';
+}
+
+function renderSummary() {
+  const host = document.getElementById('evidence-summary');
+  if (!host) return;
+  const summary = EV.evidenceSummary();
+  const c = summary.counts;
+  host.innerHTML = `
+    <div class="micro">What the literature actually measures</div>
+    <h2>A citation is not a result on your batch.</h2>
+    <p class="evidence-lede">This map separates three grades. A measured link means the paper tested that product class and result with a varying input; a model-only row has no physical product test; absent means no qualifying link was found. A product-class formulation result is not automatically a batch link.</p>
+    <div class="evidence-counts">
+      <span><b>${c.measured_on_product_class}</b> measured on a product class</span>
+      <span><b>${c.model_only}</b> model only</span>
+      <span><b>${c.absent}</b> absent</span>
+    </div>
+    <div class="evidence-actions">
+      <button class="btn btn--sm" type="button" id="evidence-open-record">Back to the consistency record</button>
+      <button class="btn btn--sm btn--ghost" type="button" id="evidence-open-studio">Historical bracket studio →</button>
+    </div>`;
+  document.getElementById('evidence-open-record')?.addEventListener('click', () => callbacks.onOpenRecord?.());
+  document.getElementById('evidence-open-studio')?.addEventListener('click', () => callbacks.onOpenStudio?.());
+}
+
+function renderField(label, value) {
+  return `<div class="ev-field"><span class="micro">${esc(label)}</span><div>${esc(value || '—')}</div></div>`;
+}
+
+function renderRow(row) {
+  const sourceLinks = [];
+  if (row.doi) sourceLinks.push(`<a href="${esc(doiUrl(row.doi))}" target="_blank" rel="noopener">doi:${esc(row.doi)}</a>`);
+  if (row.pmcid) sourceLinks.push(`<a href="${esc(pmcUrl(row.pmcid))}" target="_blank" rel="noopener">${esc(row.pmcid)}</a>`);
+  const calc = row.calcEligible
+    ? '<span class="pill pill--verify ev-calc-pill">Calculation in consistency record</span>'
+    : (row.grade === 'measured_on_product_class'
+      ? '<span class="pill pill--muted">Product-class evidence; not a batch link</span>'
+      : '');
+  return `<article class="evidence-row ${gradeClass(row.grade)}" data-evidence-id="${esc(row.id)}">
+    <div class="ev-head">
+      <div>
+        <span class="micro">${esc(row.grade.replace(/_/g, ' '))}</span>
+        <h3>${esc(row.productClass)}</h3>
+        <p class="ev-detail">${esc(row.detail)}</p>
+      </div>
+      <div class="ev-head-right">
+        <span class="ev-grade ${gradeClass(row.grade)}">${esc(EV.GRADE_LABELS[row.grade] || row.grade)}</span>
+        ${calc}
+      </div>
+    </div>
+    <div class="ev-grid">
+      ${renderField('Result', row.result)}
+      ${renderField('Input that varied', row.inputVaried)}
+      ${renderField('What was physically measured', row.measured)}
+      ${renderField('Sample size', row.sampleSize)}
+      ${renderField('What moved', row.moved)}
+      ${renderField('Experiment or model', row.type)}
+      ${renderField('What it does not cover', row.notCovered)}
+    </div>
+    <div class="ev-source"><span class="micro">Source</span><p>${esc(row.source)}${row.locator ? ` · ${esc(row.locator)}` : ''}</p><p>${sourceLinks.join(' · ')}</p></div>
+  </article>`;
+}
+
+function renderRows() {
+  const host = document.getElementById('evidence-rows');
+  if (!host) return;
+  host.innerHTML = EV.EVIDENCE_ROWS.map(renderRow).join('');
+}
+
+function renderNote() {
+  const host = document.getElementById('evidence-note');
+  if (!host) return;
+  host.innerHTML = `
+    <div class="micro">The one calculation</div>
+    <h3>PNAS 2025 {8,5} platelet–matrix modulus</h3>
+    <p>The only calculation the app is allowed to run is the PNAS {8,5} case, and only when the user has selected that product class, a modulus result in MPa with a target, a measured recyclate stiffness distribution, and a measured composite modulus baseline. The paper reports the measured CV ratio 18 %→4 % but <b>no absolute measured E_eff mean</b>; that is why a measured baseline is required.</p>
+    <p class="ev-warning"><b>The 93 % is not used.</b> It is the paper's <b>model-only</b> stretch-film case relative to a modelled 26 % total introduced variability (554 ± 10 MPa, CV 2 %). The measured {8,5} composite result is 18 %→4 % CV. Neither is a result on your product or batch.</p>
+    <p><a href="${esc(EV.EVIDENCE_MAP_MD)}" target="_blank" rel="noopener">Read the full evidence map</a> · <a href="${esc(EV.EVIDENCE_MAP_JSON)}" target="_blank" rel="noopener">machine-readable map</a></p>`;
+}
+
+function initEvidenceScreen(options = {}) {
+  root = document.getElementById('screen-evidence');
+  if (!root) return null;
+  callbacks = options || {};
+  renderSummary();
+  renderRows();
+  renderNote();
+  return {
+    refresh() { renderSummary(); renderRows(); renderNote(); },
+  };
+}
+
+return { initEvidenceScreen };
+})();
+
 /* ===== ui.js ===== */
 __modules.ui = (function () {
 const {GEOMETRY, DEFAULTS, MATERIAL_PRESETS, OPTIMIZER, APP_META, V03, apiUrl,} = __modules.config;
@@ -7231,17 +8090,20 @@ const AC = __modules.aicore;
 const {createAIClient} = __modules.ai;
 const {PRODUCT_RENDER_DATA_URL, PRODUCT_RENDER_LABEL, PRODUCT_RENDER_MODEL} = __modules.product_render;
 const {initConsistencyScreen} = __modules.consistency_ui;
+const {initEvidenceScreen} = __modules.evidence_ui;
 /**
- * AnyRB v0.5 — UI controller.
+ * AnyRB v0.6 — UI controller.
  *
- * Two workspaces:
+ * Three surfaces:
  *   1. the open consistency record (measurements only; no presets or bracket model)
- *   2. the existing three-step bracket studio (2-D simulation, bracket only)
+ *   2. the evidence map (reading surface + one PNAS simulation case)
+ *   3. the historical three-step bracket studio (2-D simulation, bracket only)
  *
  * The verified engine (engine.js / optimize.js) does every bracket number; the AI
  * layer (ai.js + aicore.js) proposes, parses and explains in the studio. The
  * consistency record is independent and never calls either.
  */
+
 
 
 
@@ -7352,7 +8214,8 @@ const state = {
 };
 
 let consistencyUI = null;
-const WORKSPACES = ['consistency', 'studio'];
+let evidenceUI = null;
+const WORKSPACES = ['consistency', 'evidence', 'studio'];
 
 const ai = createAIClient({ demo: { mock: demo.mock, forceOffline: demo.forceOffline } });
 state.ai = ai;
@@ -7394,7 +8257,7 @@ function restoreDraft() {
     if (d.lot && Number.isFinite(d.lot.E_mean)) { state.lot = d.lot; state.material = AC.materialFromLot(d.lot); }
     if (typeof d.lab === 'boolean') state.lab = d.lab;
     if (typeof d.view === 'string') state.view = d.view;
-    if (d.workspace === 'studio' || d.workspace === 'consistency') state.workspace = d.workspace;
+    if (d.workspace === 'studio' || d.workspace === 'consistency' || d.workspace === 'evidence') state.workspace = d.workspace;
   } catch (err) { /* ignore corrupt draft */ }
 }
 
@@ -7505,6 +8368,7 @@ function setView(view, { force = false } = {}) {
   const current = document.body.dataset.view;
   if (!force && current === view) {
     if (view === 'consistency') consistencyUI?.refresh();
+    if (view === 'evidence') evidenceUI?.refresh();
     updateProjectName();
     return;
   }
@@ -7513,20 +8377,24 @@ function setView(view, { force = false } = {}) {
   document.documentElement.setAttribute('data-anyrb-workspace', view);
   $$('#view-switch button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'));
   const consistencyScreen = $('#screen-consistency');
-  if (view === 'consistency') {
+  const evidenceScreen = $('#screen-evidence');
+  if (view === 'consistency' || view === 'evidence') {
     const aiMenu = $('#ai-menu');
     if (aiMenu) aiMenu.hidden = true;
     const drawer = $('#drawer');
     if (drawer) { drawer.classList.remove('is-open'); drawer.setAttribute('aria-hidden', 'true'); }
     $('#scrim')?.classList.remove('is-open');
-    $$('.screen').forEach((sec) => { sec.dataset.active = sec.id === 'screen-consistency' ? 'true' : 'false'; });
-    document.body.dataset.screen = 'consistency';
-    consistencyUI?.refresh();
+    const activeId = view === 'consistency' ? 'screen-consistency' : 'screen-evidence';
+    $$('.screen').forEach((sec) => { sec.dataset.active = sec.id === activeId ? 'true' : 'false'; });
+    document.body.dataset.screen = view;
+    if (view === 'consistency') consistencyUI?.refresh();
+    else evidenceUI?.refresh();
     updateProjectName();
-    try { if (location.hash !== '#consistency') history.replaceState(null, '', '#consistency'); } catch (err) { /* file:// or sandbox */ }
+    try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch (err) { /* file:// or sandbox */ }
     try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (err) { window.scrollTo(0, 0); }
   } else {
     if (consistencyScreen) consistencyScreen.dataset.active = 'false';
+    if (evidenceScreen) evidenceScreen.dataset.active = 'false';
     setStep(state.step, { force: true });
     updateProjectName();
     try { if (location.hash !== '#studio') history.replaceState(null, '', '#studio'); } catch (err) { /* file:// or sandbox */ }
@@ -7537,16 +8405,19 @@ function wireWorkspace() {
   $$('#view-switch button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
   $('#consistency-open-studio')?.addEventListener('click', () => setView('studio'));
   $('#studio-open-record')?.addEventListener('click', () => setView('consistency'));
+  $('#open-historical-studio')?.addEventListener('click', () => setView('studio'));
   window.addEventListener('hashchange', () => {
     if (location.hash === '#studio') setView('studio');
     else if (location.hash === '#consistency') setView('consistency');
+    else if (location.hash === '#evidence') setView('evidence');
   });
 }
 function initialWorkspace() {
   if (location.hash === '#studio') return 'studio';
   if (location.hash === '#consistency') return 'consistency';
+  if (location.hash === '#evidence') return 'evidence';
   if (demo.screen) return 'studio';
-  return state.workspace === 'studio' ? 'studio' : 'consistency';
+  return 'consistency';
 }
 
 // ---------------------------------------------------------------------------
@@ -7573,16 +8444,16 @@ function updateProjectName() {
   const pn = $('#project-name');
   if (!pn) return;
   const view = document.body.dataset.view || state.workspace;
-  pn.textContent = view === 'consistency' ? (state.consistencyTitle || 'Untitled record') : state.project;
+  pn.textContent = view === 'consistency' ? (state.consistencyTitle || 'Untitled record') : view === 'evidence' ? 'Evidence map' : state.project;
   const switcher = $('#project-switcher');
-  if (switcher) switcher.setAttribute('aria-label', view === 'consistency' ? `Open consistency record: ${pn.textContent}` : `Current bracket project: ${pn.textContent}`);
+  if (switcher) switcher.setAttribute('aria-label', view === 'consistency' ? `Open consistency record: ${pn.textContent}` : view === 'evidence' ? 'Evidence map' : `Current bracket project: ${pn.textContent}`);
 }
 function renderProject() {
   updateProjectName();
   const seed = $('#session-seed');
   if (seed) seed.textContent = String(DEFAULTS.seed);
   const engine = $('#session-engine');
-  if (engine) engine.textContent = 'v0.5';
+  if (engine) engine.textContent = 'v0.6';
   const valid = $('#session-valid');
   if (valid) {
     const v = state.validation || {};
@@ -9049,6 +9920,10 @@ function wireHelp() {
       toast('This record uses your measurements only. AI does not fill a missing result.');
       return;
     }
+    if (document.body.dataset.view === 'evidence') {
+      toast('The evidence map is a reading surface. It does not fill any record result.');
+      return;
+    }
     openDrawer();
     toast('Every AI sentence is grounded in calculated numbers. See “What this can and can’t prove” on Prove.');
   });
@@ -9199,7 +10074,7 @@ function buildReportHtml() {
   .memo{background:#FCFBF7} .lim{font-size:12px;color:var(--muted)}
   .tag{color:var(--verify)} .warn{color:#B8361A}
 </style></head><body>
-<div class="micro">AnyRB v0.5 · bracket simulation and consistency record</div>
+<div class="micro">AnyRB v0.6 · consistency record and evidence map</div>
 <h1>${esc(state.project)}</h1>
 <div class="badge">Generated ${new Date().toISOString()} · AI mode: ${esc(state.aiMode)} · seed ${DEFAULTS.seed}</div>
 <div class="card"><div class="micro">Brief</div>
@@ -9374,6 +10249,10 @@ async function boot() {
       state.consistencyTitle = title;
       if (document.body.dataset.view === 'consistency') updateProjectName();
     },
+  });
+  evidenceUI = initEvidenceScreen({
+    onOpenRecord: () => setView('consistency'),
+    onOpenStudio: () => setView('studio'),
   });
   restoreDraft();
   renderProject();
