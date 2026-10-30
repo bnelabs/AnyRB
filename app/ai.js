@@ -17,7 +17,7 @@
 
 import {
   OFFLINE_MODEL, OFFLINE_NOTE,
-  fallbackBrief, fallbackLot, fallbackPlan, fallbackDesignReview, fallbackProofMemo,
+  fallbackBrief, fallbackPlan, fallbackDesignReview, fallbackProofMemo,
   fallbackVoice, fallbackRenderSvg, parseLotTextHeuristics,
   normalizeBriefResponse, normalizeLotResponse, normalizePlan,
   normalizeReviewResponse, normalizeProofResponse, normalizeVoiceResponse, normalizeRenderResponse,

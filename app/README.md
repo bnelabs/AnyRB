@@ -1,16 +1,16 @@
-# AnyRB v0.2 — AI reliability studio (interactive app)
+# AnyRB v0.5 — consistency record + bracket studio
 
-**One line:** AnyRB is an AI reliability studio for recycled plastics — describe the
-part you need, give it the batch you actually have, and it designs internal geometry that
-behaves reliably; the AI acts as the design partner, the verified physics does the math.
+**One line:** AnyRB keeps a user-named recycled-plastic product's result inside a target
+range only when the record holds a measurement that links this product and this result —
+and keeps a separate 2-D bracket studio as the one simulated product in the repo.
 
-> **Decision support, not certification.** In-silico only. Literature-derived feedstock,
-> simulated reliability, a local (not proven global) optimum, no physical testing.
-> Validate with your own lot data and physical tests before production.
+This folder is the judged hackathon artifact. It has two workspaces:
 
-This folder is the judged hackathon artifact: a three-step AI studio (**01 Brief →
-02 Design → 03 Prove**) wired to the FastAPI Meta backend in `anyrb/server/`, with a
-deterministic offline assistant so the standalone file never breaks.
+- **Consistency record** (default): one open record type for any product/result. Uses
+  measurements only. No product catalog, no material preset, no bracket model, no AI.
+- **Bracket studio**: the existing three-step rPETG wall-bracket study (**01 Brief →
+  02 Design → 03 Prove**), wired to the FastAPI Meta backend, with a built-in offline
+  assistant. It is a 2-D frame simulation of that bracket, not a 3-D product simulator.
 
 ---
 
@@ -25,18 +25,50 @@ deterministic offline assistant so the standalone file never breaks.
 | **State demos** | `?state=loading`, `?state=error`, `?state=offline`; deep links `?screen=brief|design|prove` | forces the corresponding loading/error/offline UI state |
 
 The backend holds the Meta API key; **the browser never sees a key**. Absent or
-unreachable backend → offline assistant, clearly badged per card and in the top bar.
+unreachable backend → offline assistant in the bracket studio, clearly badged per card and
+in the top bar. The consistency record has no AI controls at all.
 
 ### Build / test
 
 ```bash
 python3 app/build.py        # inlines app sources -> anyrb/index.html (+ app/standalone.html)
-node app/tests/run.mjs      # 37 tests: engine fixtures, FE checks, v0.4 AI helpers
+node app/tests/run.mjs      # 48 tests: engine fixtures, FE checks, v0.4 AI helpers, v0.5 consistency rules
 ```
 
 ---
 
-## 2. The three steps
+## 2. The consistency record (v0.5)
+
+The default workspace is one open record, not a screen per product.
+
+1. **Product** — free text; any product, no list.
+2. **Recycled input** — free text: plastic type, batch, mix, minor contamination.
+3. **Result and target** — free text name/unit plus numeric min/max. Add as many results
+   as needed; a sheet can hold sound insulation, thickness and weight.
+4. **Measured link** — measurement rows with product-choice label, input level, value and
+   named source, plus a "what varied" description. Two or more input levels are required
+   for a measured link. One level = one-batch answer only.
+5. **Outcome per result** — exactly one of:
+   - measured link → measured range + measured product choice inside/outside target;
+   - one batch → this batch inside/outside; no next-batch prediction, no 3-D extension;
+   - missing → result blank + the test still needed. Product, target, input and empty
+     measurement slot are saved.
+
+The record stores whether a 3-D model could apply, but v0.5 runs no generic 3-D model for
+an arbitrary product. Mass would need measured density plus a measured/modelled volume;
+strength/stiffness would need measured modulus and strength plus a structural model; sound
+insulation is never a structural 3-D result. The bracket's 2-D frame is never used here.
+A direct measured result is labelled as measured, not simulated.
+
+The screen can save several user-created records. Download/import stores any product with
+an empty measurement slot and its test plan. No chart, score or overall pass/fail is shown.
+
+Files: `consistency.js` (pure outcome rules and 3-D gate), `consistency_ui.js` (the one
+record screen), `../V0_5_SPEC.md`, `../audit/V0_5_PRODUCT_SUPPORT.md`.
+
+---
+
+## 3. The bracket studio (2-D simulation, v0.4 path)
 
 **01 · Brief** — large prompt (textarea + mic + examples); the AI parses it into an
 editable brief (part, load, deflection limit, reliability target, process, batch); the
@@ -67,7 +99,7 @@ grounding for every call.
 
 ---
 
-## 3. AI integration and honesty
+## 4. AI integration and honesty
 
 | Endpoint | Live model | Job | Fallback |
 |---|---|---|---|
@@ -95,11 +127,13 @@ ranking/comparison bars, and includes both in the exported report/JSON.
 
 ---
 
-## 4. Architecture
+## 5. Architecture
 
 ```
 app/
   index.html      dev shell (ES modules, needs HTTP)
+  consistency.js  v0.5 pure record/outcome/3-D-gate rules (no DOM, no presets, no AI)
+  consistency_ui.js  v0.5 one open record screen (localStorage, import/export)
   styles.css      v0.2 design system: exact DESIGN_SPEC tokens (warm paper, ink,
                   safety orange + verified green, serif display, tabular numerals)
   config.js       engine/material/optimiser defaults (unchanged v0.1 physics config)
@@ -126,7 +160,7 @@ runs `node --check` on the generated classic script. No external fonts, CDNs or 
 
 ---
 
-## 5. Results in the app (rPETG, 150 N, 2.5 mm, 1 % target)
+## 6. Results in the app (rPETG, 150 N, 2.5 mm, 1 % target)
 
 | Quantity | Value |
 |---|---|
@@ -143,7 +177,7 @@ fields ≤1e-9 relative, P_f ≤1e-6 absolute).
 
 ---
 
-## 6. Known limits / deviations from the prototype
+## 7. Known limits / deviations from the prototype
 
 - **Physics unchanged from v0.1:** linear-elastic 2-D frame; no plasticity, creep,
   fatigue, joints, out-of-plane/layer-normal loading or spatial material scatter; Euler

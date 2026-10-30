@@ -1,10 +1,13 @@
 /**
- * AnyRB v0.3 — UI controller (review-response release).
+ * AnyRB v0.5 — UI controller.
  *
- * Three-step AI studio: 01 Brief → 02 Design → 03 Prove.
- * The verified engine (engine.js / optimize.js) does every number; the AI layer
- * (ai.js + aicore.js) proposes, parses and explains. Dev shell uses this ES
- * module; build.py inlines it into the standalone HTML.
+ * Two workspaces:
+ *   1. the open consistency record (measurements only; no presets or bracket model)
+ *   2. the existing three-step bracket studio (2-D simulation, bracket only)
+ *
+ * The verified engine (engine.js / optimize.js) does every bracket number; the AI
+ * layer (ai.js + aicore.js) proposes, parses and explains in the studio. The
+ * consistency record is independent and never calls either.
  */
 
 import {
@@ -16,6 +19,7 @@ import { buildBinarySTL, stlFileName } from './stl.js';
 import * as AC from './aicore.js';
 import { createAIClient } from './ai.js';
 import { PRODUCT_RENDER_DATA_URL, PRODUCT_RENDER_LABEL, PRODUCT_RENDER_MODEL } from './product_render.js';
+import { initConsistencyScreen } from './consistency_ui.js';
 
 // ---------------------------------------------------------------------------
 // DOM + format helpers
@@ -105,6 +109,8 @@ const state = {
   proof: null,
   validation: AC.validationFallback(),
   view: 'geometry',
+  workspace: 'consistency',
+  consistencyTitle: 'Untitled record',
   lab: false,
   busy: false,
   passport: { e: 1, sy: 1, adapt: null },
@@ -113,6 +119,9 @@ const state = {
   aiMode: 'detecting',
   aiCalls: [],
 };
+
+let consistencyUI = null;
+const WORKSPACES = ['consistency', 'studio'];
 
 const ai = createAIClient({ demo: { mock: demo.mock, forceOffline: demo.forceOffline } });
 state.ai = ai;
@@ -138,7 +147,7 @@ function persist() {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       project: state.project, step: state.step, maxStep: state.maxStep,
       brief: state.brief, briefMeta: state.briefMeta, lot: state.lot,
-      lab: state.lab, selectedId: state.selectedId, view: state.view,
+      lab: state.lab, selectedId: state.selectedId, view: state.view, workspace: state.workspace,
       savedAt: new Date().toISOString(),
     }));
   } catch (err) { /* private mode — silent */ }
@@ -154,6 +163,7 @@ function restoreDraft() {
     if (d.lot && Number.isFinite(d.lot.E_mean)) { state.lot = d.lot; state.material = AC.materialFromLot(d.lot); }
     if (typeof d.lab === 'boolean') state.lab = d.lab;
     if (typeof d.view === 'string') state.view = d.view;
+    if (d.workspace === 'studio' || d.workspace === 'consistency') state.workspace = d.workspace;
   } catch (err) { /* ignore corrupt draft */ }
 }
 
@@ -257,6 +267,58 @@ function wireStepper() {
 }
 
 // ---------------------------------------------------------------------------
+// Workspace switch: open consistency record vs bracket studio
+// ---------------------------------------------------------------------------
+function setView(view, { force = false } = {}) {
+  if (!WORKSPACES.includes(view)) return;
+  const current = document.body.dataset.view;
+  if (!force && current === view) {
+    if (view === 'consistency') consistencyUI?.refresh();
+    updateProjectName();
+    return;
+  }
+  state.workspace = view;
+  document.body.dataset.view = view;
+  document.documentElement.setAttribute('data-anyrb-workspace', view);
+  $$('#view-switch button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'));
+  const consistencyScreen = $('#screen-consistency');
+  if (view === 'consistency') {
+    const aiMenu = $('#ai-menu');
+    if (aiMenu) aiMenu.hidden = true;
+    const drawer = $('#drawer');
+    if (drawer) { drawer.classList.remove('is-open'); drawer.setAttribute('aria-hidden', 'true'); }
+    $('#scrim')?.classList.remove('is-open');
+    $$('.screen').forEach((sec) => { sec.dataset.active = sec.id === 'screen-consistency' ? 'true' : 'false'; });
+    document.body.dataset.screen = 'consistency';
+    consistencyUI?.refresh();
+    updateProjectName();
+    try { if (location.hash !== '#consistency') history.replaceState(null, '', '#consistency'); } catch (err) { /* file:// or sandbox */ }
+    try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (err) { window.scrollTo(0, 0); }
+  } else {
+    if (consistencyScreen) consistencyScreen.dataset.active = 'false';
+    setStep(state.step, { force: true });
+    updateProjectName();
+    try { if (location.hash !== '#studio') history.replaceState(null, '', '#studio'); } catch (err) { /* file:// or sandbox */ }
+  }
+  persist();
+}
+function wireWorkspace() {
+  $$('#view-switch button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+  $('#consistency-open-studio')?.addEventListener('click', () => setView('studio'));
+  $('#studio-open-record')?.addEventListener('click', () => setView('consistency'));
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#studio') setView('studio');
+    else if (location.hash === '#consistency') setView('consistency');
+  });
+}
+function initialWorkspace() {
+  if (location.hash === '#studio') return 'studio';
+  if (location.hash === '#consistency') return 'consistency';
+  if (demo.screen) return 'studio';
+  return state.workspace === 'studio' ? 'studio' : 'consistency';
+}
+
+// ---------------------------------------------------------------------------
 // Brief rendering
 // ---------------------------------------------------------------------------
 function plainMode(label) {
@@ -276,13 +338,20 @@ function plainPrint(pr, pass) {
   return `${pass ? 'print check clear' : 'print check flagged'} · width change ${nf(ratio, 2)} · thin-strut ${nf(slen, 1)}`;
 }
 
-function renderProject() {
+function updateProjectName() {
   const pn = $('#project-name');
-  if (pn) pn.textContent = state.project;
+  if (!pn) return;
+  const view = document.body.dataset.view || state.workspace;
+  pn.textContent = view === 'consistency' ? (state.consistencyTitle || 'Untitled record') : state.project;
+  const switcher = $('#project-switcher');
+  if (switcher) switcher.setAttribute('aria-label', view === 'consistency' ? `Open consistency record: ${pn.textContent}` : `Current bracket project: ${pn.textContent}`);
+}
+function renderProject() {
+  updateProjectName();
   const seed = $('#session-seed');
   if (seed) seed.textContent = String(DEFAULTS.seed);
   const engine = $('#session-engine');
-  if (engine) engine.textContent = 'v0.4';
+  if (engine) engine.textContent = 'v0.5';
   const valid = $('#session-valid');
   if (valid) {
     const v = state.validation || {};
@@ -1745,6 +1814,10 @@ function wireLab() {
 }
 function wireHelp() {
   $('#btn-help')?.addEventListener('click', () => {
+    if (document.body.dataset.view === 'consistency') {
+      toast('This record uses your measurements only. AI does not fill a missing result.');
+      return;
+    }
     openDrawer();
     toast('Every AI sentence is grounded in calculated numbers. See “What this can and can’t prove” on Prove.');
   });
@@ -1895,7 +1968,7 @@ function buildReportHtml() {
   .memo{background:#FCFBF7} .lim{font-size:12px;color:var(--muted)}
   .tag{color:var(--verify)} .warn{color:#B8361A}
 </style></head><body>
-<div class="micro">AnyRB v0.4 · design and batch check · model estimates</div>
+<div class="micro">AnyRB v0.5 · bracket simulation and consistency record</div>
 <h1>${esc(state.project)}</h1>
 <div class="badge">Generated ${new Date().toISOString()} · AI mode: ${esc(state.aiMode)} · seed ${DEFAULTS.seed}</div>
 <div class="card"><div class="micro">Brief</div>
@@ -2026,6 +2099,7 @@ function buildStatic() {
   $('#btn-continue')?.addEventListener('click', runProofFlow);
   $('#btn-retry-brief')?.addEventListener('click', () => { $('#understanding-error').hidden = true; runDesignFlow(); });
   $('#btn-select-hero')?.addEventListener('click', () => selectCandidate('optimised'));
+  wireWorkspace();
   wireStepper(); wireViewToggle(); wireRecipe(); wireExports(); wireDrawer(); wireAIMenu(); wireDatasheet(); wireLab(); wireHelp();
   renderClaims(); renderValidation(); renderPlanPreview(); renderUnderstanding(); renderLot(); renderPresetMenu(); renderAdvancedControls();
   if ($('#brief-text')) $('#brief-text').value = state.brief.notes || $('#brief-text').value;
@@ -2064,6 +2138,12 @@ async function applyDemoState() {
 }
 async function boot() {
   buildStatic();
+  consistencyUI = initConsistencyScreen({
+    onRecordChange: ({ title }) => {
+      state.consistencyTitle = title;
+      if (document.body.dataset.view === 'consistency') updateProjectName();
+    },
+  });
   restoreDraft();
   renderProject();
   renderBriefText();
@@ -2073,6 +2153,7 @@ async function boot() {
   renderAdvancedControls();
   renderFeasibility();
   setStep('brief', { force: true });
+  setView(initialWorkspace(), { force: true });
   try { await ai.detect(); } catch (err) { console.error(err); }
   renderAIStatus(ai.getSnapshot());
   await applyDemoState();
@@ -2082,6 +2163,7 @@ async function boot() {
   document.documentElement.setAttribute('data-anyrb-ai-mode', state.aiMode);
   if (demo.smoke) {
     try {
+      setView('studio', { force: true });
       await runDesignFlow();
       await sleep(250);
       await runProofFlow();

@@ -214,8 +214,8 @@ export const APP_META = {
   title: 'AnyRB',
   subtitle: 'Any Recycled Batch — design software for recycled-plastic parts',
   thesis:
-    'Design the inside of the part around the batches you actually get, then adjust the print recipe for the batch in hand. You do not need physical tests to use it; the calculations and material data are in the software.',
-  version: 'v0.3 · review-response',
+    'Two workspaces: an open consistency record that shows a result only when a measurement links this product and this result, and a 2-D bracket studio that simulates one printed bracket. Product names, presets and the bracket model are not measurements.',
+  version: 'v0.5 · consistency record',
   calibration:
     'Demo version. The calculations were cross-checked against a separate reference implementation.',
   strengthNote:
@@ -300,4 +300,16 @@ export const V04 = {
   assumptionNote: 'Shows how the failure chance moves if two unmeasured inputs are different: the stiffness–strength link (0.30/0.70) and the split between batch-to-batch and within-batch variation (75/95%). This is a sensitivity check, not validation.',
   unionPolish: { nHalton: 10000, maxEvals: 90, acceptFactor: 0.999 },
   qcNotUsedNote: 'Kept for the record only — not used in the model (no calibration yet).',
+};
+
+
+// ---------------------------------------------------------------------------
+// v0.5 open consistency record
+// ---------------------------------------------------------------------------
+export const V05 = {
+  storageKey: 'anyrb.consistency.v1',
+  recordSchema: 'anyrb.consistency/v1',
+  outcomeModes: ['link', 'batch', 'missing'],
+  note: 'A product name, a material preset, an assumed CV and the bracket model are not measured links. A result is shown only from a measurement of this product and this result, with a named source and what varied. One batch stays one batch. No measurement means the result stays blank with the test still needed.',
+  threeDNote: 'No generic 3-D simulator is added. A 3-D model is applicable only when the result depends on shape and the required measured density (mass) or measured modulus and strength (strength/stiffness) is present. Sound insulation is not a structural 3-D result. The bracket studio remains a labelled 2-D simulation for the bracket only.',
 };

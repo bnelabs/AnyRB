@@ -16,12 +16,15 @@
  *   - fixture cross-check against app/tests/fixtures/reference.json
  *     (Lead-owned; deterministic fields 1e-9 rel, P_f 1e-6 abs)
  *   - performance budgets (§5)
+ *   - v0.5 open consistency record: measurements, three outcomes, product choices,
+ *     3-D eligibility gate, empty slots, JSON round-trip
  */
 
 import fs from 'node:fs';
 import * as E from '../engine.js';
 import * as O from '../optimize.js';
 import * as AC from '../aicore.js';
+import * as C from '../consistency.js';
 import { DEFAULTS, GEOMETRY, MATERIAL_PRESETS } from '../config.js';
 
 const FIXTURE_URL = new URL('./fixtures/reference.json', import.meta.url);
@@ -872,6 +875,199 @@ test('v0.4 assumption bounds match the Python reference range', () => {
   assert(ab.pf_min === Math.min(...ab.corr_range.concat(ab.split_range).map((x) => x.pf)), 'pf_min');
   assert(ab.pf_max === Math.max(...ab.corr_range.concat(ab.split_range).map((x) => x.pf)), 'pf_max');
   assert(/assumption sensitivity/i.test(ab.note) && /not validation/i.test(ab.note), 'note labels assumption sensitivity, not validation');
+});
+
+
+// ---------------------------------------------------------------------------
+// v0.5 open consistency record (measurements only; no presets, no fake 3-D)
+// ---------------------------------------------------------------------------
+function cPoint(choice, input, value, source) {
+  return { id: `m-${Math.random().toString(36).slice(2)}`, choice, input, value, source };
+}
+function cResult(overrides = {}) {
+  return {
+    id: `res-${Math.random().toString(36).slice(2)}`,
+    name: 'mass', kind: 'mass', unit: 'g', min: 900, max: 1100,
+    testNeeded: '', link: { varied: '', points: [] },
+    ...overrides,
+  };
+}
+function cRecord(overrides = {}) {
+  return C.normalizeRecord({
+    product: 'Counterweight for a lamp base',
+    input: { plasticType: 'recycled polypropylene', batch: '12 bales', mix: '20 % HDPE', contamination: '≤ 2 % label residue' },
+    results: [cResult()],
+    ...overrides,
+  });
+}
+function cOutcome(record) {
+  return C.outcomeFor(record, record.results[0]);
+}
+
+test('v0.5 no measurement leaves the result blank and names the test', () => {
+  const record = cRecord();
+  const out = cOutcome(record);
+  assert(out.mode === 'missing', `mode ${out.mode}`);
+  assert(out.reason === 'no-measurement', `reason ${out.reason}`);
+  assert(out.value === null && out.range === null, 'result must stay blank');
+  assert(/Weigh the same Counterweight/.test(out.testNeeded), 'test names the product');
+  assert(out.threeD.shapeDependent === true, 'mass depends on shape');
+  assert(out.threeD.applicable === false && out.threeD.simulation === false, 'no 3-D model is generated');
+  assert(/measured density/i.test(out.threeD.reason) && /library density/i.test(out.threeD.reason), 'density rule is stated');
+  assert(out.target.valid && out.target.min === 900 && out.target.max === 1100, 'target kept');
+});
+
+test('v0.5 one batch is reported as one batch only', () => {
+  const result = cResult({ link: { varied: '', points: [cPoint('3 mm ribbed build', 'Batch A', 980, 'Supplier report 2026-04, row 2')] } });
+  const record = cRecord({ results: [result] });
+  const out = cOutcome(record);
+  assert(out.mode === 'batch', `mode ${out.mode}`);
+  assert(out.inside === true, 'inside target');
+  assert(out.values.length === 1 && out.values[0].value === 980, 'measured value shown');
+  assert(out.range === null, 'no next-batch range');
+  assert(out.threeD.status === 'not_needed', 'no 3-D extension of one batch');
+  const outside = cOutcome(cRecord({ results: [cResult({ link: { varied: '', points: [cPoint('3 mm', 'Batch A', 1200, 'report')] } })] }));
+  assert(outside.mode === 'batch' && outside.inside === false, 'outside target is stated');
+});
+
+test('v0.5 two input levels with sources and what varied create a measured link', () => {
+  const points = [
+    cPoint('3 mm ribbed build', 'Batch A', 980, 'Supplier report 2026-04, row 2'),
+    cPoint('3 mm ribbed build', 'Batch B', 1040, 'Supplier report 2026-06, row 2'),
+  ];
+  const record = cRecord({ results: [cResult({ link: { varied: 'two delivered rPP batches with 20 % HDPE mix', points } })] });
+  const out = cOutcome(record);
+  assert(out.mode === 'link', `mode ${out.mode}`);
+  assert(out.range.min === 980 && out.range.max === 1040, 'measured range');
+  assert(out.inputLabels.length === 2, 'two input levels');
+  assert(out.inside === true && out.insideChoices.length === 1, 'measured choice inside target');
+  assert(out.insideChoices[0].choice === '3 mm ribbed build', 'product choice named');
+  assert(out.threeD.status === 'not_needed', 'direct measurement needs no 3-D result');
+});
+
+test('v0.5 a link needs a source, an input level and what varied', () => {
+  const base = [
+    cPoint('3 mm', 'Batch A', 980, 'report A'),
+    cPoint('3 mm', 'Batch B', 1040, 'report B'),
+  ];
+  const noSource = cOutcome(cRecord({ results: [cResult({ link: { varied: 'batches', points: [base[0], { ...base[1], source: '' }] } })] }));
+  assert(noSource.mode === 'missing' && noSource.reason === 'source-missing', 'source required');
+  assert(noSource.value === null, 'result blank when source missing');
+  const noInput = cOutcome(cRecord({ results: [cResult({ link: { varied: 'batches', points: [base[0], { ...base[1], input: '' }] } })] }));
+  assert(noInput.mode === 'missing' && noInput.reason === 'input-missing', 'input label required');
+  const noVaried = cOutcome(cRecord({ results: [cResult({ link: { varied: '', points: base } })] }));
+  assert(noVaried.mode === 'missing' && noVaried.reason === 'varied-missing', 'what varied required');
+  assert(noVaried.range === null && noVaried.value === null, 'no range without a valid link');
+});
+
+test('v0.5 product choices are grouped from measurements, not invented', () => {
+  const points = [
+    cPoint('thick build', 'Batch A', 44, 'report A'),
+    cPoint('thick build', 'Batch B', 48, 'report B'),
+    cPoint('thin build', 'Batch A', 45, 'report A'),
+    cPoint('thin build', 'Batch B', 55, 'report B'),
+  ];
+  const record = cRecord({ results: [cResult({ min: 43, max: 50, link: { varied: 'two batches', points } })] });
+  const out = cOutcome(record);
+  assert(out.mode === 'link', `mode ${out.mode}`);
+  assert(out.choices.length === 2, 'two measured choices');
+  assert(out.insideChoices.length === 1 && out.insideChoices[0].choice === 'thick build', 'only the measured thick build is inside');
+  assert(out.outsideChoices.length === 1 && out.outsideChoices[0].choice === 'thin build', 'outside choice is named');
+  assert(out.range.min === 44 && out.range.max === 55, 'overall measured range');
+});
+
+test('v0.5 multiple results are answered independently', () => {
+  const sound = cResult({
+    name: 'sound insulation', kind: 'sound', unit: 'dB', min: 25, max: 35,
+    link: { varied: '', points: [] },
+  });
+  const thickness = cResult({
+    name: 'thickness', kind: 'thickness', unit: 'mm', min: 9, max: 11,
+    link: { varied: '', points: [cPoint('10 mm sheet', 'Batch A', 10.1, 'caliper log')] },
+  });
+  const record = cRecord({ results: [cResult(), sound, thickness] });
+  const evaluated = C.evaluateRecord(record);
+  assert(evaluated.results.length === 3, 'three results');
+  assert(evaluated.results[0].mode === 'missing', 'mass blank');
+  assert(evaluated.results[1].mode === 'missing', 'sound blank without an acoustic measurement');
+  assert(evaluated.results[2].mode === 'batch', 'thickness has a one-batch measurement');
+  assert(evaluated.results[1].threeD.status === 'not_applicable', 'sound is not a structural 3-D result');
+  assert(/acoustic/i.test(evaluated.results[1].threeD.reason), 'acoustic test named');
+});
+
+test('v0.5 sound-insulation link never gets a structural 3-D result', () => {
+  const points = [
+    cPoint('15 mm sheet', 'Batch A', 24, 'acoustic lab report A'),
+    cPoint('15 mm sheet', 'Batch B', 28, 'acoustic lab report B'),
+  ];
+  const record = cRecord({
+    results: [cResult({
+      name: 'sound insulation', kind: 'sound', unit: 'dB', min: 22, max: 30,
+      link: { varied: 'two sheet batches', points },
+    })],
+  });
+  const out = C.outcomeFor(record, record.results[0]);
+  assert(out.mode === 'link', `mode ${out.mode}`);
+  assert(out.threeD.shapeDependent === false, 'acoustic is not shape-dependent structural');
+  assert(out.threeD.applicable === false && out.threeD.simulation === false, 'no structural 3-D result');
+  assert(/structural 3D model cannot/i.test(out.threeD.reason), 'reason is explicit');
+});
+
+test('v0.5 strength/stiffness without a structural model stays blank', () => {
+  for (const kind of ['strength', 'stiffness']) {
+    const record = cRecord({ results: [cResult({ name: kind, kind, unit: 'MPa', min: 20, max: 30 })] });
+    const out = cOutcome(record);
+    assert(out.mode === 'missing', `${kind} blank`);
+    assert(out.threeD.shapeDependent === true, `${kind} depends on shape`);
+    assert(out.threeD.applicable === false, `${kind} has no 3-D result`);
+    assert(/modulus/i.test(out.threeD.reason) && /bracket studio/i.test(out.threeD.reason), `${kind} states the missing measurements and 2-D scope`);
+  }
+});
+
+test('v0.5 arbitrary product and result names survive a record round-trip', () => {
+  const raw = cRecord({
+    product: 'Painted reclaimed-panel tile for a cafe wall',
+    input: { plasticType: 'mixed PP/HDPE', batch: 'Spring 2026 bales', mix: '30 % HDPE', contamination: '0.5 %' },
+    results: [cResult({
+      name: 'drop height before cracking', kind: 'other', unit: 'cm', min: 40, max: 60,
+      link: { varied: '', points: [] },
+    })],
+  });
+  const exported = C.exportRecord(raw);
+  const parsed = JSON.parse(JSON.stringify(exported));
+  const imported = C.importRecord(parsed);
+  assert(imported.product === raw.product, 'product name preserved');
+  assert(imported.results[0].name === 'drop height before cracking', 'result name preserved');
+  assert(imported.results[0].unit === 'cm', 'unit preserved');
+  assert(imported.results[0].link.points.length === 0, 'empty measurement slot preserved');
+  assert(imported.results[0].min === 40 && imported.results[0].max === 60, 'target preserved');
+  assert(parsed.outcomes[0].mode === 'missing', 'export records the missing-link outcome');
+  assert(parsed.outcomes[0].three_d.applicable === false, 'no 3-D result in export');
+  assert(parsed.outcomes[0].test_needed.length > 20, 'test plan exported');
+});
+
+test('v0.5 result kind is inferred from typed name but explicit choice wins', () => {
+  assert(C.classifyResultKind('sound insulation', 'dB') === 'sound', 'sound');
+  assert(C.classifyResultKind('weight', 'g') === 'mass', 'weight');
+  assert(C.classifyResultKind('yield strength', 'MPa') === 'strength', 'strength');
+  assert(C.classifyResultKind('stiffness', 'MPa') === 'stiffness', 'stiffness');
+  assert(C.classifyResultKind('thickness', 'mm') === 'thickness', 'thickness');
+  assert(C.classifyResultKind('weighing result', 'g') === 'mass', 'weighing');
+  assert(C.effectiveKind({ name: 'mass', kind: 'other' }) === 'mass', 'auto mass');
+  assert(C.effectiveKind({ name: 'mass', kind: 'sound' }) === 'sound', 'explicit sound wins');
+  const record = cRecord({ results: [cResult({ name: 'weight', kind: 'other', unit: 'g', min: 1, max: 2 })] });
+  assert(C.outcomeFor(record, record.results[0]).kind === 'mass', 'effective mass used by outcome');
+});
+
+test('v0.5 incomplete measurements never become a range', () => {
+  const partial = cResult({ link: { varied: 'batches', points: [cPoint('', 'Batch A', null, 'report'), cPoint('', 'Batch B', null, 'report')] } });
+  const out = cOutcome(cRecord({ results: [partial] }));
+  assert(out.mode === 'missing' && out.reason === 'incomplete-measurement', 'partial rows');
+  assert(out.value === null && out.range === null, 'blank');
+  assert(out.partialRows.length === 2, 'partial rows retained');
+  const invalidTarget = cOutcome(cRecord({ results: [cResult({ min: 50, max: 40 })] }));
+  assert(invalidTarget.target.valid === false && invalidTarget.target.error === 'min-above-max', 'invalid target reported');
+  assert(/min is above max/i.test(C.targetLabel(invalidTarget.target)), 'target label explains');
 });
 
 // ---------------------------------------------------------------------------

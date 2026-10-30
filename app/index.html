@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AnyRB — design software for recycled plastics</title>
-<meta name="description" content="Describe the part. Add the batch you actually have. Get a design that should hold up — and the evidence. A computer model to compare designs and batches before printing.">
+<title>AnyRB — recycled-plastic design and consistency</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='4' fill='%23F7F5F0'/%3E%3Cpath d='M3 15.5 10 4l7 11.5M6.2 11h7.6' fill='none' stroke='%2315171A' stroke-width='1.5'/%3E%3C/svg%3E">
+<meta name="description" content="Keep a recycled-plastic product consistent while the batch changes: record the product, the result and its target range, then see a range only when a measured link exists. The bracket studio remains a separate 2-D simulation.">
 <link rel="stylesheet" href="styles.css">
 <script data-dev-only>
   // Dev shell only: ES modules need an HTTP server. The standalone build
@@ -14,7 +15,7 @@
   })();
 </script>
 </head>
-<body>
+<body data-view="consistency">
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="dev-note" data-dev-only hidden style="background:#3a2a12;color:#fde68a;padding:10px 18px;font:13px -apple-system,sans-serif">
   <strong>Dev shell.</strong> This page uses ES modules and must be served over HTTP:
@@ -25,7 +26,7 @@
 <div class="loading-veil" id="loading-veil" aria-hidden="true">
   <div>
     <div class="lv-mark">AnyRB</div>
-    <div class="lv-sub">Recycled-plastic design studio · loading calculator</div>
+    <div class="lv-sub">Recycled-plastic design and consistency · loading</div>
   </div>
 </div>
 
@@ -39,14 +40,17 @@
     </span>
     <span>
       <span class="wordmark">AnyRB</span>
-      <span class="brand-sub" style="display:block">Design studio for recycled plastics</span>
+      <span class="brand-sub" style="display:block">Recycled-plastic design &amp; consistency</span>
     </span>
   </a>
-  <button class="project-switcher" id="project-switcher" type="button" aria-label="Current project: rPETG wall bracket">
+  <nav class="view-switch" id="view-switch" aria-label="Workspace">
+    <button type="button" id="view-consistency" data-view="consistency" aria-pressed="true">Consistency</button>
+    <button type="button" id="view-studio" data-view="studio" aria-pressed="false">Bracket studio</button>
+  </nav>
+  <div class="project-switcher" id="project-switcher" aria-live="polite">
     <span class="dot-sep" aria-hidden="true">/</span>
-    <span class="project-name" id="project-name">rPETG wall bracket</span>
-    <svg class="chev" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
-  </button>
+    <span class="project-name" id="project-name">Untitled record</span>
+  </div>
   <div class="topbar-spacer"></div>
   <div class="topbar-actions">
     <button class="ai-pill" id="ai-pill" type="button" data-mode="offline" aria-haspopup="menu" aria-expanded="false" aria-label="AI status and modes">
@@ -108,7 +112,7 @@
     <div class="rail-meta" id="session-card">
       <div class="rm-title">This run</div>
       <div class="rm-row"><span>Run ID</span><b id="session-seed">20251029</b></div>
-      <div class="rm-row"><span>Model</span><b id="session-engine">v0.4</b></div>
+      <div class="rm-row"><span>Model</span><b id="session-engine">v0.5</b></div>
       <div class="rm-row"><span>Checks</span><b id="session-valid">—</b></div>
       <div class="rm-claims">Evidence <b id="session-claims">model checked</b></div>
       <button class="btn btn--sm btn--ghost" id="btn-provenance" type="button" style="justify-content:flex-start;padding-left:0">AI activity <span id="prov-count" class="pill pill--muted" style="height:20px">0 requests</span></button>
@@ -128,6 +132,30 @@
       </div>
     </div>
 
+    <!-- ======================= CONSISTENCY RECORD ======================= -->
+    <section class="screen" id="screen-consistency" data-screen="consistency" data-active="true" aria-labelledby="consistency-h1">
+      <div class="screen-head">
+        <div class="eyebrow">Quality consistency · open record</div>
+        <h1 id="consistency-h1">Keep the product the same while the batch changes.</h1>
+        <p class="deck">Name the product and the result that has to stay inside your range. Describe the recycled input that varies, then enter the measurement that links the two. A result appears only when that link exists for this product and this result.</p>
+      </div>
+      <div class="consistency-layout">
+        <div class="consistency-left">
+          <div class="card record-card">
+            <div id="consistency-form"></div>
+          </div>
+        </div>
+        <aside class="consistency-right" aria-label="What the record can say now">
+          <div class="card outcome-panel" id="consistency-outcomes" aria-live="polite"></div>
+          <div class="card consistency-note">
+            <div class="micro">What this screen does not do</div>
+            <p>It does not load a product catalog, a material preset or the bracket model. A product name is not evidence. An empty record stays an empty record until you bring a measurement.</p>
+            <button class="btn btn--sm btn--ghost" type="button" id="consistency-open-studio">Open the bracket studio →</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
     <!-- ======================= 01 BRIEF ======================= -->
     <section class="screen" id="screen-brief" data-screen="brief" data-active="true" aria-labelledby="brief-h1">
       <div class="screen-head">
@@ -136,6 +164,11 @@
         <p class="deck">Describe the part, the load it must carry, and the batch you actually have. The studio turns it into a design brief — every field is editable.</p>
       </div>
       <div class="brief-stack">
+        <div class="scope-note" role="note">
+          <span class="micro">Bracket studio · one simulated product</span>
+          <p>This page is a 2-D frame simulation of the rPETG wall bracket. It is not a 3-D product simulator, and its numbers do not apply to the products in your consistency record.</p>
+          <button class="btn btn--sm btn--ghost" type="button" id="studio-open-record">Open the consistency record →</button>
+        </div>
         <div class="prompt" id="prompt-card">
           <label class="p-label" for="brief-text">Your brief</label>
           <textarea id="brief-text" spellcheck="true" placeholder="Describe the part, the load, the limits and the batch…">A wall bracket for a recycled PETG shelf unit. 150 N tip load, 2.5 mm max tip deflection, 1 % failure target across delivered lots. Print it upright in rPETG on a 0.4 mm nozzle.</textarea>
@@ -537,9 +570,9 @@
 </div>
 
 <footer class="page-footer">
-  <span><b style="color:var(--ink)">AnyRB</b> · design studio for recycled plastics · v0.4</span>
-  <span class="f-honest">Use it to compare options — confirm with a physical test before production.</span>
-  <span>Computer model only · material data from published studies · estimates, not measurements</span>
+  <span><b style="color:var(--ink)">AnyRB</b> · design studio for recycled plastics · v0.5</span>
+  <span class="f-honest">Confirm production choices with a physical test.</span>
+  <span>Bracket studio: simulation · consistency record: your measured links only</span>
 </footer>
 
 <!-- overlays -->

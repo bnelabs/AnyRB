@@ -3,9 +3,22 @@
 **Track:** Indie Developer · "Push the Frontier" · solo builder
 **Deadline:** internal Tue Nov 3 18:00 ET · hard Wed Nov 4 21:00 ET (Thu Nov 5 05:00 Istanbul)
 
-> **One line:** *AnyRB is an AI reliability studio for recycled plastics — describe the part you need,
-> give it the batch you actually have, and it designs internal geometry that behaves reliably. Meta models
-> act as the design partner; a verified physics engine does the math.*
+> **One line:** *AnyRB keeps a named recycled-plastic product's result inside a target only when a
+> measured link exists for that product and result — and keeps a separate 2-D bracket studio where Meta
+> models help design one printed bracket. No product catalog, no preset, no model fills a missing result.*
+
+## v0.5 consistency-record highlights
+
+- **One open record, any product, any result.** Product/result names are free text; targets are numeric
+  ranges; recycled input is described as plastic type, batch, mix and minor contamination.
+- **Exactly three outcomes per result:** measured link (range + measured product choice), one-batch
+  measurement (inside/outside only), or missing link (blank result + the test still needed).
+- **No fake link.** A product name, material preset, assumed CV or the bracket model never creates one.
+- **3-D gate, no fake geometry.** No generic 3-D simulator was added. Mass would need measured density
+  plus a measured/modelled volume; strength/stiffness would need measured modulus and strength plus a
+  structural model; sound insulation is never a structural 3-D result. The bracket's 2-D frame is not
+  reused for another product.
+- **Saved records** can hold empty measurement slots and test plans, and can be downloaded/imported.
 
 ## v0.3 review-response highlights
 
@@ -55,25 +68,31 @@ The browser never sees the API key; it stays in a local server process.
 |---|---|
 | Oct 28–29 | v0.1 science: verified 2-D frame engine (94 elements), closed-form bivariate-lognormal reliability, multi-start robust lattice optimiser, batch passport, qualification report + STL, independent audit (SHIP) |
 | Oct 29 (this phase) | v0.2 product: 3-step AI studio redesign, live Meta AI backend (4 models), number-grounded AI memos, independent scientific-validation suite, hackathon packaging |
+| Oct 30 (this phase) | v0.5 open consistency record: measurement-only outcomes, 3-D gate, saved records, tests/docs; bracket studio kept as the separate 2-D simulation |
 | Oct 30–Nov 2 | demo video, polish from feedback, final verification, public repo |
 | Nov 3–4 | submission + confirmation |
 
 ## 3-minute demo script
 
 1. **0:00–0:20 — The problem.** A shelf bracket from recycled PETG; a supplier lot whose modulus is 25 % below
-   last month's. Show the batch-distribution histogram. "Same part, same printer — different behaviour."
-2. **0:20–0:55 — Brief (AI intake).** Speak the brief (Muse Voice Transcribe): *"A shelf bracket for 15 kg,
+   last month's. "Same part, same printer — different behaviour."
+2. **0:20–0:50 — Consistency record (the new default).** Name a product (counterweight, sheet, pedal — pick
+   one), type the result and target range, describe the recycled input. With no measurement, show the
+   blank result and the named test. Add one batch → "one batch only". Add a second input level with source
+   and what varied → measured range and measured product choice. Show the 3-D line: no 3-D result / not
+   applicable, and why. No preset or bracket model is involved.
+3. **0:50–1:25 — Brief (AI intake).** Speak the brief (Muse Voice Transcribe): *"A shelf bracket for 15 kg,
    1 % failure risk, under 60 g, recycled PETG."* Show the transcript, then Muse Spark's structured
    understanding card. Paste a supplier datasheet; Spark extracts E, σy, CVs with provenance.
-3. **0:55–1:35 — Design (AI proposes, physics disposes).** Show three AI-proposed candidates; the verified
+4. **1:25–2:05 — Design (AI proposes, physics disposes).** Show three AI-proposed candidates; the verified
    engine ranks them. Pick the balanced one and optimise: 55.9 g printed prior → 46.4 g printed optimum (analytic 62.7 → 50.8 g) at ~1 % failure probability.
    Show the lattice, the binding failure mode and the AI memo.
-4. **1:35–2:10 — Prove.** Batch passport: a lot with 90 % of nominal E needs a 1.15× global-equivalent scale (+14.9 % printed mass, conditional); an 80 %-E lot needs 1.39× (+22.0 %, conditional); a 50 %-E lot is rejected. The recipe is a lot-specific 8-control resize with 12 % measurement uncertainty retained. Scientific validation checklist (L0–L1 verified, L2 partial, no
+5. **2:05–2:40 — Prove.** Batch passport: a lot with 90 % of nominal E needs a 1.15× global-equivalent scale (+14.9 % printed mass, conditional); an 80 %-E lot needs 1.39× (+22.0 %, conditional); a 50 %-E lot is rejected. The recipe is a lot-specific 8-control resize with 12 % measurement uncertainty retained. Scientific validation checklist (L0–L1 verified, L2 partial, no
    physical tests). Muse Spark writes the qualification narrative; Muse Image renders the illustrative product.
-5. **2:10–2:40 — Why it matters.** 58 % lighter than a solid plate at the same simulated risk; 14 % lighter than
+6. **2:40–3:10 — Why it matters.** 58 % lighter than a solid plate at the same simulated risk; 14 % lighter than
    a uniform lattice; conventional FoS-1.5 over-pays. The claim ladder and minimum validation programme
    (T1/T2/T3) are on screen: decision support, not certification.
-6. **2:40–3:00 — Close.** "Recycled plastic is not a second-class material. It's a distribution. AnyRB
+7. **3:10–3:30 — Close.** "Recycled plastic is not a second-class material. It's a distribution. AnyRB
    designs for the distribution." Repo URL + live-run command.
 
 ## Run it
@@ -85,7 +104,7 @@ cp server/.env.example server/.env   # add your Meta API key (never committed)
 # offline fallback: open index.html directly (deterministic assistant, clearly labelled)
 ```
 
-Tests: `make test` (engine, 33) · `make test-server` (API, 51+1, mock) · `node app/tests/run.mjs` (UI/engine, 37) ·
+Tests: `make test` (engine, 33) · `make test-server` (API, 51+1, mock) · `node app/tests/run.mjs` (UI/engine/record, 48) ·
 `make validate` (independent scientific validation) · `make verify-live` (real Meta calls → evidence file).
 
 ## Submission checklist
@@ -100,14 +119,19 @@ Tests: `make test` (engine, 33) · `make test-server` (API, 51+1, mock) · `node
 
 ## Honest limitations (also in the app)
 
-No physical testing was performed. Material distributions are literature-derived and must be replaced by
-user lot data. The mechanics is a linear-elastic 2-D frame idealisation (no plasticity, creep, fatigue, layer
-anisotropy, out-of-plane behaviour, joint detail or print defects). The optimiser is a multi-start local
-search. All displayed/exported design masses are printed union estimates (robust design 46.4 g); the
-analytic strut-sum (50.8 g) is a conservative upper bound (+9.5 %). The old 25 %/≈40.5 g figure
-came from a validator sampler bug and is retired. AI text is grounded in engine outputs but
-is explanatory, not analytical. The product is decision-support software and does not certify any part or
-material.
+**Bracket studio:** no physical testing was performed. Material distributions are literature-derived and
+must be replaced by user lot data. The mechanics is a linear-elastic 2-D frame idealisation (no plasticity,
+creep, fatigue, layer anisotropy, out-of-plane behaviour, joint detail or print defects). The optimiser is
+a multi-start local search. All displayed/exported design masses are printed union estimates (robust design
+46.4 g); the analytic strut-sum (50.8 g) is a conservative upper bound (+9.5 %). The old 25 %/≈40.5 g figure
+came from a validator sampler bug and is retired. AI text is grounded in engine outputs but is explanatory,
+not analytical.
+
+**Consistency record:** results are shown only for measurements of the same product and result that are
+stored in the record. One batch is not a range; no measurement is not a result. The app does not predict an
+unmeasured batch, does not infer a missing result from a product name, preset or the bracket model, and does
+not run a generic 3-D simulator. The 3-D gate is deliberately conservative. A measured range is evidence
+from the measured input levels, not a guarantee for the next delivered batch.
 
 **Independent validation (58 checks):** 56 PASS / 2 WARN / 0 FAIL — re-implemented frame element, energy
 minimisation vs direct stiffness, SciPy/quad/1e6-MC reliability cross-checks, periodic unit-cell

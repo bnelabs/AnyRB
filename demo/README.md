@@ -1,4 +1,4 @@
-# AnyRB demo pack (v0.2 — Meta AI hackathon build)
+# AnyRB demo pack (v0.5 — consistency record + bracket studio)
 
 Everything a reviewer needs to see the product in under five minutes.
 
@@ -10,31 +10,40 @@ cd AnyRB
 cp server/.env.example server/.env      # add your Meta API key (never commit)
 .venv/bin/python -m server.app          # http://127.0.0.1:8787
 ```
-Open **http://127.0.0.1:8787** in Chrome. The AI pill shows **Live · Meta models**; the AI provenance
-drawer (bottom right) lists every call with model, latency, tokens and cached/live status.
+Open **http://127.0.0.1:8787** in Chrome. The **consistency record** opens by default and uses no AI.
+Switch to **Bracket studio** for the Meta path: the AI pill shows **Live · Meta models**, and the AI
+activity drawer lists every call with model, latency, tokens and cached/live status.
 
 ### Offline mode (no key, no network)
-Double-click **`../index.html`**. The pill shows **Offline · fallback on** and every AI card is badged
-`offline-assistant`; the 3-step flow, verified engine, exports and validation card all still work.
+Double-click **`../index.html`**. The consistency record works with no AI and no network. In **Bracket
+studio**, the pill shows **Offline · fallback on** and every AI card is badged `offline-assistant`; the
+3-step flow, verified engine, exports and validation card all still work.
 
 ## 2. Three-minute walkthrough
 
-1. **01 · Brief** — the prompt is pre-filled ("A wall bracket for a recycled PETG shelf unit…"). Click
-   **Design with AI**. Muse Spark parses the brief into the editable *What the studio understood* card;
-   the lot passport shows the verified rPETG distribution (E 2,100 MPa / CV 10 %, σy 46 MPa / CV 10 %,
-   85 % of variance between lots). *Optional:* click the mic and speak the brief (Muse Voice Transcribe).
-2. **02 · Design** — the engine draws the graded lattice and the AI proposes three candidate strategies
+1. **Consistency record (new default)** — name a product (counterweight, sheet, pedal, anything). Type a
+   result and target range, and describe the recycled input. With no measurement, show the **blank result
+   and the test still needed**. Add one batch → **one batch only**, with no next-batch prediction. Add a
+   second input level with source and "what varied" → **measured range** plus the measured product choice
+   inside the target. Point at the 3D line: **not applicable** (or not used), with the reason. No preset,
+   library density or bracket model is involved. *Screenshot: `screenshots/v5/03-consistency-measured-link.png`.*
+2. **01 · Brief** — switch to **Bracket studio**. The prompt is pre-filled ("A wall bracket for a recycled
+   PETG shelf unit…"). Click **Design with AI**. Muse Spark parses the brief into the editable *What the
+   studio understood* card; the lot passport shows the published rPETG distribution (E 2,100 MPa / CV 10 %,
+   σy 46 MPa / CV 10 %, 85 % of variance between lots). *Optional:* click the mic and speak the brief
+   (Muse Voice Transcribe).
+3. **02 · Design** — the engine draws the graded lattice and the AI proposes three candidate strategies
    (purely as parameter priors; the verified FE engine evaluates and ranks them). Pick **Balanced**:
    ~46.4 g at ~1 % simulated batch failure probability, binding failure mode Euler buckling. The AI
    design memo explains the trade-off; every number in it comes from the engine. Show the mass footnote:
    printed Halton union estimate 46.4 g vs analytic upper bound 50.81 g (+9.5%).
-3. **03 · Prove** — reliability gauge, batch acceptance window, batch passport (try E ×0.85 → 8-control resize, global-equivalent
+4. **03 · Prove** — reliability gauge, batch acceptance window, batch passport (try E ×0.85 → 8-control resize, global-equivalent
    ×1.28, +19.6 % printed mass, conditional; E ×0.5 → reject). The scientific-validation card reads
    **56 PASS / 2 WARN / 0 FAIL (58 independent checks)** with the two known WARNs labelled. Muse Spark
    writes the qualification narrative; Muse Image provides the labelled concept render. Export the
-   qualification report/STL/JSON; open the AI provenance drawer.
-4. **Method & honesty** — claims ladder L0–L1 verified / L2 partial / L4–L6 absent, the "what v0.1 cannot
-   do" levers, and the explicit statement that no physical testing was performed.
+   qualification report/STL/JSON; open the AI activity drawer.
+5. **Method & honesty** — claims ladder L0–L1 verified / L2 partial / L4–L6 absent; the bracket studio is
+   one simulated product; the consistency record is measurement-only; no physical testing was performed.
 
 ## 3. What is real vs illustrative
 
@@ -44,14 +53,15 @@ Double-click **`../index.html`**. The pill shows **Offline · fallback on** and 
 | Meta Spark/Image/Voice/SAM calls in live mode (see `server/evidence/live_calls.json`) | AI-written prose (grounded in engine numbers; may round) |
 | Validation checklist (from `validation/results.json`) | concept render (Muse Image; "not the CAD model") |
 | Offline deterministic assistant (same schemas) | batch acceptance chart is engine-computed; the chart annotation is illustrative |
+| Consistency-record measurements and sources (entered by the user) | any result without a measured link is blank; no 3-D simulation is generated |
 
 ## 4. Reproduce
 
 ```bash
 cd AnyRB
-make test            # 29 engine tests
+make test            # 33 engine tests
 make test-server     # 51 backend tests, 1 skipped (mock mode)
-node app/tests/run.mjs   # 37 JS engine/UI tests
+node app/tests/run.mjs   # 48 JS engine/UI/record tests
 make validate        # independent validation: 56 PASS / 2 WARN / 0 FAIL (58 checks)
 make verify-live     # real Meta calls → server/evidence/live_calls.json (needs server/.env)
 make report && make pdf
@@ -72,3 +82,13 @@ never the source of a number; recycled-content/ISO/UL compliance cannot be infer
 `demo/screenshots/v2/live/` and `demo/screenshots/v2/offline/` — the final v0.2 captures
 (brief / design / prove / provenance), plus v0.1 history. The design target is
 `design/prototype.html` (open directly in a browser).
+
+
+## 5. v0.5 screenshots
+
+- `screenshots/v5/01-consistency-no-measurement.png` — counterweight with no measured mass; result blank.
+- `screenshots/v5/02-consistency-one-batch.png` — one batch only; inside target, no next-batch prediction.
+- `screenshots/v5/03-consistency-measured-link.png` — measured range and measured product choice.
+- `screenshots/v5/03b-consistency-measured-link-panel.png` — close-up of the answer panel.
+- `screenshots/v5/04-consistency-sheet-no-measurement.png` — sound insulation, thickness and weight all blank without measurements.
+- `screenshots/v5/05-bracket-studio.png` — the separate 2-D bracket studio.
