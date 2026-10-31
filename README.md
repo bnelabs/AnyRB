@@ -17,7 +17,7 @@ block — can fill a starter case, but every field stays editable.
 
 One page, four quiet parts:
 
-1. **The brief.** The shop can type a natural-language request — the part, several property ranges
+1. **The brief.** The shop can type or speak a natural-language request — the part, several property ranges
    and the delivery. Muse Spark extracts it into editable fields; missing fields stay empty. The
    sample brief is optional; the product is not preset.
 2. **The decision.** What to make, at what size, and with what blend or material change. One line of
@@ -56,8 +56,9 @@ updates in place.
 The browser never receives an API key. Meta calls go through the local FastAPI server:
 
 - `POST /api/product/brief` — Muse Spark extracts a product, load path, dimensions, any number of
-  target requirements and a batch description from the shop's natural-language brief. Extract-only:
-  unstated numbers stay empty. Unavailable → no parse, manual fields.
+  target requirements and a batch description from the shop's natural-language brief. A spoken brief
+  is transcribed by Muse Voice Transcribe first. Extract-only: unstated numbers stay empty.
+  Unavailable → no parse, manual fields.
 - `POST /api/product/proposals` — Meta proposes move types and optional parameters for the user's part
   and **all** target properties. The browser scores the mechanics; the server sanitises parameters
   and never returns strength/stiffness/weight results. If Meta is unavailable it returns an empty

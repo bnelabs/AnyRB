@@ -599,6 +599,145 @@ bind('other-thickness', 'other.thicknessMm');
 bindSelect('mode', 'mode');
 bindSelect('other-mode', 'other.mode');
 bindSelect('dirt-level', 'plastic.dirtLevel');
+let voiceRecorder = null;
+let voiceStream = null;
+let voiceChunks = [];
+let voiceBusy = false;
+
+async function blobToWav(blob) {
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioContext = new AudioContext();
+  const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+  await audioContext.close();
+  return encodeWav(decoded);
+}
+
+function encodeWav(buffer) {
+  const channels = Math.min(2, buffer.numberOfChannels);
+  const frames = buffer.length;
+  const rate = 16000;
+  const offline = new OfflineAudioContext(1, Math.ceil(frames * rate / buffer.sampleRate), rate);
+  const source = offline.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offline.destination);
+  source.start();
+  return offline.startRendering().then((rendered) => {
+    const samples = rendered.getChannelData(0);
+    const out = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(out);
+    const write = (offset, text) => {
+      for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+    };
+    write(0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    write(8, 'WAVE');
+    write(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    write(36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+    for (let i = 0; i < samples.length; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return new Blob([out], { type: 'audio/wav' });
+  });
+}
+
+function resetVoiceButton() {
+  const button = $('brief-voice');
+  button.textContent = 'Speak';
+  button.classList.remove('is-recording');
+  button.setAttribute('aria-pressed', 'false');
+  button.disabled = false;
+  voiceBusy = false;
+  if (voiceStream) {
+    for (const track of voiceStream.getTracks()) track.stop();
+    voiceStream = null;
+  }
+}
+
+async function sendVoice(blob) {
+  $('brief-status').textContent = 'Muse Voice is transcribing the brief…';
+  const data = new FormData();
+  data.append('audio', blob, 'brief.wav');
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch(`${API_BASE}/api/voice/transcribe`, {
+      method: 'POST',
+      body: data,
+      signal: controller.signal,
+    });
+    const result = await response.json();
+    const transcript = (result.transcript || '').trim();
+    if (!response.ok || !transcript) {
+      $('brief-status').textContent = 'Muse Voice could not hear that brief. Try again or type it.';
+      return;
+    }
+    const field = $('brief');
+    field.value = transcript;
+    field.focus();
+    field.setSelectionRange(0, 0);
+    field.scrollTop = 0;
+    $('brief-status').textContent = 'Muse Voice heard the brief. Muse Spark is reading it…';
+    await readBrief();
+  } catch (error) {
+    $('brief-status').textContent = 'Muse Voice is unavailable. Type the brief instead.';
+  } finally {
+    window.clearTimeout(timer);
+    resetVoiceButton();
+  }
+}
+
+async function toggleVoice() {
+  const button = $('brief-voice');
+  if (voiceRecorder && voiceRecorder.state === 'recording') {
+    button.disabled = true;
+    button.textContent = 'Reading voice…';
+    voiceRecorder.stop();
+    return;
+  }
+  if (voiceBusy) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) {
+    $('brief-status').textContent = 'This browser cannot record audio. Type the brief instead.';
+    return;
+  }
+  voiceBusy = true;
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    voiceChunks = [];
+    voiceRecorder = new MediaRecorder(voiceStream);
+    voiceRecorder.addEventListener('dataavailable', (event) => {
+      if (event.data && event.data.size) voiceChunks.push(event.data);
+    });
+    voiceRecorder.addEventListener('stop', async () => {
+      const blob = new Blob(voiceChunks, { type: voiceRecorder.mimeType || 'audio/webm' });
+      voiceRecorder = null;
+      try {
+        const wav = await blobToWav(blob);
+        await sendVoice(wav);
+      } catch (error) {
+        $('brief-status').textContent = 'Could not convert that recording. Type the brief instead.';
+        resetVoiceButton();
+      }
+    });
+    voiceRecorder.start();
+    button.textContent = 'Stop';
+    button.classList.add('is-recording');
+    button.setAttribute('aria-pressed', 'true');
+    $('brief-status').textContent = 'Listening. Say the brief, then press Stop.';
+  } catch (error) {
+    $('brief-status').textContent = 'Microphone permission was not granted. Type the brief instead.';
+    resetVoiceButton();
+  }
+}
+
 function mapBriefToState(brief) {
   const source = brief && typeof brief === 'object' ? brief : {};
   const targets = Array.isArray(source.targets)
@@ -720,6 +859,7 @@ function addTarget() {
 }
 
 $('brief-submit').addEventListener('click', readBrief);
+$('brief-voice').addEventListener('click', toggleVoice);
 $('brief-sample').addEventListener('click', () => {
   const field = $('brief');
   field.value = SAMPLE_BRIEF;

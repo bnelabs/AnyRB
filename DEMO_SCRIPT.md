@@ -28,14 +28,14 @@ Point at the examples row but do not choose one yet.
 
 ### 0:30–0:55 — Meta reads the brief
 
-Click **Use a sample brief** (or paste the same brief):
+Click **Use a sample brief** (or press **Speak** and say the same brief, or paste it):
 
 > “I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load
 > capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My
 > batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density
 > 0.94.”
 
-Show the status **Meta is reading the brief…**, then the parsed fields: product, compression, two
+Show the status **Muse Spark is reading the brief…**, then the parsed fields: product, compression, two
 requirements, batch range and steady stream.
 
 **Say:** “Muse Spark turns the shop language into editable state. It only extracts what was said;

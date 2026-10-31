@@ -13,12 +13,13 @@ batch, at what size, and what do I add if the batch alone is not enough** — no
 
 ## What AnyRB does
 
-1. **Ask in shop language.** The brief bar takes a natural-language request such as: *"I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load
+1. **Ask in shop language.** The brief bar takes a natural-language request, typed or spoken, such as: *"I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load
    capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My
    batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density
    0.94."*
    Muse Spark parses it into a product, load path, dimensions, any number of target requirements and
-   a batch description. The shop can edit every field.
+   a batch description. The shop can edit every field. The same brief can be spoken; Muse Voice
+   Transcribe supplies the transcript.
 2. **Engineering.** The mechanics evaluates every candidate against **all** requirements at once. A
    build is shown only when its full property range stays inside every target. The winner uses the
    least added build mass. The UI starts with no product and no decision; examples are optional.
@@ -37,6 +38,7 @@ batch, at what size, and what do I add if the batch alone is not enough** — no
 | **Muse Spark 1.3 Contributor** | parse the natural-language shop brief into structured product/target/batch state | `/api/product/brief` (new) |
 | **Muse Spark 1.3 Contributor** | propose engineering and batch moves | `/api/product/proposals` |
 | **Muse Spark 1.3 Contributor** | answer the shop's batch question with grounded, number-only-from-input actions | `/api/product/advice` |
+| **Muse Voice Transcribe 1.0** | transcribe a spoken brief before Spark parses it | `/api/voice/transcribe` |
 
 The browser never sees the API key. The server sanitises every model output, strips property/result
 keys, clamps parameter values, grounds advice numbers to the request, and rejects test/trial/certification

@@ -534,3 +534,22 @@ h3 {
   .brief-row { flex-direction: column; align-items: stretch; }
   .brief-submit { align-self: flex-start; }
 }
+
+.brief-voice {
+  flex: none;
+  padding: 4px 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #bdbab3;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.brief-voice:hover { border-bottom-color: var(--ink); }
+.brief-voice.is-recording { color: #8a2f2f; border-bottom-color: #8a2f2f; }
+.brief-voice:disabled { color: var(--muted); cursor: default; }
+
+@media (max-width: 760px) {
+  .brief-voice { align-self: flex-start; }
+}

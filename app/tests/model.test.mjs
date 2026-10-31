@@ -317,10 +317,13 @@ test('app source starts with a product question, cases and multiple requirements
   assert.match(html, /id="add-target"/);
   assert.match(html, /id="brief"/);
   assert.match(html, /id="brief-submit"/);
+  assert.match(html, /id="brief-voice"/);
   assert.match(html, /id="meta-trace"/);
   assert.doesNotMatch(html, /Make the 180 mm shelf bracket, 40 × 15 mm\./);
   assert.doesNotMatch(html, /don't use|do not use/i);
   assert.match(js, /\/api\/product\/brief/);
+  assert.match(js, /\/api\/voice\/transcribe/);
+  assert.match(js, /MediaRecorder/);
   assert.match(js, /\/api\/product\/proposals/);
   assert.match(js, /\/api\/product\/advice/);
   assert.match(js, /SAMPLE_BRIEF/);

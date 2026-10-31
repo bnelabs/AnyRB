@@ -24,7 +24,7 @@ an advanced mode.
 
 ### The brief (Meta front door)
 
-A text brief can be read by Muse Spark: *“I make a 400 mm crate side, 60 mm wide and 15 mm thick,
+A typed or spoken brief can be read by Muse Spark (Muse Voice Transcribe supplies the transcript): *“I make a 400 mm crate side, 60 mm wide and 15 mm thick,
 simply supported. It must have a load capacity of 95–115 kg and a weight of 320–360 g. My batch is a
 published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density 0.94.”*
 
