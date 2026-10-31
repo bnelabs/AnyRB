@@ -165,12 +165,12 @@ cd AnyRB
 ```bash
 cd AnyRB
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q
-# whole suite: 103 passed, 1 skipped; the product modules add 18 product-proposal and
-# 34 product-advice tests.
+# whole suite: 115 passed, 1 skipped; the product modules add 24 product-proposal and
+# 40 product-advice tests (multi-target coverage included).
 
 # product-proposal / advice tests only:
-AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_proposals.py -q   # 18 passed
-AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_advice.py -q      # 34 passed
+AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_proposals.py -q   # 24 passed
+AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_advice.py -q      # 40 passed
 # (skipped test = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
 ```
 
@@ -230,9 +230,11 @@ batch description, another product on the same batch and `steady_available`; it 
 parameter objects (`thickness`, `section`, `span`, `other_product`, plus `blend` only when steady
 availability exists) and nothing else. The model proposes parameters only — no strength,
 stiffness, weight, property ranges, expected results or certification ever leave the endpoint;
-the browser scores every proposal deterministically with the verified engine. All numbers are
-sanitised/clamped server-side (thickness 2–200 mm, width 5–500 mm, span 50–5000 mm, blend fraction
-0.15–0.75); unknown moves/invalid values are dropped and the server never pads or invents
+the browser scores every proposal deterministically with the verified engine. Requests may carry
+several target properties at once (optional `targets` array alongside the legacy `target`); ALL of
+them are passed to the model with "satisfy all simultaneously", never just the first. All numbers
+are sanitised/clamped server-side (thickness 2–200 mm, width 5–500 mm, span 50–5000 mm, blend
+fraction 0.15–0.75); unknown moves/invalid values are dropped and the server never pads or invents
 proposals. **If Meta is unavailable (mock mode, no key, timeout, invalid output) the endpoint
 returns `proposals: []` with `_meta.fallback: true` and an `_meta.error` — no fixed-list
 thickness/section/span suggestions.** The browser scores the user's current build locally and
@@ -247,8 +249,10 @@ with the same cache and provenance behaviour. See `API.md` for the full contract
 context) and returns `{answer, actions, available}`. The model answers **what to do with this
 batch** — blend/add the steadier stream (using the supplied fraction/type), sort/wash/dry, change
 the section or span, move the batch to the other product — and must never simply reject the
-delivery. It may use only numbers supplied in the request; strength/stiffness/weight/property
-ranges, measured results, invented numbers and certification claims are forbidden. It also must
+delivery. The request may carry several target requirements (`targets`) and the plan several gaps
+(`gaps`); the answer/actions must address every supplied requirement and gap, not just the first.
+It may use only numbers supplied in the request; strength/stiffness/weight/property ranges, measured
+results, invented numbers and certification claims are forbidden. It also must
 never send the user off to **test/trial/prototype/sample/measure a piece** — a hard user rule —
 so a deterministic word-boundary guard rejects such text (`reason_code:"test_instruction"`) while
 keeping ordinary process advice (blend, sort, wash, dry, change section/span, route product, split

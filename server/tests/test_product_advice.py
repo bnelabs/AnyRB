@@ -325,6 +325,10 @@ def test_prompt_contract(product_ai):
     assert "strictly forbidden" in lowered
     assert "never instruct the user to test, trial, prototype, sample or measure" in lowered
     assert "process actions only" in lowered
+    # multi-target support: all supplied requirements and gaps must be addressed
+    assert "targets" in lowered
+    assert "every supplied requirement" in lowered
+    assert "plan.gaps" in lowered
     assert '"answer"' in system and '"actions"' in system
     payload = product_ai.build_advice_payload(product_ai.sanitize_advice_request(
         product_ai.ProductAdviceRequest(**_body())))
@@ -528,3 +532,137 @@ def test_no_test_advice_fallback_is_invented(client, monkeypatch):
         "_meta": data["_meta"], "_model": data["_model"], "_cached": data["_cached"],
     }
     assert data["_meta"]["reason_code"] == "test_instruction"
+
+
+# ---------------------------------------------------------------------------
+# multi-target support (optional `targets` array + multi-gap plans)
+# ---------------------------------------------------------------------------
+MULTI_ADVICE_TARGETS = [
+    {"property": "strength", "min": 38, "max": 50},
+    {"property": "weight", "min": 20, "max": 35},
+]
+
+
+def _multi_gap_plan() -> dict:
+    return {
+        "headline": "Two requirements are short",
+        "support": "Strength 30-44 MPa vs 38-50 MPa; weight 50-60 kg vs 20-35 kg",
+        "current": {"property_range": {"min": 30, "max": 44, "unit": "MPa"}, "pass": False},
+        "winner": {"product": "slat", "size": "lighter section",
+                   "property_range": {"min": 38, "max": 50, "unit": "MPa"},
+                   "added_material": -12, "move": "section"},
+        "gap": {"property": "strength", "unit": "MPa", "needed_min": 38, "needed_max": 50,
+                "batch_min": 30, "batch_max": 44, "short_low": 8, "over_high": 0,
+                "required_action": "blend a steadier stream"},
+        "gaps": [
+            {"property": "strength", "unit": "MPa", "needed_min": 38, "needed_max": 50,
+             "batch_min": 30, "batch_max": 44, "short_low": 8, "over_high": 0,
+             "required_action": "blend a steadier stream"},
+            {"property": "weight", "unit": "kg", "needed_min": 20, "needed_max": 35,
+             "batch_min": 50, "batch_max": 60, "short_low": 0, "over_high": 25,
+             "required_action": "split the delivery and use the lighter section build"},
+        ],
+        "builds": [{"move": "section", "size": "-12% material",
+                    "property_range": {"min": 38, "max": 50, "unit": "MPa"},
+                    "added_material": -12}],
+        "blend": {"available": True, "type": "virgin PETG", "fraction": 0.30,
+                  "property_range": {"min": 38, "max": 50, "unit": "MPa"}},
+    }
+
+
+def test_multi_target_advice_prompt_sees_all_requirements(product_ai):
+    req = product_ai.ProductAdviceRequest(
+        question="what should I do with this batch?",
+        targets=MULTI_ADVICE_TARGETS,
+        plan=_multi_gap_plan())
+    state = product_ai.sanitize_advice_request(req)
+    assert [t["property"] for t in state["targets"]] == ["strength", "weight"]
+    payload = product_ai.build_advice_payload(state)
+    assert payload["targets"] == MULTI_ADVICE_TARGETS
+    assert payload["rules"]["target_count"] == 2
+    assert payload["rules"]["all_requirements_must_be_addressed"] is True
+    assert payload["rules"]["all_gaps_must_be_addressed"] is True
+    assert len(payload["plan"]["gaps"]) == 2
+    # both requirement ranges and both required actions are visible to the model
+    text = payload["untrusted_user_text"]
+    assert "strength 38.0-50.0" in text and "weight 20.0-35.0" in text
+    assert "blend a steadier stream" in text
+    assert "split the delivery and use the lighter section build" in text
+
+
+def test_two_target_plan_with_multiple_gaps_can_be_answered(client, monkeypatch):
+    answer = ("Strength: your batch spans 30-44 MPa against a 38-50 MPa target, so blend about "
+              "30 % of the virgin PETG stream. Weight: the current 50-60 kg range is over the "
+              "20-35 kg target, so split the delivery and use the lighter section build.")
+    _use_fake_live(monkeypatch, {
+        "answer": answer,
+        "actions": ["Blend 30 % of the virgin PETG stream into this batch",
+                    "Split the delivery and use the lighter section build",
+                    "Sort, wash and dry the flakes before extrusion"],
+    })
+    body = _unique_body("multi-target")
+    body["targets"] = MULTI_ADVICE_TARGETS
+    body["plan"] = _multi_gap_plan()
+    data = client.post(ENDPOINT, json=body).json()
+    assert data["available"] is True, data["_meta"].get("reason_code")
+    assert data["_meta"]["grounding"]["ok"] is True
+    assert len(data["actions"]) == 3
+    from server import product_ai
+    payload = product_ai.build_advice_payload(product_ai.sanitize_advice_request(
+        product_ai.ProductAdviceRequest(**body)))
+    assert payload["rules"]["target_count"] == 2
+    assert len(payload["plan"]["gaps"]) == 2
+
+
+def test_multi_target_advice_grounding_uses_target_numbers(client, monkeypatch):
+    # only numbers supplied through `targets` are cited -> grounded
+    _use_fake_live(monkeypatch, {
+        "answer": "The weight target is 20-35 kg; split the delivery and use the lighter build.",
+        "actions": ["Split the delivery between the two products"],
+    })
+    body = _unique_body("target-numbers")
+    body["targets"] = MULTI_ADVICE_TARGETS
+    data = client.post(ENDPOINT, json=body).json()
+    assert data["available"] is True, data["_meta"].get("grounding")
+    # an invented number in a multi-target answer is still rejected
+    _use_fake_live(monkeypatch, {
+        "answer": "The weight target is 42-35 kg; split the delivery.",
+        "actions": ["Split the delivery between the two products"],
+    })
+    data2 = client.post(ENDPOINT, json=_unique_body("target-numbers-bad")).json()
+    assert data2["available"] is False
+    assert data2["_meta"]["reason_code"] == "grounding_failed"
+    assert 42.0 in data2["_meta"]["grounding"]["ungrounded_numbers"]
+
+
+def test_legacy_single_target_advice_still_works(product_ai):
+    req = product_ai.ProductAdviceRequest(question="what now?")
+    state = product_ai.sanitize_advice_request(req)
+    assert state["targets"] == [{"property": "strength", "min": 0.0, "max": 1000000.0}]
+    assert state["target"] == state["targets"][0]
+
+
+def test_malformed_advice_targets_degrade_safely(client, product_ai):
+    for raw_targets in ("nope", 42, [None, "x", {"property": "banana", "min": 1, "max": 2}],
+                        [{"property": "weight", "min": "bad", "max": -5}], []):
+        body = {"question": "what can I do with this batch?", "targets": raw_targets}
+        r = client.post(ENDPOINT, json=body)
+        assert r.status_code == 200, (raw_targets, r.status_code)
+        assert r.json()["available"] is False          # no model in mock mode — safely empty
+        state = product_ai.sanitize_advice_request(
+            product_ai.ProductAdviceRequest(**body))
+        assert state["targets"], raw_targets
+        assert state["targets"][0]["property"] in ("strength", "stiffness", "weight")
+
+
+def test_multi_target_values_clamped_and_deduped_advice(product_ai):
+    req = product_ai.ProductAdviceRequest(question="what now?", targets=[
+        {"property": "strength", "min": 60, "max": 40},
+        {"property": "stiffness", "min": -5, "max": 99999999},
+        {"property": "strength", "min": 10, "max": 20},
+        {"property": "banana", "min": 1, "max": 2},
+    ])
+    targets = product_ai.sanitize_advice_request(req)["targets"]
+    assert [t["property"] for t in targets] == ["strength", "stiffness"]
+    assert targets[0]["min"] <= targets[0]["max"]
+    assert 0 <= targets[1]["min"] <= targets[1]["max"] <= 1e6

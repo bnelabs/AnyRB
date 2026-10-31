@@ -500,7 +500,9 @@ Returns **4+ proposed MOVE parameter objects** for a recycled-plastic product ch
 proposes *parameters only*; the browser scores every proposal deterministically with the verified
 engine. The AI must never return strength, stiffness, weight, property values/ranges, expected
 results, pass/fail, or certification — the server enforces this by rebuilding the response from an
-allow-list of parameter keys.
+allow-list of parameter keys. The request may ask for several target properties at once (`targets`);
+all of them are passed to the model, which must propose parameters intended to satisfy them all
+simultaneously.
 
 ## Request
 
@@ -508,6 +510,9 @@ allow-list of parameter keys.
 {"product": {"name": "shelf bracket", "mode": "cantilever", "span_mm": 700, "load_kg": 0,
              "width_mm": 40, "thickness_mm": 12},
  "target": {"property": "stiffness", "min": 1500, "max": 2600},
+ "targets": [{"property": "strength", "min": 38, "max": 50},
+             {"property": "stiffness", "min": 1500, "max": 2600},
+             {"property": "weight", "min": 20, "max": 35}],
  "plastic": {"type": "rPETG", "batch": "LOT-2026-014", "mix": "single-stream", "dirt": "low",
              "stiffness_min_mpa": 1800, "stiffness_max_mpa": 2400,
              "strength_min_mpa": 38, "strength_max_mpa": 50, "density_g_cm3": 1.24},
@@ -522,6 +527,12 @@ allow-list of parameter keys.
   working-load field because the target property is the capacity/stiffness/weight, so `0` (or the
   key being omitted) is valid. They are never used to invent results.
 * `mode ∈ {cantilever, simple, compression}`; `target.property ∈ {strength, stiffness, weight}`.
+* `targets` (**optional**, multi-target): `[{property,min,max}, …]` asks for several requirements at
+  once (e.g. strength + stiffness + weight). When present and non-empty it supersedes the legacy
+  `target` and **all** requirements are sent to the model (“satisfy all of them simultaneously”,
+  never just the first). Only `strength`/`stiffness`/`weight` survive, ranges are clamped/finite and
+  ordered, duplicate properties keep the first entry, and malformed entries degrade safely to the
+  legacy `target` (no 4xx for bad target entries).
 * Every number/string is sanitised and clamped server-side (unknown modes/properties fall back to
   `cantilever` / `strength`; inverted ranges are ordered; non-finite values replaced by defaults).
   A structurally malformed body (e.g. missing `product`, wrong field types) returns the app's
@@ -617,6 +628,8 @@ is no fixed advice fallback.
  "product": {"name": "shelf bracket", "mode": "cantilever", "span_mm": 700,
              "width_mm": 40, "thickness_mm": 12},
  "target": {"property": "strength", "min": 38, "max": 50},
+ "targets": [{"property": "strength", "min": 38, "max": 50},
+             {"property": "weight", "min": 20, "max": 35}],
  "plastic": {"type": "rPETG", "batch": "LOT-2026-014", "mix": "single-stream",
              "dirt": "medium", "dirt_level": "medium",
              "stiffness_min_mpa": 1800, "stiffness_max_mpa": 2400,
@@ -635,6 +648,13 @@ is no fixed advice fallback.
    "gap": {"property": "strength", "unit": "MPa", "needed_min": 38, "needed_max": 50,
            "batch_min": 30, "batch_max": 44, "short_low": 8, "over_high": 0,
            "required_action": "blend or sort for a stronger stream"},
+   "gaps": [
+     {"property": "strength", "unit": "MPa", "needed_min": 38, "needed_max": 50,
+      "batch_min": 30, "batch_max": 44, "short_low": 8, "over_high": 0,
+      "required_action": "blend or sort for a stronger stream"},
+     {"property": "weight", "unit": "kg", "needed_min": 20, "needed_max": 35,
+      "batch_min": 50, "batch_max": 60, "short_low": 0, "over_high": 25,
+      "required_action": "split the delivery and use the lighter section build"}],
    "builds": [{"move": "section", "size": "+18% material",
                "property_range": {"min": 38, "max": 50, "unit": "MPa"},
                "added_material": 18}],
@@ -646,6 +666,10 @@ is no fixed advice fallback.
   to empty defaults, but a useful answer needs the computed `plan`.
 * `plan.winner` may be `null`; `plan.builds` may be empty; `plan.blend` may be absent. `pass` is a
   boolean. `load_kg` is not part of this contract (target property is the demand).
+* `targets` (**optional**, multi-target, same shape/validation as product proposals) supersedes the
+  legacy `target` when non-empty; the plan may also carry `gaps: [...]` with one gap per
+  requirement. The prompt requires the answer/actions to address **every** supplied requirement and
+  gap — not just the first — with a concrete action for each.
 * Invalid structure (missing/blank/oversize question, wrong field types) → HTTP 422 JSON
   `{ok:false, error:"validation_error", message, detail}`.
 * Non-finite numbers are dropped; all strings are trimmed and length-limited before prompting.
@@ -703,9 +727,11 @@ Rules enforced server-side:
 ## Prompt contract (stated to the model)
 
 Answer the user's question using only the supplied plan/numbers; be concrete, plain and short;
-use the practical levers present in the plan (blend a steadier stream using the supplied
-fraction/type, sort/wash/dry, change section/span from the supplied builds, move to the other
-product); never simply reject the batch if any path exists; no invented strength/stiffness/weight/
+**the request may carry a `targets` array with several requirements and the plan several `gaps` —
+address every supplied requirement and gap, not just the first**; use the practical levers present
+in the plan (blend a steadier stream using the supplied fraction/type, sort/wash/dry, change
+section/span from the supplied builds, move to the other product); never simply reject the batch
+if any path exists; no invented strength/stiffness/weight/
 property ranges or measured results; no certification claims; **never instruct the user to test,
 trial, prototype, sample or measure a piece** (no test prints, coupons, samples, prototypes, pilot
 runs, measurements, "try a piece") — prescribe process/build actions instead (blend/add stream,

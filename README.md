@@ -10,20 +10,27 @@ It does not reject the delivery. A dirty, soft or mixed batch is an input, not a
 
 ## The page
 
+The page does not begin with a bracket. It begins with the question **What do you want to make?**
+The product, load path, dimensions and every output requirement belong to the user. There is no
+default part and no default decision. A short row of examples — bracket, slat, crate, planter, pallet
+block — can fill a starter case, but every field stays editable.
+
 One page, three quiet parts:
 
 1. **The decision.** What to make, at what size, and with what blend or material change. One line of
-   support. One black button: copy the build.
-2. **Engineering.** The current build, load path, span and section; the property range; the passing
-   builds. The mechanics calculates every property range from the plastic swing. A proposal appears
-   only when its full range stays inside the target. The winner uses the least added build mass.
+   support. One black button: copy the build or ask Meta when there is no build yet.
+2. **Engineering.** The named product, load path, span and section, and **one or more** property
+   requirements. The user can add strength, stiffness and weight ranges together; every requirement
+   has to hold at once. The mechanics calculates each property range from the plastic swing. A
+   proposal appears only when its full set of ranges stays inside every target. The winner uses the
+   least added build mass.
 3. **Batch.** The delivery's measured stiffness and strength swing, dirt level and what is in it; what
-   the chosen build needs; the gap; the declared steadier stream; and a place to ask Meta what to do
-   with this batch.
+   the chosen build needs for every requirement; the gaps; the declared steadier stream; and a place
+   to ask Meta what to do with this batch.
 
-The first open is a worked example: a 10 mm shelf bracket misses, a 15 mm section passes, and the
-declared stiffer stream also supports a 65% blend recipe. Change any number and the decision updates
-in place.
+The first open asks for the product and the first property. Choose an example or type a different part;
+add more properties when the part has more than one requirement. Change any number and the decision
+updates in place.
 
 ## What the app will never do
 
@@ -38,17 +45,21 @@ in place.
   and the material gap; it shows no invented alternatives and no invented advice.
 - It will not tell the user to go test a piece or trial a prototype. The answer is a build or a
   material action, not a test assignment.
+- It will not assume a shelf bracket, a cantilever, or a single output property. Those are examples
+  the user can choose, not defaults.
 
 ## The model boundary
 
 The browser never receives an API key. Meta calls go through the local FastAPI server:
 
-- `POST /api/product/proposals` — Meta proposes move types and optional parameters. The browser scores
-  the mechanics; the server sanitises parameters and never returns strength/stiffness/weight results.
-  If Meta is unavailable it returns an empty proposal list; there is no fixed-list fallback.
+- `POST /api/product/proposals` — Meta proposes move types and optional parameters for the user's part
+  and **all** target properties. The browser scores the mechanics; the server sanitises parameters
+  and never returns strength/stiffness/weight results. If Meta is unavailable it returns an empty
+  proposal list; there is no fixed-list fallback.
 - `POST /api/product/advice` — the user asks a plain-language batch question. The app sends its
-  calculated plan and gap. Meta returns practical actions, using only the supplied numbers, or an
-  empty `available:false` response. There is no fixed advice fallback.
+  calculated plan, all requirements and the gaps. Meta returns practical actions addressing every
+  supplied requirement, using only the supplied numbers, or an empty `available:false` response.
+  There is no fixed advice fallback.
 
 The app works without the server for the local mechanics. The AI sections need the server.
 
@@ -82,10 +93,10 @@ The active app has no browser runtime dependencies.
 ```
 anyrb/
 ├── app/
-│   ├── index.html      the one page: decision, Engineering, Batch, Ask Meta
+│   ├── index.html      the one page: product question, Engineering, Batch, Ask Meta
 │   ├── styles.css      quiet white page, one system sans, one black pill
-│   ├── product.js      pure mechanics, gap, blend and selection logic
-│   ├── main.js         DOM layer, local scoring, model proposal/advice calls
+│   ├── product.js      pure mechanics, multi-requirement gap/blend/selection logic
+│   ├── main.js         DOM layer, case presets, local scoring, model calls
 │   ├── build.py        inlines the sources into one standalone page
 │   ├── tests/          mechanics, gap, blend and app-source tests
 │   └── README.md

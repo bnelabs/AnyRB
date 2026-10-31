@@ -406,3 +406,94 @@ def test_prompt_forbids_property_results_invented_numbers_and_padding(product_ai
     assert payload["property_ranges_are_context_only"] is True
     assert "strength" in payload["forbidden_output"]
     assert "<<<USER_SHOP_STATE>>>" in payload["untrusted_shop_text"]
+
+
+# ---------------------------------------------------------------------------
+# multi-target support (optional `targets` array; legacy `target` still works)
+# ---------------------------------------------------------------------------
+MULTI_TARGETS = [
+    {"property": "strength", "min": 38, "max": 50},
+    {"property": "stiffness", "min": 1800, "max": 2400},
+    {"property": "weight", "min": 20, "max": 35},
+]
+
+
+def _proposal_request(**overrides):
+    data = {"product": {"name": "slat", "mode": "simple", "span_mm": 900,
+                        "width_mm": 60, "thickness_mm": 8},
+            "target": {"property": "strength", "min": 38, "max": 50}}
+    data.update(overrides)
+    return data
+
+
+def test_multi_target_proposal_prompt_sees_all_target_ranges(product_ai):
+    req = product_ai.ProductProposalRequest(**_proposal_request(targets=MULTI_TARGETS))
+    state = product_ai.sanitize_request(req)
+    assert [t["property"] for t in state["targets"]] == ["strength", "stiffness", "weight"]
+    assert state["targets"] == MULTI_TARGETS
+    payload = product_ai.build_model_payload(state)
+    assert payload["targets"] == MULTI_TARGETS                     # ALL ranges reach the model
+    assert payload["target_properties"] == ["strength", "stiffness", "weight"]
+    assert payload["all_targets_must_be_satisfied_simultaneously"] is True
+    # legacy mirror keeps the first requirement
+    assert payload["target"] == MULTI_TARGETS[0]
+    system = product_ai.PRODUCT_SYSTEM.lower()
+    assert "targets" in system
+    assert "all of them simultaneously" in system
+
+
+def test_legacy_single_target_still_works(product_ai):
+    req = product_ai.ProductProposalRequest(**_proposal_request())
+    state = product_ai.sanitize_request(req)
+    assert state["targets"] == [{"property": "strength", "min": 38.0, "max": 50.0}]
+    assert state["target"] == state["targets"][0]
+    payload = product_ai.build_model_payload(state)
+    assert len(payload["targets"]) == 1 and payload["targets"][0]["property"] == "strength"
+
+
+def test_targets_override_legacy_target(product_ai):
+    req = product_ai.ProductProposalRequest(**_proposal_request(
+        targets=[{"property": "stiffness", "min": 2000, "max": 2500},
+                 {"property": "weight", "min": 15, "max": 25}]))
+    state = product_ai.sanitize_request(req)
+    assert [t["property"] for t in state["targets"]] == ["stiffness", "weight"]
+    assert state["target"]["property"] == "stiffness"            # legacy mirror = first target
+
+
+def test_multi_target_proposal_endpoint_accepts_targets(client):
+    body = _proposal_request(targets=MULTI_TARGETS, steady_available=True)
+    r = client.post(ENDPOINT, json=body)
+    assert r.status_code == 200
+    # mock/offline: no invented proposals, but the multi-target request is valid
+    assert r.json()["proposals"] == []
+    assert r.json()["_meta"]["fallback"] is True
+
+
+def test_malformed_targets_degrade_safely(client, product_ai):
+    for raw_targets in ("nope", 42, [None, "x", {"property": "banana", "min": 1, "max": 2}],
+                        [{"property": "stiffness", "min": "bad", "max": -5}], []):
+        body = _proposal_request(targets=raw_targets)
+        r = client.post(ENDPOINT, json=body)
+        assert r.status_code == 200, (raw_targets, r.status_code)
+        state = product_ai.sanitize_request(product_ai.ProductProposalRequest(**body))
+        assert state["targets"], raw_targets                 # never empty
+        assert state["targets"][0]["property"] in ("strength", "stiffness", "weight")
+    # all-invalid entries fall back to the legacy single target
+    state = product_ai.sanitize_request(product_ai.ProductProposalRequest(
+        **_proposal_request(targets=[{"property": "banana", "min": 1, "max": 2}])))
+    assert [t["property"] for t in state["targets"]] == ["strength"]
+
+
+def test_multi_target_values_are_clamped_and_deduped(product_ai):
+    req = product_ai.ProductProposalRequest(**_proposal_request(targets=[
+        {"property": "strength", "min": 60, "max": 40},          # inverted -> ordered
+        {"property": "stiffness", "min": -50, "max": 99999999},  # clamped
+        {"property": "strength", "min": 10, "max": 20},          # duplicate dropped
+        {"property": "impact", "min": 1, "max": 2},              # unknown dropped
+    ]))
+    targets = product_ai.sanitize_request(req)["targets"]
+    assert [t["property"] for t in targets] == ["strength", "stiffness"]
+    assert targets[0]["min"] <= targets[0]["max"]
+    assert targets[1]["min"] >= 0 and targets[1]["max"] <= 1e6
+    for t in targets:
+        assert isinstance(t["min"], float) and isinstance(t["max"], float)

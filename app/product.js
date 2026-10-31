@@ -13,6 +13,34 @@ export const MODES = [
   { key: 'simple', label: 'Supported at both ends' },
   { key: 'compression', label: 'Stands in compression' },
 ];
+export const CASE_PRESETS = {
+  bracket: {
+    product: 'shelf bracket', mode: 'cantilever', spanMm: 180, widthMm: 40, thicknessMm: 10,
+    target: { property: 'strength', min: 11.5, max: 16.5 },
+    extraTargets: [{ property: 'weight', min: 90, max: 110 }],
+  },
+  slat: {
+    product: 'deck slat', mode: 'simple', spanMm: 900, widthMm: 60, thicknessMm: 12,
+    target: { property: 'stiffness', min: 0.3, max: 0.5 },
+    extraTargets: [{ property: 'weight', min: 550, max: 650 }],
+  },
+  crate: {
+    product: 'crate side', mode: 'simple', spanMm: 400, widthMm: 60, thicknessMm: 15,
+    target: { property: 'strength', min: 30, max: 42 },
+    extraTargets: [{ property: 'weight', min: 300, max: 380 }],
+  },
+  planter: {
+    product: 'planter wall', mode: 'compression', spanMm: 300, widthMm: 180, thicknessMm: 4,
+    target: { property: 'strength', min: 1000, max: 1400 },
+    extraTargets: [{ property: 'weight', min: 180, max: 230 }],
+  },
+  pallet: {
+    product: 'pallet block', mode: 'compression', spanMm: 150, widthMm: 150, thicknessMm: 80,
+    target: { property: 'strength', min: 15000, max: 20000 },
+    extraTargets: [{ property: 'weight', min: 1500, max: 1800 }],
+  },
+};
+
 export const PROPERTIES = [
   { key: 'strength', label: 'Strength', unit: 'kg', verb: 'carries', noun: 'strength' },
   { key: 'stiffness', label: 'Stiffness', unit: 'N/mm', verb: 'holds', noun: 'stiffness' },
@@ -28,12 +56,13 @@ const MODE_KEYS = new Set(MODES.map((m) => m.key));
 const PROPERTY_KEYS = new Set(PROPERTIES.map((p) => p.key));
 
 export const DEFAULT_STATE = {
-  product: 'shelf bracket',
+  product: '',
   mode: 'cantilever',
-  spanMm: 180,
-  widthMm: 40,
-  thicknessMm: 10,
-  target: { property: 'strength', min: 11.5, max: 16.5 },
+  spanMm: 0,
+  widthMm: 0,
+  thicknessMm: 0,
+  target: { property: '', min: '', max: '' },
+  extraTargets: [],
   plastic: {
     type: 'recycled polypropylene',
     batch: 'April delivery',
@@ -48,7 +77,7 @@ export const DEFAULT_STATE = {
   },
   steady: { available: true, type: 'stiffer bottle stream', eMpa: 2000, sMpa: 40 },
   other: {
-    product: 'heavy bracket',
+    product: 'heavier part',
     mode: 'cantilever',
     spanMm: 260,
     widthMm: 50,
@@ -104,25 +133,48 @@ export function blankState() {
   return clone(DEFAULT_STATE);
 }
 
+function normalizeTarget(raw, fallback) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const fallbackProperty = fallback && PROPERTY_KEYS.has(fallback.property) ? fallback.property : '';
+  const property = PROPERTY_KEYS.has(source.property) ? source.property : fallbackProperty;
+  const rawMin = num(source.min, null);
+  const rawMax = num(source.max, null);
+  const min = rawMin == null ? '' : rawMin;
+  const max = rawMax == null ? '' : rawMax;
+  return {
+    property,
+    min: min === '' || max === '' ? min : Math.min(min, max),
+    max: min === '' || max === '' ? max : Math.max(min, max),
+  };
+}
+
 export function normalizeState(raw = {}) {
   const source = raw && typeof raw === 'object' ? raw : {};
   const target = source.target && typeof source.target === 'object' ? source.target : {};
+  const rawExtraTargets = Array.isArray(source.extraTargets) ? source.extraTargets : [];
   const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
   const other = source.other && typeof source.other === 'object' ? source.other : {};
-  const property = PROPERTY_KEYS.has(target.property) ? target.property : DEFAULT_STATE.target.property;
-  const min = num(target.min, DEFAULT_STATE.target.min);
-  const max = num(target.max, DEFAULT_STATE.target.max);
+  const primaryTarget = normalizeTarget(target, DEFAULT_STATE.target);
+  const extraTargets = rawExtraTargets
+    .filter((item) => item && typeof item === 'object' && PROPERTY_KEYS.has(item.property))
+    .slice(0, 5)
+    .map((item) => normalizeTarget(item, DEFAULT_STATE.target));
   const eMin = clamp(num(plastic.eMin ?? plastic.stiffness_min_mpa, DEFAULT_STATE.plastic.eMin), 1, 200000);
   const eMax = clamp(num(plastic.eMax ?? plastic.stiffness_max_mpa, DEFAULT_STATE.plastic.eMax), eMin, 200000);
   const sMin = clamp(num(plastic.sMin ?? plastic.strength_min_mpa, DEFAULT_STATE.plastic.sMin), 0.1, 5000);
   const sMax = clamp(num(plastic.sMax ?? plastic.strength_max_mpa, DEFAULT_STATE.plastic.sMax), sMin, 5000);
+  const product = clean(source.product, 120);
+  const span = num(source.spanMm, 0);
+  const width = num(source.widthMm, 0);
+  const thickness = num(source.thicknessMm, 0);
   return {
-    product: clean(source.product, 120) || DEFAULT_STATE.product,
-    mode: MODE_KEYS.has(source.mode) ? source.mode : inferMode(source.product || DEFAULT_STATE.product),
-    spanMm: clamp(num(source.spanMm, DEFAULT_STATE.spanMm), 20, 6000),
-    widthMm: clamp(num(source.widthMm, DEFAULT_STATE.widthMm), 2, 800),
-    thicknessMm: clamp(num(source.thicknessMm, DEFAULT_STATE.thicknessMm), 1, 400),
-    target: { property, min: Math.min(min, max), max: Math.max(min, max) },
+    product,
+    mode: MODE_KEYS.has(source.mode) ? source.mode : (product ? inferMode(product) : DEFAULT_STATE.mode),
+    spanMm: span > 0 ? clamp(span, 20, 6000) : 0,
+    widthMm: width > 0 ? clamp(width, 2, 800) : 0,
+    thicknessMm: thickness > 0 ? clamp(thickness, 1, 400) : 0,
+    target: primaryTarget,
+    extraTargets,
     plastic: {
       type: clean(plastic.type, 160) || DEFAULT_STATE.plastic.type,
       batch: clean(plastic.batch, 120) || DEFAULT_STATE.plastic.batch,
@@ -147,6 +199,28 @@ export function normalizeState(raw = {}) {
       mode: MODE_KEYS.has(other.mode) ? other.mode : inferMode(other.product || DEFAULT_STATE.other.product),
     }),
   };
+}
+
+export function isReady(stateInput) {
+  const state = normalizeState(stateInput);
+  if (!state.product) return false;
+  if (!(state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0)) return false;
+  const targets = [state.target, ...state.extraTargets];
+  if (!targets.length) return false;
+  for (const target of targets) {
+    if (!PROPERTY_KEYS.has(target.property)) return false;
+    if (!Number.isFinite(target.min) || !Number.isFinite(target.max)) return false;
+    if (target.min > target.max) return false;
+  }
+  if (!(state.plastic.eMin > 0 && state.plastic.eMax >= state.plastic.eMin)) return false;
+  if (!(state.plastic.sMin > 0 && state.plastic.sMax >= state.plastic.sMin)) return false;
+  if (!(state.plastic.density > 0)) return false;
+  return true;
+}
+
+export function allTargets(stateInput) {
+  const state = normalizeState(stateInput);
+  return [state.target, ...state.extraTargets];
 }
 
 export function propertyMeta(property) {
@@ -383,21 +457,22 @@ function materialRange(plastic, property) {
 }
 
 /** Compare what the delivery provides with what a part needs. */
-export function materialGap(stateInput, part) {
+export function materialGap(stateInput, part, targetInput = null) {
   const state = normalizeState(stateInput);
-  const required = requiredMaterial(part, state.target.property, state.target);
-  const batch = materialRange(state.plastic, state.target.property);
+  const target = normalizeTarget(targetInput, state.target);
+  const required = requiredMaterial(part, target.property, target);
+  const batch = materialRange(state.plastic, target.property);
   const shortLow = Math.max(0, required.min - batch.min);
   const overHigh = Math.max(0, batch.max - required.max);
-  const steadyValue = state.target.property === 'strength'
+  const steadyValue = target.property === 'strength'
     ? (state.steady.available ? state.steady.sMpa : 0)
-    : state.target.property === 'stiffness'
+    : target.property === 'stiffness'
       ? (state.steady.available ? state.steady.eMpa : 0)
       : 0;
   const steadyShort = steadyValue > 0 ? Math.max(0, required.min - steadyValue) : null;
-  const targetRatio = (state.target.max - state.target.min) / state.target.min;
+  const targetRatio = (target.max - target.min) / target.min;
   const batchRatio = batch.min > 0 ? (batch.max - batch.min) / batch.min : Infinity;
-  const rangeTooWide = state.target.property !== 'weight' && batchRatio > targetRatio + 1e-9;
+  const rangeTooWide = target.property !== 'weight' && batchRatio > targetRatio + 1e-9;
   let action;
   if (rangeTooWide) {
     action = 'The delivery swings too wide for this range. A thicker or wider section scales both ends together, so it cannot narrow the swing; add a steadier stream or sort out the soft fraction first.';
@@ -407,31 +482,29 @@ export function materialGap(stateInput, part) {
   } else if (shortLow > 0 && overHigh > 0) {
     action = 'Lift the low end and bring the high end down.';
   } else if (shortLow > 0) {
-    action = state.target.property === 'weight'
+    action = target.property === 'weight'
       ? 'Use a denser fraction, or change the section.'
       : 'Blend with the declared steadier stream, or add a stream that reaches the low end.';
   } else if (overHigh > 0) {
-    action = state.target.property === 'weight'
+    action = target.property === 'weight'
       ? 'Use less of the dense fraction, or change the section.'
       : 'Use less of the strong fraction, or use a thinner build.';
   } else {
     action = 'This delivery already sits inside the window for this build.';
   }
-  return { required, batch, shortLow, overHigh, steadyValue, steadyShort, rangeTooWide, action, unit: required.unit, property: state.target.property };
+  return { required, batch, shortLow, overHigh, steadyValue, steadyShort, rangeTooWide, action, unit: required.unit, property: target.property };
 }
 
 /** The least-material thickness that makes the current build with this delivery. */
 export function minimumThicknessCandidate(stateInput) {
   const state = normalizeState(stateInput);
-  if (state.target.min > state.target.max) return null;
   const base = currentPart(state);
   let best = null;
   for (let t = 1; t <= 400; t += 0.5) {
     const part = { ...base, thicknessMm: t };
-    const range = propertyRange(part, state.plastic, state.target.property);
-    if (inRange(range, state.target)) {
+    if (passesAllTargets(state, part, state.plastic)) {
       const mass = massG(part, state.plastic.density);
-      if (!best || mass < best.mass) best = { t, range, mass };
+      if (!best || mass < best.mass) best = { t, mass };
     }
   }
   if (!best) return null;
@@ -444,19 +517,19 @@ export function minimumThicknessCandidate(stateInput) {
 export function blendCandidate(stateInput) {
   const state = normalizeState(stateInput);
   if (!state.steady.available || !state.steady.eMpa || !state.steady.sMpa) return null;
-  if (state.target.property === 'weight') return null;
   const part = currentPart(state);
   for (let f = 0.05; f <= 0.9001; f += 0.02) {
     const plastic = blendPlastic(state.plastic, f, state.steady);
-    if (inRange(propertyRange(part, plastic, state.target.property), state.target)) {
+    if (passesAllTargets(state, part, plastic)) {
       return { move: 'blend', fraction: +f.toFixed(2) };
     }
   }
   return null;
 }
 
-function passesPart(state, part, plastic, property) {
-  return inRange(propertyRange(part, plastic, property), state.target);
+function passesAllTargets(state, part, plastic) {
+  const targets = [state.target, ...state.extraTargets];
+  return targets.every((target) => inRange(propertyRange(part, plastic, target.property), target));
 }
 
 function addFound(state, found, seen, candidate) {
@@ -475,7 +548,6 @@ function searchModelMoves(state, proposals) {
   const found = [];
   const seen = new Set();
   const normalized = normalizeModelProposals(state, proposals);
-  const property = state.target.property;
   const plastic = state.plastic;
   const current = currentPart(state);
 
@@ -489,7 +561,7 @@ function searchModelMoves(state, proposals) {
       if (state.steady.eMpa > 0 && state.steady.sMpa > 0) {
         for (let f = 0.05; f <= 0.9001; f += 0.02) {
           const candidate = { move: 'blend', fraction: +f.toFixed(2) };
-          if (passesPart(state, current, blendPlastic(plastic, candidate.fraction, state.steady), property)) {
+          if (passesAllTargets(state, current, blendPlastic(plastic, candidate.fraction, state.steady))) {
             best = candidate;
             break;
           }
@@ -507,7 +579,7 @@ function searchModelMoves(state, proposals) {
         if (t < 1 || t > 400) break;
         const candidate = { move: 'thickness', thicknessMm: +t.toFixed(2) };
         const part = candidatePart(state, candidate);
-        if (passesPart(state, part, plastic, property)) {
+        if (passesAllTargets(state, part, plastic)) {
           addFound(state, found, seen, candidate);
           break;
         }
@@ -524,7 +596,7 @@ function searchModelMoves(state, proposals) {
           if (direction < 0 && w >= state.widthMm) break;
           const candidate = { move: 'section', widthMm: w };
           const part = candidatePart(state, candidate);
-          if (passesPart(state, part, plastic, property)) {
+          if (passesAllTargets(state, part, plastic)) {
             addFound(state, found, seen, candidate);
             break;
           }
@@ -538,9 +610,9 @@ function searchModelMoves(state, proposals) {
       if (!modes.includes(current.mode)) modes.push(current.mode);
       for (const mode of modes) {
         const sameSpan = { move: 'span', spanMm: current.spanMm, mode };
-        if (passesPart(state, currentPart(state), plastic, property) && mode === current.mode) {
+        if (mode === current.mode && passesAllTargets(state, currentPart(state), plastic)) {
           // no need to duplicate the current build
-        } else if (passesPart(state, candidatePart(state, sameSpan), plastic, property)) {
+        } else if (passesAllTargets(state, candidatePart(state, sameSpan), plastic)) {
           addFound(state, found, seen, sameSpan);
           continue;
         }
@@ -551,7 +623,7 @@ function searchModelMoves(state, proposals) {
         if (direction > 0) {
           for (let span = Math.ceil(state.spanMm); span <= hi; span += 1) {
             const candidate = { move: 'span', spanMm: span, mode };
-            if (passesPart(state, candidatePart(state, candidate), plastic, property)) {
+            if (passesAllTargets(state, candidatePart(state, candidate), plastic)) {
               addFound(state, found, seen, candidate);
               break;
             }
@@ -559,7 +631,7 @@ function searchModelMoves(state, proposals) {
         } else {
           for (let span = Math.floor(state.spanMm); span >= lo; span -= 1) {
             const candidate = { move: 'span', spanMm: span, mode };
-            if (passesPart(state, candidatePart(state, candidate), plastic, property)) {
+            if (passesAllTargets(state, candidatePart(state, candidate), plastic)) {
               addFound(state, found, seen, candidate);
               break;
             }
@@ -596,19 +668,38 @@ function addCandidate(state, list, seen, candidate) {
 
 export function evaluateBuilds(stateInput, modelProposals = []) {
   const state = normalizeState(stateInput);
-  const property = state.target.property;
-  const target = state.target;
-  const targetValid = target.min <= target.max;
+  if (!isReady(state)) {
+    return {
+      state,
+      ready: false,
+      current: null,
+      winner: null,
+      passingBest: [],
+      gap: null,
+      gaps: [],
+      allCount: 0,
+      passingCount: 0,
+      triedCount: 0,
+      triedMoves: [],
+      failedMoves: [],
+      targetValid: true,
+      targets: [state.target, ...state.extraTargets],
+    };
+  }
+  const targets = [state.target, ...state.extraTargets];
+  const targetValid = targets.every((target) => target.min <= target.max);
   const current = { move: 'current', part: currentPart(state) };
   const currentPlastic = state.plastic;
   const currentMass = massG(current.part, currentPlastic.density);
-  const currentRange = propertyRange(current.part, currentPlastic, property);
+  const currentRanges = targets.map((target) => propertyRange(current.part, currentPlastic, target.property));
+  const currentPass = targetValid && currentRanges.every((range, i) => inRange(range, targets[i]));
   const currentEval = {
     ...current,
     massG: currentMass,
     addedG: 0,
-    range: currentRange,
-    pass: targetValid && inRange(currentRange, target),
+    range: currentRanges[0],
+    ranges: currentRanges,
+    pass: currentPass,
     part: current.part,
   };
 
@@ -626,16 +717,20 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
     const part = candidatePart(state, candidate);
     const plastic = plasticFor(state, candidate);
     const support = supportG(candidate, currentMass);
-    let range = propertyRange(part, plastic, property);
-    if (property === 'weight') range = { ...range, min: range.min + support, max: range.max + support };
+    const ranges = targets.map((target) => {
+      let range = propertyRange(part, plastic, target.property);
+      if (target.property === 'weight') range = { ...range, min: range.min + support, max: range.max + support };
+      return range;
+    });
     const mass = massG(part, plastic.density) + support;
     return {
       ...candidate,
       part,
-      range,
+      range: ranges[0],
+      ranges,
       massG: mass,
       addedG: mass - currentMass,
-      pass: inRange(range, target),
+      pass: targetValid && ranges.every((range, i) => inRange(range, targets[i])),
     };
   });
 
@@ -656,19 +751,25 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
   const triedMoves = new Set([current.move, ...evaluated.map((e) => e.move)]);
   const failedMoves = [...new Set(evaluated.filter((e) => !e.pass).map((e) => e.move))];
 
-  const gap = targetValid && !winner ? materialGap(state, current.part) : null;
+  const gaps = targetValid && !winner
+    ? targets.map((target) => materialGap(state, current.part, target))
+    : [];
+  const gap = gaps[0] || null;
   return {
     state,
+    ready: true,
     current: currentEval,
     winner,
     passingBest,
     gap,
+    gaps,
     allCount: all.length,
     passingCount: passing.length,
     triedCount: evaluated.length,
     triedMoves: [...triedMoves],
     failedMoves,
     targetValid,
+    targets,
   };
 }
 
@@ -703,31 +804,52 @@ export function addedMaterialText(addedG) {
 
 export function decisionFor(stateInput, result) {
   const state = normalizeState(stateInput);
-  const meta = propertyMeta(state.target.property);
-  const target = formatTarget(state.target);
+  if (!result.ready) {
+    return {
+      headline: 'What do you want to make?',
+      support: 'Name the part, set one or more properties that have to hold, and describe this delivery.',
+      button: null,
+      copy: '',
+    };
+  }
+  const targets = [state.target, ...state.extraTargets];
+  const rangeText = (item) => targets
+    .map((target, i) => {
+      const meta = propertyMeta(target.property);
+      return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
+    })
+    .join(' and ');
+  const targetText = targets
+    .map((target) => `${propertyMeta(target.property).label} ${formatTarget(target)}`)
+    .join('; ');
   if (!result.winner) {
-    const gap = result.gap || materialGap(state, currentPart(state));
-    const unit = gap.unit;
+    const gaps = result.gaps && result.gaps.length ? result.gaps : [materialGap(state, currentPart(state))];
+    const primary = gaps.find((gap) => gap.rangeTooWide || gap.shortLow > 0 || gap.overHigh > 0) || gaps[0];
+    const meta = propertyMeta(primary.property);
+    const unit = primary.unit;
     let headline;
-    if (gap.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
-    else if (gap.shortLow > 0) headline = `Lift the ${meta.noun} low end by ${formatNumber(gap.shortLow)} ${unit}.`;
-    else if (gap.overHigh > 0) headline = `Bring the ${meta.noun} high end down by ${formatNumber(gap.overHigh)} ${unit}.`;
+    if (primary.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
+    else if (primary.shortLow > 0) headline = `Lift the ${meta.noun} low end by ${formatNumber(primary.shortLow)} ${unit}.`;
+    else if (primary.overHigh > 0) headline = `Bring the ${meta.noun} high end down by ${formatNumber(primary.overHigh)} ${unit}.`;
     else headline = 'This build needs a different section.';
-    const required = formatRange(gap.required, unit);
-    const batch = formatRange(gap.batch, unit);
-    const support = `At ${buildSizeText(currentPart(state))}, this build needs ${meta.noun} ${required}; your delivery gives ${batch}. ${gap.action}`;
+    const statements = gaps.map((gap) => {
+      const gapMeta = propertyMeta(gap.property);
+      return `${gapMeta.noun} needs ${formatRange(gap.required, gap.unit)}; the delivery gives ${formatRange(gap.batch, gap.unit)}.`;
+    });
+    const support = `At ${buildSizeText(currentPart(state))}, ${statements.join(' ')} ${primary.action}`;
     const copy = [
       'AnyRB plan',
       headline,
       `Current build: ${buildSizeText(currentPart(state))}`,
-      `Needs: ${meta.label} ${required}`,
-      `Delivery: ${meta.label} ${batch}`,
-      `Action: ${gap.action}`,
+      ...gaps.map((gap) => {
+        const gapMeta = propertyMeta(gap.property);
+        return `${gapMeta.label}: needs ${formatRange(gap.required, gap.unit)}, delivery ${formatRange(gap.batch, gap.unit)}`;
+      }),
+      `Action: ${primary.action}`,
     ].join('\n');
     return { headline, support, button: 'Ask Meta', copy };
   }
   const winner = result.winner;
-  const range = formatRange(winner.range, meta.unit);
   const isBlend = winner.move === 'blend';
   const steadyName = state.steady.type || 'a steadier plastic';
   const blendPct = isBlend ? Math.round(winner.fraction * 100) : 0;
@@ -736,13 +858,13 @@ export function decisionFor(stateInput, result) {
     : `Make the ${buildSizeText(winner.part)}.`;
   let support;
   if (isBlend) {
-    support = `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${meta.verb} ${range}, inside your ${target} range.`;
+    support = `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (winner.move === 'other') {
-    support = `The ${state.product} has no passing build. This delivery makes the ${state.other.product}: ${meta.verb} ${range}, inside your ${target} range.`;
+    support = `The ${state.product} has no passing build. This delivery makes the ${state.other.product}: ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (result.current.pass) {
-    support = `This build ${meta.verb} ${range} from this delivery — inside your ${target} range.`;
+    support = `This build ${rangeText(winner)} from this delivery — inside your ${targetText}.`;
   } else {
-    support = `The ${formatNumber(state.thicknessMm)} mm version misses. This build ${meta.verb} ${range}, inside your ${target} range.`;
+    support = `The ${formatNumber(state.thicknessMm)} mm version misses. This build ${rangeText(winner)} — inside your ${targetText}.`;
   }
   const copy = [
     'AnyRB build',
@@ -750,7 +872,10 @@ export function decisionFor(stateInput, result) {
     `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
     `Mix: ${state.plastic.mix || 'none stated'}; dirt: ${state.plastic.dirt || 'none stated'}`,
     isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',
-    `Property: ${meta.label} ${range} — inside ${target}`,
+    ...targets.map((target, i) => {
+      const meta = propertyMeta(target.property);
+      return `Requirement: ${meta.label} ${formatRange(winner.ranges ? winner.ranges[i] : winner.range, meta.unit)} — inside ${formatTarget(target)}`;
+    }),
     isBlend ? `Added material: ${blendPct}% ${steadyName}` : `Added material: ${addedMaterialText(winner.addedG)}`,
     `Move: ${moveLabel(state, winner)}`,
   ].filter(Boolean).join('\n');
@@ -759,7 +884,7 @@ export function decisionFor(stateInput, result) {
 
 export function proposalRow(stateInput, item) {
   const state = normalizeState(stateInput);
-  const meta = propertyMeta(state.target.property);
+  const targets = [state.target, ...state.extraTargets];
   const size = item.move === 'other'
     ? `${item.part.product} · ${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`
     : `${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`;
@@ -767,13 +892,17 @@ export function proposalRow(stateInput, item) {
   return {
     move: moveLabel(state, item),
     size,
-    property: `${meta.verb} ${formatRange(item.range, meta.unit)}`,
+    property: targets.map((target, i) => {
+      const meta = propertyMeta(target.property);
+      return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
+    }).join(' · '),
     added: blendPercent ? `${blendPercent}% steady stream` : addedMaterialText(item.addedG),
     winner: false,
     blend: blendPercent,
     steadyType: item.move === 'blend' ? state.steady.type : '',
   };
 }
+
 
 export function toApiPayload(stateInput) {
   const state = normalizeState(stateInput);
@@ -791,6 +920,11 @@ export function toApiPayload(stateInput) {
       min: state.target.min,
       max: state.target.max,
     },
+    targets: [state.target, ...state.extraTargets].map((target) => ({
+      property: target.property,
+      min: target.min,
+      max: target.max,
+    })),
     plastic: {
       type: state.plastic.type,
       batch: state.plastic.batch,
@@ -831,6 +965,11 @@ export function advicePayload(stateInput, result, question) {
       thickness_mm: state.thicknessMm,
     },
     target: { property: state.target.property, min: state.target.min, max: state.target.max },
+    targets: [state.target, ...state.extraTargets].map((target) => ({
+      property: target.property,
+      min: target.min,
+      max: target.max,
+    })),
     plastic: {
       type: state.plastic.type,
       batch: state.plastic.batch,
@@ -861,12 +1000,14 @@ export function advicePayload(stateInput, result, question) {
       support: decision.support,
       current: {
         property_range: range(result.current.range),
+        property_ranges: result.current.ranges.map(range),
         pass: result.current.pass,
       },
       winner: result.winner ? {
         product: result.winner.part.product,
         size: size(result.winner.part),
         property_range: range(result.winner.range),
+        property_ranges: result.winner.ranges.map(range),
         added_material: result.winner.addedG,
         move: moveLabel(state, result.winner),
         blend_percent: result.winner.move === 'blend' ? Math.round(result.winner.fraction * 100) : null,
@@ -885,10 +1026,23 @@ export function advicePayload(stateInput, result, question) {
         range_too_wide: result.gap.rangeTooWide,
         required_action: result.gap.action,
       } : null,
+      gaps: (result.gaps || []).map((gap) => ({
+        property: gap.property,
+        unit: gap.unit,
+        needed_min: gap.required.min,
+        needed_max: gap.required.max,
+        batch_min: gap.batch.min,
+        batch_max: gap.batch.max,
+        short_low: gap.shortLow,
+        over_high: gap.overHigh,
+        range_too_wide: gap.rangeTooWide,
+        required_action: gap.action,
+      })),
       builds: result.passingBest.slice(0, 6).map((item) => ({
         move: moveLabel(state, item),
         size: size(item.part),
         property_range: range(item.range),
+        property_ranges: item.ranges.map(range),
         added_material: item.addedG,
       })),
       blend: {

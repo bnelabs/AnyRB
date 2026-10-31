@@ -3,11 +3,14 @@ import {
   MODES,
   PROPERTIES,
   PROPERTY_DEFAULTS,
+  CASE_PRESETS,
   advicePayload,
+  propertyMeta,
   blendCandidate,
   buildSizeText,
   decisionFor,
   evaluateBuilds,
+  isReady,
   materialGap,
   normalizeState,
   proposalRow,
@@ -28,6 +31,8 @@ let lastResult = null;
 let lastDecision = null;
 let copyReset = 0;
 
+
+
 function setValue(id, value) {
   const input = $(id);
   if (input) input.value = value == null ? '' : String(value);
@@ -45,24 +50,99 @@ function setSelectOptions(id, items) {
 }
 
 function updateTargetLabels() {
-  const meta = PROPERTIES.find((p) => p.key === state.target.property) || PROPERTIES[0];
-  $('target-min-label').textContent = `Low (${meta.unit})`;
-  $('target-max-label').textContent = `High (${meta.unit})`;
+  const meta = PROPERTIES.find((p) => p.key === state.target.property);
+  $('target-min-label').textContent = meta ? `Low (${meta.unit})` : 'Low';
+  $('target-max-label').textContent = meta ? `High (${meta.unit})` : 'High';
 }
 
 function updateSteadyVisibility() {
   $('steady-fields').hidden = !$('steady-available').checked;
 }
 
+function targetUnit(property) {
+  return (PROPERTIES.find((item) => item.key === property) || PROPERTIES[0]).unit;
+}
+
+function renderExtraTargets() {
+  const wrap = $('extra-targets');
+  wrap.replaceChildren();
+  state.extraTargets.forEach((target, index) => {
+    const row = document.createElement('div');
+    row.className = 'extra-target';
+    const propertyField = document.createElement('div');
+    propertyField.className = 'field';
+    const propertyLabel = document.createElement('label');
+    propertyLabel.textContent = 'Also holds';
+    const select = document.createElement('select');
+    for (const item of PROPERTIES) {
+      const option = document.createElement('option');
+      option.value = item.key;
+      option.textContent = `${item.label} (${item.unit})`;
+      select.append(option);
+    }
+    select.value = target.property;
+    select.addEventListener('change', () => {
+      const property = select.value;
+      const defaults = PROPERTY_DEFAULTS[property] || PROPERTY_DEFAULTS.strength;
+      state.extraTargets[index] = { property, min: defaults.min, max: defaults.max };
+      renderExtraTargets();
+      onFieldChange();
+    });
+    propertyField.append(propertyLabel, select);
+
+    const lowField = document.createElement('div');
+    lowField.className = 'field';
+    const lowLabel = document.createElement('label');
+    lowLabel.textContent = `Low (${targetUnit(target.property)})`;
+    const low = document.createElement('input');
+    low.type = 'text';
+    low.inputMode = 'decimal';
+    low.value = target.min == null ? '' : String(target.min);
+    low.addEventListener('input', () => {
+      state.extraTargets[index].min = low.value;
+      onFieldChange();
+    });
+    lowField.append(lowLabel, low);
+
+    const highField = document.createElement('div');
+    highField.className = 'field';
+    const highLabel = document.createElement('label');
+    highLabel.textContent = `High (${targetUnit(target.property)})`;
+    const high = document.createElement('input');
+    high.type = 'text';
+    high.inputMode = 'decimal';
+    high.value = target.max == null ? '' : String(target.max);
+    high.addEventListener('input', () => {
+      state.extraTargets[index].max = high.value;
+      onFieldChange();
+    });
+    highField.append(highLabel, high);
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'remove-target';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      state.extraTargets.splice(index, 1);
+      renderExtraTargets();
+      onFieldChange();
+    });
+
+    row.append(propertyField, lowField, highField, remove);
+    wrap.append(row);
+  });
+  $('add-target').hidden = state.extraTargets.length >= 3;
+}
+
 function paint() {
   setValue('product', state.product);
   $('mode').value = state.mode;
-  setValue('span', state.spanMm);
-  setValue('width', state.widthMm);
-  setValue('thickness', state.thicknessMm);
+  setValue('span', state.spanMm || '');
+  setValue('width', state.widthMm || '');
+  setValue('thickness', state.thicknessMm || '');
   $('property').value = state.target.property;
-  setValue('target-min', state.target.min);
-  setValue('target-max', state.target.max);
+  setValue('target-min', state.target.min || '');
+  setValue('target-max', state.target.max || '');
   setValue('plastic-type', state.plastic.type);
   setValue('plastic-batch', state.plastic.batch);
   setValue('plastic-mix', state.plastic.mix);
@@ -84,6 +164,7 @@ function paint() {
   setValue('other-thickness', state.other.thicknessMm);
   updateTargetLabels();
   updateSteadyVisibility();
+  renderExtraTargets();
 }
 
 function fade(elements, fn) {
@@ -135,37 +216,45 @@ function renderGap(result) {
   gap.replaceChildren();
   if (!result.targetValid) {
     const p = document.createElement('p');
-    p.textContent = 'The low end of the range is above the high end. Check the range.';
+    p.textContent = 'The low end of a range is above the high end. Check the ranges.';
     gap.append(p);
     return;
   }
   if (result.winner) {
-    const needed = materialGap(result.state, result.winner.part);
-    const p = document.createElement('p');
-    const needText = `${formatRange(needed.required, needed.unit)}`;
-    const batchText = `${formatRange(needed.batch, needed.unit)}`;
-    if (result.winner.move === 'blend') {
-      p.textContent = `The base delivery gives ${batchText}; this build needs ${needText}. ${Math.round(result.winner.fraction * 100)}% of ${result.state.steady.type || 'the steadier stream'} brings it into the window.`;
-    } else {
-      p.textContent = `This build needs ${needText}; your delivery gives ${batchText}. It fits.`;
+    for (const target of result.targets) {
+      const meta = propertyMeta(target.property);
+      const needed = materialGap(result.state, result.winner.part, target);
+      const p = document.createElement('p');
+      const needText = formatRange(needed.required, needed.unit);
+      const batchText = formatRange(needed.batch, needed.unit);
+      if (result.winner.move === 'blend') {
+        p.textContent = `${meta.label}: the base delivery gives ${batchText}; this build needs ${needText}. ${Math.round(result.winner.fraction * 100)}% of ${result.state.steady.type || 'the steadier stream'} brings it into the window.`;
+      } else {
+        p.textContent = `${meta.label}: this build needs ${needText}; your delivery gives ${batchText}. It fits.`;
+      }
+      gap.append(p);
     }
-    gap.append(p);
     return;
   }
-  if (!result.gap) return;
+  if (!result.gaps || !result.gaps.length) return;
+  const primary = result.gaps.find((item) => item.rangeTooWide || item.shortLow > 0 || item.overHigh > 0) || result.gaps[0];
   const head = document.createElement('p');
   head.className = 'gap-head';
-  if (result.gap.rangeTooWide) {
-    head.textContent = 'This delivery swings too wide for the target.';
+  if (primary.rangeTooWide) {
+    head.textContent = 'This delivery swings too wide for at least one target.';
   } else {
-    const short = result.gap.shortLow > 0
-      ? `${result.gap.shortLow.toFixed(result.gap.shortLow >= 10 ? 0 : 1)} ${result.gap.unit} short at the low end`
-      : `${result.gap.overHigh.toFixed(result.gap.overHigh >= 10 ? 0 : 1)} ${result.gap.unit} over at the high end`;
+    const short = primary.shortLow > 0
+      ? `${primary.shortLow.toFixed(primary.shortLow >= 10 ? 0 : 1)} ${primary.unit} short at the low end`
+      : `${primary.overHigh.toFixed(primary.overHigh >= 10 ? 0 : 1)} ${primary.unit} over at the high end`;
     head.textContent = `This delivery is ${short}.`;
   }
-  const body = document.createElement('p');
-  body.textContent = `At the current build, the range needs ${formatRange(result.gap.required, result.gap.unit)}; the delivery gives ${formatRange(result.gap.batch, result.gap.unit)}. ${result.gap.action}`;
-  gap.append(head, body);
+  gap.append(head);
+  for (const item of result.gaps) {
+    const meta = propertyMeta(item.property);
+    const p = document.createElement('p');
+    p.textContent = `${meta.label}: needs ${formatRange(item.required, item.unit)}; delivery gives ${formatRange(item.batch, item.unit)}. ${item.action}`;
+    gap.append(p);
+  }
 }
 
 function formatRange(range, unit) {
@@ -176,6 +265,10 @@ function formatRange(range, unit) {
 
 function renderStatus(result) {
   const status = $('model-status');
+  if (modelState === 'idle') {
+    status.textContent = '';
+    return;
+  }
   if (modelState === 'loading') {
     status.textContent = 'Meta is proposing moves…';
     return;
@@ -195,13 +288,24 @@ function render(result) {
   lastResult = result;
   const decision = decisionFor(result.state, result);
   lastDecision = decision;
+  const primary = $('primary');
+  primary.hidden = !decision.button;
+  primary.textContent = decision.button || '';
+  primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
+  $('builds-panel').hidden = !result.ready;
+  $('gap').hidden = !result.ready;
+  $('ask-panel').hidden = !result.ready;
   fade([$('decision'), $('support')], () => {
     $('decision').textContent = decision.headline;
     $('support').textContent = decision.support;
-    const primary = $('primary');
-    primary.textContent = decision.button;
-    primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
   });
+  if (!result.ready) {
+    $('build-list').replaceChildren();
+    $('empty-build').hidden = true;
+    $('model-status').textContent = '';
+    $('live').textContent = decision.headline;
+    return;
+  }
   fade([$('build-list'), $('gap')], () => {
     renderBuildList(result);
     renderGap(result);
@@ -211,16 +315,15 @@ function render(result) {
 }
 
 function refresh({ model = true } = {}) {
+  const ready = isReady(state);
   if (model) {
-    modelState = 'loading';
+    window.clearTimeout(modelTimer);
     modelProposals = [];
+    modelState = ready ? 'loading' : 'idle';
+    if (ready) modelTimer = window.setTimeout(fetchProposals, 850);
   }
   const result = evaluateBuilds(state, modelProposals);
   render(result);
-  if (model) {
-    window.clearTimeout(modelTimer);
-    modelTimer = window.setTimeout(fetchProposals, 850);
-  }
   return result;
 }
 
@@ -255,6 +358,7 @@ function bindSelect(id, path, after = null) {
 // Model proposals
 // ---------------------------------------------------------------------------
 async function fetchProposals() {
+  if (!isReady(state)) return;
   const seq = ++modelSeq;
   const payload = toApiPayload(state);
   const controller = new AbortController();
@@ -301,6 +405,7 @@ function clearAdvice() {
 }
 
 async function askMeta() {
+  if (!lastResult || !lastResult.ready) return;
   const input = $('ask-question');
   const question = (input.value.trim() || 'What should I add or change to make this batch work?').slice(0, 800);
   input.value = question;
@@ -375,6 +480,7 @@ function fallbackCopy(text) {
 }
 
 function onPrimary() {
+  if (!lastResult || !lastResult.ready) return;
   const primary = $('primary');
   if (primary.dataset.mode === 'ask') {
     askMeta();
@@ -393,6 +499,12 @@ function onPrimary() {
 setSelectOptions('mode', MODES.map((m) => ({ key: m.key, label: m.label })));
 setSelectOptions('other-mode', MODES.map((m) => ({ key: m.key, label: m.label })));
 setSelectOptions('property', PROPERTIES.map((p) => ({ key: p.key, label: `${p.label} (${p.unit})` })));
+{
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = 'Choose a property';
+  $('property').prepend(blank);
+}
 setSelectOptions('dirt-level', [
   { key: 'none', label: 'None' },
   { key: 'light', label: 'Light' },
@@ -401,12 +513,19 @@ setSelectOptions('dirt-level', [
 ]);
 
 $('property').addEventListener('change', (event) => {
-  state.target.property = event.target.value;
-  const defaults = PROPERTY_DEFAULTS[event.target.value] || PROPERTY_DEFAULTS.strength;
-  state.target.min = defaults.min;
-  state.target.max = defaults.max;
-  setValue('target-min', defaults.min);
-  setValue('target-max', defaults.max);
+  const property = event.target.value;
+  if (!property) {
+    state.target = { property: '', min: '', max: '' };
+    setValue('target-min', '');
+    setValue('target-max', '');
+  } else {
+    state.target.property = property;
+    const defaults = PROPERTY_DEFAULTS[property] || PROPERTY_DEFAULTS.strength;
+    state.target.min = defaults.min;
+    state.target.max = defaults.max;
+    setValue('target-min', defaults.min);
+    setValue('target-max', defaults.max);
+  }
   updateTargetLabels();
   onFieldChange();
 });
@@ -440,6 +559,48 @@ bind('other-thickness', 'other.thicknessMm');
 bindSelect('mode', 'mode');
 bindSelect('other-mode', 'other.mode');
 bindSelect('dirt-level', 'plastic.dirtLevel');
+function applyCase(name) {
+  if (name === 'custom') {
+    state = normalizeState({
+      ...DEFAULT_STATE,
+      plastic: state.plastic,
+      steady: state.steady,
+      other: state.other,
+    });
+    paint();
+    refresh();
+    $('product').focus();
+    $('product').select();
+    return;
+  }
+  const preset = CASE_PRESETS[name];
+  if (!preset) return;
+  state = normalizeState({
+    ...state,
+    product: preset.product,
+    mode: preset.mode,
+    spanMm: preset.spanMm,
+    widthMm: preset.widthMm,
+    thicknessMm: preset.thicknessMm,
+    target: { ...preset.target },
+    extraTargets: preset.extraTargets.map((target) => ({ ...target })),
+  });
+  paint();
+  refresh();
+  closeDetails();
+}
+
+function addTarget() {
+  const used = new Set([state.target.property, ...state.extraTargets.map((target) => target.property)]);
+  const property = ['strength', 'stiffness', 'weight'].find((candidate) => !used.has(candidate)) || 'weight';
+  const defaults = PROPERTY_DEFAULTS[property] || PROPERTY_DEFAULTS.strength;
+  state.extraTargets.push({ property, min: defaults.min, max: defaults.max });
+  renderExtraTargets();
+  onFieldChange();
+}
+
+for (const button of $$('.case')) button.addEventListener('click', () => applyCase(button.dataset.case));
+$('add-target').addEventListener('click', addTarget);
 $('primary').addEventListener('click', onPrimary);
 $('ask-button').addEventListener('click', askMeta);
 $('ask-question').addEventListener('keydown', (event) => {
@@ -458,4 +619,4 @@ function closeDetails() {
 paint();
 const initial = evaluateBuilds(state, []);
 render(initial);
-fetchProposals();
+if (isReady(state)) fetchProposals();

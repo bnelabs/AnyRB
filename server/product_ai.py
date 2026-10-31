@@ -57,8 +57,9 @@ MAX_TEXT = 80
 
 PRODUCT_SYSTEM = """You are AnyRB's shop-floor design partner for recycled-plastic products
 (cantilever beams, simply-supported beams, compression posts). You receive the current product
-geometry, the target property range, the plastic batch description (its measured property ranges
-are CONTEXT ONLY), another product that uses the same batch, and whether steady availability exists.
+geometry, one or more target property requirements (strength, stiffness and/or weight), the plastic
+batch description (its measured property ranges are CONTEXT ONLY), another product that uses the
+same batch, and whether steady availability exists.
 
 Propose MOVE parameter objects only — geometry/parameter changes a shop can make. You never
 compute, estimate or state results.
@@ -70,6 +71,9 @@ Return ONLY one JSON object: {"proposals":[ ... ]} with exactly one object per m
 - {"move":"blend","fraction":number}   (ONLY when steady_available is true)
 
 Rules:
+- The request may carry a `targets` array with SEVERAL property requirements (e.g. strength +
+  stiffness + weight). When several targets are supplied, propose parameters intended to satisfy
+  ALL of them simultaneously — never optimise only the first target; keep the trade-offs visible.
 - Propose parameters only. NEVER return strength, stiffness, weight, property values or ranges,
   expected results, pass/fail, margins, or certification claims. Do not repeat the supplied
   material property numbers.
@@ -129,7 +133,11 @@ class ProductProposalRequest(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
     product: ProductGeometry
+    # legacy single target (kept for backward compatibility) …
     target: TargetRange = Field(default_factory=TargetRange)
+    # … plus the v0.8 multi-target array: [{property,min,max}, …]; when present
+    # and non-empty it supersedes `target` and ALL requirements are used.
+    targets: Any = Field(default=None)
     plastic: PlasticContext = Field(default_factory=PlasticContext)
     other_product: ProductGeometry = Field(default_factory=ProductGeometry)
     steady_available: bool = False
@@ -217,6 +225,39 @@ def sanitize_target(raw: TargetRange) -> dict:
     return {"property": prop, "min": round(lo, 4), "max": round(hi, 4)}
 
 
+def sanitize_targets(raw_targets: Any, legacy_target: dict) -> list[dict]:
+    """Sanitise the optional multi-target array; fall back to the legacy single target.
+
+    * only `strength` / `stiffness` / `weight` survive (unknown properties dropped);
+    * ranges are clamped to finite non-negative values and ordered min <= max;
+    * duplicate properties keep the first entry;
+    * malformed / missing `targets` degrade safely to the legacy `target`;
+    * the result is never empty (the legacy target is always available).
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    items = raw_targets if isinstance(raw_targets, list) else []
+    for item in items[:8]:
+        if isinstance(item, BaseModel):
+            item = item.model_dump()
+        if not isinstance(item, dict):
+            continue
+        prop = _text(item.get("property"), 16).lower()
+        if prop not in ALLOWED_TARGETS or prop in seen:
+            continue
+        lo, hi = _range_pair(item.get("min"), item.get("max"), 0.0, 1e6, 0.0, 1e6)
+        seen.add(prop)
+        out.append({"property": prop, "min": round(lo, 4), "max": round(hi, 4)})
+    if not out:
+        prop = legacy_target.get("property")
+        if prop not in ALLOWED_TARGETS:
+            prop = "strength"
+        lo, hi = _range_pair(legacy_target.get("min"), legacy_target.get("max"),
+                             0.0, 1e6, 0.0, 1e6)
+        out = [{"property": prop, "min": round(lo, 4), "max": round(hi, 4)}]
+    return out
+
+
 def sanitize_plastic(raw: PlasticContext) -> dict:
     st_lo, st_hi = _range_pair(raw.stiffness_min_mpa, raw.stiffness_max_mpa, 500.0, 3000.0)
     sy_lo, sy_hi = _range_pair(raw.strength_min_mpa, raw.strength_max_mpa, 10.0, 60.0)
@@ -234,9 +275,12 @@ def sanitize_plastic(raw: PlasticContext) -> dict:
 
 
 def sanitize_request(req: ProductProposalRequest) -> dict:
+    target = sanitize_target(req.target)
+    targets = sanitize_targets(getattr(req, "targets", None), target)
     return {
         "product": sanitize_geometry(req.product, "current product"),
-        "target": sanitize_target(req.target),
+        "target": targets[0],          # legacy single-target mirror (first requirement)
+        "targets": targets,            # all requirements, handled simultaneously
         "plastic": sanitize_plastic(req.plastic),
         "other_product": sanitize_geometry(req.other_product, "other product"),
         "steady_available": bool(req.steady_available),
@@ -314,9 +358,13 @@ def build_model_payload(state: dict) -> dict:
         f"other product: {state['other_product']['name']}"
     )
     wanted = list(REQUIRED_MOVES) + (["blend"] if state["steady_available"] else [])
+    targets = state.get("targets") or [state["target"]]
     return {
         "product": state["product"],
-        "target": state["target"],
+        "target": state["target"],                 # legacy single target (compat)
+        "targets": targets,                        # ALL requirements (use every one)
+        "target_properties": [t["property"] for t in targets],
+        "all_targets_must_be_satisfied_simultaneously": True,
         "plastic": state["plastic"],
         "other_product": state["other_product"],
         "steady_available": state["steady_available"],
@@ -382,15 +430,19 @@ ADVICE_MAX_ACTIONS = 5
 ADVICE_MAX_ACTION_LEN = 140
 
 ADVICE_SYSTEM = """You are AnyRB's batch-alchemy advisor for a recycled-plastic shop.
-The user has a varying recycled-plastic delivery and wants to make a named part inside a target
-property (strength/stiffness/weight) range. The app has already computed a plan: the current
-build, passing engineering builds, the material gap and an optional blend recipe. The user asks a
-plain-language question: what can I do with this batch / what should I add / how do I make it work?
+The user has a varying recycled-plastic delivery and wants to make a named part inside one or more
+target property requirements (strength, stiffness and/or weight). The app has already computed a
+plan: the current build, passing engineering builds, the material gaps and an optional blend
+recipe. The user asks a plain-language question: what can I do with this batch / what should I add /
+how do I make it work?
 
 Answer with practical actions the shop can take. The goal is to find a path — never simply reject
 the delivery.
 Rules:
-- Use ONLY the numbers present in the request JSON (plan, product, target, plastic, steady).
+- The request may carry a `targets` array with SEVERAL property requirements and the plan may carry
+  several gaps (`plan.gaps`). Address EVERY supplied requirement and gap in the answer and actions —
+  say what to do for each one, not just the first; never silently drop a requirement.
+- Use ONLY the numbers present in the request JSON (plan, product, target, targets, plastic, steady).
   Do not compute new numbers, do not invent or restate measured strength/stiffness/weight values,
   property ranges, expected results, pass/fail percentages beyond the supplied ones.
 - Practical levers to recommend when the supplied plan supports them: blend / add the steadier
@@ -510,6 +562,7 @@ class AdvicePlan(BaseModel):
     current: Optional[AdviceCurrent] = None
     winner: Optional[AdviceWinner] = None
     gap: Optional[AdviceGap] = None
+    gaps: list[AdviceGap] = Field(default_factory=list)   # multi-target plans
     builds: list[AdviceBuild] = Field(default_factory=list)
     blend: Optional[AdviceBlend] = None
 
@@ -520,7 +573,10 @@ class ProductAdviceRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
     question: str = Field(min_length=1, max_length=ADVICE_MAX_QUESTION)
     product: AdviceGeometry = Field(default_factory=AdviceGeometry)
+    # legacy single target (kept for backward compatibility) …
     target: AdviceTargetRange = Field(default_factory=AdviceTargetRange)
+    # … plus the v0.8 multi-target array; when present it supersedes `target`.
+    targets: Any = Field(default=None)
     plastic: AdvicePlastic = Field(default_factory=AdvicePlastic)
     steady: AdviceSteady = Field(default_factory=AdviceSteady)
     other_product: AdviceGeometry = Field(default_factory=AdviceGeometry)
@@ -579,15 +635,29 @@ def sanitize_advice_request(req: ProductAdviceRequest) -> dict:
     state["steady"]["type"] = _clean_str(state["steady"].get("type"), 80)
     state["plan"]["headline"] = _clean_str(state["plan"].get("headline"), 300)
     state["plan"]["support"] = _clean_str(state["plan"].get("support"), 400)
+    legacy = state.get("target") or {}
+    targets = sanitize_targets(state.get("targets"), legacy)
+    state["targets"] = targets
+    state["target"] = targets[0]         # legacy single-target mirror (first requirement)
     return state
 
 
 def build_advice_payload(state: dict) -> dict:
+    targets = state.get("targets") or [state["target"]]
+    requirements = "; ".join(
+        f"{t['property']} {t['min']}-{t['max']}" for t in targets
+    )
+    plan = state["plan"]
+    gaps = plan.get("gaps") or ([plan["gap"]] if plan.get("gap") else [])
+    gap_actions = "; ".join(
+        _clean_str(g.get("required_action"), 160) for g in gaps if g.get("required_action")
+    )
     untrusted = (
         f"user question: {state['question']}; "
-        f"plan headline: {state['plan'].get('headline', '')}; "
-        f"plan support: {state['plan'].get('support', '')}; "
-        f"required action: {(state['plan'].get('gap') or {}).get('required_action', '')}"
+        f"requirements: {requirements}; "
+        f"plan headline: {plan.get('headline', '')}; "
+        f"plan support: {plan.get('support', '')}; "
+        f"required actions: {gap_actions}"
     )
     payload = dict(state)
     payload["untrusted_user_text"] = prompts.wrap_untrusted(untrusted, "USER_PLAN_TEXT")
@@ -596,6 +666,10 @@ def build_advice_payload(state: dict) -> dict:
         "practical_actions_required": True,
         "never_simply_reject_batch": True,
         "no_certification": True,
+        "targets": targets,
+        "target_count": len(targets),
+        "all_requirements_must_be_addressed": True,
+        "all_gaps_must_be_addressed": True,
         "levers": ["blend steadier stream", "sort", "wash", "dry", "change section",
                    "change span", "other product"],
         "forbidden_output": ["invented strength/stiffness/weight/property ranges",

@@ -2,10 +2,11 @@
 
 One page. Sources are plain ES modules; `build.py` inlines them into the standalone page.
 
-- `index.html` — decision, Engineering section, Batch section, Ask Meta.
+- `index.html` — product question, optional case examples, Engineering, Batch, Ask Meta.
 - `styles.css` — white page, one system sans, quiet rules, one black pill.
-- `product.js` — pure mechanics, material gap, blend rule, model-move search and selection. No DOM,
-  no network, no storage.
+- `product.js` — pure mechanics, multi-requirement pass/gap, blend rule, model-move search,
+  selection and case presets. No DOM, no network, no storage. The default state has no product and no
+  decision; every part and every requirement comes from the user.
 - `main.js` — DOM wiring, local scoring, `/api/product/proposals` and `/api/product/advice` calls.
   The browser never sees an API key.
 - `build.py` — writes `../index.html` and `standalone.html`.

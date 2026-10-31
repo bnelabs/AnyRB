@@ -16,9 +16,18 @@
 
 <main class="page" id="main">
   <section class="decision" aria-labelledby="decision">
-    <h1 id="decision">Blend 65% of stiffer bottle stream, then make the 180 mm shelf bracket, 40 × 10 mm.</h1>
-    <p class="support" id="support">The delivery alone misses. With 65% of stiffer bottle stream, this build carries 11.7–12.2 kg, inside your 11.5–16.5 kg range.</p>
-    <button class="pill" id="primary" type="button">Copy build</button>
+    <h1 id="decision">What do you want to make?</h1>
+    <p class="support" id="support">Name the part, set one or more properties that have to hold, and describe this delivery. Every product and every range is yours to set.</p>
+    <div class="cases" id="cases" aria-label="Start with a part">
+      <span class="cases-label">Examples</span>
+      <button class="case" type="button" data-case="bracket">Bracket</button>
+      <button class="case" type="button" data-case="slat">Slat</button>
+      <button class="case" type="button" data-case="crate">Crate</button>
+      <button class="case" type="button" data-case="planter">Planter</button>
+      <button class="case" type="button" data-case="pallet">Pallet block</button>
+      <button class="case" type="button" data-case="custom">Something else</button>
+    </div>
+    <button class="pill" id="primary" type="button" hidden>Copy build</button>
   </section>
 
   <div class="work">
@@ -28,28 +37,30 @@
       <div class="fields">
         <div class="field">
           <label for="product">Product</label>
-          <input id="product" type="text" spellcheck="false" placeholder="shelf bracket">
+          <input id="product" type="text" spellcheck="false" placeholder="planter, crate, slat, pallet block…">
         </div>
         <div class="field">
           <label for="mode">Carries load by</label>
           <select id="mode"></select>
         </div>
         <div class="grid3">
-          <div class="field"><label for="span">Span (mm)</label><input id="span" inputmode="decimal" type="text"></div>
-          <div class="field"><label for="width">Width (mm)</label><input id="width" inputmode="decimal" type="text"></div>
-          <div class="field"><label for="thickness">Thickness (mm)</label><input id="thickness" inputmode="decimal" type="text"></div>
+          <div class="field"><label for="span">Span (mm)</label><input id="span" inputmode="decimal" type="text" placeholder="mm"></div>
+          <div class="field"><label for="width">Width (mm)</label><input id="width" inputmode="decimal" type="text" placeholder="mm"></div>
+          <div class="field"><label for="thickness">Thickness (mm)</label><input id="thickness" inputmode="decimal" type="text" placeholder="mm"></div>
         </div>
         <div class="field">
-          <label for="property">Range that must hold</label>
+          <label for="property">What has to hold</label>
           <select id="property"></select>
         </div>
         <div class="grid2">
-          <div class="field"><label for="target-min" id="target-min-label">Low (kg)</label><input id="target-min" inputmode="decimal" type="text"></div>
-          <div class="field"><label for="target-max" id="target-max-label">High (kg)</label><input id="target-max" inputmode="decimal" type="text"></div>
+          <div class="field"><label for="target-min" id="target-min-label">Low</label><input id="target-min" inputmode="decimal" type="text"></div>
+          <div class="field"><label for="target-max" id="target-max-label">High</label><input id="target-max" inputmode="decimal" type="text"></div>
         </div>
+        <div id="extra-targets" class="extra-targets"></div>
+        <button class="add-target" id="add-target" type="button">Add another property</button>
       </div>
 
-      <div class="builds">
+      <div class="builds" id="builds-panel" hidden>
         <div class="section-head">
           <h3>Builds that pass</h3>
           <p class="model-status" id="model-status">Scoring this delivery…</p>
@@ -61,7 +72,7 @@
       <details class="other-group">
         <summary>Other product you sell</summary>
         <div class="fields">
-          <div class="field"><label for="other-product">Product</label><input id="other-product" type="text" spellcheck="false" placeholder="heavy bracket"></div>
+          <div class="field"><label for="other-product">Product</label><input id="other-product" type="text" spellcheck="false" placeholder="a heavier part you sell"></div>
           <div class="field"><label for="other-mode">Carries load by</label><select id="other-mode"></select></div>
           <div class="grid3">
             <div class="field"><label for="other-span">Span (mm)</label><input id="other-span" inputmode="decimal" type="text"></div>
@@ -108,9 +119,9 @@
         </div>
       </div>
 
-      <div class="gap" id="gap" aria-live="polite"></div>
+      <div class="gap" id="gap" aria-live="polite" hidden></div>
 
-      <div class="ask" aria-labelledby="ask-title">
+      <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
         <h3 id="ask-title">Ask Meta about this batch</h3>
         <div class="ask-row">
           <input id="ask-question" type="text" placeholder="What should I add or change to make this batch work?" autocomplete="off">
