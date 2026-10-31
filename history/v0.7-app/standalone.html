@@ -1,0 +1,1963 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyRB — can this plastic make your product?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='4' fill='%23f4efe5'/%3E%3Cpath d='M3 15.5 10 4l7 11.5M6.2 11h7.6' fill='none' stroke='%231f1d18' stroke-width='1.5'/%3E%3C/svg%3E">
+<meta name="description" content="A plain answer for a product made from recycled plastic. Set the range that must hold, add what you have measured, and see what to do next.">
+<style>
+:root {
+  --ground: #f4efe5;
+  --ground-bright: #faf6ed;
+  --ink: #1f1d18;
+  --ink-soft: #3d3931;
+  --muted: #6b6458;
+  --line: #d4cbbb;
+  --line-soft: #e2dbcd;
+  --accent: #a84622;
+  --accent-ink: #8c3517;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --page: 760px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ground);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(900px 540px at 12% -12%, var(--ground-bright) 0%, rgba(250, 246, 237, 0) 68%),
+    var(--ground);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #e8c9b8;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 20px;
+  top: -80px;
+  z-index: 10;
+  padding: 10px 14px;
+  color: var(--ink);
+  background: var(--ground-bright);
+  border: 1px solid var(--line);
+}
+
+.skip-link:focus {
+  top: 16px;
+}
+
+.masthead {
+  width: min(100%, var(--page));
+  margin: 0 auto;
+  padding: 30px 30px 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand {
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+
+.start-over {
+  appearance: none;
+  border: 0;
+  padding: 3px 0;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+
+.start-over:hover {
+  color: var(--ink);
+  border-bottom-color: var(--line);
+}
+
+main {
+  width: min(100%, var(--page));
+  margin: 0 auto;
+  padding: 0 30px 110px;
+}
+
+.intro {
+  padding: 86px 0 66px;
+}
+
+h1 {
+  max-width: 690px;
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(40px, 7.2vw, 58px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.032em;
+}
+
+.intro-copy {
+  max-width: 540px;
+  margin: 24px 0 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.62;
+}
+
+.question {
+  padding: 38px 0 42px;
+  border-top: 1px solid var(--line);
+}
+
+.question-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.number {
+  flex: none;
+  min-width: 22px;
+  padding-top: 2px;
+  color: var(--accent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.09em;
+}
+
+h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(26px, 4.4vw, 33px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.018em;
+}
+
+.help {
+  max-width: 590px;
+  margin: 12px 0 18px 38px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input,
+select {
+  min-width: 0;
+  padding: 5px 0 7px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+
+input::placeholder {
+  color: #6f685c;
+  opacity: 1;
+}
+
+input:hover,
+select:hover {
+  border-bottom-color: #b8ad9c;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+  box-shadow: 0 1px 0 var(--accent);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.product-line {
+  width: 100%;
+  margin-left: 38px;
+  padding: 9px 0 10px;
+  font-family: var(--serif);
+  font-size: clamp(25px, 4.5vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  border-bottom-color: #bdb2a0;
+}
+
+.product-line:focus {
+  box-shadow: none;
+}
+
+.line-list {
+  margin-left: 38px;
+}
+
+.property-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px 8px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.property-row:first-child {
+  border-top: 1px solid var(--line-soft);
+}
+
+
+.range-line {
+  display: contents;
+}
+.property-name {
+  flex: 1 1 170px;
+  font-family: var(--serif);
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.property-min,
+.property-max {
+  flex: 0 1 74px;
+  width: 74px;
+  font-variant-numeric: tabular-nums;
+}
+
+.property-unit {
+  flex: 0 1 64px;
+  width: 64px;
+}
+
+.connector {
+  color: var(--muted);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.remove {
+  appearance: none;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--accent);
+}
+
+.add {
+  appearance: none;
+  margin: 12px 0 0 38px;
+  padding: 4px 0 5px;
+  color: var(--accent-ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.add::before {
+  content: "+";
+  padding-right: 7px;
+  font-size: 15px;
+}
+
+.add:hover {
+  border-bottom-color: var(--accent);
+}
+
+.add:disabled {
+  color: #a39a8b;
+  cursor: not-allowed;
+}
+
+.two-up {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px 34px;
+  margin: 18px 0 0 38px;
+}
+
+.two-up + .two-up {
+  margin-top: 20px;
+}
+
+.field {
+  display: block;
+}
+
+.field span {
+  display: block;
+  margin-bottom: 1px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.field input {
+  width: 100%;
+  font-size: 17px;
+}
+
+.phrase {
+  display: contents;
+}
+
+.measurement-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px 7px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.measurement-row:first-child {
+  border-top: 1px solid var(--line-soft);
+}
+
+.measurement-row select {
+  flex: 0 1 152px;
+  width: 152px;
+  font-family: var(--serif);
+  font-size: 18px;
+}
+
+.m-property-static {
+  flex: 0 1 auto;
+  padding: 5px 0 7px;
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.measurement-row .m-version {
+  flex: 1 1 130px;
+}
+
+.measurement-row .m-batch {
+  flex: 1 1 118px;
+}
+
+.measurement-row .m-value {
+  flex: 0 1 82px;
+  width: 82px;
+  font-variant-numeric: tabular-nums;
+}
+
+.measurement-row .m-unit {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.measurement-row .remove {
+  margin-left: auto;
+}
+
+.measurement-plastic {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 7px;
+  margin-top: -2px;
+  padding-left: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.plastic-phrase {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.measurement-plastic input {
+  width: 140px;
+  padding: 2px 0 3px;
+  border-bottom-color: var(--line-soft);
+  font-size: 13px;
+}
+
+.measurement-plastic .m-plasticType {
+  width: 170px;
+}
+
+.measurement-plastic .m-mix {
+  width: 120px;
+}
+
+.measurement-plastic .m-dirt {
+  width: 140px;
+}
+
+.word {
+  color: var(--muted);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 14px 0 0 38px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.answer {
+  margin-top: 54px;
+  padding-top: 30px;
+  border-top: 2px solid var(--ink);
+}
+
+.answer-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.answer h2 {
+  max-width: 620px;
+  margin: 12px 0 24px;
+  font-size: clamp(34px, 6.2vw, 48px);
+  line-height: 1.04;
+}
+
+.answer-body p {
+  max-width: 650px;
+  margin: 0 0 15px;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.5;
+  letter-spacing: -0.008em;
+}
+
+.answer-body b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.next {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  max-width: 650px;
+  margin: 27px 0 0;
+  padding-top: 19px;
+  border-top: 1px solid var(--line);
+  font-size: 19px;
+  line-height: 1.45;
+}
+
+.next[hidden] {
+  display: none;
+}
+
+.next-label {
+  flex: none;
+  padding-top: 2px;
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 620px) {
+  .masthead {
+    padding-top: 24px;
+  }
+
+  main {
+    padding-bottom: 80px;
+  }
+
+  .intro {
+    padding: 54px 0 44px;
+  }
+
+  .intro-copy {
+    margin-top: 19px;
+    font-size: 17px;
+  }
+
+  .question {
+    padding: 31px 0 34px;
+  }
+
+  .question-head {
+    gap: 12px;
+  }
+
+  .help,
+  .line-list,
+  .two-up,
+  .product-line,
+  .add,
+  .empty {
+    margin-left: 0;
+  }
+
+  .help {
+    margin-top: 10px;
+    margin-bottom: 15px;
+  }
+
+  .two-up {
+    grid-template-columns: 1fr;
+    gap: 17px;
+    margin-top: 16px;
+  }
+
+  .two-up + .two-up {
+    margin-top: 17px;
+  }
+
+  .property-row {
+    position: relative;
+    gap: 6px;
+  }
+
+  .property-name {
+    flex: 0 0 calc(100% - 52px);
+  }
+
+  .property-row .remove {
+    position: absolute;
+    top: 13px;
+    right: 0;
+  }
+
+  .range-line {
+    display: flex;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 5px 6px;
+  }
+
+  .range-line .connector {
+    font-size: 14px;
+  }
+
+  .property-min,
+  .property-max {
+    flex: 0 0 52px;
+    width: 52px;
+  }
+
+  .property-unit {
+    flex: 0 0 44px;
+    width: 44px;
+  }
+
+  .line-list {
+    margin-top: 2px;
+  }
+
+  .measurement-row {
+    gap: 7px;
+  }
+
+  .measurement-row select {
+    flex: 1 1 100%;
+    width: 100%;
+    font-size: 17px;
+  }
+
+  .phrase {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .measurement-row .m-version {
+    flex: 0 0 106px;
+    width: 106px;
+  }
+
+  .measurement-row .m-batch {
+    flex: 0 0 90px;
+    width: 90px;
+  }
+
+  .measurement-row .m-value {
+    flex: 0 0 70px;
+    width: 70px;
+  }
+
+  .measurement-plastic {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .plastic-phrase {
+    display: flex;
+    width: 100%;
+    margin: 0 0 1px;
+  }
+
+  .measurement-plastic input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    font-size: 13px;
+  }
+
+  .measurement-plastic .m-plasticType,
+  .measurement-plastic .m-mix,
+  .measurement-plastic .m-dirt {
+    width: auto;
+  }
+
+  .measurement-row .remove,
+  .property-row .remove {
+    width: 44px;
+    height: 44px;
+  }
+
+  .measurement-row .remove {
+    margin-top: -8px;
+  }
+
+  .start-over {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 8px 0;
+  }
+
+  .answer {
+    margin-top: 44px;
+  }
+
+  .answer-body p {
+    font-size: 20px;
+  }
+
+  .next {
+    display: block;
+    font-size: 18px;
+  }
+
+  .next-label {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="masthead">
+  <span class="brand">AnyRB</span>
+  <button class="start-over" id="start-over" type="button">Start over</button>
+</header>
+
+<main id="main">
+  <section class="intro" aria-labelledby="page-title">
+    <h1 id="page-title">Can this plastic make your product?</h1>
+    <p class="intro-copy">Tell me what you are making, the range that must hold, and what you have measured. If something is missing, you will see what to check next.</p>
+  </section>
+
+  <form id="product-form" novalidate>
+    <section class="question" aria-labelledby="q-product">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">01</span>
+        <h2 id="q-product">What are you making?</h2>
+      </div>
+      <input class="product-line" id="product" type="text" autocomplete="off" spellcheck="false" aria-labelledby="q-product" placeholder="a bench slat, a plant pot…">
+    </section>
+
+    <section class="question" aria-labelledby="q-properties">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">02</span>
+        <h2 id="q-properties">What has to stay steady?</h2>
+      </div>
+      <p class="help">Add one line for each property. Weight, thickness, strength, stiffness, sound insulation — or anything else you can put a number on.</p>
+      <div id="property-list" class="line-list"></div>
+      <button class="add" id="add-property" type="button">Add another property</button>
+    </section>
+
+    <section class="question" aria-labelledby="q-plastic">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">03</span>
+        <h2 id="q-plastic">What plastic are you using?</h2>
+      </div>
+      <p class="help">Use plain names. Say what changes from one delivery to the next.</p>
+      <div class="two-up">
+        <label class="field">
+          <span>Plastic type</span>
+          <input id="plastic-type" type="text" autocomplete="off" placeholder="e.g. recycled polypropylene">
+        </label>
+        <label class="field">
+          <span>This batch</span>
+          <input id="plastic-batch" type="text" autocomplete="off" placeholder="e.g. 14 March">
+        </label>
+      </div>
+      <div class="two-up">
+        <label class="field">
+          <span>Mixed with</span>
+          <input id="plastic-mix" type="text" autocomplete="off" placeholder="e.g. some HDPE">
+        </label>
+        <label class="field">
+          <span>Dirt or other plastic</span>
+          <input id="plastic-dirt" type="text" autocomplete="off" placeholder="e.g. labels and grit">
+        </label>
+      </div>
+    </section>
+
+    <section class="question" aria-labelledby="q-measured">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">04</span>
+        <h2 id="q-measured">What have you measured?</h2>
+      </div>
+      <p class="help">Enter the number you measured on the piece you made. Each line also keeps the plastic that piece was made with.</p>
+      <div id="measurement-list" class="line-list"></div>
+      <p class="empty" id="measurement-empty">No measured numbers yet.</p>
+      <button class="add" id="add-measurement" type="button">Add a measurement</button>
+    </section>
+  </form>
+
+  <section class="answer" id="answer" aria-labelledby="answer-headline">
+    <p class="answer-label">Your answer</p>
+    <h2 id="answer-headline"></h2>
+    <div class="answer-body" id="answer-body"></div>
+    <p class="next" id="answer-next">
+      <span class="next-label">Next</span>
+      <span id="next-text"></span>
+    </p>
+  </section>
+  <div class="sr-only" id="live-answer" aria-live="polite" aria-atomic="true"></div>
+</main>
+
+<script>
+/* AnyRB standalone build — generated by app/build.py; do not edit. */
+(function () {
+'use strict';
+var __modules = {};
+/* ===== product.js ===== */
+__modules.product = (function () {
+
+/**
+ * AnyRB — one product, one range, one answer.
+ *
+ * Pure functions only: no DOM, no storage, no network.
+ *
+ * A person names a product, sets the range a property must stay inside, and
+ * enters numbers they measured on that product. The same function returns one
+ * of three plain answers for each property:
+ *
+ *   product — measured across more than one batch
+ *   batch   — measured on one batch only
+ *   missing — no measured number yet
+ *
+ * It never fills a number from a product name, a plastic name, a material
+ * sheet, a library value or a guessed range. A version is named only when that
+ * version was measured.
+ */
+
+const STORE_KEY = 'anyrb.one-product.v1';
+const STATE_VERSION = 2;
+const MAX_PROPERTIES = 8;
+const MAX_MEASUREMENTS = 80;
+const MISSING_CAVEAT = 'A plastic name or a number from a supplier\'s sheet is not enough.';
+
+let idSeq = 0;
+function newId(prefix) {
+  idSeq = (idSeq + 1) % 1_000_000;
+  return `${prefix}-${Date.now().toString(36)}-${idSeq.toString(36)}`;
+}
+
+function clean(value, max = 240) {
+  return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function lowerFirst(value) {
+  const text = clean(value);
+  if (!text) return '';
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+function upperFirst(value) {
+  const text = clean(value);
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Accepts "2,100", " 2100 ", "1 800" and numbers; rejects blank and non-finite. */
+function toNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const text = clean(value).replace(/,/g, '').replace(/\s/g, '');
+  if (!text) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatNumber(value) {
+  if (!Number.isFinite(value)) return '';
+  const abs = Math.abs(value);
+  const digits = abs >= 100 ? (Number.isInteger(value) ? 0 : 1) : abs >= 1 ? 2 : 3;
+  return Number(value).toLocaleString('en-US', { maximumFractionDigits: digits });
+}
+
+function formatValue(value, unit = '') {
+  if (!Number.isFinite(value)) return '';
+  const suffix = clean(unit) ? ` ${clean(unit)}` : '';
+  return `${formatNumber(value)}${suffix}`;
+}
+
+function formatRange(min, max, unit = '') {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return '';
+  const suffix = clean(unit) ? ` ${clean(unit)}` : '';
+  if (min === max) return `${formatNumber(min)}${suffix}`;
+  return `${formatNumber(min)}–${formatNumber(max)}${suffix}`;
+}
+
+function numberWord(value) {
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+  return Number.isInteger(value) && value >= 0 && value < words.length ? words[value] : String(value);
+}
+
+function listPhrases(phrases) {
+  const list = phrases.filter(Boolean);
+  if (!list.length) return '';
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list.slice(0, -1).join(', ')}, and ${list[list.length - 1]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Blank / normalised state
+// ---------------------------------------------------------------------------
+function blankProperty() {
+  return { id: newId('property'), name: '', unit: '', min: '', max: '' };
+}
+
+function blankMeasurement(propertyId = '', plastic = {}) {
+  const source = plastic && typeof plastic === 'object' ? plastic : {};
+  return {
+    id: newId('reading'),
+    propertyId: clean(propertyId, 80),
+    version: '',
+    batch: clean(source.batch),
+    plasticType: clean(source.type),
+    mix: clean(source.mix),
+    dirt: clean(source.dirt),
+    value: '',
+  };
+}
+
+function blankState() {
+  return {
+    version: STATE_VERSION,
+    product: '',
+    properties: [blankProperty()],
+    plastic: { type: '', batch: '', mix: '', dirt: '' },
+    measurements: [],
+  };
+}
+
+function normalizeProperty(raw = {}) {
+  return {
+    id: clean(raw.id, 80) || newId('property'),
+    name: clean(raw.name, 100),
+    unit: clean(raw.unit, 24),
+    min: clean(raw.min, 40),
+    max: clean(raw.max, 40),
+  };
+}
+
+function normalizeMeasurement(raw = {}, propertyIds = new Set(), fallbackPlastic = {}) {
+  const propertyId = clean(raw.propertyId, 80);
+  const has = (key) => Object.prototype.hasOwnProperty.call(raw, key);
+  const measurement = {
+    id: clean(raw.id, 80) || newId('reading'),
+    propertyId: propertyIds.has(propertyId) ? propertyId : '',
+    version: clean(raw.version, 100),
+    batch: clean(raw.batch, 120),
+    plasticType: has('plasticType') ? clean(raw.plasticType, 180) : clean(fallbackPlastic.type, 180),
+    mix: has('mix') ? clean(raw.mix, 180) : clean(fallbackPlastic.mix, 180),
+    dirt: has('dirt') ? clean(raw.dirt, 180) : clean(fallbackPlastic.dirt, 180),
+    value: clean(raw.value, 40),
+  };
+  if (!measurement.propertyId) return null;
+  return measurement;
+}
+
+function normalizeState(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const rawProperties = Array.isArray(source.properties) ? source.properties : [];
+  const properties = rawProperties.map(normalizeProperty).slice(0, MAX_PROPERTIES);
+  if (!properties.length) properties.push(blankProperty());
+  const propertyIds = new Set(properties.map((property) => property.id));
+  const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
+  const normalizedPlastic = {
+    type: clean(plastic.type, 180),
+    batch: clean(plastic.batch, 120),
+    mix: clean(plastic.mix, 180),
+    dirt: clean(plastic.dirt, 180),
+  };
+  const rawMeasurements = Array.isArray(source.measurements) ? source.measurements : [];
+  const measurements = rawMeasurements
+    .map((measurement) => normalizeMeasurement(measurement, propertyIds, normalizedPlastic))
+    .filter(Boolean)
+    .slice(0, MAX_MEASUREMENTS);
+  return {
+    version: STATE_VERSION,
+    product: clean(source.product, 140),
+    properties,
+    plastic: normalizedPlastic,
+    measurements,
+  };
+}
+
+function propertyIssue(property) {
+  const name = clean(property && property.name);
+  const min = toNumber(property && property.min);
+  const max = toNumber(property && property.max);
+  if (!name) return 'name';
+  if (min == null || max == null) return 'range';
+  if (min > max) return 'order';
+  return '';
+}
+
+function targetOf(property) {
+  return {
+    min: toNumber(property && property.min),
+    max: toNumber(property && property.max),
+    unit: clean(property && property.unit),
+    valid: propertyIssue(property) === '',
+  };
+}
+
+function propertyKind(name) {
+  const text = lowerFirst(name);
+  if (/(weight|mass|gram|kilogram| kg\b| g\b)/.test(text)) return 'weight';
+  if (/(sound|acoustic|noise|insulat|decibel| db\b|stc|r'?w\b)/.test(text)) return 'sound';
+  if (/(strength|stress|tensile|flexural|yield|break|load)/.test(text)) return 'strength';
+  if (/(stiff|modul|young|elastic|deflect|bend)/.test(text)) return 'stiffness';
+  if (/(thick|width|height|length|depth|size|dimension)/.test(text)) return 'size';
+  return 'other';
+}
+
+function measurementsFor(state, propertyId) {
+  return (state.measurements || [])
+    .filter((measurement) => measurement.propertyId === propertyId)
+    .map((measurement) => ({ ...measurement, numeric: toNumber(measurement.value) }))
+    .filter((measurement) => Number.isFinite(measurement.numeric));
+}
+
+function sameText(left, right) {
+  return clean(left).toLowerCase() === clean(right).toLowerCase();
+}
+
+function versionPhrase(label) {
+  const text = clean(label);
+  if (!text) return 'the version you left unnamed';
+  return /\b(version|build|design|run|batch)\b/i.test(text) ? `the ${text}` : `the ${text} version`;
+}
+
+function batchReference(label) {
+  const bare = clean(label).replace(/^the\s+/i, '');
+  if (!bare) return 'the batch you measured';
+  if (/^(batch|delivery|lot|load)\b/i.test(bare)) return bare;
+  if (/\b(batch|delivery|lot|load)\b/i.test(bare)) return `the ${bare}`;
+  return `the ${bare} batch`;
+}
+
+function groupRows(rows, keyOf) {
+  const groups = new Map();
+  for (const row of rows) {
+    const display = clean(keyOf(row));
+    const key = display.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { key, label: display, rows: [] });
+    groups.get(key).rows.push(row);
+  }
+  return [...groups.values()];
+}
+
+function rangeOf(rows) {
+  const values = rows.map((row) => row.numeric);
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
+function inTarget(range, target) {
+  return range.min >= target.min && range.max <= target.max;
+}
+
+function missingHelp(property, state) {
+  const name = lowerFirst(property.name) || 'this property';
+  const kind = propertyKind(property.name);
+  const batch = clean(state.plastic && state.plastic.batch);
+  const fromBatch = batch ? ` from the ${batch} batch` : '';
+  if (kind === 'weight') {
+    return `Weigh the piece you made${fromBatch}. If you cannot, multiply the density of this plastic by the volume of the piece.`;
+  }
+  if (kind === 'sound') {
+    return `Do a sound test on the piece you made${fromBatch}.`;
+  }
+  if (kind === 'strength') {
+    return `Test strength on a piece you made${fromBatch}.`;
+  }
+  if (kind === 'stiffness') {
+    return `Test stiffness on a piece you made${fromBatch}.`;
+  }
+  if (kind === 'size') {
+    return `Measure ${name} on the piece you made${fromBatch}.`;
+  }
+  return `Measure ${name} on a piece you made${fromBatch}.`;
+}
+
+function missingNext(property, state) {
+  return testCurrentBatch(property, state);
+}
+
+function nextBatchNext(property) {
+  const name = lowerFirst(property.name) || 'this property';
+  const kind = propertyKind(property.name);
+  let action;
+  if (kind === 'weight') action = 'Weigh one piece from the next batch';
+  else if (kind === 'sound') action = 'Run the sound test on one piece from the next batch';
+  else if (kind === 'strength') action = 'Run the strength test on one piece from the next batch';
+  else if (kind === 'stiffness') action = 'Run the stiffness test on one piece from the next batch';
+  else if (kind === 'size') action = `Measure ${name} of one piece from the next batch`;
+  else action = `Measure ${name} on one piece from the next batch`;
+  return `${action} and add the number above.`;
+}
+
+function setupItem(property, issue) {
+  const name = lowerFirst(property.name) || 'this property';
+  if (issue === 'order') {
+    return {
+      propertyId: property.id,
+      name: clean(property.name),
+      kind: 'setup',
+      inside: null,
+      headline: 'Check the range.',
+      text: `The low number for ${name} is above the high number. Swap them so the range reads from low to high.`,
+      next: `Fix the range for ${name}.`,
+    };
+  }
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'setup',
+    inside: null,
+    headline: 'Set the range first.',
+    text: `Enter both numbers for ${name}: the lowest and highest values that still work.`,
+    next: `Fill in the range for ${name}.`,
+  };
+}
+
+function missingItem(property, state) {
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'missing',
+    inside: null,
+    headline: 'Not enough to answer yet.',
+    text: missingHelp(property, state),
+    next: missingNext(property, state),
+  };
+}
+
+function versionGroups(rows, target) {
+  return groupRows(rows, (row) => row.version).map((group) => {
+    const range = rangeOf(group.rows);
+    return {
+      ...group,
+      range,
+      inside: inTarget(range, target),
+    };
+  });
+}
+
+function plasticNow(state) {
+  return {
+    type: clean(state.plastic && state.plastic.type),
+    batch: clean(state.plastic && state.plastic.batch),
+    mix: clean(state.plastic && state.plastic.mix),
+    dirt: clean(state.plastic && state.plastic.dirt),
+  };
+}
+
+function identityMatches(row, plastic) {
+  return sameText(row.plasticType, plastic.type)
+    && sameText(row.mix, plastic.mix)
+    && sameText(row.dirt, plastic.dirt);
+}
+
+function identityChanges(rows, plastic) {
+  const changes = new Set();
+  for (const row of rows) {
+    if (!sameText(row.plasticType, plastic.type)) changes.add('plastic type');
+    if (!sameText(row.mix, plastic.mix)) changes.add('mix');
+    if (!sameText(row.dirt, plastic.dirt)) changes.add('dirt or other plastic');
+  }
+  return [...changes];
+}
+
+function differencePhrase(changes) {
+  if (!changes.length) return 'different plastic, mix or dirt';
+  if (changes.length === 1) {
+    if (changes[0] === 'mix') return 'a different mix';
+    if (changes[0] === 'plastic type') return 'a different plastic type';
+    return `different ${changes[0]}`;
+  }
+  return `different ${listPhrases(changes)}`;
+}
+
+function currentBatchPhrase(plastic) {
+  return plastic.batch ? batchReference(plastic.batch) : 'this batch';
+}
+
+function testCurrentBatch(property, state) {
+  const plastic = plasticNow(state);
+  const name = lowerFirst(property.name) || 'this property';
+  const kind = propertyKind(property.name);
+  const place = plastic.batch ? `from ${batchReference(plastic.batch)}` : 'from this batch';
+  let action;
+  if (kind === 'weight') action = `Weigh one piece ${place}`;
+  else if (kind === 'sound') action = `Run the sound test on one piece ${place}`;
+  else if (kind === 'strength') action = `Run the strength test on one piece ${place}`;
+  else if (kind === 'stiffness') action = `Run the stiffness test on one piece ${place}`;
+  else if (kind === 'size') action = `Measure ${name} of one piece ${place}`;
+  else action = `Measure ${name} on one piece ${place}`;
+  return `${action} and add the number above.`;
+}
+
+function changedPiece(property) {
+  const name = lowerFirst(property.name) || 'this property';
+  const kind = propertyKind(property.name);
+  if (kind === 'weight') return 'Make one changed piece and weigh it before any shipment.';
+  if (kind === 'sound') return 'Make one changed piece and run the sound test on it before any shipment.';
+  if (kind === 'strength') return 'Make one changed piece and run the strength test on it before any shipment.';
+  if (kind === 'stiffness') return 'Make one changed piece and test its stiffness before any shipment.';
+  if (kind === 'size') return `Make one changed piece and measure its ${name} before any shipment.`;
+  return `Make one changed piece and measure ${name} on it before any shipment.`;
+}
+
+function amountOutside(range, target) {
+  const unit = target.unit;
+  const high = range.max > target.max;
+  const low = range.min < target.min;
+  if (high && low) {
+    return `The lowest reading is ${formatValue(range.min, unit)}, ${formatValue(target.min - range.min, unit)} below your bottom; the highest is ${formatValue(range.max, unit)}, ${formatValue(range.max - target.max, unit)} above your top.`;
+  }
+  if (high) {
+    if (range.min > target.max) {
+      const lowGap = range.min - target.max;
+      const highGap = range.max - target.max;
+      const gap = lowGap === highGap
+        ? formatValue(lowGap, unit)
+        : `${formatValue(lowGap, unit)} to ${formatValue(highGap, unit)}`;
+      return `It is ${gap} above your top of ${formatValue(target.max, unit)}.`;
+    }
+    return `The highest reading is ${formatValue(range.max, unit)}, ${formatValue(range.max - target.max, unit)} above your top of ${formatValue(target.max, unit)}.`;
+  }
+  if (low) {
+    if (range.max < target.min) {
+      const lowGap = target.min - range.max;
+      const highGap = target.min - range.min;
+      const gap = lowGap === highGap
+        ? formatValue(lowGap, unit)
+        : `${formatValue(lowGap, unit)} to ${formatValue(highGap, unit)}`;
+      return `It is ${gap} below your bottom of ${formatValue(target.min, unit)}.`;
+    }
+    return `The lowest reading is ${formatValue(range.min, unit)}, ${formatValue(target.min - range.min, unit)} below your bottom of ${formatValue(target.min, unit)}.`;
+  }
+  return '';
+}
+
+function rangeDirection(range, target) {
+  if (range.min > target.max) return 'high';
+  if (range.max < target.min) return 'low';
+  if (range.min < target.min && range.max > target.max) return 'both';
+  return 'outside';
+}
+
+function versionRangeText(groups, unit) {
+  return listPhrases(groups.map((group) => `${versionPhrase(group.label)} at ${formatRange(group.range.min, group.range.max, unit)}`));
+}
+
+function plasticSetupItem(property, headline, text, next) {
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'plastic-setup',
+    inside: null,
+    headline,
+    text,
+    next,
+  };
+}
+
+function uncoveredItem(property, state, namedRows, sameMaterialRows) {
+  const plastic = plasticNow(state);
+  const batch = currentBatchPhrase(plastic);
+  let text;
+  let headline;
+  if (sameMaterialRows.length) {
+    headline = 'These numbers do not cover this batch.';
+    text = `The numbers on hand do not cover this plastic in ${batch}: the pieces you measured are from other batches of this plastic. Do not ship ${batch}.`;
+  } else {
+    const changes = identityChanges(namedRows, plastic);
+    headline = 'These numbers do not cover this plastic.';
+    text = `The numbers on hand do not cover this plastic: the pieces you measured were made with ${differencePhrase(changes)}. Do not ship ${batch}.`;
+  }
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'uncovered',
+    inside: null,
+    headline,
+    text,
+    next: testCurrentBatch(property, state),
+  };
+}
+
+function allOutsideItem(property, state, currentRows, sameMaterialRows, target) {
+  const plastic = plasticNow(state);
+  const name = lowerFirst(property.name) || 'this property';
+  const range = rangeOf(sameMaterialRows);
+  const currentRange = rangeOf(currentRows);
+  const direction = rangeDirection(range, target);
+  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
+  const pieces = [];
+  if (batches.size > 1) {
+    if (direction === 'high') {
+      pieces.push(`Every measured piece of this plastic is above your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}.`);
+    } else if (direction === 'low') {
+      pieces.push(`Every measured piece of this plastic is below your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}.`);
+    } else {
+      pieces.push(`Every measured piece of this plastic is outside your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}; some are below and some are above.`);
+    }
+  }
+  pieces.push(`This batch is outside your ${formatRange(target.min, target.max, target.unit)} range: ${formatRange(currentRange.min, currentRange.max, target.unit)}. ${amountOutside(currentRange, target)}`);
+  pieces.push('Do not ship this batch or this combination.');
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'all-outside',
+    inside: false,
+    headline: batches.size > 1 ? 'Every measured piece is outside.' : 'This batch is outside.',
+    text: pieces.join(' '),
+    next: changedPiece(property),
+  };
+}
+
+function insideItem(property, state, currentRows, sameMaterialRows, target) {
+  const plastic = plasticNow(state);
+  const currentRange = rangeOf(currentRows);
+  const currentBatch = currentBatchPhrase(plastic);
+  const versions = versionGroups(sameMaterialRows, target);
+  const insideVersions = versions.filter((group) => group.inside);
+  const outsideVersions = versions.filter((group) => !group.inside);
+  const hasVersionSplit = versions.length > 1 && insideVersions.length > 0 && outsideVersions.length > 0;
+  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
+  const pieces = [];
+  const sameRange = rangeOf(sameMaterialRows);
+  const batchCount = batches.size;
+  if (hasVersionSplit || outsideVersions.length) {
+    pieces.push('Some pieces you measured with this plastic are outside your range.');
+  } else {
+    pieces.push('The pieces you measured with this plastic are inside your range.');
+  }
+  if (batchCount > 1) {
+    pieces.push(`Across the pieces of this plastic you measured, the range is ${formatRange(sameRange.min, sameRange.max, target.unit)}.`);
+  }
+  pieces.push(`This batch is inside: ${formatRange(currentRange.min, currentRange.max, target.unit)}, within your ${formatRange(target.min, target.max, target.unit)} range.`);
+  if (hasVersionSplit) {
+    pieces.push(`${upperFirst(versionRangeText(insideVersions, target.unit))} stays inside; ${versionRangeText(outsideVersions, target.unit)} is outside.`);
+  }
+  if (batches.size === 1) {
+    pieces.push('You have measured only one batch. The next batch is unknown until you check it the same way.');
+  } else {
+    pieces.push('The next batch is still unknown until you test it.');
+  }
+  const next = hasVersionSplit
+    ? `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and drop ${listPhrases(outsideVersions.map((group) => versionPhrase(group.label)))}.`
+    : nextBatchNext(property);
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'inside',
+    inside: true,
+    headline: 'This batch is inside.',
+    text: pieces.join(' '),
+    next,
+  };
+}
+
+function outsideItem(property, state, currentRows, sameMaterialRows, target) {
+  const plastic = plasticNow(state);
+  const currentRange = rangeOf(currentRows);
+  const currentBatch = currentBatchPhrase(plastic);
+  const versions = versionGroups(sameMaterialRows, target);
+  const insideVersions = versions.filter((group) => group.inside);
+  const outsideVersions = versions.filter((group) => !group.inside);
+  const currentVersions = versionGroups(currentRows, target);
+  const currentInsideVersions = currentVersions.filter((group) => group.inside);
+  const currentOutsideVersions = currentVersions.filter((group) => !group.inside);
+  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
+  const pieces = [];
+  const partial = currentInsideVersions.length > 0 && currentOutsideVersions.length > 0;
+  const currentOutsideRows = currentRows.filter((row) => row.numeric < target.min || row.numeric > target.max);
+  const currentOutsideRange = rangeOf(currentOutsideRows);
+  const sameRange = rangeOf(sameMaterialRows);
+  pieces.push('Some pieces you measured with this plastic are outside your range.');
+  pieces.push(`Across the pieces of this plastic you measured, the range is ${formatRange(sameRange.min, sameRange.max, target.unit)}.`);
+  if (partial) {
+    pieces.push(`Part of this batch is outside: ${versionRangeText(currentOutsideVersions, target.unit)}. ${amountOutside(currentOutsideRange, target)}`);
+    pieces.push(`${upperFirst(versionRangeText(currentInsideVersions, target.unit))} stays inside.`);
+    pieces.push(`Do not ship ${listPhrases(currentOutsideVersions.map((group) => versionPhrase(group.label)))} from ${currentBatch}.`);
+  } else {
+    pieces.push(`This batch is outside your ${formatRange(target.min, target.max, target.unit)} range: ${formatRange(currentRange.min, currentRange.max, target.unit)}. ${amountOutside(currentRange, target)}`);
+    pieces.push(`Do not ship ${currentBatch}.`);
+  }
+  if (insideVersions.length && !currentInsideVersions.length) {
+    pieces.push(`${upperFirst(versionRangeText(insideVersions, target.unit))} was inside on the pieces you measured of this plastic.`);
+  }
+  if (!insideVersions.length) {
+    pieces.push('No measured version of this plastic stayed inside.');
+  }
+  if (batches.size === 1) {
+    pieces.push('You have measured only one batch. The next batch is unknown until you check it the same way.');
+  }
+  let next;
+  if (currentInsideVersions.length && currentOutsideVersions.length) {
+    next = `Make ${listPhrases(currentInsideVersions.map((group) => versionPhrase(group.label)))}; keep ${currentBatch} for ${currentInsideVersions.length === 1 ? 'that version' : 'those versions'} only.`;
+  } else if (insideVersions.length) {
+    next = `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and hold ${currentBatch}.`;
+  } else {
+    next = changedPiece(property);
+  }
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'outside',
+    inside: false,
+    headline: currentInsideVersions.length && currentOutsideVersions.length
+      ? 'This batch is outside, but one version is inside.'
+      : 'This batch is outside.',
+    text: pieces.join(' '),
+    next,
+  };
+}
+
+function answerForProperty(state, property) {
+  const issue = propertyIssue(property);
+  if (issue === 'name') return null;
+  if (issue) return setupItem(property, issue);
+  const allRows = measurementsFor(state, property.id);
+  if (!allRows.length) return missingItem(property, state);
+  const unnamedCount = allRows.filter((row) => !clean(row.batch)).length;
+  const rows = allRows.filter((row) => clean(row.batch));
+  if (!rows.length) return unnamedItem(property, unnamedCount);
+  const plastic = plasticNow(state);
+  if (!plastic.type) {
+    return plasticSetupItem(property, 'Which plastic is this?', 'Name the plastic this batch is made from so the numbers can be matched to it.', 'Add the plastic type above.');
+  }
+  if (!plastic.batch) {
+    return plasticSetupItem(property, 'Name this batch.', 'Add the batch you have now so the numbers can be matched to it.', 'Add the batch name above.');
+  }
+  const sameMaterialRows = rows.filter((row) => identityMatches(row, plastic));
+  const differentIdentityCount = rows.length - sameMaterialRows.length;
+  const currentRows = sameMaterialRows.filter((row) => sameText(row.batch, plastic.batch));
+  const target = targetOf(property);
+  let item;
+  if (!currentRows.length) {
+    item = uncoveredItem(property, state, rows, sameMaterialRows);
+  } else if (sameMaterialRows.every((row) => row.numeric < target.min || row.numeric > target.max)) {
+    item = allOutsideItem(property, state, currentRows, sameMaterialRows, target);
+  } else {
+    const currentRange = rangeOf(currentRows);
+    item = inTarget(currentRange, target)
+      ? insideItem(property, state, currentRows, sameMaterialRows, target)
+      : outsideItem(property, state, currentRows, sameMaterialRows, target);
+  }
+  if (sameMaterialRows.length && differentIdentityCount) item.text = `${item.text} ${differentPlasticText(differentIdentityCount)}`;
+  if (unnamedCount) item.text = `${item.text} ${allUnnamedText(unnamedCount)}`;
+  return item;
+}
+
+function unnamedItem(property, count) {
+  const plural = count > 1;
+  return {
+    propertyId: property.id,
+    name: clean(property.name),
+    kind: 'batch-name',
+    inside: null,
+    headline: plural ? 'Name the batches for these numbers.' : 'Name the batch for this number.',
+    text: plural
+      ? 'These numbers are saved, but they have no batches. Add the batch each one came from so the answer can compare deliveries.'
+      : 'The number is saved, but it has no batch. Add the batch it came from so the answer can compare one delivery with the next.',
+    next: plural ? 'Add the batch names above.' : 'Add the batch name above.',
+  };
+}
+
+function allUnnamedText(count) {
+  return count === 1
+    ? 'One number has no batch name, so it is not used yet. Add the batch above.'
+    : `${count} numbers have no batch names, so they are not used yet. Add the batches above.`;
+}
+
+function differentPlasticText(count) {
+  return count === 1
+    ? 'One number was measured with a different plastic, mix or dirt, so it is not used here.'
+    : `${count} numbers were measured with a different plastic, mix or dirt, so they are not used here.`;
+}
+
+function earlyAnswer(headline, text, next) {
+  return {
+    headline,
+    items: [{ propertyId: '', name: '', kind: 'setup', inside: null, headline, text, next }],
+    next,
+  };
+}
+
+/**
+ * Build the plain answer for the whole product.
+ * Every property gets one item; the page shows the items in order and one next
+ * action chosen from the most immediate unresolved item.
+ */
+function buildAnswer(input) {
+  const state = normalizeState(input);
+  if (!state.product) {
+    return earlyAnswer(
+      'Start with what you are making.',
+      'A product name and a range are enough to start. Add a measurement when you have one.',
+      'Write the product name above.',
+    );
+  }
+  const properties = state.properties.filter((property) => clean(property.name));
+  if (!properties.length) {
+    return earlyAnswer(
+      'What has to stay steady?',
+      'Add a property and the range it must stay inside. Weight, thickness, strength, stiffness, sound insulation — anything you can put a number on.',
+      'Name a property and set its range.',
+    );
+  }
+
+  const items = properties.map((property) => answerForProperty(state, property)).filter(Boolean);
+  if (!items.length) {
+    return earlyAnswer('What has to stay steady?', 'Add a property and the range it must stay inside.', 'Name a property and set its range.');
+  }
+
+  const urgentKinds = new Set(['uncovered', 'outside', 'all-outside']);
+  const setup = items.filter((item) => item.kind === 'setup');
+  const plasticSetup = items.filter((item) => item.kind === 'plastic-setup');
+  const unnamed = items.filter((item) => item.kind === 'batch-name');
+  const urgent = items.filter((item) => urgentKinds.has(item.kind));
+  const missing = items.filter((item) => item.kind === 'missing');
+  const inside = items.filter((item) => item.kind === 'inside');
+  if (missing.length) missing[0].text = `${missing[0].text} ${MISSING_CAVEAT}`;
+
+  let headline;
+  let next;
+  if (items.length === 1) {
+    headline = items[0].headline;
+  } else if (urgent.length) {
+    if (urgent.length === 1) {
+      headline = urgent[0].headline;
+    } else {
+      const allUncovered = urgent.every((item) => item.kind === 'uncovered');
+      const allOutside = urgent.every((item) => item.kind === 'outside' || item.kind === 'all-outside');
+      const count = upperFirst(numberWord(urgent.length));
+      headline = allOutside
+        ? `${count} properties are outside your range.`
+        : allUncovered
+          ? `${count} properties are not covered by these numbers.`
+          : `${count} properties need attention.`;
+    }
+  } else if (setup.length) {
+    headline = 'Set the range first.';
+  } else if (plasticSetup.length) {
+    const sameHeadline = plasticSetup.every((item) => item.headline === plasticSetup[0].headline);
+    headline = sameHeadline ? plasticSetup[0].headline : 'Name the plastic and this batch.';
+  } else if (unnamed.length) {
+    headline = unnamed.length === 1 ? 'One batch name is missing.' : `${upperFirst(numberWord(unnamed.length))} batch names are missing.`;
+  } else if (missing.length) {
+    headline = 'Not enough to answer everything yet.';
+  } else if (inside.length === items.length) {
+    headline = 'This batch is inside.';
+  } else {
+    headline = 'Here is where you stand.';
+  }
+
+  if (urgent.length) next = urgent[0].next;
+  else if (setup.length) next = setup[0].next;
+  else if (plasticSetup.length) next = plasticSetup[0].next;
+  else if (unnamed.length) next = unnamed.length === 1 ? unnamed[0].next : 'Add the batch names above.';
+  else if (missing.length) next = missing[0].next;
+  else if (inside.length) next = inside[0].next;
+  else next = '';
+
+  return { headline, items, next };
+}
+
+return { STORE_KEY, STATE_VERSION, MAX_PROPERTIES, MAX_MEASUREMENTS, MISSING_CAVEAT, toNumber, formatNumber, formatValue, formatRange, blankProperty, blankMeasurement, blankState, normalizeState, propertyIssue, targetOf, propertyKind, measurementsFor, buildAnswer };
+})();
+
+/* ===== main.js ===== */
+__modules.main = (function () {
+const { STORE_KEY,
+  MAX_MEASUREMENTS,
+  MAX_PROPERTIES,
+  blankMeasurement,
+  blankProperty,
+  blankState,
+  buildAnswer,
+  normalizeState, } = __modules.product;
+
+
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORE_KEY);
+    if (saved) return normalizeState(JSON.parse(saved));
+  } catch (error) {
+    // A broken saved value should not stop the page from opening.
+  }
+  return blankState();
+}
+
+let state = loadState();
+
+function saveState() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // The page still works when storage is unavailable.
+  }
+}
+
+function namedProperties() {
+  return state.properties.filter((property) => property.name.trim());
+}
+
+function propertyById(id) {
+  return state.properties.find((property) => property.id === id) || null;
+}
+
+function measurementById(id) {
+  return state.measurements.find((measurement) => measurement.id === id) || null;
+}
+
+// ---------------------------------------------------------------------------
+// Property lines
+// ---------------------------------------------------------------------------
+function renderProperties(focusId = '') {
+  const list = $('#property-list');
+  list.replaceChildren();
+  state.properties.forEach((property) => {
+    const row = document.createElement('div');
+    row.className = 'property-row';
+    row.dataset.propertyId = property.id;
+    row.innerHTML = `
+      <input class="property-name" data-field="name" type="text" autocomplete="off" spellcheck="false" aria-label="Property" placeholder="property">
+      <span class="range-line">
+        <span class="connector">must stay between</span>
+        <input class="property-min" data-field="min" type="text" inputmode="decimal" autocomplete="off" aria-label="Lowest value" placeholder="low">
+        <span class="connector">and</span>
+        <input class="property-max" data-field="max" type="text" inputmode="decimal" autocomplete="off" aria-label="Highest value" placeholder="high">
+        <input class="property-unit" data-field="unit" type="text" autocomplete="off" spellcheck="false" aria-label="Unit" placeholder="unit">
+      </span>
+      <button class="remove" type="button" aria-label="Remove this property">×</button>`;
+    row.querySelector('[data-field="name"]').value = property.name;
+    row.querySelector('[data-field="min"]').value = property.min;
+    row.querySelector('[data-field="max"]').value = property.max;
+    row.querySelector('[data-field="unit"]').value = property.unit;
+    if (state.properties.length === 1) row.querySelector('.remove').remove();
+    list.append(row);
+  });
+  $('#add-property').disabled = state.properties.length >= MAX_PROPERTIES;
+  if (focusId) {
+    const input = list.querySelector(`[data-property-id="${focusId}"] [data-field="name"]`);
+    if (input) input.focus();
+  }
+}
+
+function refreshMeasurementUnits() {
+  $$('.measurement-row').forEach((row) => {
+    const measurement = measurementById(row.dataset.measurementId);
+    const property = measurement ? propertyById(measurement.propertyId) : null;
+    const unit = row.querySelector('.m-unit');
+    if (unit) unit.textContent = property && property.unit ? property.unit : '';
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Measurement lines
+// ---------------------------------------------------------------------------
+function renderMeasurements(focusId = '') {
+  const list = $('#measurement-list');
+  const empty = $('#measurement-empty');
+  const add = $('#add-measurement');
+  list.replaceChildren();
+  const selectable = state.properties;
+
+  state.measurements.forEach((measurement) => {
+    const property = propertyById(measurement.propertyId);
+    const row = document.createElement('div');
+    row.className = 'measurement-row';
+    row.dataset.measurementId = measurement.id;
+
+    let propertyControl;
+    if (selectable.length <= 1) {
+      propertyControl = document.createElement('span');
+      propertyControl.className = 'm-property-static';
+      propertyControl.textContent = property && property.name.trim() ? property.name.trim() : 'property';
+    } else {
+      const select = document.createElement('select');
+      select.className = 'm-property';
+      select.dataset.field = 'propertyId';
+      select.setAttribute('aria-label', 'Property');
+      selectable.forEach((item) => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.name.trim() || 'property';
+        select.append(option);
+      });
+      select.value = measurement.propertyId;
+      if (!select.value && selectable[0]) {
+        select.value = selectable[0].id;
+        measurement.propertyId = selectable[0].id;
+      }
+      propertyControl = select;
+    }
+
+    function phrase(word, ...nodes) {
+      const span = document.createElement('span');
+      span.className = 'phrase';
+      const label = document.createElement('span');
+      label.className = 'word';
+      label.textContent = word;
+      span.append(label, ...nodes);
+      return span;
+    }
+
+    const version = document.createElement('input');
+    version.className = 'm-version';
+    version.dataset.field = 'version';
+    version.type = 'text';
+    version.autocomplete = 'off';
+    version.spellcheck = false;
+    version.placeholder = 'version';
+    version.setAttribute('aria-label', 'Version');
+    version.value = measurement.version;
+
+    const batch = document.createElement('input');
+    batch.className = 'm-batch';
+    batch.dataset.field = 'batch';
+    batch.type = 'text';
+    batch.autocomplete = 'off';
+    batch.spellcheck = false;
+    batch.placeholder = 'batch';
+    batch.setAttribute('aria-label', 'Batch');
+    batch.value = measurement.batch;
+
+    const value = document.createElement('input');
+    value.className = 'm-value';
+    value.dataset.field = 'value';
+    value.type = 'text';
+    value.inputMode = 'decimal';
+    value.autocomplete = 'off';
+    value.placeholder = 'number';
+    value.setAttribute('aria-label', 'Measured number');
+    value.value = measurement.value;
+
+    const unit = document.createElement('span');
+    unit.className = 'm-unit';
+    unit.textContent = property && property.unit ? property.unit : '';
+
+    const remove = document.createElement('button');
+    remove.className = 'remove';
+    remove.type = 'button';
+    remove.setAttribute('aria-label', 'Remove this measurement');
+    remove.textContent = '×';
+
+    const plasticLine = document.createElement('div');
+    plasticLine.className = 'measurement-plastic';
+    function plasticPhrase(word, field, label, placeholder) {
+      const wrap = document.createElement('span');
+      wrap.className = 'plastic-phrase';
+      const text = document.createElement('span');
+      text.className = 'word';
+      text.textContent = word;
+      const input = document.createElement('input');
+      input.className = `m-${field}`;
+      input.dataset.field = field;
+      input.type = 'text';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.placeholder = placeholder;
+      input.setAttribute('aria-label', label);
+      input.value = measurement[field] || '';
+      wrap.append(text, input);
+      return wrap;
+    }
+    plasticLine.append(
+      plasticPhrase('made with', 'plasticType', 'Plastic type for this piece', 'plastic type'),
+      plasticPhrase('mixed with', 'mix', 'Mix for this piece', 'mix'),
+      plasticPhrase('dirt', 'dirt', 'Dirt or other plastic for this piece', 'other plastic'),
+    );
+
+    row.append(propertyControl, phrase('on', version), phrase('from', batch), phrase('was', value, unit), remove, plasticLine);
+    list.append(row);
+  });
+
+  const hasNamedProperty = namedProperties().length > 0;
+  empty.hidden = state.measurements.length > 0;
+  if (!hasNamedProperty) {
+    empty.textContent = 'Add a property above before adding a number.';
+  } else {
+    empty.textContent = 'No measured numbers yet.';
+  }
+  add.disabled = !hasNamedProperty || state.measurements.length >= MAX_MEASUREMENTS;
+  if (focusId) {
+    const input = list.querySelector(`[data-measurement-id="${focusId}"] [data-field="value"]`);
+    if (input) input.focus();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Answer
+// ---------------------------------------------------------------------------
+function renderAnswer() {
+  const answer = buildAnswer(state);
+  $('#answer-headline').textContent = answer.headline;
+  const body = $('#answer-body');
+  body.replaceChildren();
+  answer.items.forEach((item) => {
+    const paragraph = document.createElement('p');
+    if (item.name && ['inside', 'outside', 'all-outside', 'uncovered'].includes(item.kind)) {
+      const label = document.createElement('b');
+      label.textContent = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+      paragraph.append(label, ': ');
+    }
+    paragraph.append(document.createTextNode(item.text));
+    body.append(paragraph);
+  });
+  const next = $('#answer-next');
+  const nextText = $('#next-text');
+  nextText.textContent = answer.next || '';
+  next.hidden = !answer.next;
+  const live = $('#live-answer');
+  if (live) {
+    const liveText = `${answer.headline}${answer.next ? ` Next: ${answer.next}` : ''}`;
+    if (live.textContent !== liveText) live.textContent = liveText;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Initial paint
+// ---------------------------------------------------------------------------
+function paintPlastic() {
+  $('#plastic-type').value = state.plastic.type;
+  $('#plastic-batch').value = state.plastic.batch;
+  $('#plastic-mix').value = state.plastic.mix;
+  $('#plastic-dirt').value = state.plastic.dirt;
+}
+
+function paintAll() {
+  $('#product').value = state.product;
+  paintPlastic();
+  renderProperties();
+  renderMeasurements();
+  renderAnswer();
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+$('#product').addEventListener('input', (event) => {
+  state.product = event.target.value;
+  saveState();
+  renderAnswer();
+});
+
+const plasticFields = {
+  '#plastic-type': 'type',
+  '#plastic-batch': 'batch',
+  '#plastic-mix': 'mix',
+  '#plastic-dirt': 'dirt',
+};
+
+Object.entries(plasticFields).forEach(([selector, field]) => {
+  $(selector).addEventListener('input', (event) => {
+    state.plastic[field] = event.target.value;
+    saveState();
+    renderAnswer();
+  });
+});
+
+$('#property-list').addEventListener('input', (event) => {
+  const row = event.target.closest('[data-property-id]');
+  const field = event.target.dataset.field;
+  if (!row || !field) return;
+  const property = propertyById(row.dataset.propertyId);
+  if (!property) return;
+  property[field] = event.target.value;
+  if (field === 'name') renderMeasurements();
+  if (field === 'unit') refreshMeasurementUnits();
+  saveState();
+  renderAnswer();
+});
+
+$('#property-list').addEventListener('click', (event) => {
+  const button = event.target.closest('.remove');
+  if (!button) return;
+  const row = button.closest('[data-property-id]');
+  if (!row || state.properties.length === 1) return;
+  const id = row.dataset.propertyId;
+  state.properties = state.properties.filter((property) => property.id !== id);
+  state.measurements = state.measurements.filter((measurement) => measurement.propertyId !== id);
+  saveState();
+  renderProperties();
+  renderMeasurements();
+  renderAnswer();
+});
+
+$('#add-property').addEventListener('click', () => {
+  if (state.properties.length >= MAX_PROPERTIES) return;
+  const property = blankProperty();
+  state.properties.push(property);
+  saveState();
+  renderProperties(property.id);
+  renderMeasurements();
+  renderAnswer();
+});
+
+function onMeasurementChange(event) {
+  const row = event.target.closest('[data-measurement-id]');
+  const field = event.target.dataset.field;
+  if (!row || !field) return;
+  const measurement = measurementById(row.dataset.measurementId);
+  if (!measurement) return;
+  measurement[field] = event.target.value;
+  if (field === 'propertyId') refreshMeasurementUnits();
+  saveState();
+  renderAnswer();
+}
+
+$('#measurement-list').addEventListener('input', onMeasurementChange);
+$('#measurement-list').addEventListener('change', (event) => {
+  if (event.target.matches('select')) onMeasurementChange(event);
+});
+
+$('#measurement-list').addEventListener('click', (event) => {
+  const button = event.target.closest('.remove');
+  if (!button) return;
+  const row = button.closest('[data-measurement-id]');
+  if (!row) return;
+  state.measurements = state.measurements.filter((measurement) => measurement.id !== row.dataset.measurementId);
+  saveState();
+  renderMeasurements();
+  renderAnswer();
+});
+
+$('#add-measurement').addEventListener('click', () => {
+  const property = namedProperties()[0];
+  if (!property || state.measurements.length >= MAX_MEASUREMENTS) return;
+  const measurement = blankMeasurement(property.id, state.plastic);
+  state.measurements.push(measurement);
+  saveState();
+  renderMeasurements(measurement.id);
+  renderAnswer();
+});
+
+$('#start-over').addEventListener('click', () => {
+  const hasContent = state.product.trim() || state.measurements.length || state.plastic.type.trim() || state.plastic.batch.trim() || state.plastic.mix.trim() || state.plastic.dirt.trim();
+  if (hasContent && !window.confirm('Start over with a new product? This clears what is on the page.')) return;
+  state = blankState();
+  saveState();
+  paintAll();
+  $('#product').focus();
+});
+
+window.addEventListener('pagehide', saveState);
+
+paintAll();
+
+
+})();
+window.__ANYRB__ = __modules;
+})();
+</script>
+</body>
+</html>

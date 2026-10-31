@@ -4,7 +4,9 @@ Local FastAPI service that puts **Meta AI models in the live path** of the AnyRB
 design studio. The verified physics runs in the browser/engine; this service does intent
 parsing, design proposals, narrative generation, voice input and illustrative rendering —
 with **pydantic-validated JSON**, **disk caching**, **provenance logging** and
-**deterministic fallbacks**, so the demo never dies.
+**deterministic fallbacks**, so the demo never dies (exception: the product-proposal endpoint
+never fabricates suggestions — if the model is unavailable it returns an empty proposals list
+with `_meta.fallback=true`).
 
 **The browser never sees the API key.** It only ever talks to `http://127.0.0.1:8787/api/*`.
 
@@ -163,12 +165,20 @@ cd AnyRB
 ```bash
 cd AnyRB
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q
-# 51 passed, 1 skipped  (skipped = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
+# whole suite: 103 passed, 1 skipped; the product modules add 18 product-proposal and
+# 34 product-advice tests.
+
+# product-proposal / advice tests only:
+AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_proposals.py -q   # 18 passed
+AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_advice.py -q      # 34 passed
+# (skipped test = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
 ```
 
 The suite isolates itself before importing the app: `META_API_KEY=""`, a temporary cache and
 provenance file, 1 MB body limit, unlimited test rate. It covers: health + schema, brief/lot/
-plan/review/proof/voice/image/segment contracts, schema validation on every response,
+plan/review/proof/voice/image/segment/product-proposal and product-advice contracts (including
+that an unavailable model returns empty proposals/advice, never invented content), schema
+validation on every response,
 deterministic fallbacks, prompt-injection guard (user text is delimited untrusted data and
 cannot change the schema or clamp boundaries), number-grounding acceptance/rejection,
 per-request `?mock=1`, cache hit on the second call (simulated live transport), provenance
@@ -186,7 +196,10 @@ and static-path safety (no `/server/.env`, `.venv`, or traversal).
 | `server/contract_v03.py` | v0.3 payload normaliser: canonical grounded payload, family scope, printability limits, lot recipe, measurement, sustained bound, feasibility |
 | `server/contract_v04.py` | v0.4 payload normaliser: printed-process gate, brittle/elongation screen, assumption bounds, lot QC record |
 | `server/prompts.py` | grounded prompts, untrusted-text delimiters, number-grounding helper, deterministic fallbacks |
+| `server/product_ai.py` | product-view MOVE proposals: request sanitising, allow-listed parameter output, clamps; empty proposals (no invention) when the model is unavailable |
 | `server/tests/test_server.py` | pytest suite (mock mode) |
+| `server/tests/test_product_proposals.py` | product-proposal endpoint tests (mock mode, no live model calls) |
+| `server/tests/test_product_advice.py` | batch-advice endpoint tests: grounding, no-advice fallback, security (mock mode) |
 | `server/verify_live.py` | live verification + evidence writer |
 | `server/evidence/live_calls.json` | recorded live calls (model, latency, tokens, cache, hashes; no key) |
 | `server/API.md` | frontend contract |
@@ -197,8 +210,10 @@ and static-path safety (no `/server/.env`, `.venv`, or traversal).
 
 `POST /api/brief/parse`, `POST /api/lot/parse`, `POST /api/design/plan`,
 `POST /api/design/review`, `POST /api/proof/memo`, `POST /api/voice/transcribe` (multipart),
-`POST /api/image/render`, `POST /api/photo/segment` (multipart), `GET /api/health`,
-`GET /api/provenance`, `GET /api/validation`.
+`POST /api/image/render`, `POST /api/photo/segment` (multipart),
+`POST /api/product/proposals` (product view: MOVE parameters only — the browser scores them),
+`POST /api/product/advice` (Batch/Alchemy: grounded practical advice, or no advice at all),
+`GET /api/health`, `GET /api/provenance`, `GET /api/validation`.
 
 See [`API.md`](API.md) for request/response JSON, error shapes, grounding rules and latency
 expectations. `GET /api/health` reports `mode` (`live`/`mock`/`offline`), model IDs, cache
@@ -207,6 +222,42 @@ entry count, current-session call count, per-model live latencies and client-mod
 Limits: 16 MB request body (configurable `ANYRB_MAX_BODY_MB`), 12 MB audio/image upload,
 120 requests/min/IP (`ANYRB_RATE_LIMIT_RPM`), 6000-char text fields. All limits return a
 JSON error (`{ok:false,error,message}`), never an HTML page.
+
+## Product-proposal endpoint (product view)
+
+`POST /api/product/proposals` takes the current product geometry, target property range, plastic
+batch description, another product on the same batch and `steady_available`; it returns MOVE
+parameter objects (`thickness`, `section`, `span`, `other_product`, plus `blend` only when steady
+availability exists) and nothing else. The model proposes parameters only — no strength,
+stiffness, weight, property ranges, expected results or certification ever leave the endpoint;
+the browser scores every proposal deterministically with the verified engine. All numbers are
+sanitised/clamped server-side (thickness 2–200 mm, width 5–500 mm, span 50–5000 mm, blend fraction
+0.15–0.75); unknown moves/invalid values are dropped and the server never pads or invents
+proposals. **If Meta is unavailable (mock mode, no key, timeout, invalid output) the endpoint
+returns `proposals: []` with `_meta.fallback: true` and an `_meta.error` — no fixed-list
+thickness/section/span suggestions.** The browser scores the user's current build locally and
+shows no proposed alternatives in that state. `load_kg` is optional context (the frontend sends
+`0`) and is never used to invent results. Uses `meta_client.spark_json("product_proposals", …)`
+with the same cache and provenance behaviour. See `API.md` for the full contract.
+
+## Batch/Alchemy advice endpoint
+
+`POST /api/product/advice` takes the user's plain-language question plus the app-computed plan
+(current build, passing builds, material gap, optional blend recipe, product/target/plastic
+context) and returns `{answer, actions, available}`. The model answers **what to do with this
+batch** — blend/add the steadier stream (using the supplied fraction/type), sort/wash/dry, change
+the section or span, move the batch to the other product — and must never simply reject the
+delivery. It may use only numbers supplied in the request; strength/stiffness/weight/property
+ranges, measured results, invented numbers and certification claims are forbidden. It also must
+never send the user off to **test/trial/prototype/sample/measure a piece** — a hard user rule —
+so a deterministic word-boundary guard rejects such text (`reason_code:"test_instruction"`) while
+keeping ordinary process advice (blend, sort, wash, dry, change section/span, route product, split
+delivery). The server enforces this: answer ≤ 1200 chars, 1–5 actions ≤ 140 chars, and a
+**number-grounding check** (every number must exist in the request; rounding/percent forms
+allowed). Any failure — Meta unavailable, unusable output, certification language, test/trial
+instructions, or ungrounded numbers — returns `answer:"", actions:[], available:false` with a
+`_meta.reason_code`; **no fixed advice fallback is invented**. Uses `meta_client.spark_json("product_advice", …)` with the usual cache/provenance.
+See `API.md` for the full contract.
 
 ## Security / honesty notes
 

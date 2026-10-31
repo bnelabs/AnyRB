@@ -1,381 +1,461 @@
 import {
-  STORE_KEY,
-  MAX_MEASUREMENTS,
-  MAX_PROPERTIES,
-  blankMeasurement,
-  blankProperty,
-  blankState,
-  buildAnswer,
+  DEFAULT_STATE,
+  MODES,
+  PROPERTIES,
+  PROPERTY_DEFAULTS,
+  advicePayload,
+  blendCandidate,
+  buildSizeText,
+  decisionFor,
+  evaluateBuilds,
+  materialGap,
   normalizeState,
+  proposalRow,
+  toApiPayload,
 } from './product.js';
 
-const $ = (selector, root = document) => root.querySelector(selector);
-const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const $ = (id) => document.getElementById(id);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
+const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:8787' : '';
 
-function loadState() {
-  try {
-    const saved = localStorage.getItem(STORE_KEY);
-    if (saved) return normalizeState(JSON.parse(saved));
-  } catch (error) {
-    // A broken saved value should not stop the page from opening.
+let state = normalizeState(DEFAULT_STATE);
+let modelProposals = [];
+let modelState = 'loading';
+let modelSeq = 0;
+let modelTimer = 0;
+let adviceSeq = 0;
+let lastResult = null;
+let lastDecision = null;
+let copyReset = 0;
+
+function setValue(id, value) {
+  const input = $(id);
+  if (input) input.value = value == null ? '' : String(value);
+}
+
+function setSelectOptions(id, items) {
+  const select = $(id);
+  select.replaceChildren();
+  for (const item of items) {
+    const option = document.createElement('option');
+    option.value = item.key;
+    option.textContent = item.label || item.key;
+    select.append(option);
   }
-  return blankState();
 }
 
-let state = loadState();
-
-function saveState() {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
-  } catch (error) {
-    // The page still works when storage is unavailable.
-  }
+function updateTargetLabels() {
+  const meta = PROPERTIES.find((p) => p.key === state.target.property) || PROPERTIES[0];
+  $('target-min-label').textContent = `Low (${meta.unit})`;
+  $('target-max-label').textContent = `High (${meta.unit})`;
 }
 
-function namedProperties() {
-  return state.properties.filter((property) => property.name.trim());
+function updateSteadyVisibility() {
+  $('steady-fields').hidden = !$('steady-available').checked;
 }
 
-function propertyById(id) {
-  return state.properties.find((property) => property.id === id) || null;
+function paint() {
+  setValue('product', state.product);
+  $('mode').value = state.mode;
+  setValue('span', state.spanMm);
+  setValue('width', state.widthMm);
+  setValue('thickness', state.thicknessMm);
+  $('property').value = state.target.property;
+  setValue('target-min', state.target.min);
+  setValue('target-max', state.target.max);
+  setValue('plastic-type', state.plastic.type);
+  setValue('plastic-batch', state.plastic.batch);
+  setValue('plastic-mix', state.plastic.mix);
+  $('dirt-level').value = state.plastic.dirtLevel;
+  setValue('plastic-dirt', state.plastic.dirt);
+  setValue('e-min', state.plastic.eMin);
+  setValue('e-max', state.plastic.eMax);
+  setValue('s-min', state.plastic.sMin);
+  setValue('s-max', state.plastic.sMax);
+  setValue('density', state.plastic.density);
+  $('steady-available').checked = state.steady.available;
+  setValue('steady-type', state.steady.type);
+  setValue('steady-e', state.steady.eMpa || '');
+  setValue('steady-s', state.steady.sMpa || '');
+  setValue('other-product', state.other.product);
+  $('other-mode').value = state.other.mode;
+  setValue('other-span', state.other.spanMm);
+  setValue('other-width', state.other.widthMm);
+  setValue('other-thickness', state.other.thicknessMm);
+  updateTargetLabels();
+  updateSteadyVisibility();
 }
 
-function measurementById(id) {
-  return state.measurements.find((measurement) => measurement.id === id) || null;
+function fade(elements, fn) {
+  for (const element of elements) element.classList.add('is-fading');
+  window.setTimeout(() => {
+    fn();
+    for (const element of elements) element.classList.remove('is-fading');
+  }, 90);
 }
 
-// ---------------------------------------------------------------------------
-// Property lines
-// ---------------------------------------------------------------------------
-function renderProperties(focusId = '') {
-  const list = $('#property-list');
+function renderBuildList(result) {
+  const list = $('build-list');
+  const empty = $('empty-build');
   list.replaceChildren();
-  state.properties.forEach((property) => {
-    const row = document.createElement('div');
-    row.className = 'property-row';
-    row.dataset.propertyId = property.id;
-    row.innerHTML = `
-      <input class="property-name" data-field="name" type="text" autocomplete="off" spellcheck="false" aria-label="Property" placeholder="property">
-      <span class="range-line">
-        <span class="connector">must stay between</span>
-        <input class="property-min" data-field="min" type="text" inputmode="decimal" autocomplete="off" aria-label="Lowest value" placeholder="low">
-        <span class="connector">and</span>
-        <input class="property-max" data-field="max" type="text" inputmode="decimal" autocomplete="off" aria-label="Highest value" placeholder="high">
-        <input class="property-unit" data-field="unit" type="text" autocomplete="off" spellcheck="false" aria-label="Unit" placeholder="unit">
-      </span>
-      <button class="remove" type="button" aria-label="Remove this property">×</button>`;
-    row.querySelector('[data-field="name"]').value = property.name;
-    row.querySelector('[data-field="min"]').value = property.min;
-    row.querySelector('[data-field="max"]').value = property.max;
-    row.querySelector('[data-field="unit"]').value = property.unit;
-    if (state.properties.length === 1) row.querySelector('.remove').remove();
-    list.append(row);
-  });
-  $('#add-property').disabled = state.properties.length >= MAX_PROPERTIES;
-  if (focusId) {
-    const input = list.querySelector(`[data-property-id="${focusId}"] [data-field="name"]`);
-    if (input) input.focus();
+  if (!result.passingBest.length) {
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+  for (const item of result.passingBest.slice(0, 6)) {
+    const row = proposalRow(result.state, item);
+    const li = document.createElement('li');
+    li.className = 'build-row' + (item === result.winner ? ' winner' : '');
+    const move = document.createElement('span');
+    move.className = 'move';
+    move.textContent = row.move;
+    if (item === result.winner) {
+      const least = document.createElement('span');
+      least.className = 'least';
+      least.textContent = 'least build mass';
+      move.append(least);
+    }
+    const size = document.createElement('span');
+    size.className = 'size';
+    size.textContent = row.size;
+    const prop = document.createElement('span');
+    prop.className = 'prop';
+    prop.textContent = row.property;
+    const added = document.createElement('span');
+    added.className = 'added';
+    added.textContent = row.added;
+    li.append(move, size, prop, added);
+    list.append(li);
   }
 }
 
-function refreshMeasurementUnits() {
-  $$('.measurement-row').forEach((row) => {
-    const measurement = measurementById(row.dataset.measurementId);
-    const property = measurement ? propertyById(measurement.propertyId) : null;
-    const unit = row.querySelector('.m-unit');
-    if (unit) unit.textContent = property && property.unit ? property.unit : '';
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Measurement lines
-// ---------------------------------------------------------------------------
-function renderMeasurements(focusId = '') {
-  const list = $('#measurement-list');
-  const empty = $('#measurement-empty');
-  const add = $('#add-measurement');
-  list.replaceChildren();
-  const selectable = state.properties;
-
-  state.measurements.forEach((measurement) => {
-    const property = propertyById(measurement.propertyId);
-    const row = document.createElement('div');
-    row.className = 'measurement-row';
-    row.dataset.measurementId = measurement.id;
-
-    let propertyControl;
-    if (selectable.length <= 1) {
-      propertyControl = document.createElement('span');
-      propertyControl.className = 'm-property-static';
-      propertyControl.textContent = property && property.name.trim() ? property.name.trim() : 'property';
+function renderGap(result) {
+  const gap = $('gap');
+  gap.replaceChildren();
+  if (!result.targetValid) {
+    const p = document.createElement('p');
+    p.textContent = 'The low end of the range is above the high end. Check the range.';
+    gap.append(p);
+    return;
+  }
+  if (result.winner) {
+    const needed = materialGap(result.state, result.winner.part);
+    const p = document.createElement('p');
+    const needText = `${formatRange(needed.required, needed.unit)}`;
+    const batchText = `${formatRange(needed.batch, needed.unit)}`;
+    if (result.winner.move === 'blend') {
+      p.textContent = `The base delivery gives ${batchText}; this build needs ${needText}. ${Math.round(result.winner.fraction * 100)}% of ${result.state.steady.type || 'the steadier stream'} brings it into the window.`;
     } else {
-      const select = document.createElement('select');
-      select.className = 'm-property';
-      select.dataset.field = 'propertyId';
-      select.setAttribute('aria-label', 'Property');
-      selectable.forEach((item) => {
-        const option = document.createElement('option');
-        option.value = item.id;
-        option.textContent = item.name.trim() || 'property';
-        select.append(option);
-      });
-      select.value = measurement.propertyId;
-      if (!select.value && selectable[0]) {
-        select.value = selectable[0].id;
-        measurement.propertyId = selectable[0].id;
-      }
-      propertyControl = select;
+      p.textContent = `This build needs ${needText}; your delivery gives ${batchText}. It fits.`;
     }
-
-    function phrase(word, ...nodes) {
-      const span = document.createElement('span');
-      span.className = 'phrase';
-      const label = document.createElement('span');
-      label.className = 'word';
-      label.textContent = word;
-      span.append(label, ...nodes);
-      return span;
-    }
-
-    const version = document.createElement('input');
-    version.className = 'm-version';
-    version.dataset.field = 'version';
-    version.type = 'text';
-    version.autocomplete = 'off';
-    version.spellcheck = false;
-    version.placeholder = 'version';
-    version.setAttribute('aria-label', 'Version');
-    version.value = measurement.version;
-
-    const batch = document.createElement('input');
-    batch.className = 'm-batch';
-    batch.dataset.field = 'batch';
-    batch.type = 'text';
-    batch.autocomplete = 'off';
-    batch.spellcheck = false;
-    batch.placeholder = 'batch';
-    batch.setAttribute('aria-label', 'Batch');
-    batch.value = measurement.batch;
-
-    const value = document.createElement('input');
-    value.className = 'm-value';
-    value.dataset.field = 'value';
-    value.type = 'text';
-    value.inputMode = 'decimal';
-    value.autocomplete = 'off';
-    value.placeholder = 'number';
-    value.setAttribute('aria-label', 'Measured number');
-    value.value = measurement.value;
-
-    const unit = document.createElement('span');
-    unit.className = 'm-unit';
-    unit.textContent = property && property.unit ? property.unit : '';
-
-    const remove = document.createElement('button');
-    remove.className = 'remove';
-    remove.type = 'button';
-    remove.setAttribute('aria-label', 'Remove this measurement');
-    remove.textContent = '×';
-
-    const plasticLine = document.createElement('div');
-    plasticLine.className = 'measurement-plastic';
-    function plasticPhrase(word, field, label, placeholder) {
-      const wrap = document.createElement('span');
-      wrap.className = 'plastic-phrase';
-      const text = document.createElement('span');
-      text.className = 'word';
-      text.textContent = word;
-      const input = document.createElement('input');
-      input.className = `m-${field}`;
-      input.dataset.field = field;
-      input.type = 'text';
-      input.autocomplete = 'off';
-      input.spellcheck = false;
-      input.placeholder = placeholder;
-      input.setAttribute('aria-label', label);
-      input.value = measurement[field] || '';
-      wrap.append(text, input);
-      return wrap;
-    }
-    plasticLine.append(
-      plasticPhrase('made with', 'plasticType', 'Plastic type for this piece', 'plastic type'),
-      plasticPhrase('mixed with', 'mix', 'Mix for this piece', 'mix'),
-      plasticPhrase('dirt', 'dirt', 'Dirt or other plastic for this piece', 'other plastic'),
-    );
-
-    row.append(propertyControl, phrase('on', version), phrase('from', batch), phrase('was', value, unit), remove, plasticLine);
-    list.append(row);
-  });
-
-  const hasNamedProperty = namedProperties().length > 0;
-  empty.hidden = state.measurements.length > 0;
-  if (!hasNamedProperty) {
-    empty.textContent = 'Add a property above before adding a number.';
+    gap.append(p);
+    return;
+  }
+  if (!result.gap) return;
+  const head = document.createElement('p');
+  head.className = 'gap-head';
+  if (result.gap.rangeTooWide) {
+    head.textContent = 'This delivery swings too wide for the target.';
   } else {
-    empty.textContent = 'No measured numbers yet.';
+    const short = result.gap.shortLow > 0
+      ? `${result.gap.shortLow.toFixed(result.gap.shortLow >= 10 ? 0 : 1)} ${result.gap.unit} short at the low end`
+      : `${result.gap.overHigh.toFixed(result.gap.overHigh >= 10 ? 0 : 1)} ${result.gap.unit} over at the high end`;
+    head.textContent = `This delivery is ${short}.`;
   }
-  add.disabled = !hasNamedProperty || state.measurements.length >= MAX_MEASUREMENTS;
-  if (focusId) {
-    const input = list.querySelector(`[data-measurement-id="${focusId}"] [data-field="value"]`);
-    if (input) input.focus();
+  const body = document.createElement('p');
+  body.textContent = `At the current build, the range needs ${formatRange(result.gap.required, result.gap.unit)}; the delivery gives ${formatRange(result.gap.batch, result.gap.unit)}. ${result.gap.action}`;
+  gap.append(head, body);
+}
+
+function formatRange(range, unit) {
+  const a = Number(range.min).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  const b = Number(range.max).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  return `${a}–${b} ${unit}`;
+}
+
+function renderStatus(result) {
+  const status = $('model-status');
+  if (modelState === 'loading') {
+    status.textContent = 'Meta is proposing moves…';
+    return;
   }
+  if (modelState === 'meta') {
+    status.textContent = `${modelProposals.length} moves from Meta. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.`;
+    return;
+  }
+  if (modelState === 'empty') {
+    status.textContent = 'Meta returned no usable moves. The calculated build stands.';
+    return;
+  }
+  status.textContent = 'Meta is unavailable. The calculated build stands.';
+}
+
+function render(result) {
+  lastResult = result;
+  const decision = decisionFor(result.state, result);
+  lastDecision = decision;
+  fade([$('decision'), $('support')], () => {
+    $('decision').textContent = decision.headline;
+    $('support').textContent = decision.support;
+    const primary = $('primary');
+    primary.textContent = decision.button;
+    primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
+  });
+  fade([$('build-list'), $('gap')], () => {
+    renderBuildList(result);
+    renderGap(result);
+    renderStatus(result);
+  });
+  $('live').textContent = `${decision.headline} ${decision.support}`;
+}
+
+function refresh({ model = true } = {}) {
+  if (model) {
+    modelState = 'loading';
+    modelProposals = [];
+  }
+  const result = evaluateBuilds(state, modelProposals);
+  render(result);
+  if (model) {
+    window.clearTimeout(modelTimer);
+    modelTimer = window.setTimeout(fetchProposals, 850);
+  }
+  return result;
+}
+
+function onFieldChange() {
+  refresh({ model: true });
+  clearAdvice();
+}
+
+function setNumeric(path, value) {
+  const parts = path.split('.');
+  let target = state;
+  for (let i = 0; i < parts.length - 1; i++) target = target[parts[i]];
+  target[parts[parts.length - 1]] = value;
+}
+
+function bind(id, path, { number = false } = {}) {
+  $(id).addEventListener('input', (event) => {
+    setNumeric(path, number ? event.target.value : event.target.value);
+    onFieldChange();
+  });
+}
+
+function bindSelect(id, path, after = null) {
+  $(id).addEventListener('change', (event) => {
+    setNumeric(path, event.target.value);
+    if (after) after();
+    onFieldChange();
+  });
 }
 
 // ---------------------------------------------------------------------------
-// Answer
+// Model proposals
 // ---------------------------------------------------------------------------
-function renderAnswer() {
-  const answer = buildAnswer(state);
-  $('#answer-headline').textContent = answer.headline;
-  const body = $('#answer-body');
-  body.replaceChildren();
-  answer.items.forEach((item) => {
-    const paragraph = document.createElement('p');
-    if (item.name && ['inside', 'outside', 'all-outside', 'uncovered'].includes(item.kind)) {
-      const label = document.createElement('b');
-      label.textContent = item.name.charAt(0).toUpperCase() + item.name.slice(1);
-      paragraph.append(label, ': ');
+async function fetchProposals() {
+  const seq = ++modelSeq;
+  const payload = toApiPayload(state);
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(`${API_BASE}/api/product/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const data = await response.json();
+    if (seq !== modelSeq) return;
+    if (!response.ok) throw new Error('proposal request failed');
+    const proposals = Array.isArray(data.proposals) ? data.proposals : [];
+    const fallback = Boolean(data._meta && data._meta.fallback);
+    if (fallback) {
+      modelProposals = [];
+      modelState = 'offline';
+    } else {
+      modelProposals = proposals;
+      modelState = proposals.length ? 'meta' : 'empty';
     }
-    paragraph.append(document.createTextNode(item.text));
-    body.append(paragraph);
-  });
-  const next = $('#answer-next');
-  const nextText = $('#next-text');
-  nextText.textContent = answer.next || '';
-  next.hidden = !answer.next;
-  const live = $('#live-answer');
-  if (live) {
-    const liveText = `${answer.headline}${answer.next ? ` Next: ${answer.next}` : ''}`;
-    if (live.textContent !== liveText) live.textContent = liveText;
+    const result = evaluateBuilds(state, modelProposals);
+    render(result);
+  } catch (error) {
+    if (seq !== modelSeq) return;
+    modelProposals = [];
+    modelState = 'offline';
+    const result = evaluateBuilds(state, []);
+    render(result);
+  } finally {
+    window.clearTimeout(timer);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Initial paint
+// Advice
 // ---------------------------------------------------------------------------
-function paintPlastic() {
-  $('#plastic-type').value = state.plastic.type;
-  $('#plastic-batch').value = state.plastic.batch;
-  $('#plastic-mix').value = state.plastic.mix;
-  $('#plastic-dirt').value = state.plastic.dirt;
+function clearAdvice() {
+  adviceSeq += 1;
+  $('ask-status').textContent = '';
+  $('ask-answer').replaceChildren();
 }
 
-function paintAll() {
-  $('#product').value = state.product;
-  paintPlastic();
-  renderProperties();
-  renderMeasurements();
-  renderAnswer();
+async function askMeta() {
+  const input = $('ask-question');
+  const question = (input.value.trim() || 'What should I add or change to make this batch work?').slice(0, 800);
+  input.value = question;
+  const result = lastResult || evaluateBuilds(state, modelProposals);
+  const payload = advicePayload(state, result, question);
+  const seq = ++adviceSeq;
+  $('ask-status').textContent = 'Meta is thinking…';
+  $('ask-answer').replaceChildren();
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(`${API_BASE}/api/product/advice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const data = await response.json();
+    if (seq !== adviceSeq) return;
+    if (!data.available || !data.answer) {
+      const reason = data._meta && data._meta.reason_code;
+      if (reason === 'grounding_failed') {
+        $('ask-status').textContent = 'Meta’s answer did not stay with the numbers here. The calculated plan still applies.';
+      } else if (reason === 'test_instruction') {
+        $('ask-status').textContent = 'Meta’s answer was not a make-or-change action. The calculated plan still applies.';
+      } else {
+        $('ask-status').textContent = 'Meta is unavailable right now. The calculated plan still applies.';
+      }
+      return;
+    }
+    $('ask-status').textContent = '';
+    const answer = document.createElement('p');
+    answer.textContent = data.answer;
+    $('ask-answer').append(answer);
+    if (Array.isArray(data.actions) && data.actions.length) {
+      const list = document.createElement('ul');
+      for (const action of data.actions) {
+        const li = document.createElement('li');
+        li.textContent = action;
+        list.append(li);
+      }
+      $('ask-answer').append(list);
+    }
+  } catch (error) {
+    if (seq !== adviceSeq) return;
+    $('ask-status').textContent = 'Meta is unavailable right now. The calculated plan still applies.';
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Events
+// Copy
 // ---------------------------------------------------------------------------
-$('#product').addEventListener('input', (event) => {
-  state.product = event.target.value;
-  saveState();
-  renderAnswer();
-});
-
-const plasticFields = {
-  '#plastic-type': 'type',
-  '#plastic-batch': 'batch',
-  '#plastic-mix': 'mix',
-  '#plastic-dirt': 'dirt',
-};
-
-Object.entries(plasticFields).forEach(([selector, field]) => {
-  $(selector).addEventListener('input', (event) => {
-    state.plastic[field] = event.target.value;
-    saveState();
-    renderAnswer();
-  });
-});
-
-$('#property-list').addEventListener('input', (event) => {
-  const row = event.target.closest('[data-property-id]');
-  const field = event.target.dataset.field;
-  if (!row || !field) return;
-  const property = propertyById(row.dataset.propertyId);
-  if (!property) return;
-  property[field] = event.target.value;
-  if (field === 'name') renderMeasurements();
-  if (field === 'unit') refreshMeasurementUnits();
-  saveState();
-  renderAnswer();
-});
-
-$('#property-list').addEventListener('click', (event) => {
-  const button = event.target.closest('.remove');
-  if (!button) return;
-  const row = button.closest('[data-property-id]');
-  if (!row || state.properties.length === 1) return;
-  const id = row.dataset.propertyId;
-  state.properties = state.properties.filter((property) => property.id !== id);
-  state.measurements = state.measurements.filter((measurement) => measurement.propertyId !== id);
-  saveState();
-  renderProperties();
-  renderMeasurements();
-  renderAnswer();
-});
-
-$('#add-property').addEventListener('click', () => {
-  if (state.properties.length >= MAX_PROPERTIES) return;
-  const property = blankProperty();
-  state.properties.push(property);
-  saveState();
-  renderProperties(property.id);
-  renderMeasurements();
-  renderAnswer();
-});
-
-function onMeasurementChange(event) {
-  const row = event.target.closest('[data-measurement-id]');
-  const field = event.target.dataset.field;
-  if (!row || !field) return;
-  const measurement = measurementById(row.dataset.measurementId);
-  if (!measurement) return;
-  measurement[field] = event.target.value;
-  if (field === 'propertyId') refreshMeasurementUnits();
-  saveState();
-  renderAnswer();
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  }
+  return Promise.resolve(fallbackCopy(text));
 }
 
-$('#measurement-list').addEventListener('input', onMeasurementChange);
-$('#measurement-list').addEventListener('change', (event) => {
-  if (event.target.matches('select')) onMeasurementChange(event);
+function fallbackCopy(text) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.append(area);
+  area.select();
+  try { document.execCommand('copy'); } catch (error) { /* no-op */ }
+  area.remove();
+}
+
+function onPrimary() {
+  const primary = $('primary');
+  if (primary.dataset.mode === 'ask') {
+    askMeta();
+    return;
+  }
+  if (!lastDecision) return;
+  copyText(lastDecision.copy);
+  window.clearTimeout(copyReset);
+  primary.textContent = 'Copied';
+  copyReset = window.setTimeout(() => { primary.textContent = lastDecision.button; }, 1500);
+}
+
+// ---------------------------------------------------------------------------
+// Wiring
+// ---------------------------------------------------------------------------
+setSelectOptions('mode', MODES.map((m) => ({ key: m.key, label: m.label })));
+setSelectOptions('other-mode', MODES.map((m) => ({ key: m.key, label: m.label })));
+setSelectOptions('property', PROPERTIES.map((p) => ({ key: p.key, label: `${p.label} (${p.unit})` })));
+setSelectOptions('dirt-level', [
+  { key: 'none', label: 'None' },
+  { key: 'light', label: 'Light' },
+  { key: 'moderate', label: 'Moderate' },
+  { key: 'heavy', label: 'Heavy' },
+]);
+
+$('property').addEventListener('change', (event) => {
+  state.target.property = event.target.value;
+  const defaults = PROPERTY_DEFAULTS[event.target.value] || PROPERTY_DEFAULTS.strength;
+  state.target.min = defaults.min;
+  state.target.max = defaults.max;
+  setValue('target-min', defaults.min);
+  setValue('target-max', defaults.max);
+  updateTargetLabels();
+  onFieldChange();
 });
-
-$('#measurement-list').addEventListener('click', (event) => {
-  const button = event.target.closest('.remove');
-  if (!button) return;
-  const row = button.closest('[data-measurement-id]');
-  if (!row) return;
-  state.measurements = state.measurements.filter((measurement) => measurement.id !== row.dataset.measurementId);
-  saveState();
-  renderMeasurements();
-  renderAnswer();
+$('steady-available').addEventListener('change', (event) => {
+  state.steady.available = event.target.checked;
+  updateSteadyVisibility();
+  onFieldChange();
 });
-
-$('#add-measurement').addEventListener('click', () => {
-  const property = namedProperties()[0];
-  if (!property || state.measurements.length >= MAX_MEASUREMENTS) return;
-  const measurement = blankMeasurement(property.id, state.plastic);
-  state.measurements.push(measurement);
-  saveState();
-  renderMeasurements(measurement.id);
-  renderAnswer();
+bind('product', 'product');
+bind('span', 'spanMm');
+bind('width', 'widthMm');
+bind('thickness', 'thicknessMm');
+bind('target-min', 'target.min');
+bind('target-max', 'target.max');
+bind('plastic-type', 'plastic.type');
+bind('plastic-batch', 'plastic.batch');
+bind('plastic-mix', 'plastic.mix');
+bind('plastic-dirt', 'plastic.dirt');
+bind('e-min', 'plastic.eMin');
+bind('e-max', 'plastic.eMax');
+bind('s-min', 'plastic.sMin');
+bind('s-max', 'plastic.sMax');
+bind('density', 'plastic.density');
+bind('steady-type', 'steady.type');
+bind('steady-e', 'steady.eMpa');
+bind('steady-s', 'steady.sMpa');
+bind('other-product', 'other.product');
+bind('other-span', 'other.spanMm');
+bind('other-width', 'other.widthMm');
+bind('other-thickness', 'other.thicknessMm');
+bindSelect('mode', 'mode');
+bindSelect('other-mode', 'other.mode');
+bindSelect('dirt-level', 'plastic.dirtLevel');
+$('primary').addEventListener('click', onPrimary);
+$('ask-button').addEventListener('click', askMeta);
+$('ask-question').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    askMeta();
+  }
 });
-
-$('#start-over').addEventListener('click', () => {
-  const hasContent = state.product.trim() || state.measurements.length || state.plastic.type.trim() || state.plastic.batch.trim() || state.plastic.mix.trim() || state.plastic.dirt.trim();
-  if (hasContent && !window.confirm('Start over with a new product? This clears what is on the page.')) return;
-  state = blankState();
-  saveState();
-  paintAll();
-  $('#product').focus();
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeDetails();
 });
+function closeDetails() {
+  $$('details[open]').forEach((details) => { details.open = false; });
+}
 
-window.addEventListener('pagehide', saveState);
-
-paintAll();
+paint();
+const initial = evaluateBuilds(state, []);
+render(initial);
+fetchProposals();

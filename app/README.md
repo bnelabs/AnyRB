@@ -1,60 +1,31 @@
 # AnyRB app
 
-One page, one job: can this recycled plastic make the product the person named, inside the range they set?
+One page. Sources are plain ES modules; `build.py` inlines them into the standalone page.
 
-## Files
+- `index.html` — decision, Engineering section, Batch section, Ask Meta.
+- `styles.css` — white page, one system sans, quiet rules, one black pill.
+- `product.js` — pure mechanics, material gap, blend rule, model-move search and selection. No DOM,
+  no network, no storage.
+- `main.js` — DOM wiring, local scoring, `/api/product/proposals` and `/api/product/advice` calls.
+  The browser never sees an API key.
+- `build.py` — writes `../index.html` and `standalone.html`.
+- `tests/model.test.mjs` — `node --test` coverage of the mechanics and app boundary.
 
-- `index.html` — masthead, four questions, one answer.
-- `styles.css` — paper background, one serif display face, one accent, one column.
-- `product.js` — pure functions. No DOM, no storage, no network.
-- `main.js` — DOM rendering, editing, localStorage.
-- `build.py` — inlines CSS and JS into `../index.html` and `standalone.html`.
-- `tests/model.test.mjs` — answer logic and visible-language guard.
-
-## Data
-
-```js
-{
-  product: "Bench slat",
-  properties: [{ id, name: "stiffness", unit: "MPa", min: "1800", max: "2400" }],
-  plastic: { type: "recycled polypropylene", batch: "April", mix: "20% HDPE", dirt: "labels" },
-  measurements: [
-    {
-      id, propertyId, version: "3 mm wall", batch: "March", value: "2050",
-      plasticType: "recycled polypropylene", mix: "20% HDPE", dirt: "labels"
-    }
-  ]
-}
-```
-
-Saved under `anyrb.one-product.v1` in localStorage.
-
-## Answers
-
-For each property, the current plastic (type, batch, mix, dirt) is matched against each measurement's
-plastic. Then:
-
-- `missing` — no usable measured number. No number or pass is invented. The instruction depends only on
-  the property name: weight, sound, strength/stiffness, size, or a general measure.
-- `uncovered` — no measured piece has this batch and this plastic/mix/dirt. Show no number; say the
-  numbers do not cover this batch or plastic; give one test on a piece from this batch.
-- `inside` — this batch is inside. If this is the only batch, say the next batch is unknown and give one
-  next-batch check. If a measured version is outside, name the version to make and drop.
-- `outside` — this batch is outside. Say by how much, say not to ship it, name any measured version that
-  stayed inside, and give one version or test action.
-- `all-outside` — every measured piece of this plastic/mix/dirt is outside. Say high or low, say not to
-  ship the combination, and give one changed-piece test.
-
-A version is named only when that version was measured.
-
-## Build
+## Run
 
 ```bash
+# from repo root
 python3 app/build.py
-node app/tests/model.test.mjs
+.venv/bin/python -m server.app          # http://127.0.0.1:8787
+open http://127.0.0.1:8787/
 ```
 
-## Boundaries
+A `file://` open uses `http://127.0.0.1:8787` for Meta. The local mechanics works without the server;
+the AI sections show an honest unavailable state and no invented fallback.
 
-The active page contains no catalog, material presets, charts, scores, paper links, or extra screens.
-The retired v0.6 interface, bracket prototype, research notes and validation suite live outside this app.
+## Test
+
+```bash
+node app/tests/model.test.mjs
+AI_MOCK=1 python3 -m pytest server/tests -q
+```

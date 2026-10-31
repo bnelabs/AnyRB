@@ -1,0 +1,530 @@
+"""Tests for POST /api/product/advice — grounded batch-alchemy advice.
+
+Mock mode for unavailable paths (no live model calls, no key). The "live" path is
+exercised with a simulated Spark transport (monkeypatched httpx client), never the
+network.
+
+Rules under test:
+* model unavailable / unusable output -> `available:false`, `answer:""`, `actions:[]`
+  (no fixed advice fallback is invented);
+* text may only contain numbers present in the request payload (rounding/percent
+  conversions allowed); otherwise `available:false` with a grounding reason;
+* certification claims are rejected;
+* actions are 1-5 short strings, answer <= 1200 chars;
+* key never appears in the response; malformed bodies return the JSON 422 shape.
+
+Isolation note: imports of server modules happen lazily inside fixtures/functions so
+`sibling test_server.py` keeps owning the app import (and its temp cache paths).
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+PROJECT = Path(__file__).resolve().parents[2]
+if str(PROJECT) not in sys.path:
+    sys.path.insert(0, str(PROJECT))
+
+_TMP = tempfile.mkdtemp(prefix="anyrb_advice_test_")
+os.environ.setdefault("AI_MOCK", "1")
+os.environ.setdefault("META_API_KEY", "")
+os.environ.setdefault("ANYRB_CACHE_DIR", str(Path(_TMP) / "cache"))
+os.environ.setdefault("ANYRB_PROVENANCE_FILE", str(Path(_TMP) / "provenance.jsonl"))
+os.environ.setdefault("ANYRB_RATE_LIMIT_RPM", "100000")
+
+import pytest  # noqa: E402
+
+ENDPOINT = "/api/product/advice"
+
+
+@pytest.fixture(scope="module")
+def client():
+    from fastapi.testclient import TestClient
+    from server.app import app
+    return TestClient(app)
+
+
+@pytest.fixture(scope="module")
+def product_ai():
+    from server import product_ai as module
+    return module
+
+
+def _body(question: str = "What can I do with this batch to make the shelf bracket?") -> dict:
+    return {
+        "question": question,
+        "product": {"name": "shelf bracket", "mode": "cantilever", "span_mm": 700,
+                    "width_mm": 40, "thickness_mm": 12},
+        "target": {"property": "strength", "min": 38, "max": 50},
+        "plastic": {"type": "rPETG", "batch": "LOT-2026-014", "mix": "single-stream",
+                    "dirt": "medium", "dirt_level": "medium",
+                    "stiffness_min_mpa": 1800, "stiffness_max_mpa": 2400,
+                    "strength_min_mpa": 30, "strength_max_mpa": 44,
+                    "density_g_cm3": 1.24},
+        "steady": {"available": True, "type": "virgin PETG",
+                   "stiffness_mpa": 2300, "strength_mpa": 48},
+        "other_product": {"name": "planter panel", "mode": "simple", "span_mm": 400,
+                          "width_mm": 80, "thickness_mm": 6},
+        "plan": {
+            "headline": "Current build is just short on strength",
+            "support": "Current build 30-44 MPa vs target 38-50 MPa",
+            "current": {"property_range": {"min": 30, "max": 44, "unit": "MPa"},
+                        "pass": False},
+            "winner": {"product": "shelf bracket", "size": "thicker section",
+                       "property_range": {"min": 38, "max": 50, "unit": "MPa"},
+                       "added_material": 18, "move": "section"},
+            "gap": {"property": "strength", "unit": "MPa",
+                    "needed_min": 38, "needed_max": 50,
+                    "batch_min": 30, "batch_max": 44,
+                    "short_low": 8, "over_high": 0,
+                    "required_action": "blend or sort for a stronger stream"},
+            "builds": [{"move": "section", "size": "+18% material",
+                        "property_range": {"min": 38, "max": 50, "unit": "MPa"},
+                        "added_material": 18}],
+            "blend": {"available": True, "type": "virgin PETG", "fraction": 0.30,
+                      "property_range": {"min": 38, "max": 50, "unit": "MPa"}},
+        },
+    }
+
+
+def _unique_body(prefix: str) -> dict:
+    return _body(f"{prefix} {os.urandom(4).hex()} — what should I do with this batch?")
+
+
+GROUNDED_ANSWER = ("Your batch spans 30-44 MPa against a 38-50 MPa target, so blend about 30 % "
+                   "of the virgin PETG stream and dry the flakes before extrusion; the thicker "
+                   "section build adds about 18 % material.")
+GROUNDED_ACTIONS = [
+    "Blend 30 % virgin PETG with this batch",
+    "Sort, wash and dry the flakes before extrusion",
+    "Use the thicker section build (+18 % material)",
+]
+
+
+# ---------------------------------------------------------------------------
+# model unavailable -> empty, available:false (no fixed advice fallback)
+# ---------------------------------------------------------------------------
+def test_no_model_returns_unavailable_empty_advice(client):
+    r = client.post(ENDPOINT, json=_body())
+    assert r.status_code == 200
+    data = r.json()
+    assert data["answer"] == ""
+    assert data["actions"] == []
+    assert data["available"] is False
+    assert data["_meta"]["fallback"] is True
+    assert data["_meta"]["error"] and data["_meta"]["reason"]
+    assert data["_meta"]["reason_code"] == "model_unavailable"
+    assert data["_model"] == "fallback"
+    # nothing that looks like invented advice
+    assert data["_meta"]["fallback"] is True
+    assert "blend" not in json.dumps(data).lower()
+
+
+def test_no_model_response_is_deterministic(client):
+    first = client.post(ENDPOINT, json=_body()).json()
+    second = client.post(ENDPOINT, json=_body()).json()
+    assert first["answer"] == second["answer"] == ""
+    assert first["actions"] == second["actions"] == []
+    assert first["available"] is second["available"] is False
+
+
+def test_explicit_mock_override_unavailable(client):
+    data = client.post(f"{ENDPOINT}?mock=1", json=_body()).json()
+    assert data["available"] is False and data["actions"] == []
+    assert data["_meta"]["mock"] is True
+
+
+# ---------------------------------------------------------------------------
+# request validation
+# ---------------------------------------------------------------------------
+def test_malformed_request_returns_json_422(client):
+    for body in ({}, {"question": ""}, {"question": "   "},
+                 {"question": 42}, {"question": "x", "product": "nope"},
+                 {"question": "x" * 900}, {"question": "ok", "plan": {"builds": "nope"}}):
+        r = client.post(ENDPOINT, json=body)
+        assert r.status_code == 422, (body, r.status_code)
+        payload = r.json()
+        assert payload["ok"] is False
+        assert payload["error"] == "validation_error"
+        assert "detail" in payload
+
+
+def test_minimal_request_is_accepted(client):
+    r = client.post(ENDPOINT, json={"question": "What can I do with this batch?"})
+    assert r.status_code == 200
+    assert r.json()["available"] is False       # no model in mock mode
+
+
+# ---------------------------------------------------------------------------
+# simulated live path
+# ---------------------------------------------------------------------------
+def _fake_spark_transport(payload: dict, calls: dict):
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"content": json.dumps(payload)},
+                                 "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 300, "completion_tokens": 120,
+                              "total_tokens": 420}}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def post(self, *a, **k):
+            calls["n"] += 1
+            return FakeResponse()
+
+    return FakeClient
+
+
+def _use_fake_live(monkeypatch, payload: dict) -> dict:
+    from server import meta_client
+    calls = {"n": 0}
+    monkeypatch.setattr(meta_client.httpx, "Client", _fake_spark_transport(payload, calls))
+    monkeypatch.setattr(meta_client, "MOCK", False)
+    monkeypatch.setattr(meta_client, "KEY", "unit-test-key")
+    return calls
+
+
+def test_grounded_live_advice_is_returned(client, monkeypatch):
+    calls = _use_fake_live(monkeypatch, {"answer": GROUNDED_ANSWER,
+                                         "actions": GROUNDED_ACTIONS})
+    body = _unique_body("grounded")
+    r = client.post(ENDPOINT, json=body)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["available"] is True
+    assert data["answer"] == GROUNDED_ANSWER
+    assert 1 <= len(data["actions"]) <= 5
+    assert data["actions"] == GROUNDED_ACTIONS
+    assert data["_meta"]["fallback"] is False
+    assert data["_meta"]["grounding"]["ok"] is True
+    # every number in the text exists in the supplied request (rounding/percent allowed)
+    from server import prompts
+    assert prompts.grounded(data["answer"] + " " + " ".join(data["actions"]), body)[0]
+    # cached repeat -> same advice, one model call
+    r2 = client.post(ENDPOINT, json=body)
+    assert r2.json()["available"] is True
+    assert r2.json()["answer"] == data["answer"]
+    assert r2.json()["_cached"] is True
+    assert calls["n"] == 1
+
+
+def test_grounded_rounding_and_percent_forms_are_allowed(client, monkeypatch):
+    body = _unique_body("rounding")
+    body["plan"]["gap"]["needed_min"] = 1234.5
+    _use_fake_live(monkeypatch, {"answer": "You need about 1234 to clear the gap; blend 30 %.",
+                                 "actions": ["Blend 30 % of the steadier stream"]})
+    # note: 0.30 exists as plan.blend.fraction -> "30 %" is the percent form
+    data = client.post(ENDPOINT, json=body).json()
+    assert data["available"] is True
+    assert "1234" in data["answer"]
+
+
+def test_ungrounded_numbers_reject_the_advice(client, monkeypatch):
+    _use_fake_live(monkeypatch, {
+        "answer": "Add a 4200 MPa grade and blend 55 % of it into this batch.",
+        "actions": ["Source 4200 MPa resin", "Blend 55 % of it"],
+    })
+    r = client.post(ENDPOINT, json=_unique_body("ungrounded"))
+    assert r.status_code == 200
+    data = r.json()
+    assert data["available"] is False
+    assert data["answer"] == "" and data["actions"] == []
+    assert data["_meta"]["reason_code"] == "grounding_failed"
+    assert data["_meta"]["grounding"]["ok"] is False
+    bad = data["_meta"]["grounding"]["ungrounded_numbers"]
+    assert 4200.0 in bad
+    assert "4200" not in data["answer"]
+
+
+def test_certification_claim_rejects_the_advice(client, monkeypatch):
+    _use_fake_live(monkeypatch, {
+        "answer": "This batch is certified for structural use; use it as-is.",
+        "actions": ["Use the batch without changes"],
+    })
+    data = client.post(ENDPOINT, json=_unique_body("certified")).json()
+    assert data["available"] is False
+    assert data["_meta"]["reason_code"] == "certification_claim"
+    assert data["answer"] == ""
+
+
+def test_missing_actions_means_unavailable(client, monkeypatch):
+    _use_fake_live(monkeypatch, {"answer": "Blend 30 % of the virgin stream.", "actions": []})
+    data = client.post(ENDPOINT, json=_unique_body("no-actions")).json()
+    assert data["available"] is False
+    assert data["_meta"]["reason_code"] == "invalid_output"
+
+
+def test_actions_and_answer_are_sanitised(client, monkeypatch):
+    long_action = "x" * 300
+    actions = ["  Blend 30 % of the steady stream  ", "Sort and dry the flakes", long_action,
+               "Move the batch to the planter panel", "Use the thicker section build",
+               "Duplicate action", "Duplicate action"]
+    _use_fake_live(monkeypatch, {
+        "answer": GROUNDED_ANSWER + " " + ("padding " * 400),   # >1200 chars
+        "actions": actions,
+    })
+    data = client.post(ENDPOINT, json=_unique_body("sanitise")).json()
+    assert data["available"] is True
+    assert len(data["answer"]) <= 1200
+    assert 1 <= len(data["actions"]) <= 5
+    assert all(isinstance(a, str) and 0 < len(a) <= 140 for a in data["actions"])
+    assert "Blend 30 % of the steady stream" in data["actions"]
+
+
+def test_live_invalid_json_shape_returns_unavailable(client, monkeypatch):
+    _use_fake_live(monkeypatch, {"advice": "Blend 30 %.", "next": ["do it"]})
+    data = client.post(ENDPOINT, json=_unique_body("wrong-shape")).json()
+    assert data["available"] is False
+    assert data["answer"] == "" and data["actions"] == []
+    assert data["_meta"]["fallback"] is True
+
+
+# ---------------------------------------------------------------------------
+# security
+# ---------------------------------------------------------------------------
+def test_key_never_in_response(client, monkeypatch):
+    from server import meta_client
+    sentinel = "LLM_ADVICE_TEST_SENTINEL_1234567890"
+    monkeypatch.setattr(meta_client, "KEY", sentinel)
+    r = client.post(ENDPOINT, json=_body())
+    assert r.status_code == 200
+    assert sentinel not in r.text
+    assert "Authorization" not in r.text
+
+
+# ---------------------------------------------------------------------------
+# prompt contract
+# ---------------------------------------------------------------------------
+def test_prompt_contract(product_ai):
+    system = product_ai.ADVICE_SYSTEM
+    lowered = system.lower()
+    for lever in ("blend", "sort", "wash", "dry", "section", "span", "other product"):
+        assert lever in lowered, lever
+    assert "never simply reject" in lowered
+    assert "only the numbers present in the request" in lowered
+    assert "do not compute new numbers" in lowered
+    assert "no certification" in lowered
+    assert "untrusted" in lowered
+    # hard user rule: no test/trial/sample/prototype/measure instructions
+    assert "strictly forbidden" in lowered
+    assert "never instruct the user to test, trial, prototype, sample or measure" in lowered
+    assert "process actions only" in lowered
+    assert '"answer"' in system and '"actions"' in system
+    payload = product_ai.build_advice_payload(product_ai.sanitize_advice_request(
+        product_ai.ProductAdviceRequest(**_body())))
+    assert payload["rules"]["numbers_only_from_request"] is True
+    assert payload["rules"]["never_simply_reject_batch"] is True
+    assert "<<<USER_PLAN_TEXT>>>" in payload["untrusted_user_text"]
+
+
+# ---------------------------------------------------------------------------
+# numeric ranges use dashes — they are separators, not negative signs
+# ---------------------------------------------------------------------------
+def test_range_dashes_are_grounded_as_ranges(client, monkeypatch):
+    """Regression: '14–18 MPa' / '211.8–238.3 MPa' must not be read as -18 / -238.3."""
+    variants = [
+        ("en-dash", "Your batch spans 14–18 MPa while the target needs 211.8–238.3 MPa; "
+                    "blend the steadier stream to close the gap."),
+        ("em-dash", "Your batch spans 14—18 MPa while the target needs 211.8—238.3 MPa; "
+                    "blend the steadier stream to close the gap."),
+        ("hyphen", "Your batch spans 14-18 MPa while the target needs 211.8-238.3 MPa; "
+                   "blend the steadier stream to close the gap."),
+    ]
+    for label, answer in variants:
+        _use_fake_live(monkeypatch, {"answer": answer,
+                                     "actions": ["Blend the steadier stream with this batch"]})
+        body = _unique_body(f"range-{label}")
+        body["plan"]["gap"].update({"needed_min": 211.8, "needed_max": 238.3,
+                                    "short_low": 14, "batch_max": 18})
+        data = client.post(ENDPOINT, json=body).json()
+        assert data["available"] is True, (label, data["_meta"].get("grounding"))
+        assert data["_meta"]["grounding"] == {"ok": True, "ungrounded_numbers": [],
+                                              "numbers_checked": data["_meta"]["grounding"]["numbers_checked"]}
+        assert data["answer"] == answer
+
+
+def test_range_button_in_payload_strings_is_grounded(client, monkeypatch):
+    """Ranges inside supplied plan *strings* are normalised too (payload side)."""
+    body = _unique_body("payload-range")
+    body["plan"]["headline"] = "Batch runs 14-18 MPa"
+    # remove the numeric 18/21 elsewhere so 18 only appears in the headline string
+    body["plan"]["winner"]["added_material"] = 21
+    body["plan"]["builds"][0]["added_material"] = 21
+    body["plan"]["builds"][0]["size"] = "+21% material"
+    body["plan"]["gap"].update({"needed_min": 211.8, "needed_max": 238.3,
+                                "short_low": 14, "batch_max": 18})
+    _use_fake_live(monkeypatch, {
+        "answer": "Batch runs 14–18 MPa; the thicker build adds 21 % material.",
+        "actions": ["Use the thicker section build (+21 % material)"],
+    })
+    data = client.post(ENDPOINT, json=body).json()
+    assert data["available"] is True, data["_meta"].get("grounding")
+
+
+def test_range_helper_rejects_invented_range_values(product_ai):
+    payload = {"gap": {"short_low": 14, "batch_max": 18,
+                       "needed_min": 211.8, "needed_max": 238.3}}
+    ok, bad, checked = product_ai.advice_grounding("14–18 MPa and 211.8–238.3 MPa", payload)
+    assert ok is True and bad == [] and checked == 4
+    ok2, bad2, _ = product_ai.advice_grounding("14–19 MPa", payload)   # 19 not supplied
+    assert ok2 is False and 19.0 in bad2
+    ok3, bad3, _ = product_ai.advice_grounding("211.8–250.0 MPa", payload)
+    assert ok3 is False and 250.0 in bad3
+
+
+def test_range_normalizer_preserves_real_minus_signs(product_ai):
+    norm = product_ai.normalize_range_separators
+    assert norm("14–18 MPa") == "14 18 MPa"
+    assert norm("14—18 MPa") == "14 18 MPa"
+    assert norm("14-18 MPa") == "14 18 MPa"
+    assert norm("14 - 18 MPa") == "14 18 MPa"
+    assert norm("211.8–238.3 MPa") == "211.8 238.3 MPa"
+    # leading minus signs are not range separators
+    assert norm("about -18 MPa and -238.3 MPa") == "about -18 MPa and -238.3 MPa"
+    # scientific notation is untouched (dash is not between two digits)
+    assert norm("6.4e-06") == "6.4e-06"
+
+
+def test_negative_values_still_grounded_and_rejected(client, monkeypatch):
+    # a genuinely negative number that IS supplied is accepted
+    body = _unique_body("negative-ok")
+    body["plan"]["gap"].update({"over_high": -4, "short_low": -6})
+    body["plan"]["winner"]["added_material"] = -6
+    body["plan"]["builds"][0]["added_material"] = -6
+    _use_fake_live(monkeypatch, {
+        "answer": "The batch overshoots by -4 MPa and the lighter build removes -6 % material.",
+        "actions": ["Use the lighter -6 % material build"],
+    })
+    data = client.post(ENDPOINT, json=body).json()
+    assert data["available"] is True, data["_meta"].get("grounding")
+
+    # a genuinely negative number that is NOT supplied is still rejected
+    body2 = _unique_body("negative-bad")
+    _use_fake_live(monkeypatch, {
+        "answer": "You need -99 MPa to make this work.",
+        "actions": ["Target -99 MPa"],
+    })
+    data2 = client.post(ENDPOINT, json=body2).json()
+    assert data2["available"] is False
+    assert data2["_meta"]["reason_code"] == "grounding_failed"
+    assert -99.0 in data2["_meta"]["grounding"]["ungrounded_numbers"]
+
+
+# ---------------------------------------------------------------------------
+# hard rule: advice must never tell the user to test/trial/measure a piece
+# ---------------------------------------------------------------------------
+def test_trial_instruction_is_rejected(client, monkeypatch):
+    """Regression: live advice action "Trial the heavy bracket build with thicker section"."""
+    _use_fake_live(monkeypatch, {
+        "answer": "Blend 30 % of the virgin PETG stream and use the thicker section build.",
+        "actions": ["Trial the heavy bracket build with thicker section"],
+    })
+    data = client.post(ENDPOINT, json=_unique_body("trial-instruction")).json()
+    assert data["available"] is False
+    assert data["answer"] == "" and data["actions"] == []
+    assert data["_meta"]["reason_code"] == "test_instruction"
+    assert data["_meta"]["fallback"] is True
+    # the rejected model text is not echoed (only the generic guard reason is)
+    body_text = json.dumps(data).lower()
+    assert "heavy bracket build with thicker section" not in body_text
+    assert "blend 30" not in body_text
+
+
+@pytest.mark.parametrize("instruction", [
+    "Test a piece first",
+    "Run a trial of the build",
+    "Make a sample part",
+    "Prototype it before production",
+    "Measure the deflection after printing",
+    "Run a test on a coupon",
+    "Try a piece to see",
+    "Check the part after printing",
+    "Sampling the batch before the run",
+    "Pilot run the bracket",
+])
+def test_test_instruction_variants_are_rejected(client, monkeypatch, instruction):
+    _use_fake_live(monkeypatch, {
+        "answer": "Blend 30 % of the virgin PETG stream.",
+        "actions": [instruction],
+    })
+    data = client.post(ENDPOINT, json=_unique_body("test-variant")).json()
+    assert data["available"] is False, instruction
+    assert data["answer"] == "" and data["actions"] == []
+    assert data["_meta"]["reason_code"] == "test_instruction"
+    # the model's instruction itself is not echoed back (only the generic guard reason)
+    assert instruction.lower() not in json.dumps(data).lower()
+
+
+def test_ordinary_process_advice_is_accepted(client, monkeypatch):
+    """Wash/sort/dry/blend/section/route/split process advice must NOT be blocked."""
+    _use_fake_live(monkeypatch, {
+        "answer": ("Your batch spans 30-44 MPa against a 38-50 MPa target, so blend about "
+                   "30 % of the virgin PETG stream, wash and dry the flakes, use the thicker "
+                   "section build and split the delivery between both products."),
+        "actions": [
+            "Blend 30 % of the virgin PETG stream into this batch",
+            "Sort, wash and dry the flakes before extrusion",
+            "Use the thicker section build (+18 % material)",
+            "Route the weaker half of the delivery to the planter panel",
+            "Split the delivery between the two products",
+        ],
+    })
+    data = client.post(ENDPOINT, json=_unique_body("process-advice")).json()
+    assert data["available"] is True, data["_meta"].get("reason_code")
+    assert data["_meta"]["grounding"]["ok"] is True
+    assert len(data["actions"]) == 5
+
+
+def test_innocuous_test_like_words_are_not_rejected(client, monkeypatch):
+    _use_fake_live(monkeypatch, {
+        "answer": ("Use the latest section build; it is the greatest improvement in the "
+                   "supplied plan and the contest between the two options is already clear."),
+        "actions": ["Use the thicker section build from the plan"],
+    })
+    data = client.post(ENDPOINT, json=_unique_body("innocuous")).json()
+    assert data["available"] is True, data["_meta"].get("reason_code")
+
+
+def test_test_instruction_guard_unit_cases(product_ai):
+    assert product_ai.contains_test_instruction(
+        "Trial the heavy bracket build with thicker section")
+    for text in ("test", "Tests", "testing", "tested", "run a test", "trial", "trials",
+                 "trialled", "sample", "samples", "sampling", "prototype", "prototyping",
+                 "measure", "measured", "measurement", "measurements", "coupon",
+                 "specimens", "try a piece", "check the part", "pilot run", "go/no-go"):
+        assert product_ai.contains_test_instruction(text), text
+    for text in ("latest", "greatest", "contest", "attest", "interest",
+                 "Blend 30 % of the steadier stream", "Sort, wash and dry the flakes",
+                 "Use the thicker section build", "Split the delivery across both products",
+                 "Route the batch to the planter panel", "Change the span to reduce deflection"):
+        assert not product_ai.contains_test_instruction(text), text
+
+
+def test_no_test_advice_fallback_is_invented(client, monkeypatch):
+    """A rejected test instruction yields an empty result — no substitute advice list."""
+    _use_fake_live(monkeypatch, {
+        "answer": "Run a test on a coupon first.",
+        "actions": ["Measure the printed part", "Trial the build"],
+    })
+    data = client.post(ENDPOINT, json=_unique_body("no-fallback")).json()
+    assert data == {
+        "answer": "", "actions": [], "available": False,
+        "_meta": data["_meta"], "_model": data["_model"], "_cached": data["_cached"],
+    }
+    assert data["_meta"]["reason_code"] == "test_instruction"

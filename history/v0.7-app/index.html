@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyRB — can this plastic make your product?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='4' fill='%23f4efe5'/%3E%3Cpath d='M3 15.5 10 4l7 11.5M6.2 11h7.6' fill='none' stroke='%231f1d18' stroke-width='1.5'/%3E%3C/svg%3E">
+<meta name="description" content="A plain answer for a product made from recycled plastic. Set the range that must hold, add what you have measured, and see what to do next.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="masthead">
+  <span class="brand">AnyRB</span>
+  <button class="start-over" id="start-over" type="button">Start over</button>
+</header>
+
+<main id="main">
+  <section class="intro" aria-labelledby="page-title">
+    <h1 id="page-title">Can this plastic make your product?</h1>
+    <p class="intro-copy">Tell me what you are making, the range that must hold, and what you have measured. If something is missing, you will see what to check next.</p>
+  </section>
+
+  <form id="product-form" novalidate>
+    <section class="question" aria-labelledby="q-product">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">01</span>
+        <h2 id="q-product">What are you making?</h2>
+      </div>
+      <input class="product-line" id="product" type="text" autocomplete="off" spellcheck="false" aria-labelledby="q-product" placeholder="a bench slat, a plant pot…">
+    </section>
+
+    <section class="question" aria-labelledby="q-properties">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">02</span>
+        <h2 id="q-properties">What has to stay steady?</h2>
+      </div>
+      <p class="help">Add one line for each property. Weight, thickness, strength, stiffness, sound insulation — or anything else you can put a number on.</p>
+      <div id="property-list" class="line-list"></div>
+      <button class="add" id="add-property" type="button">Add another property</button>
+    </section>
+
+    <section class="question" aria-labelledby="q-plastic">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">03</span>
+        <h2 id="q-plastic">What plastic are you using?</h2>
+      </div>
+      <p class="help">Use plain names. Say what changes from one delivery to the next.</p>
+      <div class="two-up">
+        <label class="field">
+          <span>Plastic type</span>
+          <input id="plastic-type" type="text" autocomplete="off" placeholder="e.g. recycled polypropylene">
+        </label>
+        <label class="field">
+          <span>This batch</span>
+          <input id="plastic-batch" type="text" autocomplete="off" placeholder="e.g. 14 March">
+        </label>
+      </div>
+      <div class="two-up">
+        <label class="field">
+          <span>Mixed with</span>
+          <input id="plastic-mix" type="text" autocomplete="off" placeholder="e.g. some HDPE">
+        </label>
+        <label class="field">
+          <span>Dirt or other plastic</span>
+          <input id="plastic-dirt" type="text" autocomplete="off" placeholder="e.g. labels and grit">
+        </label>
+      </div>
+    </section>
+
+    <section class="question" aria-labelledby="q-measured">
+      <div class="question-head">
+        <span class="number" aria-hidden="true">04</span>
+        <h2 id="q-measured">What have you measured?</h2>
+      </div>
+      <p class="help">Enter the number you measured on the piece you made. Each line also keeps the plastic that piece was made with.</p>
+      <div id="measurement-list" class="line-list"></div>
+      <p class="empty" id="measurement-empty">No measured numbers yet.</p>
+      <button class="add" id="add-measurement" type="button">Add a measurement</button>
+    </section>
+  </form>
+
+  <section class="answer" id="answer" aria-labelledby="answer-headline">
+    <p class="answer-label">Your answer</p>
+    <h2 id="answer-headline"></h2>
+    <div class="answer-body" id="answer-body"></div>
+    <p class="next" id="answer-next">
+      <span class="next-label">Next</span>
+      <span id="next-text"></span>
+    </p>
+  </section>
+  <div class="sr-only" id="live-answer" aria-live="polite" aria-atomic="true"></div>
+</main>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

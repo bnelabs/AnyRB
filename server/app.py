@@ -30,7 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import ValidationError
 
-from . import contract_v03, contract_v04, meta_client, prompts, schemas
+from . import contract_v03, contract_v04, meta_client, prompts, schemas, product_ai
 
 PROJECT = Path(__file__).resolve().parent.parent
 INDEX = PROJECT / "index.html"
@@ -549,6 +549,20 @@ def proof_memo(body: schemas.ProofIn, request: Request) -> dict:
     proof = _grounded_or_fallback("proof", proof, payload,
                                   prompts.fallback_proof(payload))
     return _respond(schemas.ProofResponse, proof)
+
+
+@app.post("/api/product/proposals")
+def product_proposals(body: product_ai.ProductProposalRequest, request: Request) -> dict:
+    """Meta-proposed MOVE parameters only; the browser scores them deterministically."""
+    _rate_limit(request)
+    return product_ai.propose(body, mock=_want_mock(request))
+
+
+@app.post("/api/product/advice")
+def product_advice(body: product_ai.ProductAdviceRequest, request: Request) -> dict:
+    """Meta batch-help advice with practical actions; only supplied numbers are allowed."""
+    _rate_limit(request)
+    return product_ai.advise(body, mock=_want_mock(request))
 
 
 @app.post("/api/voice/transcribe")

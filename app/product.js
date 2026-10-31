@@ -1,757 +1,901 @@
 /**
- * AnyRB — one product, one range, one answer.
+ * AnyRB — shop mechanics and build selection.
  *
- * Pure functions only: no DOM, no storage, no network.
- *
- * A person names a product, sets the range a property must stay inside, and
- * enters numbers they measured on that product. The same function returns one
- * of three plain answers for each property:
- *
- *   product — measured across more than one batch
- *   batch   — measured on one batch only
- *   missing — no measured number yet
- *
- * It never fills a number from a product name, a plastic name, a material
- * sheet, a library value or a guessed range. A version is named only when that
- * version was measured.
+ * Pure functions: no DOM, no network, no storage. Every property is calculated
+ * from the user's plastic swing and the part section. A proposal is shown only
+ * when its calculated property range sits inside the target range across the
+ * swing. The winner is the passing build with the least added material.
  */
 
-export const STORE_KEY = 'anyrb.one-product.v1';
-export const STATE_VERSION = 2;
-export const MAX_PROPERTIES = 8;
-export const MAX_MEASUREMENTS = 80;
-export const MISSING_CAVEAT = 'A plastic name or a number from a supplier\'s sheet is not enough.';
+export const G = 9.80665;
+export const MODES = [
+  { key: 'cantilever', label: 'Fixed at one end' },
+  { key: 'simple', label: 'Supported at both ends' },
+  { key: 'compression', label: 'Stands in compression' },
+];
+export const PROPERTIES = [
+  { key: 'strength', label: 'Strength', unit: 'kg', verb: 'carries', noun: 'strength' },
+  { key: 'stiffness', label: 'Stiffness', unit: 'N/mm', verb: 'holds', noun: 'stiffness' },
+  { key: 'weight', label: 'Weight', unit: 'g', verb: 'weighs', noun: 'weight' },
+];
+export const MOVES = ['current', 'thickness', 'section', 'span', 'other', 'blend'];
+export const PROPERTY_DEFAULTS = {
+  strength: { min: 11.5, max: 16.5 },
+  stiffness: { min: 3.5, max: 5.5 },
+  weight: { min: 90, max: 110 },
+};
+const MODE_KEYS = new Set(MODES.map((m) => m.key));
+const PROPERTY_KEYS = new Set(PROPERTIES.map((p) => p.key));
 
-let idSeq = 0;
-function newId(prefix) {
-  idSeq = (idSeq + 1) % 1_000_000;
-  return `${prefix}-${Date.now().toString(36)}-${idSeq.toString(36)}`;
+export const DEFAULT_STATE = {
+  product: 'shelf bracket',
+  mode: 'cantilever',
+  spanMm: 180,
+  widthMm: 40,
+  thicknessMm: 10,
+  target: { property: 'strength', min: 11.5, max: 16.5 },
+  plastic: {
+    type: 'recycled polypropylene',
+    batch: 'April delivery',
+    mix: '20% HDPE',
+    dirt: 'paper labels',
+    dirtLevel: 'light',
+    eMin: 700,
+    eMax: 850,
+    sMin: 14,
+    sMax: 18,
+    density: 0.94,
+  },
+  steady: { available: true, type: 'stiffer bottle stream', eMpa: 2000, sMpa: 40 },
+  other: {
+    product: 'heavy bracket',
+    mode: 'cantilever',
+    spanMm: 260,
+    widthMm: 50,
+    thicknessMm: 16.5,
+  },
+};
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
-function clean(value, max = 240) {
+function clean(value, max = 160) {
   return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function lowerFirst(value) {
-  const text = clean(value);
-  if (!text) return '';
-  return text.charAt(0).toLowerCase() + text.slice(1);
+function num(value, fallback) {
+  if (value === '' || value == null) return fallback;
+  const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, '').trim());
+  return Number.isFinite(n) ? n : fallback;
 }
 
-function upperFirst(value) {
-  const text = clean(value);
-  if (!text) return '';
-  return text.charAt(0).toUpperCase() + text.slice(1);
+function clamp(value, lo, hi) {
+  return Math.min(hi, Math.max(lo, value));
 }
 
-/** Accepts "2,100", " 2100 ", "1 800" and numbers; rejects blank and non-finite. */
-export function toNumber(value) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  const text = clean(value).replace(/,/g, '').replace(/\s/g, '');
-  if (!text) return null;
-  const number = Number(text);
-  return Number.isFinite(number) ? number : null;
+function round(value, digits = 1) {
+  const step = 10 ** digits;
+  return Math.round(value * step) / step;
 }
 
-export function formatNumber(value) {
-  if (!Number.isFinite(value)) return '';
-  const abs = Math.abs(value);
-  const digits = abs >= 100 ? (Number.isInteger(value) ? 0 : 1) : abs >= 1 ? 2 : 3;
-  return Number(value).toLocaleString('en-US', { maximumFractionDigits: digits });
+export function inferMode(name) {
+  const text = clean(name).toLowerCase();
+  if (/(pallet|block|post|column|leg|pillar|spacer|stand)/.test(text)) return 'compression';
+  if (/(bracket|arm|cantilever)/.test(text)) return 'cantilever';
+  return 'simple';
 }
 
-export function formatValue(value, unit = '') {
-  if (!Number.isFinite(value)) return '';
-  const suffix = clean(unit) ? ` ${clean(unit)}` : '';
-  return `${formatNumber(value)}${suffix}`;
-}
-
-export function formatRange(min, max, unit = '') {
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return '';
-  const suffix = clean(unit) ? ` ${clean(unit)}` : '';
-  if (min === max) return `${formatNumber(min)}${suffix}`;
-  return `${formatNumber(min)}–${formatNumber(max)}${suffix}`;
-}
-
-function numberWord(value) {
-  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
-  return Number.isInteger(value) && value >= 0 && value < words.length ? words[value] : String(value);
-}
-
-function listPhrases(phrases) {
-  const list = phrases.filter(Boolean);
-  if (!list.length) return '';
-  if (list.length === 1) return list[0];
-  if (list.length === 2) return `${list[0]} and ${list[1]}`;
-  return `${list.slice(0, -1).join(', ')}, and ${list[list.length - 1]}`;
-}
-
-// ---------------------------------------------------------------------------
-// Blank / normalised state
-// ---------------------------------------------------------------------------
-export function blankProperty() {
-  return { id: newId('property'), name: '', unit: '', min: '', max: '' };
-}
-
-export function blankMeasurement(propertyId = '', plastic = {}) {
-  const source = plastic && typeof plastic === 'object' ? plastic : {};
+function normalizePart(raw, fallback) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const base = fallback || DEFAULT_STATE;
+  const product = clean(source.product, 120) || clean(source.name, 120) || base.product;
+  const mode = MODE_KEYS.has(source.mode) ? source.mode : (fallback ? inferMode(product) : base.mode);
   return {
-    id: newId('reading'),
-    propertyId: clean(propertyId, 80),
-    version: '',
-    batch: clean(source.batch),
-    plasticType: clean(source.type),
-    mix: clean(source.mix),
-    dirt: clean(source.dirt),
-    value: '',
+    product,
+    mode,
+    spanMm: clamp(num(source.spanMm ?? source.span_mm, base.spanMm), 20, 6000),
+    widthMm: clamp(num(source.widthMm ?? source.width_mm, base.widthMm), 2, 800),
+    thicknessMm: clamp(num(source.thicknessMm ?? source.thickness_mm, base.thicknessMm), 1, 400),
   };
 }
 
 export function blankState() {
-  return {
-    version: STATE_VERSION,
-    product: '',
-    properties: [blankProperty()],
-    plastic: { type: '', batch: '', mix: '', dirt: '' },
-    measurements: [],
-  };
-}
-
-function normalizeProperty(raw = {}) {
-  return {
-    id: clean(raw.id, 80) || newId('property'),
-    name: clean(raw.name, 100),
-    unit: clean(raw.unit, 24),
-    min: clean(raw.min, 40),
-    max: clean(raw.max, 40),
-  };
-}
-
-function normalizeMeasurement(raw = {}, propertyIds = new Set(), fallbackPlastic = {}) {
-  const propertyId = clean(raw.propertyId, 80);
-  const has = (key) => Object.prototype.hasOwnProperty.call(raw, key);
-  const measurement = {
-    id: clean(raw.id, 80) || newId('reading'),
-    propertyId: propertyIds.has(propertyId) ? propertyId : '',
-    version: clean(raw.version, 100),
-    batch: clean(raw.batch, 120),
-    plasticType: has('plasticType') ? clean(raw.plasticType, 180) : clean(fallbackPlastic.type, 180),
-    mix: has('mix') ? clean(raw.mix, 180) : clean(fallbackPlastic.mix, 180),
-    dirt: has('dirt') ? clean(raw.dirt, 180) : clean(fallbackPlastic.dirt, 180),
-    value: clean(raw.value, 40),
-  };
-  if (!measurement.propertyId) return null;
-  return measurement;
+  return clone(DEFAULT_STATE);
 }
 
 export function normalizeState(raw = {}) {
   const source = raw && typeof raw === 'object' ? raw : {};
-  const rawProperties = Array.isArray(source.properties) ? source.properties : [];
-  const properties = rawProperties.map(normalizeProperty).slice(0, MAX_PROPERTIES);
-  if (!properties.length) properties.push(blankProperty());
-  const propertyIds = new Set(properties.map((property) => property.id));
+  const target = source.target && typeof source.target === 'object' ? source.target : {};
   const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
-  const normalizedPlastic = {
-    type: clean(plastic.type, 180),
-    batch: clean(plastic.batch, 120),
-    mix: clean(plastic.mix, 180),
-    dirt: clean(plastic.dirt, 180),
-  };
-  const rawMeasurements = Array.isArray(source.measurements) ? source.measurements : [];
-  const measurements = rawMeasurements
-    .map((measurement) => normalizeMeasurement(measurement, propertyIds, normalizedPlastic))
-    .filter(Boolean)
-    .slice(0, MAX_MEASUREMENTS);
+  const other = source.other && typeof source.other === 'object' ? source.other : {};
+  const property = PROPERTY_KEYS.has(target.property) ? target.property : DEFAULT_STATE.target.property;
+  const min = num(target.min, DEFAULT_STATE.target.min);
+  const max = num(target.max, DEFAULT_STATE.target.max);
+  const eMin = clamp(num(plastic.eMin ?? plastic.stiffness_min_mpa, DEFAULT_STATE.plastic.eMin), 1, 200000);
+  const eMax = clamp(num(plastic.eMax ?? plastic.stiffness_max_mpa, DEFAULT_STATE.plastic.eMax), eMin, 200000);
+  const sMin = clamp(num(plastic.sMin ?? plastic.strength_min_mpa, DEFAULT_STATE.plastic.sMin), 0.1, 5000);
+  const sMax = clamp(num(plastic.sMax ?? plastic.strength_max_mpa, DEFAULT_STATE.plastic.sMax), sMin, 5000);
   return {
-    version: STATE_VERSION,
-    product: clean(source.product, 140),
-    properties,
-    plastic: normalizedPlastic,
-    measurements,
+    product: clean(source.product, 120) || DEFAULT_STATE.product,
+    mode: MODE_KEYS.has(source.mode) ? source.mode : inferMode(source.product || DEFAULT_STATE.product),
+    spanMm: clamp(num(source.spanMm, DEFAULT_STATE.spanMm), 20, 6000),
+    widthMm: clamp(num(source.widthMm, DEFAULT_STATE.widthMm), 2, 800),
+    thicknessMm: clamp(num(source.thicknessMm, DEFAULT_STATE.thicknessMm), 1, 400),
+    target: { property, min: Math.min(min, max), max: Math.max(min, max) },
+    plastic: {
+      type: clean(plastic.type, 160) || DEFAULT_STATE.plastic.type,
+      batch: clean(plastic.batch, 120) || DEFAULT_STATE.plastic.batch,
+      mix: clean(plastic.mix, 160),
+      dirt: clean(plastic.dirt, 160),
+      dirtLevel: ['none', 'light', 'moderate', 'heavy'].includes(plastic.dirtLevel) ? plastic.dirtLevel : 'light',
+      eMin,
+      eMax,
+      sMin,
+      sMax,
+      density: clamp(num(plastic.density, DEFAULT_STATE.plastic.density), 0.05, 5),
+    },
+    steady: {
+      available: source.steady?.available === true,
+      type: clean(source.steady?.type, 100),
+      eMpa: clamp(num(source.steady?.eMpa, 0), 0, 200000),
+      sMpa: clamp(num(source.steady?.sMpa, 0), 0, 5000),
+    },
+    other: normalizePart(other, {
+      ...DEFAULT_STATE.other,
+      product: clean(other.product, 120) || DEFAULT_STATE.other.product,
+      mode: MODE_KEYS.has(other.mode) ? other.mode : inferMode(other.product || DEFAULT_STATE.other.product),
+    }),
   };
 }
 
-export function propertyIssue(property) {
-  const name = clean(property && property.name);
-  const min = toNumber(property && property.min);
-  const max = toNumber(property && property.max);
-  if (!name) return 'name';
-  if (min == null || max == null) return 'range';
-  if (min > max) return 'order';
-  return '';
+export function propertyMeta(property) {
+  return PROPERTIES.find((p) => p.key === property) || PROPERTIES[0];
 }
 
-export function targetOf(property) {
+export function currentPart(state) {
   return {
-    min: toNumber(property && property.min),
-    max: toNumber(property && property.max),
-    unit: clean(property && property.unit),
-    valid: propertyIssue(property) === '',
+    product: state.product,
+    mode: state.mode,
+    spanMm: state.spanMm,
+    widthMm: state.widthMm,
+    thicknessMm: state.thicknessMm,
   };
 }
 
-export function propertyKind(name) {
-  const text = lowerFirst(name);
-  if (/(weight|mass|gram|kilogram| kg\b| g\b)/.test(text)) return 'weight';
-  if (/(sound|acoustic|noise|insulat|decibel| db\b|stc|r'?w\b)/.test(text)) return 'sound';
-  if (/(strength|stress|tensile|flexural|yield|break|load)/.test(text)) return 'strength';
-  if (/(stiff|modul|young|elastic|deflect|bend)/.test(text)) return 'stiffness';
-  if (/(thick|width|height|length|depth|size|dimension)/.test(text)) return 'size';
-  return 'other';
+export function otherPart(state) {
+  return {
+    product: state.other.product,
+    mode: state.other.mode,
+    spanMm: state.other.spanMm,
+    widthMm: state.other.widthMm,
+    thicknessMm: state.other.thicknessMm,
+  };
 }
 
-export function measurementsFor(state, propertyId) {
-  return (state.measurements || [])
-    .filter((measurement) => measurement.propertyId === propertyId)
-    .map((measurement) => ({ ...measurement, numeric: toNumber(measurement.value) }))
-    .filter((measurement) => Number.isFinite(measurement.numeric));
+function area(part) {
+  return part.widthMm * part.thicknessMm;
 }
 
-function sameText(left, right) {
-  return clean(left).toLowerCase() === clean(right).toLowerCase();
+function inertia(part) {
+  return (part.widthMm * part.thicknessMm ** 3) / 12;
 }
 
-function versionPhrase(label) {
-  const text = clean(label);
-  if (!text) return 'the version you left unnamed';
-  return /\b(version|build|design|run|batch)\b/i.test(text) ? `the ${text}` : `the ${text} version`;
+function weakInertia(part) {
+  const a = part.widthMm;
+  const b = part.thicknessMm;
+  return (Math.min(a, b) * Math.max(a, b) ** 3) / 12;
 }
 
-function batchReference(label) {
-  const bare = clean(label).replace(/^the\s+/i, '');
-  if (!bare) return 'the batch you measured';
-  if (/^(batch|delivery|lot|load)\b/i.test(bare)) return bare;
-  if (/\b(batch|delivery|lot|load)\b/i.test(bare)) return `the ${bare}`;
-  return `the ${bare} batch`;
-}
-
-function groupRows(rows, keyOf) {
-  const groups = new Map();
-  for (const row of rows) {
-    const display = clean(keyOf(row));
-    const key = display.toLowerCase();
-    if (!groups.has(key)) groups.set(key, { key, label: display, rows: [] });
-    groups.get(key).rows.push(row);
+/** Load capacity in newtons for a given modulus/strength pair. */
+export function capacityN(part, eMpa, sMpa) {
+  if (part.mode === 'compression') {
+    const squash = sMpa * area(part);
+    const euler = (Math.PI ** 2 * eMpa * weakInertia(part)) / part.spanMm ** 2;
+    return Math.min(squash, euler);
   }
-  return [...groups.values()];
-}
-
-function rangeOf(rows) {
-  const values = rows.map((row) => row.numeric);
-  return { min: Math.min(...values), max: Math.max(...values) };
-}
-
-function inTarget(range, target) {
-  return range.min >= target.min && range.max <= target.max;
-}
-
-function missingHelp(property, state) {
-  const name = lowerFirst(property.name) || 'this property';
-  const kind = propertyKind(property.name);
-  const batch = clean(state.plastic && state.plastic.batch);
-  const fromBatch = batch ? ` from the ${batch} batch` : '';
-  if (kind === 'weight') {
-    return `Weigh the piece you made${fromBatch}. If you cannot, multiply the density of this plastic by the volume of the piece.`;
+  if (part.mode === 'cantilever') {
+    return (sMpa * part.widthMm * part.thicknessMm ** 2) / (6 * part.spanMm);
   }
-  if (kind === 'sound') {
-    return `Do a sound test on the piece you made${fromBatch}.`;
-  }
-  if (kind === 'strength') {
-    return `Test strength on a piece you made${fromBatch}.`;
-  }
-  if (kind === 'stiffness') {
-    return `Test stiffness on a piece you made${fromBatch}.`;
-  }
-  if (kind === 'size') {
-    return `Measure ${name} on the piece you made${fromBatch}.`;
-  }
-  return `Measure ${name} on a piece you made${fromBatch}.`;
+  return (2 * sMpa * part.widthMm * part.thicknessMm ** 2) / (3 * part.spanMm);
 }
 
-function missingNext(property, state) {
-  return testCurrentBatch(property, state);
+/** Spring rate in N/mm for a modulus. */
+export function stiffness(part, eMpa) {
+  if (part.mode === 'compression') return (eMpa * area(part)) / part.spanMm;
+  if (part.mode === 'cantilever') return (3 * eMpa * inertia(part)) / part.spanMm ** 3;
+  return (48 * eMpa * inertia(part)) / part.spanMm ** 3;
 }
 
-function nextBatchNext(property) {
-  const name = lowerFirst(property.name) || 'this property';
-  const kind = propertyKind(property.name);
-  let action;
-  if (kind === 'weight') action = 'Weigh one piece from the next batch';
-  else if (kind === 'sound') action = 'Run the sound test on one piece from the next batch';
-  else if (kind === 'strength') action = 'Run the strength test on one piece from the next batch';
-  else if (kind === 'stiffness') action = 'Run the stiffness test on one piece from the next batch';
-  else if (kind === 'size') action = `Measure ${name} of one piece from the next batch`;
-  else action = `Measure ${name} on one piece from the next batch`;
-  return `${action} and add the number above.`;
+/** Mass in grams at a density in g/cm3. */
+export function massG(part, density) {
+  return (density * part.widthMm * part.thicknessMm * part.spanMm) / 1000;
 }
 
-function setupItem(property, issue) {
-  const name = lowerFirst(property.name) || 'this property';
-  if (issue === 'order') {
+function blendPlastic(plastic, fraction, steady) {
+  const f = clamp(fraction, 0.05, 0.9);
+  const e = num(steady && steady.eMpa, 0);
+  const st = num(steady && steady.sMpa, 0);
+  return {
+    ...plastic,
+    eMin: (1 - f) * plastic.eMin + f * e,
+    eMax: (1 - f) * plastic.eMax + f * e,
+    sMin: (1 - f) * plastic.sMin + f * st,
+    sMax: (1 - f) * plastic.sMax + f * st,
+  };
+}
+
+export function propertyRange(part, plastic, property) {
+  if (property === 'weight') {
+    const m = massG(part, plastic.density);
+    return { min: m, max: m, unit: 'g' };
+  }
+  if (property === 'stiffness') {
+    const a = stiffness(part, plastic.eMin);
+    const b = stiffness(part, plastic.eMax);
+    return { min: Math.min(a, b), max: Math.max(a, b), unit: 'N/mm' };
+  }
+  const a = capacityN(part, plastic.eMin, plastic.sMin) / G;
+  const b = capacityN(part, plastic.eMax, plastic.sMax) / G;
+  return { min: Math.min(a, b), max: Math.max(a, b), unit: 'kg' };
+}
+
+export function inRange(range, target) {
+  return Number.isFinite(target.min) && Number.isFinite(target.max)
+    && range.min >= target.min - 1e-9 && range.max <= target.max + 1e-9;
+}
+
+export function formatNumber(value) {
+  if (!Number.isFinite(value)) return '—';
+  const abs = Math.abs(value);
+  const digits = abs >= 100 ? (Number.isInteger(value) ? 0 : 1) : abs >= 10 ? 1 : abs >= 1 ? 2 : 3;
+  return Number(value).toLocaleString('en-US', { maximumFractionDigits: digits });
+}
+
+export function formatRange(range, unit = '') {
+  const suffix = (unit || range.unit) ? ` ${unit || range.unit}` : '';
+  if (Math.abs(range.max - range.min) < 1e-9) return `${formatNumber(range.min)}${suffix}`;
+  return `${formatNumber(range.min)}–${formatNumber(range.max)}${suffix}`;
+}
+
+export function formatTarget(target) {
+  const meta = propertyMeta(target.property);
+  return `${formatNumber(target.min)}–${formatNumber(target.max)} ${meta.unit}`;
+}
+
+function candidatePart(state, candidate) {
+  if (candidate.move === 'other') return otherPart(state);
+  const base = currentPart(state);
+  if (candidate.move === 'thickness') return { ...base, thicknessMm: candidate.thicknessMm };
+  if (candidate.move === 'section') return {
+    ...base,
+    widthMm: candidate.widthMm ?? base.widthMm,
+    thicknessMm: candidate.thicknessMm ?? base.thicknessMm,
+  };
+  if (candidate.move === 'span') return {
+    ...base,
+    spanMm: candidate.spanMm ?? base.spanMm,
+    mode: candidate.mode || base.mode,
+  };
+  return base;
+}
+
+function plasticFor(state, candidate) {
+  return candidate.move === 'blend'
+    ? blendPlastic(state.plastic, candidate.fraction, state.steady)
+    : state.plastic;
+}
+
+function samePart(a, b) {
+  return a.mode === b.mode
+    && Math.abs(a.spanMm - b.spanMm) < 1e-6
+    && Math.abs(a.widthMm - b.widthMm) < 1e-6
+    && Math.abs(a.thicknessMm - b.thicknessMm) < 1e-6;
+}
+
+function validCandidate(state, candidate) {
+  if (!candidate || !MOVES.includes(candidate.move)) return false;
+  if (candidate.move === 'current') return true;
+  if (candidate.move === 'other') {
+    if (!state.other.product) return false;
+    return !samePart(otherPart(state), currentPart(state));
+  }
+  if (candidate.move === 'blend') {
+    return state.steady.available && state.steady.eMpa > 0 && state.steady.sMpa > 0 && Number.isFinite(candidate.fraction) && candidate.fraction > 0;
+  }
+  const part = candidatePart(state, candidate);
+  return !samePart(part, currentPart(state));
+}
+
+function normalizeCandidate(state, raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const move = raw.move === 'other_product' ? 'other' : raw.move;
+  if (!MOVES.includes(move) || move === 'current') return null;
+  if (move === 'thickness') {
+    const thickness = clamp(num(raw.thicknessMm ?? raw.thickness_mm, NaN), 1, 400);
+    if (!Number.isFinite(thickness)) return null;
+    return { move: 'thickness', thicknessMm: round(thickness, 2) };
+  }
+  if (move === 'section') {
+    const width = clamp(num(raw.widthMm ?? raw.width_mm, NaN), 2, 800);
+    const thickness = num(raw.thicknessMm ?? raw.thickness_mm, null);
+    if (!Number.isFinite(width) && !Number.isFinite(thickness)) return null;
     return {
-      propertyId: property.id,
-      name: clean(property.name),
-      kind: 'setup',
-      inside: null,
-      headline: 'Check the range.',
-      text: `The low number for ${name} is above the high number. Swap them so the range reads from low to high.`,
-      next: `Fix the range for ${name}.`,
+      move: 'section',
+      widthMm: Number.isFinite(width) ? round(width, 2) : undefined,
+      thicknessMm: Number.isFinite(thickness) ? round(clamp(thickness, 1, 400), 2) : undefined,
     };
   }
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'setup',
-    inside: null,
-    headline: 'Set the range first.',
-    text: `Enter both numbers for ${name}: the lowest and highest values that still work.`,
-    next: `Fill in the range for ${name}.`,
-  };
-}
-
-function missingItem(property, state) {
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'missing',
-    inside: null,
-    headline: 'Not enough to answer yet.',
-    text: missingHelp(property, state),
-    next: missingNext(property, state),
-  };
-}
-
-function versionGroups(rows, target) {
-  return groupRows(rows, (row) => row.version).map((group) => {
-    const range = rangeOf(group.rows);
-    return {
-      ...group,
-      range,
-      inside: inTarget(range, target),
-    };
-  });
-}
-
-function plasticNow(state) {
-  return {
-    type: clean(state.plastic && state.plastic.type),
-    batch: clean(state.plastic && state.plastic.batch),
-    mix: clean(state.plastic && state.plastic.mix),
-    dirt: clean(state.plastic && state.plastic.dirt),
-  };
-}
-
-function identityMatches(row, plastic) {
-  return sameText(row.plasticType, plastic.type)
-    && sameText(row.mix, plastic.mix)
-    && sameText(row.dirt, plastic.dirt);
-}
-
-function identityChanges(rows, plastic) {
-  const changes = new Set();
-  for (const row of rows) {
-    if (!sameText(row.plasticType, plastic.type)) changes.add('plastic type');
-    if (!sameText(row.mix, plastic.mix)) changes.add('mix');
-    if (!sameText(row.dirt, plastic.dirt)) changes.add('dirt or other plastic');
+  if (move === 'span') {
+    const span = clamp(num(raw.spanMm ?? raw.span_mm, NaN), 30, 6000);
+    if (!Number.isFinite(span)) return null;
+    const mode = MODE_KEYS.has(raw.mode) ? raw.mode : undefined;
+    return { move: 'span', spanMm: round(span, 2), mode };
   }
-  return [...changes];
-}
-
-function differencePhrase(changes) {
-  if (!changes.length) return 'different plastic, mix or dirt';
-  if (changes.length === 1) {
-    if (changes[0] === 'mix') return 'a different mix';
-    if (changes[0] === 'plastic type') return 'a different plastic type';
-    return `different ${changes[0]}`;
+  if (move === 'other') return { move: 'other' };
+  if (move === 'blend') {
+    const fraction = clamp(num(raw.fraction, NaN), 0.05, 0.9);
+    if (!Number.isFinite(fraction) || !state.steady.available || !state.steady.eMpa || !state.steady.sMpa) return null;
+    return { move: 'blend', fraction: round(fraction, 3) };
   }
-  return `different ${listPhrases(changes)}`;
+  return null;
 }
 
-function currentBatchPhrase(plastic) {
-  return plastic.batch ? batchReference(plastic.batch) : 'this batch';
+function keyFor(state, candidate) {
+  const part = candidatePart(state, candidate);
+  const blend = candidate.move === 'blend' ? candidate.fraction : '';
+  return [
+    part.mode,
+    round(part.spanMm, 2),
+    round(part.widthMm, 2),
+    round(part.thicknessMm, 2),
+    blend,
+  ].join('|');
 }
 
-function testCurrentBatch(property, state) {
-  const plastic = plasticNow(state);
-  const name = lowerFirst(property.name) || 'this property';
-  const kind = propertyKind(property.name);
-  const place = plastic.batch ? `from ${batchReference(plastic.batch)}` : 'from this batch';
+
+
+/** The material range a part needs to hit the target range. */
+export function requiredMaterial(part, property, target) {
+  if (property === 'strength') {
+    let coefficient;
+    if (part.mode === 'compression') coefficient = area(part);
+    else if (part.mode === 'cantilever') coefficient = (part.widthMm * part.thicknessMm ** 2) / (6 * part.spanMm);
+    else coefficient = (2 * part.widthMm * part.thicknessMm ** 2) / (3 * part.spanMm);
+    return { min: (target.min * G) / coefficient, max: (target.max * G) / coefficient, unit: 'MPa' };
+  }
+  if (property === 'stiffness') {
+    const perMpa = stiffness(part, 1);
+    return { min: target.min / perMpa, max: target.max / perMpa, unit: 'MPa' };
+  }
+  const volume = part.widthMm * part.thicknessMm * part.spanMm;
+  return {
+    min: (target.min * 1000) / volume,
+    max: (target.max * 1000) / volume,
+    unit: 'g/cm³',
+  };
+}
+
+function materialRange(plastic, property) {
+  if (property === 'strength') return { min: plastic.sMin, max: plastic.sMax, unit: 'MPa' };
+  if (property === 'stiffness') return { min: plastic.eMin, max: plastic.eMax, unit: 'MPa' };
+  return { min: plastic.density, max: plastic.density, unit: 'g/cm³' };
+}
+
+/** Compare what the delivery provides with what a part needs. */
+export function materialGap(stateInput, part) {
+  const state = normalizeState(stateInput);
+  const required = requiredMaterial(part, state.target.property, state.target);
+  const batch = materialRange(state.plastic, state.target.property);
+  const shortLow = Math.max(0, required.min - batch.min);
+  const overHigh = Math.max(0, batch.max - required.max);
+  const steadyValue = state.target.property === 'strength'
+    ? (state.steady.available ? state.steady.sMpa : 0)
+    : state.target.property === 'stiffness'
+      ? (state.steady.available ? state.steady.eMpa : 0)
+      : 0;
+  const steadyShort = steadyValue > 0 ? Math.max(0, required.min - steadyValue) : null;
+  const targetRatio = (state.target.max - state.target.min) / state.target.min;
+  const batchRatio = batch.min > 0 ? (batch.max - batch.min) / batch.min : Infinity;
+  const rangeTooWide = state.target.property !== 'weight' && batchRatio > targetRatio + 1e-9;
   let action;
-  if (kind === 'weight') action = `Weigh one piece ${place}`;
-  else if (kind === 'sound') action = `Run the sound test on one piece ${place}`;
-  else if (kind === 'strength') action = `Run the strength test on one piece ${place}`;
-  else if (kind === 'stiffness') action = `Run the stiffness test on one piece ${place}`;
-  else if (kind === 'size') action = `Measure ${name} of one piece ${place}`;
-  else action = `Measure ${name} on one piece ${place}`;
-  return `${action} and add the number above.`;
-}
-
-function changedPiece(property) {
-  const name = lowerFirst(property.name) || 'this property';
-  const kind = propertyKind(property.name);
-  if (kind === 'weight') return 'Make one changed piece and weigh it before any shipment.';
-  if (kind === 'sound') return 'Make one changed piece and run the sound test on it before any shipment.';
-  if (kind === 'strength') return 'Make one changed piece and run the strength test on it before any shipment.';
-  if (kind === 'stiffness') return 'Make one changed piece and test its stiffness before any shipment.';
-  if (kind === 'size') return `Make one changed piece and measure its ${name} before any shipment.`;
-  return `Make one changed piece and measure ${name} on it before any shipment.`;
-}
-
-function amountOutside(range, target) {
-  const unit = target.unit;
-  const high = range.max > target.max;
-  const low = range.min < target.min;
-  if (high && low) {
-    return `The lowest reading is ${formatValue(range.min, unit)}, ${formatValue(target.min - range.min, unit)} below your bottom; the highest is ${formatValue(range.max, unit)}, ${formatValue(range.max - target.max, unit)} above your top.`;
-  }
-  if (high) {
-    if (range.min > target.max) {
-      const lowGap = range.min - target.max;
-      const highGap = range.max - target.max;
-      const gap = lowGap === highGap
-        ? formatValue(lowGap, unit)
-        : `${formatValue(lowGap, unit)} to ${formatValue(highGap, unit)}`;
-      return `It is ${gap} above your top of ${formatValue(target.max, unit)}.`;
-    }
-    return `The highest reading is ${formatValue(range.max, unit)}, ${formatValue(range.max - target.max, unit)} above your top of ${formatValue(target.max, unit)}.`;
-  }
-  if (low) {
-    if (range.max < target.min) {
-      const lowGap = target.min - range.max;
-      const highGap = target.min - range.min;
-      const gap = lowGap === highGap
-        ? formatValue(lowGap, unit)
-        : `${formatValue(lowGap, unit)} to ${formatValue(highGap, unit)}`;
-      return `It is ${gap} below your bottom of ${formatValue(target.min, unit)}.`;
-    }
-    return `The lowest reading is ${formatValue(range.min, unit)}, ${formatValue(target.min - range.min, unit)} below your bottom of ${formatValue(target.min, unit)}.`;
-  }
-  return '';
-}
-
-function rangeDirection(range, target) {
-  if (range.min > target.max) return 'high';
-  if (range.max < target.min) return 'low';
-  if (range.min < target.min && range.max > target.max) return 'both';
-  return 'outside';
-}
-
-function versionRangeText(groups, unit) {
-  return listPhrases(groups.map((group) => `${versionPhrase(group.label)} at ${formatRange(group.range.min, group.range.max, unit)}`));
-}
-
-function plasticSetupItem(property, headline, text, next) {
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'plastic-setup',
-    inside: null,
-    headline,
-    text,
-    next,
-  };
-}
-
-function uncoveredItem(property, state, namedRows, sameMaterialRows) {
-  const plastic = plasticNow(state);
-  const batch = currentBatchPhrase(plastic);
-  let text;
-  let headline;
-  if (sameMaterialRows.length) {
-    headline = 'These numbers do not cover this batch.';
-    text = `The numbers on hand do not cover this plastic in ${batch}: the pieces you measured are from other batches of this plastic. Do not ship ${batch}.`;
+  if (rangeTooWide) {
+    action = 'The delivery swings too wide for this range. A thicker or wider section scales both ends together, so it cannot narrow the swing; add a steadier stream or sort out the soft fraction first.';
+    if (steadyShort > 0) action += ` Your declared steadier stream gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}.`;
+  } else if (steadyShort > 0) {
+    action = `Your declared steadier stream gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}. Add a stronger stream or change the section.`;
+  } else if (shortLow > 0 && overHigh > 0) {
+    action = 'Lift the low end and bring the high end down.';
+  } else if (shortLow > 0) {
+    action = state.target.property === 'weight'
+      ? 'Use a denser fraction, or change the section.'
+      : 'Blend with the declared steadier stream, or add a stream that reaches the low end.';
+  } else if (overHigh > 0) {
+    action = state.target.property === 'weight'
+      ? 'Use less of the dense fraction, or change the section.'
+      : 'Use less of the strong fraction, or use a thinner build.';
   } else {
-    const changes = identityChanges(namedRows, plastic);
-    headline = 'These numbers do not cover this plastic.';
-    text = `The numbers on hand do not cover this plastic: the pieces you measured were made with ${differencePhrase(changes)}. Do not ship ${batch}.`;
+    action = 'This delivery already sits inside the window for this build.';
   }
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'uncovered',
-    inside: null,
-    headline,
-    text,
-    next: testCurrentBatch(property, state),
-  };
+  return { required, batch, shortLow, overHigh, steadyValue, steadyShort, rangeTooWide, action, unit: required.unit, property: state.target.property };
 }
 
-function allOutsideItem(property, state, currentRows, sameMaterialRows, target) {
-  const plastic = plasticNow(state);
-  const name = lowerFirst(property.name) || 'this property';
-  const range = rangeOf(sameMaterialRows);
-  const currentRange = rangeOf(currentRows);
-  const direction = rangeDirection(range, target);
-  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
-  const pieces = [];
-  if (batches.size > 1) {
-    if (direction === 'high') {
-      pieces.push(`Every measured piece of this plastic is above your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}.`);
-    } else if (direction === 'low') {
-      pieces.push(`Every measured piece of this plastic is below your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}.`);
-    } else {
-      pieces.push(`Every measured piece of this plastic is outside your ${name} range. Your range is ${formatRange(target.min, target.max, target.unit)}, and the pieces run ${formatRange(range.min, range.max, target.unit)}; some are below and some are above.`);
+/** The least-material thickness that makes the current build with this delivery. */
+export function minimumThicknessCandidate(stateInput) {
+  const state = normalizeState(stateInput);
+  if (state.target.min > state.target.max) return null;
+  const base = currentPart(state);
+  let best = null;
+  for (let t = 1; t <= 400; t += 0.5) {
+    const part = { ...base, thicknessMm: t };
+    const range = propertyRange(part, state.plastic, state.target.property);
+    if (inRange(range, state.target)) {
+      const mass = massG(part, state.plastic.density);
+      if (!best || mass < best.mass) best = { t, range, mass };
     }
   }
-  pieces.push(`This batch is outside your ${formatRange(target.min, target.max, target.unit)} range: ${formatRange(currentRange.min, currentRange.max, target.unit)}. ${amountOutside(currentRange, target)}`);
-  pieces.push('Do not ship this batch or this combination.');
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'all-outside',
-    inside: false,
-    headline: batches.size > 1 ? 'Every measured piece is outside.' : 'This batch is outside.',
-    text: pieces.join(' '),
-    next: changedPiece(property),
-  };
+  if (!best) return null;
+  const part = { ...base, thicknessMm: best.t };
+  if (samePart(part, base)) return null;
+  return { move: 'thickness', thicknessMm: best.t, calculated: true };
 }
 
-function insideItem(property, state, currentRows, sameMaterialRows, target) {
-  const plastic = plasticNow(state);
-  const currentRange = rangeOf(currentRows);
-  const currentBatch = currentBatchPhrase(plastic);
-  const versions = versionGroups(sameMaterialRows, target);
-  const insideVersions = versions.filter((group) => group.inside);
-  const outsideVersions = versions.filter((group) => !group.inside);
-  const hasVersionSplit = versions.length > 1 && insideVersions.length > 0 && outsideVersions.length > 0;
-  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
-  const pieces = [];
-  const sameRange = rangeOf(sameMaterialRows);
-  const batchCount = batches.size;
-  if (hasVersionSplit || outsideVersions.length) {
-    pieces.push('Some pieces you measured with this plastic are outside your range.');
-  } else {
-    pieces.push('The pieces you measured with this plastic are inside your range.');
+/** A blend with the declared steadier stream, if the current build can pass. */
+export function blendCandidate(stateInput) {
+  const state = normalizeState(stateInput);
+  if (!state.steady.available || !state.steady.eMpa || !state.steady.sMpa) return null;
+  if (state.target.property === 'weight') return null;
+  const part = currentPart(state);
+  for (let f = 0.05; f <= 0.9001; f += 0.02) {
+    const plastic = blendPlastic(state.plastic, f, state.steady);
+    if (inRange(propertyRange(part, plastic, state.target.property), state.target)) {
+      return { move: 'blend', fraction: +f.toFixed(2) };
+    }
   }
-  if (batchCount > 1) {
-    pieces.push(`Across the pieces of this plastic you measured, the range is ${formatRange(sameRange.min, sameRange.max, target.unit)}.`);
-  }
-  pieces.push(`This batch is inside: ${formatRange(currentRange.min, currentRange.max, target.unit)}, within your ${formatRange(target.min, target.max, target.unit)} range.`);
-  if (hasVersionSplit) {
-    pieces.push(`${upperFirst(versionRangeText(insideVersions, target.unit))} stays inside; ${versionRangeText(outsideVersions, target.unit)} is outside.`);
-  }
-  if (batches.size === 1) {
-    pieces.push('You have measured only one batch. The next batch is unknown until you check it the same way.');
-  } else {
-    pieces.push('The next batch is still unknown until you test it.');
-  }
-  const next = hasVersionSplit
-    ? `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and drop ${listPhrases(outsideVersions.map((group) => versionPhrase(group.label)))}.`
-    : nextBatchNext(property);
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'inside',
-    inside: true,
-    headline: 'This batch is inside.',
-    text: pieces.join(' '),
-    next,
-  };
+  return null;
 }
 
-function outsideItem(property, state, currentRows, sameMaterialRows, target) {
-  const plastic = plasticNow(state);
-  const currentRange = rangeOf(currentRows);
-  const currentBatch = currentBatchPhrase(plastic);
-  const versions = versionGroups(sameMaterialRows, target);
-  const insideVersions = versions.filter((group) => group.inside);
-  const outsideVersions = versions.filter((group) => !group.inside);
-  const currentVersions = versionGroups(currentRows, target);
-  const currentInsideVersions = currentVersions.filter((group) => group.inside);
-  const currentOutsideVersions = currentVersions.filter((group) => !group.inside);
-  const batches = new Set(sameMaterialRows.map((row) => clean(row.batch).toLowerCase()).filter(Boolean));
-  const pieces = [];
-  const partial = currentInsideVersions.length > 0 && currentOutsideVersions.length > 0;
-  const currentOutsideRows = currentRows.filter((row) => row.numeric < target.min || row.numeric > target.max);
-  const currentOutsideRange = rangeOf(currentOutsideRows);
-  const sameRange = rangeOf(sameMaterialRows);
-  pieces.push('Some pieces you measured with this plastic are outside your range.');
-  pieces.push(`Across the pieces of this plastic you measured, the range is ${formatRange(sameRange.min, sameRange.max, target.unit)}.`);
-  if (partial) {
-    pieces.push(`Part of this batch is outside: ${versionRangeText(currentOutsideVersions, target.unit)}. ${amountOutside(currentOutsideRange, target)}`);
-    pieces.push(`${upperFirst(versionRangeText(currentInsideVersions, target.unit))} stays inside.`);
-    pieces.push(`Do not ship ${listPhrases(currentOutsideVersions.map((group) => versionPhrase(group.label)))} from ${currentBatch}.`);
-  } else {
-    pieces.push(`This batch is outside your ${formatRange(target.min, target.max, target.unit)} range: ${formatRange(currentRange.min, currentRange.max, target.unit)}. ${amountOutside(currentRange, target)}`);
-    pieces.push(`Do not ship ${currentBatch}.`);
-  }
-  if (insideVersions.length && !currentInsideVersions.length) {
-    pieces.push(`${upperFirst(versionRangeText(insideVersions, target.unit))} was inside on the pieces you measured of this plastic.`);
-  }
-  if (!insideVersions.length) {
-    pieces.push('No measured version of this plastic stayed inside.');
-  }
-  if (batches.size === 1) {
-    pieces.push('You have measured only one batch. The next batch is unknown until you check it the same way.');
-  }
-  let next;
-  if (currentInsideVersions.length && currentOutsideVersions.length) {
-    next = `Make ${listPhrases(currentInsideVersions.map((group) => versionPhrase(group.label)))}; keep ${currentBatch} for ${currentInsideVersions.length === 1 ? 'that version' : 'those versions'} only.`;
-  } else if (insideVersions.length) {
-    next = `Make ${listPhrases(insideVersions.map((group) => versionPhrase(group.label)))} and hold ${currentBatch}.`;
-  } else {
-    next = changedPiece(property);
-  }
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'outside',
-    inside: false,
-    headline: currentInsideVersions.length && currentOutsideVersions.length
-      ? 'This batch is outside, but one version is inside.'
-      : 'This batch is outside.',
-    text: pieces.join(' '),
-    next,
-  };
+function passesPart(state, part, plastic, property) {
+  return inRange(propertyRange(part, plastic, property), state.target);
 }
 
-function answerForProperty(state, property) {
-  const issue = propertyIssue(property);
-  if (issue === 'name') return null;
-  if (issue) return setupItem(property, issue);
-  const allRows = measurementsFor(state, property.id);
-  if (!allRows.length) return missingItem(property, state);
-  const unnamedCount = allRows.filter((row) => !clean(row.batch)).length;
-  const rows = allRows.filter((row) => clean(row.batch));
-  if (!rows.length) return unnamedItem(property, unnamedCount);
-  const plastic = plasticNow(state);
-  if (!plastic.type) {
-    return plasticSetupItem(property, 'Which plastic is this?', 'Name the plastic this batch is made from so the numbers can be matched to it.', 'Add the plastic type above.');
-  }
-  if (!plastic.batch) {
-    return plasticSetupItem(property, 'Name this batch.', 'Add the batch you have now so the numbers can be matched to it.', 'Add the batch name above.');
-  }
-  const sameMaterialRows = rows.filter((row) => identityMatches(row, plastic));
-  const differentIdentityCount = rows.length - sameMaterialRows.length;
-  const currentRows = sameMaterialRows.filter((row) => sameText(row.batch, plastic.batch));
-  const target = targetOf(property);
-  let item;
-  if (!currentRows.length) {
-    item = uncoveredItem(property, state, rows, sameMaterialRows);
-  } else if (sameMaterialRows.every((row) => row.numeric < target.min || row.numeric > target.max)) {
-    item = allOutsideItem(property, state, currentRows, sameMaterialRows, target);
-  } else {
-    const currentRange = rangeOf(currentRows);
-    item = inTarget(currentRange, target)
-      ? insideItem(property, state, currentRows, sameMaterialRows, target)
-      : outsideItem(property, state, currentRows, sameMaterialRows, target);
-  }
-  if (sameMaterialRows.length && differentIdentityCount) item.text = `${item.text} ${differentPlasticText(differentIdentityCount)}`;
-  if (unnamedCount) item.text = `${item.text} ${allUnnamedText(unnamedCount)}`;
-  return item;
-}
-
-function unnamedItem(property, count) {
-  const plural = count > 1;
-  return {
-    propertyId: property.id,
-    name: clean(property.name),
-    kind: 'batch-name',
-    inside: null,
-    headline: plural ? 'Name the batches for these numbers.' : 'Name the batch for this number.',
-    text: plural
-      ? 'These numbers are saved, but they have no batches. Add the batch each one came from so the answer can compare deliveries.'
-      : 'The number is saved, but it has no batch. Add the batch it came from so the answer can compare one delivery with the next.',
-    next: plural ? 'Add the batch names above.' : 'Add the batch name above.',
-  };
-}
-
-function allUnnamedText(count) {
-  return count === 1
-    ? 'One number has no batch name, so it is not used yet. Add the batch above.'
-    : `${count} numbers have no batch names, so they are not used yet. Add the batches above.`;
-}
-
-function differentPlasticText(count) {
-  return count === 1
-    ? 'One number was measured with a different plastic, mix or dirt, so it is not used here.'
-    : `${count} numbers were measured with a different plastic, mix or dirt, so they are not used here.`;
-}
-
-function earlyAnswer(headline, text, next) {
-  return {
-    headline,
-    items: [{ propertyId: '', name: '', kind: 'setup', inside: null, headline, text, next }],
-    next,
-  };
+function addFound(state, found, seen, candidate) {
+  if (!validCandidate(state, candidate)) return;
+  const key = keyFor(state, candidate);
+  if (seen.has(key)) return;
+  seen.add(key);
+  found.push(candidate);
 }
 
 /**
- * Build the plain answer for the whole product.
- * Every property gets one item; the page shows the items in order and one next
- * action chosen from the most immediate unresolved item.
+ * The model proposes the move; the mechanics finds the least-material passing
+ * size in that move's direction. No move exists without a model proposal.
  */
-export function buildAnswer(input) {
-  const state = normalizeState(input);
-  if (!state.product) {
-    return earlyAnswer(
-      'Start with what you are making.',
-      'A product name and a range are enough to start. Add a measurement when you have one.',
-      'Write the product name above.',
-    );
-  }
-  const properties = state.properties.filter((property) => clean(property.name));
-  if (!properties.length) {
-    return earlyAnswer(
-      'What has to stay steady?',
-      'Add a property and the range it must stay inside. Weight, thickness, strength, stiffness, sound insulation — anything you can put a number on.',
-      'Name a property and set its range.',
-    );
-  }
+function searchModelMoves(state, proposals) {
+  const found = [];
+  const seen = new Set();
+  const normalized = normalizeModelProposals(state, proposals);
+  const property = state.target.property;
+  const plastic = state.plastic;
+  const current = currentPart(state);
 
-  const items = properties.map((property) => answerForProperty(state, property)).filter(Boolean);
-  if (!items.length) {
-    return earlyAnswer('What has to stay steady?', 'Add a property and the range it must stay inside.', 'Name a property and set its range.');
-  }
-
-  const urgentKinds = new Set(['uncovered', 'outside', 'all-outside']);
-  const setup = items.filter((item) => item.kind === 'setup');
-  const plasticSetup = items.filter((item) => item.kind === 'plastic-setup');
-  const unnamed = items.filter((item) => item.kind === 'batch-name');
-  const urgent = items.filter((item) => urgentKinds.has(item.kind));
-  const missing = items.filter((item) => item.kind === 'missing');
-  const inside = items.filter((item) => item.kind === 'inside');
-  if (missing.length) missing[0].text = `${missing[0].text} ${MISSING_CAVEAT}`;
-
-  let headline;
-  let next;
-  if (items.length === 1) {
-    headline = items[0].headline;
-  } else if (urgent.length) {
-    if (urgent.length === 1) {
-      headline = urgent[0].headline;
-    } else {
-      const allUncovered = urgent.every((item) => item.kind === 'uncovered');
-      const allOutside = urgent.every((item) => item.kind === 'outside' || item.kind === 'all-outside');
-      const count = upperFirst(numberWord(urgent.length));
-      headline = allOutside
-        ? `${count} properties are outside your range.`
-        : allUncovered
-          ? `${count} properties are not covered by these numbers.`
-          : `${count} properties need attention.`;
+  for (const proposal of normalized) {
+    if (proposal.move === 'other') {
+      addFound(state, found, seen, { move: 'other' });
+      continue;
     }
-  } else if (setup.length) {
-    headline = 'Set the range first.';
-  } else if (plasticSetup.length) {
-    const sameHeadline = plasticSetup.every((item) => item.headline === plasticSetup[0].headline);
-    headline = sameHeadline ? plasticSetup[0].headline : 'Name the plastic and this batch.';
-  } else if (unnamed.length) {
-    headline = unnamed.length === 1 ? 'One batch name is missing.' : `${upperFirst(numberWord(unnamed.length))} batch names are missing.`;
-  } else if (missing.length) {
-    headline = 'Not enough to answer everything yet.';
-  } else if (inside.length === items.length) {
-    headline = 'This batch is inside.';
-  } else {
-    headline = 'Here is where you stand.';
+    if (proposal.move === 'blend') {
+      let best = null;
+      if (state.steady.eMpa > 0 && state.steady.sMpa > 0) {
+        for (let f = 0.05; f <= 0.9001; f += 0.02) {
+          const candidate = { move: 'blend', fraction: +f.toFixed(2) };
+          if (passesPart(state, current, blendPlastic(plastic, candidate.fraction, state.steady), property)) {
+            best = candidate;
+            break;
+          }
+        }
+      }
+      if (best) addFound(state, found, seen, best);
+      continue;
+    }
+    if (proposal.move === 'thickness') {
+      const suggested = num(proposal.thicknessMm, state.thicknessMm);
+      const direction = suggested >= state.thicknessMm ? 1 : -1;
+      let start = direction > 0 ? state.thicknessMm + 0.5 : state.thicknessMm - 0.5;
+      for (let n = 0; n < 400; n++) {
+        const t = direction > 0 ? start + n * 0.5 : start - n * 0.5;
+        if (t < 1 || t > 400) break;
+        const candidate = { move: 'thickness', thicknessMm: +t.toFixed(2) };
+        const part = candidatePart(state, candidate);
+        if (passesPart(state, part, plastic, property)) {
+          addFound(state, found, seen, candidate);
+          break;
+        }
+      }
+      continue;
+    }
+    if (proposal.move === 'section') {
+      const suggested = num(proposal.widthMm, state.widthMm);
+      const directions = suggested >= state.widthMm ? [1] : [-1];
+      if (Math.abs(suggested - state.widthMm) < 1e-9) directions.splice(0, 1, 1, -1);
+      for (const direction of directions) {
+        for (let w = 5; w <= 500; w += 1) {
+          if (direction > 0 && w <= state.widthMm) continue;
+          if (direction < 0 && w >= state.widthMm) break;
+          const candidate = { move: 'section', widthMm: w };
+          const part = candidatePart(state, candidate);
+          if (passesPart(state, part, plastic, property)) {
+            addFound(state, found, seen, candidate);
+            break;
+          }
+        }
+      }
+      continue;
+    }
+    if (proposal.move === 'span') {
+      const modes = [];
+      if (proposal.mode) modes.push(proposal.mode);
+      if (!modes.includes(current.mode)) modes.push(current.mode);
+      for (const mode of modes) {
+        const sameSpan = { move: 'span', spanMm: current.spanMm, mode };
+        if (passesPart(state, currentPart(state), plastic, property) && mode === current.mode) {
+          // no need to duplicate the current build
+        } else if (passesPart(state, candidatePart(state, sameSpan), plastic, property)) {
+          addFound(state, found, seen, sameSpan);
+          continue;
+        }
+        const suggested = num(proposal.spanMm, state.spanMm);
+        const direction = suggested >= state.spanMm ? 1 : -1;
+        const lo = Math.max(30, state.spanMm * 0.8);
+        const hi = Math.min(6000, state.spanMm * 1.2);
+        if (direction > 0) {
+          for (let span = Math.ceil(state.spanMm); span <= hi; span += 1) {
+            const candidate = { move: 'span', spanMm: span, mode };
+            if (passesPart(state, candidatePart(state, candidate), plastic, property)) {
+              addFound(state, found, seen, candidate);
+              break;
+            }
+          }
+        } else {
+          for (let span = Math.floor(state.spanMm); span >= lo; span -= 1) {
+            const candidate = { move: 'span', spanMm: span, mode };
+            if (passesPart(state, candidatePart(state, candidate), plastic, property)) {
+              addFound(state, found, seen, candidate);
+              break;
+            }
+          }
+        }
+      }
+    }
   }
+  return found;
+}
 
-  if (urgent.length) next = urgent[0].next;
-  else if (setup.length) next = setup[0].next;
-  else if (plasticSetup.length) next = plasticSetup[0].next;
-  else if (unnamed.length) next = unnamed.length === 1 ? unnamed[0].next : 'Add the batch names above.';
-  else if (missing.length) next = missing[0].next;
-  else if (inside.length) next = inside[0].next;
-  else next = '';
+export function normalizeModelProposals(state, proposals) {
+  if (!Array.isArray(proposals)) return [];
+  const out = [];
+  for (const raw of proposals) {
+    if (!raw || typeof raw !== 'object') continue;
+    const candidate = normalizeCandidate(state, raw);
+    if (!candidate) continue;
+    if (candidate.move === 'span') {
+      candidate.spanMm = clamp(candidate.spanMm, state.spanMm * 0.8, state.spanMm * 1.2);
+    }
+    if (validCandidate(state, candidate)) out.push(candidate);
+  }
+  return out;
+}
 
-  return { headline, items, next };
+function addCandidate(state, list, seen, candidate) {
+  if (!validCandidate(state, candidate)) return;
+  const key = keyFor(state, candidate);
+  if (seen.has(key)) return;
+  seen.add(key);
+  list.push(candidate);
+}
+
+export function evaluateBuilds(stateInput, modelProposals = []) {
+  const state = normalizeState(stateInput);
+  const property = state.target.property;
+  const target = state.target;
+  const targetValid = target.min <= target.max;
+  const current = { move: 'current', part: currentPart(state) };
+  const currentPlastic = state.plastic;
+  const currentMass = massG(current.part, currentPlastic.density);
+  const currentRange = propertyRange(current.part, currentPlastic, property);
+  const currentEval = {
+    ...current,
+    massG: currentMass,
+    addedG: 0,
+    range: currentRange,
+    pass: targetValid && inRange(currentRange, target),
+    part: current.part,
+  };
+
+  const supportG = (candidate, mass) => candidate.move === 'span' ? mass * 0.2 : 0;
+  const candidates = [];
+  const seen = new Set();
+  if (targetValid) {
+    const minimum = minimumThicknessCandidate(state);
+    if (minimum) addCandidate(state, candidates, seen, minimum);
+    const blend = blendCandidate(state);
+    if (blend) addCandidate(state, candidates, seen, blend);
+    for (const candidate of searchModelMoves(state, modelProposals)) addCandidate(state, candidates, seen, candidate);
+  }
+  const evaluated = candidates.map((candidate) => {
+    const part = candidatePart(state, candidate);
+    const plastic = plasticFor(state, candidate);
+    const support = supportG(candidate, currentMass);
+    let range = propertyRange(part, plastic, property);
+    if (property === 'weight') range = { ...range, min: range.min + support, max: range.max + support };
+    const mass = massG(part, plastic.density) + support;
+    return {
+      ...candidate,
+      part,
+      range,
+      massG: mass,
+      addedG: mass - currentMass,
+      pass: inRange(range, target),
+    };
+  });
+
+  const all = [currentEval, ...evaluated];
+  const passing = all.filter((item) => item.pass);
+  const bestByMove = new Map();
+  for (const item of passing) {
+    const existing = bestByMove.get(item.move);
+    if (!existing || item.addedG < existing.addedG) bestByMove.set(item.move, item);
+  }
+  const passingBest = [...bestByMove.values()].sort((a, b) => {
+    if (a.addedG !== b.addedG) return a.addedG - b.addedG;
+    if (a.move === 'current') return -1;
+    if (b.move === 'current') return 1;
+    return a.move.localeCompare(b.move);
+  });
+  const winner = passingBest[0] || null;
+  const triedMoves = new Set([current.move, ...evaluated.map((e) => e.move)]);
+  const failedMoves = [...new Set(evaluated.filter((e) => !e.pass).map((e) => e.move))];
+
+  const gap = targetValid && !winner ? materialGap(state, current.part) : null;
+  return {
+    state,
+    current: currentEval,
+    winner,
+    passingBest,
+    gap,
+    allCount: all.length,
+    passingCount: passing.length,
+    triedCount: evaluated.length,
+    triedMoves: [...triedMoves],
+    failedMoves,
+    targetValid,
+  };
+}
+
+function moveLabel(state, candidate) {
+  if (candidate.move === 'current') return 'Current build';
+  if (candidate.move === 'other') return 'Other product';
+  if (candidate.move === 'blend') return 'Blended plastic';
+  if (candidate.move === 'thickness') {
+    return candidate.part.thicknessMm >= state.thicknessMm ? 'Thicker section' : 'Slimmer section';
+  }
+  if (candidate.move === 'section') {
+    if (candidate.part.widthMm > state.widthMm) return 'Wider section';
+    if (candidate.part.widthMm < state.widthMm) return 'Narrower section';
+    return 'Changed section';
+  }
+  if (candidate.move === 'span') {
+    if (candidate.part.mode !== state.mode) return 'Changed load path + support';
+    return `${candidate.part.spanMm < state.spanMm ? 'Shorter span' : 'Longer span'} + support`;
+  }
+  return 'Build';
+}
+
+export function buildSizeText(part) {
+  return `${formatNumber(part.spanMm)} mm ${part.product}, ${formatNumber(part.widthMm)} × ${formatNumber(part.thicknessMm)} mm`;
+}
+
+export function addedMaterialText(addedG) {
+  if (Math.abs(addedG) < 0.5) return 'no added material';
+  const sign = addedG > 0 ? '+' : '−';
+  return `${sign}${formatNumber(Math.abs(addedG))} g`;
+}
+
+export function decisionFor(stateInput, result) {
+  const state = normalizeState(stateInput);
+  const meta = propertyMeta(state.target.property);
+  const target = formatTarget(state.target);
+  if (!result.winner) {
+    const gap = result.gap || materialGap(state, currentPart(state));
+    const unit = gap.unit;
+    let headline;
+    if (gap.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
+    else if (gap.shortLow > 0) headline = `Lift the ${meta.noun} low end by ${formatNumber(gap.shortLow)} ${unit}.`;
+    else if (gap.overHigh > 0) headline = `Bring the ${meta.noun} high end down by ${formatNumber(gap.overHigh)} ${unit}.`;
+    else headline = 'This build needs a different section.';
+    const required = formatRange(gap.required, unit);
+    const batch = formatRange(gap.batch, unit);
+    const support = `At ${buildSizeText(currentPart(state))}, this build needs ${meta.noun} ${required}; your delivery gives ${batch}. ${gap.action}`;
+    const copy = [
+      'AnyRB plan',
+      headline,
+      `Current build: ${buildSizeText(currentPart(state))}`,
+      `Needs: ${meta.label} ${required}`,
+      `Delivery: ${meta.label} ${batch}`,
+      `Action: ${gap.action}`,
+    ].join('\n');
+    return { headline, support, button: 'Ask Meta', copy };
+  }
+  const winner = result.winner;
+  const range = formatRange(winner.range, meta.unit);
+  const isBlend = winner.move === 'blend';
+  const steadyName = state.steady.type || 'a steadier plastic';
+  const blendPct = isBlend ? Math.round(winner.fraction * 100) : 0;
+  const headline = isBlend
+    ? `Blend ${blendPct}% of ${steadyName}, then make the ${buildSizeText(winner.part)}.`
+    : `Make the ${buildSizeText(winner.part)}.`;
+  let support;
+  if (isBlend) {
+    support = `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${meta.verb} ${range}, inside your ${target} range.`;
+  } else if (winner.move === 'other') {
+    support = `The ${state.product} has no passing build. This delivery makes the ${state.other.product}: ${meta.verb} ${range}, inside your ${target} range.`;
+  } else if (result.current.pass) {
+    support = `This build ${meta.verb} ${range} from this delivery — inside your ${target} range.`;
+  } else {
+    support = `The ${formatNumber(state.thicknessMm)} mm version misses. This build ${meta.verb} ${range}, inside your ${target} range.`;
+  }
+  const copy = [
+    'AnyRB build',
+    headline,
+    `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
+    `Mix: ${state.plastic.mix || 'none stated'}; dirt: ${state.plastic.dirt || 'none stated'}`,
+    isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',
+    `Property: ${meta.label} ${range} — inside ${target}`,
+    isBlend ? `Added material: ${blendPct}% ${steadyName}` : `Added material: ${addedMaterialText(winner.addedG)}`,
+    `Move: ${moveLabel(state, winner)}`,
+  ].filter(Boolean).join('\n');
+  return { headline, support, button: 'Copy build', copy };
+}
+
+export function proposalRow(stateInput, item) {
+  const state = normalizeState(stateInput);
+  const meta = propertyMeta(state.target.property);
+  const size = item.move === 'other'
+    ? `${item.part.product} · ${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`
+    : `${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`;
+  const blendPercent = item.move === 'blend' ? Math.round(item.fraction * 100) : null;
+  return {
+    move: moveLabel(state, item),
+    size,
+    property: `${meta.verb} ${formatRange(item.range, meta.unit)}`,
+    added: blendPercent ? `${blendPercent}% steady stream` : addedMaterialText(item.addedG),
+    winner: false,
+    blend: blendPercent,
+    steadyType: item.move === 'blend' ? state.steady.type : '',
+  };
+}
+
+export function toApiPayload(stateInput) {
+  const state = normalizeState(stateInput);
+  return {
+    product: {
+      name: state.product,
+      mode: state.mode,
+      span_mm: state.spanMm,
+      load_kg: 0,
+      width_mm: state.widthMm,
+      thickness_mm: state.thicknessMm,
+    },
+    target: {
+      property: state.target.property,
+      min: state.target.min,
+      max: state.target.max,
+    },
+    plastic: {
+      type: state.plastic.type,
+      batch: state.plastic.batch,
+      mix: state.plastic.mix,
+      dirt: state.plastic.dirt,
+      dirt_level: state.plastic.dirtLevel,
+      stiffness_min_mpa: state.plastic.eMin,
+      stiffness_max_mpa: state.plastic.eMax,
+      strength_min_mpa: state.plastic.sMin,
+      strength_max_mpa: state.plastic.sMax,
+      density_g_cm3: state.plastic.density,
+    },
+    other_product: {
+      name: state.other.product,
+      mode: state.other.mode,
+      span_mm: state.other.spanMm,
+      load_kg: 0,
+      width_mm: state.other.widthMm,
+      thickness_mm: state.other.thicknessMm,
+    },
+    steady_available: state.steady.available,
+  };
+}
+
+export function advicePayload(stateInput, result, question) {
+  const state = normalizeState(stateInput);
+  const meta = propertyMeta(state.target.property);
+  const decision = decisionFor(state, result);
+  const range = (rangeValue) => ({ min: rangeValue.min, max: rangeValue.max, unit: rangeValue.unit });
+  const size = (part) => buildSizeText(part);
+  return {
+    question: clean(question, 800) || 'What can I do with this batch?',
+    product: {
+      name: state.product,
+      mode: state.mode,
+      span_mm: state.spanMm,
+      width_mm: state.widthMm,
+      thickness_mm: state.thicknessMm,
+    },
+    target: { property: state.target.property, min: state.target.min, max: state.target.max },
+    plastic: {
+      type: state.plastic.type,
+      batch: state.plastic.batch,
+      mix: state.plastic.mix,
+      dirt: state.plastic.dirt,
+      dirt_level: state.plastic.dirtLevel,
+      stiffness_min_mpa: state.plastic.eMin,
+      stiffness_max_mpa: state.plastic.eMax,
+      strength_min_mpa: state.plastic.sMin,
+      strength_max_mpa: state.plastic.sMax,
+      density_g_cm3: state.plastic.density,
+    },
+    steady: {
+      available: state.steady.available,
+      type: state.steady.type,
+      stiffness_mpa: state.steady.eMpa || null,
+      strength_mpa: state.steady.sMpa || null,
+    },
+    other_product: {
+      name: state.other.product,
+      mode: state.other.mode,
+      span_mm: state.other.spanMm,
+      width_mm: state.other.widthMm,
+      thickness_mm: state.other.thicknessMm,
+    },
+    plan: {
+      headline: decision.headline,
+      support: decision.support,
+      current: {
+        property_range: range(result.current.range),
+        pass: result.current.pass,
+      },
+      winner: result.winner ? {
+        product: result.winner.part.product,
+        size: size(result.winner.part),
+        property_range: range(result.winner.range),
+        added_material: result.winner.addedG,
+        move: moveLabel(state, result.winner),
+        blend_percent: result.winner.move === 'blend' ? Math.round(result.winner.fraction * 100) : null,
+      } : null,
+      gap: result.gap ? {
+        property: result.gap.property,
+        unit: result.gap.unit,
+        needed_min: result.gap.required.min,
+        needed_max: result.gap.required.max,
+        batch_min: result.gap.batch.min,
+        batch_max: result.gap.batch.max,
+        short_low: result.gap.shortLow,
+        over_high: result.gap.overHigh,
+        steady_value: result.gap.steadyValue,
+        steady_short: result.gap.steadyShort,
+        range_too_wide: result.gap.rangeTooWide,
+        required_action: result.gap.action,
+      } : null,
+      builds: result.passingBest.slice(0, 6).map((item) => ({
+        move: moveLabel(state, item),
+        size: size(item.part),
+        property_range: range(item.range),
+        added_material: item.addedG,
+      })),
+      blend: {
+        available: Boolean(state.steady.available && state.steady.eMpa && state.steady.sMpa),
+        type: state.steady.type,
+        fraction: result.winner && result.winner.move === 'blend' ? result.winner.fraction : null,
+      },
+    },
+  };
 }

@@ -1,97 +1,109 @@
 # AnyRB
 
-**A straight answer for a product made from recycled plastic.**
+**Turn a changing recycled-plastic delivery into a build that still hits the range.**
 
-You name the product. You set the range that has to hold. You describe the plastic and what can change
-from delivery to delivery. AnyRB tells you whether the product stays inside your range, and what to do
-next — in plain words.
+You name the part. You set the strength, stiffness or weight range it has to hold. You describe what
+this delivery actually measures and what is in it. AnyRB finds the build and the material recipe that
+keeps the part inside the range — and shows the next thing to do when the delivery alone is not enough.
 
-There is one screen and one job. No catalog, no material presets, no chart, no score, no 3D viewer, and
-no research library in the app.
+It does not reject the delivery. A dirty, soft or mixed batch is an input, not an ending.
 
-## What it asks
+## The page
 
-1. **What are you making?** Any product name.
-2. **What has to stay steady?** Any property, with your own unit and a low/high range. Weight, thickness,
-   strength, stiffness, sound insulation — or a property that is not on that list.
-3. **What plastic are you using?** Plastic type, this batch, what it is mixed with, dirt or other plastic.
-4. **What have you measured?** A number taken from the actual product, with the version, the batch, and
-   the plastic that piece was made with. A plastic name or a number from a material sheet is not a
-   measurement.
+One page, three quiet parts:
 
-## How the answer is built
+1. **The decision.** What to make, at what size, and with what blend or material change. One line of
+   support. One black button: copy the build.
+2. **Engineering.** The current build, load path, span and section; the property range; the passing
+   builds. The mechanics calculates every property range from the plastic swing. A proposal appears
+   only when its full range stays inside the target. The winner uses the least added build mass.
+3. **Batch.** The delivery's measured stiffness and strength swing, dirt level and what is in it; what
+   the chosen build needs; the gap; the declared steadier stream; and a place to ask Meta what to do
+   with this batch.
 
-For every property, AnyRB compares the plastic you described with the plastic recorded on each measured
-piece: the type, the batch, the mix, and the dirt or other plastic.
+The first open is a worked example: a 10 mm shelf bracket misses, a 15 mm section passes, and the
+declared stiffer stream also supports a 65% blend recipe. Change any number and the decision updates
+in place.
 
-- **The numbers cover this batch.** AnyRB gives the measured range, says whether this batch is inside,
-  and says by how much it misses when it is outside. It says not to ship an outside batch and names the
-  measured version that stayed inside, if one exists.
-- **One measured version is inside and another is outside.** AnyRB names the version to make and the
-  version to drop. It does not suggest an unmeasured build.
-- **Every measured piece of this plastic/mix/dirt is outside.** AnyRB says which property missed and
-  whether the numbers are high or low, says not to ship the combination, and gives one changed-piece test
-  as the next action.
-- **The measured pieces are from another batch, mix, dirt, or plastic.** AnyRB says the numbers on hand
-  do not cover this plastic or batch, says not to ship it, and gives the one test to run on a piece from
-  this batch. It does not show a result or a pass.
-- **Nothing is measured.** AnyRB shows no number and no pass. It says what to measure: weigh the actual
-  piece, or do the one test that matches the property. Then it stops.
+## What the app will never do
 
-Every next line is a concrete action: make a named measured version, hold a named batch, run one named
-test, or measure one changed piece. No number is filled from a product name, a plastic name, a material
-sheet, a preset, or a guess.
+- It will not say **“don’t use this delivery.”** If no build passes, it states the material range the
+  build needs, the gap, and the available levers: add a steadier stream, sort/wash/dry, change section
+  or span, move the delivery to another product, or split it.
+- It will not invent strength, stiffness, weight, measured results, certification or a property value.
+  All mechanics numbers are calculated from the shop's inputs. Meta may propose moves and explain
+  tradeoffs, but it is grounded to the supplied numbers.
+- It will not fall back to a fixed list of four moves when Meta is unavailable. With no model, the
+  local mechanics still shows the current build, the calculated minimum, the declared blend recipe
+  and the material gap; it shows no invented alternatives and no invented advice.
+- It will not tell the user to go test a piece or trial a prototype. The answer is a build or a
+  material action, not a test assignment.
+
+## The model boundary
+
+The browser never receives an API key. Meta calls go through the local FastAPI server:
+
+- `POST /api/product/proposals` — Meta proposes move types and optional parameters. The browser scores
+  the mechanics; the server sanitises parameters and never returns strength/stiffness/weight results.
+  If Meta is unavailable it returns an empty proposal list; there is no fixed-list fallback.
+- `POST /api/product/advice` — the user asks a plain-language batch question. The app sends its
+  calculated plan and gap. Meta returns practical actions, using only the supplied numbers, or an
+  empty `available:false` response. There is no fixed advice fallback.
+
+The app works without the server for the local mechanics. The AI sections need the server.
 
 ## Open it
 
 ```bash
-# simplest: double-click the built page
-open index.html
+# 1. Start the local AI server (Meta key stays in server/.env on this machine only)
+.venv/bin/python -m server.app
+# -> http://127.0.0.1:8787
 
-# or serve it
-python3 -m http.server 8000
-# http://localhost:8000/index.html
+# 2. Open the built page
+open http://127.0.0.1:8787/
 ```
 
-The page works offline. It saves the current entry in this browser only.
+A direct `file://` open also works for the local mechanics; it calls the same local server at
+`127.0.0.1:8787` for Meta.
 
 ## Build and test
 
 ```bash
-python3 app/build.py          # app/index.html + sources → ./index.html and app/standalone.html
-node app/tests/model.test.mjs # answer logic, empty states, version rule, language guard
-make test                     # historical bracket engine tests
-make test-server              # historical AI backend tests
+python3 app/build.py               # app sources -> index.html + app/standalone.html
+node app/tests/model.test.mjs      # mechanics, material gap, blend, model-boundary and UI guards
+AI_MOCK=1 python3 -m pytest server/tests -q
+make verify                        # historical engine tests + app tests + server tests
 ```
 
-The active app has no runtime dependencies and makes no network calls.
+The active app has no browser runtime dependencies.
 
 ## Files
 
 ```
 anyrb/
 ├── app/
-│   ├── index.html      the one page: masthead, four questions, answer
-│   ├── styles.css      paper, one accent, one column
-│   ├── product.js      pure answer logic: plastic coverage, range, next action
-│   ├── main.js         small DOM layer and localStorage
-│   ├── build.py        inlines everything into one standalone page
-│   └── tests/          model tests
+│   ├── index.html      the one page: decision, Engineering, Batch, Ask Meta
+│   ├── styles.css      quiet white page, one system sans, one black pill
+│   ├── product.js      pure mechanics, gap, blend and selection logic
+│   ├── main.js         DOM layer, local scoring, model proposal/advice calls
+│   ├── build.py        inlines the sources into one standalone page
+│   ├── tests/          mechanics, gap, blend and app-source tests
+│   └── README.md
+├── server/             FastAPI backend; Meta Spark proposals and batch advice
 ├── index.html          built standalone page (open this)
-├── history/v0.6-app/   retired v0.6 record + bracket interface; not built or linked
-├── research/           research notes, kept out of the interface
-├── engine/             historical bracket engine and tests
-├── server/             historical local AI backend for the bracket prototype
-├── validation/         historical validation suite for the bracket engine
-├── demo/screenshots/v7/  the checked screens
-└── V0_7_SPEC.md        the one-product contract
+├── V0_8_SPEC.md        the current product contract
+├── history/v0.7-app/   retired v0.7 app; not built or linked
+├── engine/             historical bracket engine
+├── validation/         historical validation suite
+└── demo/screenshots/   checked screens
 ```
 
-The old v0.6 app is kept only as history. It is not built, served, or linked from the page. The research
-notes and the bracket engine are likewise outside the interface.
+The v0.7 measured-piece app is history. The research notes and the bracket engine are outside the
+active page.
 
 ## What this does not claim
 
-A measurement is not a guarantee about the next delivery. One batch stays one batch until it is measured
-again. AnyRB does not certify a product, does not predict an unmeasured build, and does not turn a
-literature number into a result for your product.
+AnyRB is a design and material-blending aid, not a certification or a prediction of a measured part.
+The mechanics uses a rectangular-section model and the ranges the shop supplies. It does not claim
+food contact, structural certification, or that a blend has been physically tested. The blend recipe
+is a mixture-rule recommendation from the declared stream values; the shop still owns the processing.
