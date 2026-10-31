@@ -1,0 +1,17 @@
+.git
+.venv
+server/.env
+server/cache
+server/provenance.jsonl
+__pycache__
+*.pyc
+.pytest_cache
+history
+reports
+engine
+validation
+research
+audit
+data
+design
+demo

@@ -18,6 +18,17 @@
   <section class="decision" aria-labelledby="decision">
     <h1 id="decision">What do you want to make?</h1>
     <p class="support" id="support">Name the part, set one or more properties that have to hold, and describe this delivery. Every product and every range is yours to set.</p>
+    <div class="brief">
+      <div class="brief-head">
+        <label for="brief">Describe the part and this delivery</label>
+        <button class="brief-sample" id="brief-sample" type="button">Use a sample brief</button>
+      </div>
+      <div class="brief-row">
+        <textarea id="brief" rows="2" placeholder="e.g. I make a 300 mm planter wall, 180 mm wide and 4 mm thick, standing in compression. It must have a load capacity of 1,000–1,400 kg and a weight of 180–230 g. My April PP batch is 700–850 MPa stiffness and 14–18 MPa strength."></textarea>
+        <button class="brief-submit" id="brief-submit" type="button">Read with Meta</button>
+      </div>
+      <p class="brief-status" id="brief-status"></p>
+    </div>
     <div class="cases" id="cases" aria-label="Start with a part">
       <span class="cases-label">Examples</span>
       <button class="case" type="button" data-case="bracket">Bracket</button>
@@ -67,6 +78,7 @@
         </div>
         <ol class="build-list" id="build-list"></ol>
         <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
+        <div class="meta-trace" id="meta-trace" hidden></div>
       </div>
 
       <details class="other-group">

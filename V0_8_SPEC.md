@@ -22,6 +22,16 @@ block. They set the load path, dimensions and **one or more output requirements*
 weight). Every requirement must hold at once. Adding a second or third property is a normal state, not
 an advanced mode.
 
+### The brief (Meta front door)
+
+A text brief can be read by Muse Spark: *“I make a 300 mm planter wall, 180 mm wide and 4 mm thick,
+standing in compression. It must have a load capacity of 1,000–1,400 kg and a weight of 180–230 g. My
+April PP batch, 20% HDPE, is 700–850 MPa stiffness and 14–18 MPa strength…”*.
+
+`POST /api/product/brief` is **extract-only**: every extracted number must be stated in the text, or it
+is dropped; missing fields stay empty. The UI maps the returned product, dimensions, targets and batch
+into editable fields. The sample brief is optional; the product is not preset.
+
 ## The decision
 
 Once the part and the requirements are valid, the first view gives one answer:
@@ -53,10 +63,12 @@ Every range is evaluated across the delivery's full stiffness and strength swing
 only when the whole range sits inside the target. The winner is the passing build with the least added
 build mass.
 
-Meta proposes move types (thickness, section, span/load path, other product, blend). The mechanics
-searches the passing size in the proposed direction. When Meta is unavailable, the app still
-calculates the current build, a minimum thickness and any declared blend; it does not substitute a
-fixed list of four moves.
+Muse Spark proposes move types (thickness, section, span/load path, other product, blend). The app
+scores the **exact proposal** against every target first and exposes that result in the **Muse Spark →
+verifier** trace: accepted or rejected. The mechanics then searches the passing size in the proposed
+direction; the build list is the verifier's result. When Meta is unavailable, the app still calculates
+the current build, a minimum thickness and any declared blend; it does not substitute a fixed list of
+four moves or invented model output.
 
 ## Batch
 
@@ -77,6 +89,8 @@ the soft fraction, change the section or span, use the other product, or split t
 
 ## Meta boundary
 
+- `POST /api/product/brief` uses Muse Spark to extract the natural-language shop brief; numbers not
+  stated in the text are dropped, missing fields remain empty, and unavailable → no parse.
 - `POST /api/product/proposals` returns parameter-only move proposals for the user's part and all
   targets. The server sanitises allow-listed keys, clamps values and strips property/result keys.
   Unavailable → empty list.
@@ -94,7 +108,9 @@ range, added material and move. It is the shop's build ticket.
 ## Tests
 
 - `node app/tests/model.test.mjs` — mechanics, empty start, case presets, multi-requirement pass,
-  minimum build, blend rule, model move search, no fixed-fallback, no rejection copy, advice payload
-  shape, source guards.
+  minimum build, blend rule, exact model trace, model move search, no fixed-fallback, no rejection
+  copy, advice payload shape, source guards. 26 tests.
+- `AI_MOCK=1 .venv/bin/python -m pytest server/tests -q` — brief/proposals/advice contracts, grounding,
+  no-key, no-test, no-fallback. 130 tests, 1 skipped.
 - `AI_MOCK=1 python3 -m pytest server/tests -q` — server contract, mock/empty behavior, grounding,
   test-instruction guard, key safety.

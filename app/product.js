@@ -666,6 +666,28 @@ function addCandidate(state, list, seen, candidate) {
   list.push(candidate);
 }
 
+function traceModelProposals(state, proposals) {
+  const normalized = normalizeModelProposals(state, proposals);
+  const targets = [state.target, ...state.extraTargets];
+  const current = currentPart(state);
+  const currentMass = massG(current, state.plastic.density);
+  const supportFor = (candidate) => candidate.move === 'span' ? currentMass * 0.2 : 0;
+  const trace = [];
+  for (const candidate of normalized) {
+    const part = candidatePart(state, candidate);
+    const plastic = plasticFor(state, candidate);
+    const support = supportFor(candidate);
+    const ranges = targets.map((target) => {
+      let range = propertyRange(part, plastic, target.property);
+      if (target.property === 'weight') range = { ...range, min: range.min + support, max: range.max + support };
+      return range;
+    });
+    const pass = ranges.every((range, i) => inRange(range, targets[i]));
+    trace.push({ ...candidate, part, ranges, pass, source: 'meta' });
+  }
+  return trace;
+}
+
 export function evaluateBuilds(stateInput, modelProposals = []) {
   const state = normalizeState(stateInput);
   if (!isReady(state)) {
@@ -684,6 +706,7 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
       failedMoves: [],
       targetValid: true,
       targets: [state.target, ...state.extraTargets],
+      modelTrace: [],
     };
   }
   const targets = [state.target, ...state.extraTargets];
@@ -704,9 +727,11 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
   };
 
   const supportG = (candidate, mass) => candidate.move === 'span' ? mass * 0.2 : 0;
+  const modelTrace = targetValid ? traceModelProposals(state, modelProposals) : [];
   const candidates = [];
   const seen = new Set();
   if (targetValid) {
+    for (const exact of modelTrace) if (exact.pass) addCandidate(state, candidates, seen, exact);
     const minimum = minimumThicknessCandidate(state);
     if (minimum) addCandidate(state, candidates, seen, minimum);
     const blend = blendCandidate(state);
@@ -770,6 +795,7 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
     failedMoves,
     targetValid,
     targets,
+    modelTrace,
   };
 }
 

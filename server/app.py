@@ -404,6 +404,12 @@ def health() -> dict:
                "cache": meta_client.cache_stats()},
         "version": "v0.4",
         "contract_version": "v0.4",
+        "active_app": {
+            "name": "AnyRB",
+            "version": "0.8.1",
+            "endpoints": ["/api/product/brief", "/api/product/proposals", "/api/product/advice"],
+            "front_door": "natural-language brief",
+        },
         "family_scope": contract_v04.FAMILY_SCOPE,
         "printability_limits": dict(contract_v03.PRINTABILITY_LIMITS),
         "process_rule": contract_v04.PROCESS_RULE,
@@ -563,6 +569,13 @@ def product_advice(body: product_ai.ProductAdviceRequest, request: Request) -> d
     """Meta batch-help advice with practical actions; only supplied numbers are allowed."""
     _rate_limit(request)
     return product_ai.advise(body, mock=_want_mock(request))
+
+
+@app.post("/api/product/brief")
+def product_brief(body: product_ai.ProductBriefRequest, request: Request) -> dict:
+    """Meta natural-language shop request -> editable brief (extract-only, never invented)."""
+    _rate_limit(request)
+    return product_ai.parse_product_brief(body, mock=_want_mock(request))
 
 
 @app.post("/api/voice/transcribe")

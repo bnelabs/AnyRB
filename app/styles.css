@@ -445,3 +445,92 @@ h3 {
   .extra-target .field:first-child { grid-column: 1 / -1; }
   .extra-target .remove-target { justify-self: start; }
 }
+
+.meta-trace {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.trace-head { margin: 0 0 6px; color: #444440; font-size: 12px; }
+.trace-row { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.trace-row .trace-state { flex: none; min-width: 54px; font-size: 11px; }
+.trace-row .trace-state.accepted { color: #2c6b3f; }
+.trace-row .trace-state.rejected { color: #8a4b2f; }
+.trace-row .trace-text { min-width: 0; }
+.trace-note { margin: 7px 0 0; color: #8a8781; }
+
+.brief {
+  max-width: 900px;
+  margin-top: 30px;
+}
+
+.brief-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 7px;
+}
+
+.brief-head label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brief-sample {
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #d4d1cb;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.brief-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.brief-row textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 72px;
+  padding: 12px;
+  resize: vertical;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--field);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.brief-row textarea::placeholder { color: #aaa7a0; }
+.brief-row textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); outline: none; }
+
+.brief-submit {
+  flex: none;
+  padding: 4px 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #bdbab3;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.brief-submit:hover { border-bottom-color: var(--ink); }
+.brief-submit:disabled { color: var(--muted); cursor: default; }
+.brief-status { min-height: 1.2em; margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 760px) {
+  .brief-row { flex-direction: column; align-items: stretch; }
+  .brief-submit { align-self: flex-start; }
+}

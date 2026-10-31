@@ -31,6 +31,8 @@ let lastResult = null;
 let lastDecision = null;
 let copyReset = 0;
 
+const SAMPLE_BRIEF = 'I make a 300 mm planter wall, 180 mm wide and 4 mm thick, standing in compression. It must have a load capacity of 1,000–1,400 kg (strength requirement) and a weight of 180–230 g (weight requirement). My April PP batch, 20% HDPE, is 700–850 MPa stiffness and 14–18 MPa strength, density 0.94, with light paper labels. I also have a stiffer bottle stream at 2,000 MPa stiffness and 40 MPa strength.';
+
 
 
 function setValue(id, value) {
@@ -257,6 +259,42 @@ function renderGap(result) {
   }
 }
 
+function renderTrace(result) {
+  const trace = $('meta-trace');
+  const items = result.modelTrace || [];
+  trace.replaceChildren();
+  if (modelState !== 'meta' || !items.length) {
+    trace.hidden = true;
+    return;
+  }
+  trace.hidden = false;
+  const accepted = items.filter((item) => item.pass).length;
+  const rejected = items.length - accepted;
+  const head = document.createElement('p');
+  head.className = 'trace-head';
+  head.textContent = `Muse Spark proposed ${items.length} move${items.length === 1 ? '' : 's'}. The verifier accepted ${accepted} exactly and rejected ${rejected}.`;
+  trace.append(head);
+  for (const item of items.slice(0, 5)) {
+    const row = proposalRow(result.state, { ...item, addedG: 0, range: item.ranges[0] });
+    const line = document.createElement('div');
+    line.className = 'trace-row';
+    const state = document.createElement('span');
+    state.className = `trace-state ${item.pass ? 'accepted' : 'rejected'}`;
+    state.textContent = item.pass ? 'accepted' : 'rejected';
+    const text = document.createElement('span');
+    text.className = 'trace-text';
+    text.textContent = `${row.move} · ${row.size} · ${row.property}`;
+    line.append(state, text);
+    trace.append(line);
+  }
+  const note = document.createElement('p');
+  note.className = 'trace-note';
+  note.textContent = rejected
+    ? 'Rejected moves were handed to the mechanics search; the passing builds above are the verifier’s result.'
+    : 'The exact Muse Spark proposals were checked before the mechanics search.';
+  trace.append(note);
+}
+
 function formatRange(range, unit) {
   const a = Number(range.min).toLocaleString('en-US', { maximumFractionDigits: 1 });
   const b = Number(range.max).toLocaleString('en-US', { maximumFractionDigits: 1 });
@@ -270,18 +308,18 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'loading') {
-    status.textContent = 'Meta is proposing moves…';
+    status.textContent = 'Muse Spark is proposing moves…';
     return;
   }
   if (modelState === 'meta') {
-    status.textContent = `${modelProposals.length} moves from Meta. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.`;
+    status.textContent = `${modelProposals.length} moves from Muse Spark. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.`;
     return;
   }
   if (modelState === 'empty') {
-    status.textContent = 'Meta returned no usable moves. The calculated build stands.';
+    status.textContent = 'Muse Spark returned no usable moves. The calculated build stands.';
     return;
   }
-  status.textContent = 'Meta is unavailable. The calculated build stands.';
+  status.textContent = 'Muse Spark is unavailable. The calculated build stands.';
 }
 
 function render(result) {
@@ -303,12 +341,14 @@ function render(result) {
     $('build-list').replaceChildren();
     $('empty-build').hidden = true;
     $('model-status').textContent = '';
+    $('meta-trace').hidden = true;
     $('live').textContent = decision.headline;
     return;
   }
   fade([$('build-list'), $('gap')], () => {
     renderBuildList(result);
     renderGap(result);
+    renderTrace(result);
     renderStatus(result);
   });
   $('live').textContent = `${decision.headline} ${decision.support}`;
@@ -412,7 +452,7 @@ async function askMeta() {
   const result = lastResult || evaluateBuilds(state, modelProposals);
   const payload = advicePayload(state, result, question);
   const seq = ++adviceSeq;
-  $('ask-status').textContent = 'Meta is thinking…';
+  $('ask-status').textContent = 'Muse Spark is thinking…';
   $('ask-answer').replaceChildren();
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
@@ -428,11 +468,11 @@ async function askMeta() {
     if (!data.available || !data.answer) {
       const reason = data._meta && data._meta.reason_code;
       if (reason === 'grounding_failed') {
-        $('ask-status').textContent = 'Meta’s answer did not stay with the numbers here. The calculated plan still applies.';
+        $('ask-status').textContent = 'Muse Spark’s answer did not stay with the numbers here. The calculated plan still applies.';
       } else if (reason === 'test_instruction') {
-        $('ask-status').textContent = 'Meta’s answer was not a make-or-change action. The calculated plan still applies.';
+        $('ask-status').textContent = 'Muse Spark’s answer was not a make-or-change action. The calculated plan still applies.';
       } else {
-        $('ask-status').textContent = 'Meta is unavailable right now. The calculated plan still applies.';
+        $('ask-status').textContent = 'Muse Spark is unavailable right now. The calculated plan still applies.';
       }
       return;
     }
@@ -451,7 +491,7 @@ async function askMeta() {
     }
   } catch (error) {
     if (seq !== adviceSeq) return;
-    $('ask-status').textContent = 'Meta is unavailable right now. The calculated plan still applies.';
+    $('ask-status').textContent = 'Muse Spark is unavailable right now. The calculated plan still applies.';
   } finally {
     window.clearTimeout(timer);
   }
@@ -559,6 +599,88 @@ bind('other-thickness', 'other.thicknessMm');
 bindSelect('mode', 'mode');
 bindSelect('other-mode', 'other.mode');
 bindSelect('dirt-level', 'plastic.dirtLevel');
+function mapBriefToState(brief) {
+  const source = brief && typeof brief === 'object' ? brief : {};
+  const targets = Array.isArray(source.targets)
+    ? source.targets.filter((target) => target && ['strength', 'stiffness', 'weight'].includes(target.property))
+    : null;
+  const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
+  const steady = source.steady && typeof source.steady === 'object' ? source.steady : {};
+  const next = {
+    ...state,
+    product: source.product || state.product,
+    mode: source.mode || state.mode,
+    spanMm: source.span_mm ?? state.spanMm,
+    widthMm: source.width_mm ?? state.widthMm,
+    thicknessMm: source.thickness_mm ?? state.thicknessMm,
+    plastic: {
+      ...state.plastic,
+      type: plastic.type ?? state.plastic.type,
+      batch: plastic.batch ?? state.plastic.batch,
+      mix: plastic.mix ?? state.plastic.mix,
+      dirt: plastic.dirt ?? state.plastic.dirt,
+      dirtLevel: plastic.dirt_level ?? state.plastic.dirtLevel,
+      eMin: plastic.stiffness_min_mpa ?? state.plastic.eMin,
+      eMax: plastic.stiffness_max_mpa ?? state.plastic.eMax,
+      sMin: plastic.strength_min_mpa ?? state.plastic.sMin,
+      sMax: plastic.strength_max_mpa ?? state.plastic.sMax,
+      density: plastic.density_g_cm3 ?? state.plastic.density,
+    },
+    steady: {
+      ...state.steady,
+      available: typeof steady.available === 'boolean' ? steady.available : state.steady.available,
+      type: steady.type ?? state.steady.type,
+      eMpa: steady.stiffness_mpa ?? state.steady.eMpa,
+      sMpa: steady.strength_mpa ?? state.steady.sMpa,
+    },
+  };
+  if (targets) {
+    next.target = targets[0] || { property: '', min: '', max: '' };
+    next.extraTargets = targets.slice(1);
+  }
+  return normalizeState(next);
+}
+
+async function readBrief() {
+  const field = $('brief');
+  const text = field.value.trim();
+  if (!text) {
+    field.focus();
+    $('brief-status').textContent = 'Describe the part, the properties that must hold, and this delivery.';
+    return;
+  }
+  const button = $('brief-submit');
+  button.disabled = true;
+  $('brief-status').textContent = 'Muse Spark is reading the brief…';
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(`${API_BASE}/api/product/brief`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+    const data = await response.json();
+    if (!response.ok || !data.available || !data.brief) {
+      $('brief-status').textContent = 'Muse Spark could not read that brief. Fill the fields below, or try again.';
+      return;
+    }
+    state = mapBriefToState(data.brief);
+    paint();
+    refresh();
+    field.setSelectionRange(0, 0);
+    field.scrollTop = 0;
+    const targetCount = 1 + state.extraTargets.length;
+    $('brief-status').textContent = `Muse Spark read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill.`;
+  } catch (error) {
+    $('brief-status').textContent = 'Muse Spark is unavailable. Fill the fields below; the local mechanics still works.';
+  } finally {
+    button.disabled = false;
+    window.clearTimeout(timer);
+  }
+}
+
 function applyCase(name) {
   if (name === 'custom') {
     state = normalizeState({
@@ -599,6 +721,21 @@ function addTarget() {
   onFieldChange();
 }
 
+$('brief-submit').addEventListener('click', readBrief);
+$('brief-sample').addEventListener('click', () => {
+  const field = $('brief');
+  field.value = SAMPLE_BRIEF;
+  field.focus();
+  field.setSelectionRange(0, 0);
+  field.scrollTop = 0;
+  readBrief();
+});
+$('brief').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault();
+    readBrief();
+  }
+});
 for (const button of $$('.case')) button.addEventListener('click', () => applyCase(button.dataset.case));
 $('add-target').addEventListener('click', addTarget);
 $('primary').addEventListener('click', onPrimary);

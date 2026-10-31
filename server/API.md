@@ -748,3 +748,100 @@ strings/lists if it cannot answer from the supplied data).
 * Latency: live Spark call ≈ 10–25 s (reasoning model) — use a ≥60 s client timeout and show a
   skeleton; cached repeat ~1 ms. The browser never receives the API key.
 * Errors: 422 malformed body, 413 body > 16 MB, 429 rate limit — all JSON, same shapes as above.
+
+---
+
+# POST /api/product/brief — natural-language shop request → editable brief
+
+Meta as the visible front door: the user writes one sentence/paragraph describing what they want
+to make ("make a compression pallet block, 800 mm span, 120 mm wide, 90 mm thick, from rPETG
+batch LOT-2026-014, strength 38–50 MPa and under 35 kg"). Muse Spark parses it into **editable**
+structured state; the UI shows the fields and asks the user for anything missing.
+
+## Request
+
+```json
+{"text": "make a compression pallet block, 800 mm span, 120 mm wide and 90 mm thick, from rPETG batch LOT-2026-014 with density 1.24 g/cm3 and virgin PETG at 2300 MPa; strength 38-50 MPa and a weight under 35 kg"}
+```
+
+* `text` is required, 1–1200 chars (stripped; blank → 422).
+* Malformed structure (missing/blank/oversize text, wrong types) → HTTP 422 JSON
+  `{ok:false, error:"validation_error", message, detail}`.
+* The text is sent to the model as **untrusted data** inside
+  `<<<USER_BRIEF_TEXT>>> … <<<END_USER_BRIEF>>>`; instructions inside it are never followed.
+
+## Response
+
+```json
+{"brief": {
+   "product": "pallet block",
+   "mode": "compression",
+   "span_mm": 800.0, "width_mm": 120.0, "thickness_mm": 90.0,
+   "targets": [
+     {"property": "strength", "min": 38.0, "max": 50.0},
+     {"property": "weight", "min": null, "max": 35.0}
+   ],
+   "plastic": {"type": "rPETG", "batch": "LOT-2026-014", "mix": null, "dirt": null,
+               "dirt_level": null, "stiffness_min_mpa": null, "stiffness_max_mpa": null,
+               "strength_min_mpa": null, "strength_max_mpa": null,
+               "density_g_cm3": 1.24},
+   "steady": {"available": true, "type": "virgin PETG",
+              "stiffness_mpa": 2300.0, "strength_mpa": null}},
+ "available": true,
+ "_meta": {"kind": "product_brief", "model": "muse-spark-1.3-contributor",
+           "latency_s": 9.8, "cached": false, "fallback": false,
+           "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}},
+ "_model": "muse-spark-1.3-contributor", "_cached": false}
+```
+
+Unavailable / nothing usable (no fallback parse is invented):
+
+```json
+{"brief": {"product": null, "mode": null, "span_mm": null, "width_mm": null,
+           "thickness_mm": null, "targets": [],
+           "plastic": {"type": null, "batch": null, "mix": null, "dirt": null,
+                       "dirt_level": null, "stiffness_min_mpa": null,
+                       "stiffness_max_mpa": null, "strength_min_mpa": null,
+                       "strength_max_mpa": null, "density_g_cm3": null},
+           "steady": {"available": false, "type": null,
+                      "stiffness_mpa": null, "strength_mpa": null}},
+ "available": false,
+ "_meta": {"kind": "product_brief", "model": "fallback", "latency_s": 0.0,
+           "cached": false, "fallback": true, "mock": true,
+           "error": "forced mock mode", "reason_code": "model_unavailable"},
+ "_model": "fallback", "_cached": false}
+```
+
+### Extract-only rules (enforced server-side)
+
+* **Only explicitly stated values survive.** Missing fields are `null` / `""` / `[]` — never
+  defaulted or invented; the UI asks the user instead.
+* **Numeric grounding against the request text:** every extracted number must appear in the text
+  (ordinary rounding and explicit unit conversions are allowed, e.g. `0.9 m → 900 mm`,
+  `2.1 GPa → 2100 MPa`, `1240 kg/m3 → 1.24 g/cm3`). Invented/unstated numbers are removed and
+  listed in `_meta.extraction.dropped_ungrounded_fields` — they are never returned.
+* **Targets:** 0–5 entries; only `strength` / `stiffness` / `weight` survive (unknown properties
+  dropped); `min`/`max` may each be `null` when only one bound was stated; duplicates keep the
+  first; range dashes (`38-50`, `38–50`) are handled as ranges.
+* **Mode:** only `cantilever` / `simple` / `compression` (`simply supported` maps to `simple`);
+  anything else becomes `null`.
+* **Clamps:** `span_mm` 50–5000, `width_mm` 5–500, `thickness_mm` 2–200, target bounds 0–1e6,
+  plastic ranges 0.1–1e6, `density_g_cm3` 0.5–3.0, steady stream values 0.1–1e6 (inverted
+  min/max pairs are ordered).
+* The brief contains **no** result/property outputs beyond the extracted inputs; unknown model
+  keys are discarded by rebuilding from the allow-list.
+* `_meta` follows the usual convention (model, latency, cached, fallback, tokens). Reason codes:
+  `model_unavailable` (Meta unavailable / mock / no key) or `nothing_extracted` (model replied but
+  no explicitly stated field was found). Successful live parses are cached and logged to
+  provenance; empty results carry no invented content, and there is **no local fallback parser**.
+* Prompt contract: extract only what is stated; never infer/complete/add numbers, dimensions,
+  ranges, densities or properties; no results/pass-fail/certification; JSON only; supported modes
+  and target properties are listed in the payload.
+
+## Behaviour / latency
+
+* Model: `muse-spark-1.3-contributor` via `meta_client.spark_json("product_brief", …)`.
+* Mock/offline: `?mock=1` (or `X-AnyRB-Mock: 1`, or `ANYRB_MOCK=1`, or no key) returns the empty
+  `available:false` shape deterministically.
+* Latency: live Spark call ≈ 10–25 s (reasoning model) — use a ≥60 s client timeout and a
+  skeleton; cached repeats ~1 ms. The browser never receives the API key.

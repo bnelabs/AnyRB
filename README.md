@@ -15,16 +15,19 @@ The product, load path, dimensions and every output requirement belong to the us
 default part and no default decision. A short row of examples — bracket, slat, crate, planter, pallet
 block — can fill a starter case, but every field stays editable.
 
-One page, three quiet parts:
+One page, four quiet parts:
 
-1. **The decision.** What to make, at what size, and with what blend or material change. One line of
+1. **The brief.** The shop can type a natural-language request — the part, several property ranges
+   and the delivery. Muse Spark extracts it into editable fields; missing fields stay empty. The
+   sample brief is optional; the product is not preset.
+2. **The decision.** What to make, at what size, and with what blend or material change. One line of
    support. One black button: copy the build or ask Meta when there is no build yet.
-2. **Engineering.** The named product, load path, span and section, and **one or more** property
+3. **Engineering.** The named product, load path, span and section, and **one or more** property
    requirements. The user can add strength, stiffness and weight ranges together; every requirement
    has to hold at once. The mechanics calculates each property range from the plastic swing. A
    proposal appears only when its full set of ranges stays inside every target. The winner uses the
    least added build mass.
-3. **Batch.** The delivery's measured stiffness and strength swing, dirt level and what is in it; what
+4. **Batch.** The delivery's measured stiffness and strength swing, dirt level and what is in it; what
    the chosen build needs for every requirement; the gaps; the declared steadier stream; and a place
    to ask Meta what to do with this batch.
 
@@ -52,6 +55,9 @@ updates in place.
 
 The browser never receives an API key. Meta calls go through the local FastAPI server:
 
+- `POST /api/product/brief` — Muse Spark extracts a product, load path, dimensions, any number of
+  target requirements and a batch description from the shop's natural-language brief. Extract-only:
+  unstated numbers stay empty. Unavailable → no parse, manual fields.
 - `POST /api/product/proposals` — Meta proposes move types and optional parameters for the user's part
   and **all** target properties. The browser scores the mechanics; the server sanitises parameters
   and never returns strength/stiffness/weight results. If Meta is unavailable it returns an empty
@@ -77,14 +83,21 @@ open http://127.0.0.1:8787/
 A direct `file://` open also works for the local mechanics; it calls the same local server at
 `127.0.0.1:8787` for Meta.
 
+For a public judge demo, use [`DEPLOY.md`](DEPLOY.md) (`Dockerfile` + `render.yaml`); the key stays in the
+server environment. The hackathon pack is [`HACKATHON.md`](HACKATHON.md), with a 3-minute script in
+[`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) and submission checklist in [`SUBMISSION.md`](SUBMISSION.md).
+
 ## Build and test
 
 ```bash
 python3 app/build.py               # app sources -> index.html + app/standalone.html
 node app/tests/model.test.mjs      # mechanics, material gap, blend, model-boundary and UI guards
 AI_MOCK=1 python3 -m pytest server/tests -q
-make verify                        # historical engine tests + app tests + server tests
 ```
+
+The working repo also has the historical bracket-engine tests and a `make verify` target. They are not
+part of the judged surface and their validation scores are not claimed for this app. The clean
+submission tree removes them (see [`SUBMISSION_REPO.md`](SUBMISSION_REPO.md)).
 
 The active app has no browser runtime dependencies.
 

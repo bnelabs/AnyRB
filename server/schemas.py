@@ -392,5 +392,6 @@ class ErrorResponse(BaseModel):
 AI_ENDPOINTS = [
     "/api/brief/parse", "/api/lot/parse", "/api/design/plan", "/api/design/review",
     "/api/proof/memo", "/api/voice/transcribe", "/api/image/render", "/api/photo/segment",
+    "/api/product/brief", "/api/product/proposals", "/api/product/advice",
     "/api/health", "/api/provenance",
 ]

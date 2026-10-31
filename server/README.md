@@ -165,20 +165,21 @@ cd AnyRB
 ```bash
 cd AnyRB
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q
-# whole suite: 115 passed, 1 skipped; the product modules add 24 product-proposal and
-# 40 product-advice tests (multi-target coverage included).
+# whole suite: 130 passed, 1 skipped; the product modules add 24 product-proposal,
+# 40 product-advice and 15 product-brief tests (multi-target coverage included).
 
-# product-proposal / advice tests only:
+# product-proposal / advice / brief tests only:
 AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_proposals.py -q   # 24 passed
 AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_advice.py -q      # 40 passed
+AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_brief.py -q       # 15 passed
 # (skipped test = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
 ```
 
 The suite isolates itself before importing the app: `META_API_KEY=""`, a temporary cache and
 provenance file, 1 MB body limit, unlimited test rate. It covers: health + schema, brief/lot/
-plan/review/proof/voice/image/segment/product-proposal and product-advice contracts (including
-that an unavailable model returns empty proposals/advice, never invented content), schema
-validation on every response,
+plan/review/proof/voice/image/segment/product-proposal, product-advice and product-brief
+contracts (including that an unavailable model returns empty proposals/advice/brief, never
+invented content), schema validation on every response,
 deterministic fallbacks, prompt-injection guard (user text is delimited untrusted data and
 cannot change the schema or clamp boundaries), number-grounding acceptance/rejection,
 per-request `?mock=1`, cache hit on the second call (simulated live transport), provenance
@@ -200,6 +201,7 @@ and static-path safety (no `/server/.env`, `.venv`, or traversal).
 | `server/tests/test_server.py` | pytest suite (mock mode) |
 | `server/tests/test_product_proposals.py` | product-proposal endpoint tests (mock mode, no live model calls) |
 | `server/tests/test_product_advice.py` | batch-advice endpoint tests: grounding, no-advice fallback, security (mock mode) |
+| `server/tests/test_product_brief.py` | natural-language brief tests: extract-only, invented-number dropping, clamps, no fallback parse, security (mock mode) |
 | `server/verify_live.py` | live verification + evidence writer |
 | `server/evidence/live_calls.json` | recorded live calls (model, latency, tokens, cache, hashes; no key) |
 | `server/API.md` | frontend contract |
@@ -213,6 +215,7 @@ and static-path safety (no `/server/.env`, `.venv`, or traversal).
 `POST /api/image/render`, `POST /api/photo/segment` (multipart),
 `POST /api/product/proposals` (product view: MOVE parameters only — the browser scores them),
 `POST /api/product/advice` (Batch/Alchemy: grounded practical advice, or no advice at all),
+`POST /api/product/brief` (Meta front door: natural-language shop request → editable brief),
 `GET /api/health`, `GET /api/provenance`, `GET /api/validation`.
 
 See [`API.md`](API.md) for request/response JSON, error shapes, grounding rules and latency
@@ -262,6 +265,21 @@ allowed). Any failure — Meta unavailable, unusable output, certification langu
 instructions, or ungrounded numbers — returns `answer:"", actions:[], available:false` with a
 `_meta.reason_code`; **no fixed advice fallback is invented**. Uses `meta_client.spark_json("product_advice", …)` with the usual cache/provenance.
 See `API.md` for the full contract.
+
+## Product brief endpoint (Meta front door)
+
+`POST /api/product/brief` takes one natural-language shop request (`{text: "make a compression
+pallet block 800 mm span … strength 38-50 MPa and under 35 kg"}`, 1–1200 chars) and uses Muse Spark
+to parse it into **editable structured state**: product, mode, span/width/thickness, 0–5 target
+property requirements (strength/stiffness/weight), plastic batch fields and steady-stream
+availability. It is extract-only: only values explicitly stated in the text are returned
+(`0.9 m → 900 mm` style unit conversions allowed); missing fields stay `null`/`""`/`[]`; unknown
+target properties/modes and invented numbers are dropped (dropped unstated numbers are listed in
+`_meta.extraction.dropped_ungrounded_fields`); dimensions/density/ranges are clamped; allowed
+modes are cantilever/simple/compression. If Meta is unavailable or nothing stated is found, the
+response is `available:false` with a fully empty brief and a reason code — **no local fallback
+parser exists**. Input is treated as untrusted data, the key never reaches the browser, and
+`_meta` carries the usual model/latency/cached/fallback/tokens provenance.
 
 ## Security / honesty notes
 

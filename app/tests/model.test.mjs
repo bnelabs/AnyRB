@@ -211,6 +211,17 @@ test('model output accepts other_product and drops invented result keys', () => 
   assert.ok(!('certification' in normalized[1]));
 });
 
+test('Meta exact proposals are scored and their rejection is visible', () => {
+  const s = bracket({ extraTargets: [] });
+  const result = evaluateBuilds(s, [{ move: 'thickness', thickness_mm: 12.5 }]);
+  assert.ok(result.modelTrace.length >= 1);
+  const trace = result.modelTrace[0];
+  assert.equal(trace.move, 'thickness');
+  assert.equal(trace.part.thicknessMm, 12.5);
+  assert.equal(trace.pass, false);
+  assert.equal(trace.ranges.length, 1);
+});
+
 test('passing builds are sorted by least added build material and winner is first', () => {
   const s = bracket({ extraTargets: [] });
   const result = evaluateBuilds(s, [{ move: 'section', width_mm: 80 }, { move: 'other_product' }]);
@@ -304,9 +315,14 @@ test('app source starts with a product question, cases and multiple requirements
   assert.match(html, /data-case="bracket"/);
   assert.match(html, /data-case="planter"/);
   assert.match(html, /id="add-target"/);
+  assert.match(html, /id="brief"/);
+  assert.match(html, /id="brief-submit"/);
+  assert.match(html, /id="meta-trace"/);
   assert.doesNotMatch(html, /Make the 180 mm shelf bracket, 40 × 15 mm\./);
   assert.doesNotMatch(html, /don't use|do not use/i);
+  assert.match(js, /\/api\/product\/brief/);
   assert.match(js, /\/api\/product\/proposals/);
   assert.match(js, /\/api\/product\/advice/);
+  assert.match(js, /SAMPLE_BRIEF/);
   assert.doesNotMatch(js, /META_API_KEY|api[_-]?key/i);
 });
