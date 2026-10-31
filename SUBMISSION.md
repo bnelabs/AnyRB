@@ -16,6 +16,7 @@ every target.
 - Repo: public URL to be set at submission
 - Live demo: public URL to be set after deployment (see deployment below)
 - 3-minute video: link to be set after recording; script in [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md)
+  Draft reference cut: [`demo/anyrb-demo-draft.mp4`](demo/anyrb-demo-draft.mp4) (synthetic narration; replace before submission)
 - Local run: `.venv/bin/python -m server.app` → http://127.0.0.1:8787
 
 ## What judges should look at

@@ -65,6 +65,7 @@ See [`HACKATHON_WORK.md`](HACKATHON_WORK.md) for the commit/file map. The judged
 - `server/product_ai.py`, `server/app.py` — Meta brief/proposals/advice endpoints and tests
 - `V0_8_SPEC.md` — the current contract
 - `demo/screenshots/v10/` — checked screens
+- `demo/anyrb-demo-draft.mp4` — draft reference cut with synthetic narration; replace with the founder's voice before submitting
 - `SUBMISSION.md`, `HACKATHON.md`, `DEMO_SCRIPT.md` — submission pack
 
 The v0.4–v0.7 bracket engine, validation, reports and research are in the repository as

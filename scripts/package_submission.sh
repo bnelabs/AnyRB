@@ -17,6 +17,8 @@ cp -R "$ROOT/app" "$ROOT/server" "$DEST/"
 mkdir -p "$DEST/data" "$DEST/demo/screenshots"
 cp "$ROOT/data/CASE_STUDY.md" "$DEST/data/CASE_STUDY.md"
 cp -R "$ROOT/demo/screenshots/v9" "$ROOT/demo/screenshots/v10" "$DEST/demo/screenshots/"
+cp "$ROOT/demo/anyrb-demo-draft.mp4" "$DEST/demo/anyrb-demo-draft.mp4"
+cp -R "$ROOT/demo/slides" "$DEST/demo/slides"
 cp "$ROOT/index.html" "$ROOT/README.md" "$ROOT/HACKATHON.md" "$ROOT/HACKATHON_WORK.md" \
    "$ROOT/SUBMISSION.md" "$ROOT/DEMO_SCRIPT.md" "$ROOT/V0_8_SPEC.md" "$ROOT/LICENSE" \
    "$ROOT/DEPLOY.md" "$ROOT/Dockerfile" "$ROOT/render.yaml" "$ROOT/requirements.txt" \

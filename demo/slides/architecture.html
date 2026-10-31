@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyRB — how it works</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #fbfbfa; color: #111;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+    display: grid; place-items: center; padding: 7vw;
+  }
+  .slide { width: min(100%, 1180px); }
+  .kicker { color: #77736b; font-size: 14px; letter-spacing: .01em; }
+  h1 { margin: 18px 0 16px; font-size: clamp(44px, 6vw, 78px); line-height: .98; letter-spacing: -.045em; font-weight: 600; }
+  .lead { color: #57544e; font-size: clamp(18px, 2.2vw, 25px); line-height: 1.45; max-width: 920px; margin: 0 0 42px; }
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border-top: 1px solid #e3e0d9; border-bottom: 1px solid #e3e0d9; }
+  .step { padding: 22px 24px 26px 0; }
+  .step + .step { border-left: 1px solid #e3e0d9; padding-left: 24px; }
+  .num { color: #8a867e; font-size: 13px; }
+  .step h2 { margin: 12px 0 8px; font-size: 20px; letter-spacing: -.02em; font-weight: 600; }
+  .step p { margin: 0; color: #625f58; font-size: 15px; line-height: 1.5; }
+  .foot { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 26px; color: #77736b; font-size: 13px; }
+  .foot b { color: #111; font-weight: 500; }
+  @media (max-width: 760px) {
+    body { padding: 28px 22px; }
+    .flow { grid-template-columns: 1fr; }
+    .step + .step { border-left: 0; border-top: 1px solid #e3e0d9; padding-left: 0; }
+  }
+</style>
+</head>
+<body>
+<main class="slide">
+  <div class="kicker">AnyRB · Meta Global AI Developer Hackathon</div>
+  <h1>Meta reads the ask.<br>The verifier owns the number.</h1>
+  <p class="lead">A shop names a part and every property that must hold. Muse Spark turns the spoken or typed brief into state and proposes engineering and batch moves. A deterministic mechanics verifier scores every move across the full plastic swing. The shop gets a makeable build or a material plan — never a model-authored strength.</p>
+  <div class="flow">
+    <div class="step">
+      <div class="num">01 · front door</div>
+      <h2>Brief → state</h2>
+      <p>Muse Voice Transcribe and Muse Spark extract the product, load path, dimensions, multiple requirements and the measured batch. Missing fields stay empty.</p>
+    </div>
+    <div class="step">
+      <div class="num">02 · propose</div>
+      <h2>Spark proposes</h2>
+      <p>Thickness, section, span, other product, blend. The exact proposed values are scored against every requirement — accepted or rejected on screen.</p>
+    </div>
+    <div class="step">
+      <div class="num">03 · dispose</div>
+      <h2>Mechanics verifies</h2>
+      <p>Full range across the plastic swing, least build mass, material gap, batch recipe. The browser never receives a model-authored property.</p>
+    </div>
+  </div>
+  <div class="foot">
+    <span><b>26</b> app tests</span>
+    <span><b>135</b> server tests</span>
+    <span><b>0</b> model-invented numbers</span>
+    <span><b>1</b> page</span>
+  </div>
+</main>
+</body>
+</html>

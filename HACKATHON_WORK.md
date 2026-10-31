@@ -15,7 +15,7 @@ period (Oct 27–Nov 4). The active submission is the product-first, multi-requi
 | Meta proposals | `server/product_ai.py`, `server/app.py`, `server/tests/test_product_proposals.py` | Optional `targets` array, all requirements simultaneously, sanitised parameter-only output, no fixed fallback. |
 | Meta advice | `server/product_ai.py`, `server/app.py`, `server/tests/test_product_advice.py` | Grounded batch advice, all requirements/gaps addressed, no test/trial/certification instructions, no fixed advice fallback. |
 | Submission | `README.md`, `HACKATHON.md`, `SUBMISSION.md`, `SUBMISSION_REPO.md`, `DEMO_SCRIPT.md`, `DEPLOY.md`, `V0_8_SPEC.md`, `LICENSE`, `Dockerfile`, `render.yaml` | Current story, clean public-submission tree, deployment, 3-minute script, MIT license, new-work boundary. |
-| Demo | `demo/screenshots/v10/` | First-open, sourced rHDPE crate case / verifier trace, and mobile screens. |
+| Demo | `demo/screenshots/v10/`, `demo/anyrb-demo-draft.mp4` | First-open, sourced rHDPE crate case / verifier trace, mobile screens, and a reference screen cut with synthetic narration. |
 
 ## Historical, not part of the judged product
 

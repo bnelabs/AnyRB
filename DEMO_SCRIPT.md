@@ -1,5 +1,7 @@
 # AnyRB — 3-minute demo script
 
+> A **draft screen recording with synthetic narration** is at [`demo/anyrb-demo-draft.mp4`](demo/anyrb-demo-draft.mp4). It is a pacing/reference cut, not the final submission video. Replace the narration with your own voice, and re-record the failure case if you want a full 3:00 cut.
+
 **Track:** Build for Your World · Indie Developer
 **Tone:** quiet, specific, no feature tour. One shop, one batch, one failure, one makeable plan.
 
