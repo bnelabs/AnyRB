@@ -331,3 +331,84 @@ def test_prompt_is_extract_only(product_ai):
     assert payload["allowed_modes"] == ["cantilever", "simple", "compression"]
     assert payload["max_targets"] == 5
     assert payload["untrusted_brief_text"].startswith("<<<USER_BRIEF_TEXT>>>")
+
+
+# ---------------------------------------------------------------------------
+# comma thousands ("1,250 MPa") must ground like 1250 — regression for the demo
+# ---------------------------------------------------------------------------
+def test_comma_thousands_in_plastic_ranges_are_grounded(client, monkeypatch):
+    """Live demo regression: stiffness maximum 1,250 was dropped as ungrounded."""
+    text = ("Make a recycled-PETG slat: stiffness minimum 380 MPa and maximum 1,250 MPa; "
+            "strength minimum 41.6 MPa and maximum 48.4 MPa.")
+    _use_fake_live(monkeypatch, {
+        "product": "slat",
+        "plastic": {"type": "recycled PETG",
+                    "stiffness_min_mpa": 380, "stiffness_max_mpa": 1250,
+                    "strength_min_mpa": 41.6, "strength_max_mpa": 48.4},
+    })
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["available"] is True
+    plastic = data["brief"]["plastic"]
+    assert plastic["stiffness_min_mpa"] == 380.0
+    assert plastic["stiffness_max_mpa"] == 1250.0            # previously dropped
+    assert plastic["strength_min_mpa"] == 41.6
+    assert plastic["strength_max_mpa"] == 48.4
+    assert "extraction" not in data["_meta"]                 # nothing was dropped
+
+
+def test_comma_thousands_ground_targets_and_dimensions(client, monkeypatch):
+    text = ("Make a bench 1,500 mm span, 20 mm thick, strength 1,200-2,000 MPa and a "
+            "weight under 1,000 kg.")
+    _use_fake_live(monkeypatch, {
+        "product": "bench", "span_mm": 1500, "thickness_mm": 20,
+        "targets": [{"property": "strength", "min": 1200, "max": 2000},
+                    {"property": "weight", "min": None, "max": 1000}],
+    })
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    brief = data["brief"]
+    assert data["available"] is True
+    assert brief["span_mm"] == 1500.0 and brief["thickness_mm"] == 20.0
+    assert [(t["property"], t["min"], t["max"]) for t in brief["targets"]] == [
+        ("strength", 1200.0, 2000.0), ("weight", None, 1000.0)]
+    assert "extraction" not in data["_meta"]
+
+
+def test_model_comma_formatted_strings_are_accepted(client, monkeypatch):
+    # numbers may arrive as formatted strings from the model as well
+    text = "Make a slat 1,500 mm span with stiffness up to 1,250 MPa"
+    _use_fake_live(monkeypatch, {
+        "product": "slat",
+        "span_mm": "1,500",
+        "plastic": {"stiffness_max_mpa": "1,250"},
+    })
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["span_mm"] == 1500.0
+    assert data["brief"]["plastic"]["stiffness_max_mpa"] == 1250.0
+
+
+def test_invented_comma_value_is_still_dropped(client, monkeypatch):
+    text = "Make a slat with stiffness maximum 1,250 MPa"
+    _use_fake_live(monkeypatch, {
+        "product": "slat",
+        "plastic": {"stiffness_max_mpa": 1350},                 # invented
+    })
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["plastic"]["stiffness_max_mpa"] is None
+    assert "plastic.stiffness_max_mpa" in data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+
+
+def test_comma_normalizer_and_dash_ranges(product_ai):
+    norm = product_ai.normalize_comma_thousands
+    assert norm("1,250") == "1250"
+    assert norm("12,500") == "12500"
+    assert norm("1,234,567") == "1234567"
+    assert norm("1,250.5") == "1250.5"
+    assert norm("1,250 MPa") == "1250 MPa"
+    assert norm("12,34") == "12,34"            # not a thousands group
+    assert norm("1, 2 and 3") == "1, 2 and 3"  # ordinary prose commas untouched
+    assert norm("LOT-2026-014") == "LOT-2026-014"
+    nums = product_ai._stated_numbers(
+        "stiffness 800-1,250 MPa; strength 38–50 MPa; span 1,500 mm")
+    for value in (800.0, 1250.0, 38.0, 50.0, 1500.0):
+        assert product_ai._number_was_stated(value, nums), value
+    assert not product_ai._number_was_stated(1350.0, nums)

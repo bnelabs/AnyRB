@@ -13,9 +13,10 @@ batch, at what size, and what do I add if the batch alone is not enough** — no
 
 ## What AnyRB does
 
-1. **Ask in shop language.** The brief bar takes a natural-language request such as: *"I make a 300 mm planter wall, 180 mm wide and 4 mm thick, standing in compression. It must have a
-   load capacity of 1,000–1,400 kg (strength requirement) and a weight of 180–230 g (weight requirement).
-   My April PP batch, 20% HDPE, is 700–850 MPa stiffness, 14–18 MPa strength."*
+1. **Ask in shop language.** The brief bar takes a natural-language request such as: *"I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load
+   capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My
+   batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density
+   0.94."*
    Muse Spark parses it into a product, load path, dimensions, any number of target requirements and
    a batch description. The shop can edit every field.
 2. **Engineering.** The mechanics evaluates every candidate against **all** requirements at once. A
@@ -44,12 +45,15 @@ minimum build and any declared blend; it does not invent alternatives or advice.
 
 ## The demo case
 
-The active demo is an **explicit loadable case**, not a default product:
-a 300 mm compression-loaded planter wall with **strength 1,000–1,400 kg** and **weight 180–230 g**.
-The declared batch is a labeled illustrative range, not a measured customer part. The case demonstrates a passing
-176 × 4 mm build, a second case that fails and needs a batch action, and the Ask Meta explanation.
-The user can type any other part and add or remove requirements. Case notes and the honesty
-label are in [`data/CASE_STUDY.md`](data/CASE_STUDY.md).
+The active demo is an **explicit loadable case**, not a default product: a 400 mm simply supported
+crate side, 60 × 15 mm, with **strength 95–115 kg** and **weight 320–360 g**. The batch is a
+**published measured rHDPE range** compiled in the project research: stiffness 380–1,250 MPa (US MRF
+range, R02 via R01), strength 41.6–48.4 MPa (R04), density 0.94 g/cm³ (R12). The mechanics reports
+**95.4–111.0 kg and 338.4 g** for the current build — inside both targets.
+
+The planter case is an illustrative second example. The user can type any other part and add or
+remove requirements. Sources and the honesty label are in
+[`data/CASE_STUDY.md`](data/CASE_STUDY.md).
 
 ## What was built during the hackathon
 
@@ -82,7 +86,7 @@ environment with a spend limit.
 
 - `node app/tests/model.test.mjs` — 26 app tests (mechanics, empty start, multi-requirement selection,
   exact model trace, gap/blend, source guards).
-- `AI_MOCK=1 .venv/bin/python -m pytest server/tests -q` — 130 server tests, 1 skipped (brief/proposals/
+- `AI_MOCK=1 .venv/bin/python -m pytest server/tests -q` — 135 server tests, 1 skipped (brief/proposals/
   advice contracts, extraction grounding, no-key, no-test, no-fallback).
 - Browser smoke: first open makes no API call; sample brief parses (cached in the demo); exact Meta
   proposals show accepted/rejected in the trace; 1440 px and 390 px have no overflow/errors.

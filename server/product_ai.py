@@ -981,10 +981,22 @@ _BRIEF_LIMITS = {
 # explicit unit conversions allowed when checking "was this number stated?"
 _BRIEF_NUMBER_FACTORS = (1.0, 1000.0, 0.001, 100.0, 0.01, 10.0, 0.1)
 
+# "1,250" / "12,500" / "1,234,567" are thousands separators, not list delimiters.
+# Only a comma followed by exactly three digits (then a non-digit/end) is removed, so
+# ordinary prose ("1, 2 and 3") and non-thousands groups ("12,34") are left alone.
+_COMMA_THOUSANDS_RE = re.compile(r"(?<=\d),(?=\d{3}(?:[^\d]|$))")
+
+
+def normalize_comma_thousands(text: Any) -> str:
+    """Remove thousands-separator commas from formatted numbers ("1,250" -> "1250")."""
+    return _COMMA_THOUSANDS_RE.sub("", str(text or ""))
+
 
 def _stated_numbers(text: str) -> list[float]:
-    # range dashes ("38-50 MPa", "900–1200 mm") are separators, not minus signs
-    base = prompts.extract_numbers(normalize_range_separators(text))
+    # range dashes ("38-50 MPa", "900–1200 mm") are separators, not minus signs;
+    # comma thousands ("1,250 MPa") are part of one number, not two.
+    normalized = normalize_comma_thousands(normalize_range_separators(text))
+    base = prompts.extract_numbers(normalized)
     out: list[float] = []
     for n in base:
         for factor in _BRIEF_NUMBER_FACTORS:
@@ -999,10 +1011,21 @@ def _number_was_stated(value: float, stated: list[float]) -> bool:
     return False
 
 
+def _brief_number_value(value: Any) -> Optional[float]:
+    """Numeric value, tolerating comma-formatted strings such as "1,250" or "2,000.5"."""
+    if isinstance(value, str):
+        cleaned = normalize_comma_thousands(value.strip()).strip()
+        try:
+            return float(cleaned)
+        except (TypeError, ValueError):
+            return None
+    return _num(value)
+
+
 def _brief_num(value: Any, limits: tuple[float, float], stated: list[float],
                field: str, dropped: list[str]) -> Optional[float]:
     """Finite + clamped number, but only if it was actually present in the user text."""
-    v = _num(value)
+    v = _brief_number_value(value)
     if v is None:
         return None
     if not _number_was_stated(v, stated):

@@ -1,55 +1,60 @@
-# Demo case — planter wall from a variable PP delivery
+# Demo cases
 
-This is the case the app and the 3-minute video use. It is a **labeled demo case**, not a
-certification or a measured customer part.
+## 1. Sourced measured case — rHDPE crate side
 
-## Part
+This is the primary judge case. The batch range is a **published measured rHDPE range**, not a
+customer-specific part or a certification.
 
-- Product: **planter wall**
-- Load path: **compression**
-- Span: **300 mm**
-- Width: **180 mm**
-- Thickness: **4 mm**
+### Part
+
+- Product: **crate side**
+- Load path: **simply supported**
+- Span: **400 mm**
+- Width: **60 mm**
+- Thickness: **15 mm**
 - Requirements:
-  - **strength** 1,000–1,400 kg (load capacity)
-  - **weight** 180–230 g
+  - **strength** 95–115 kg (load capacity)
+  - **weight** 320–360 g
 
-## Delivery (example range)
+### Sourced batch
 
-- recycled polypropylene, “April delivery”, 20% HDPE, light paper labels
-- stiffness **700–850 MPa**
-- strength **14–18 MPa**
-- density **0.94 g/cm³**
-- declared steadier stream: **2,000 MPa stiffness, 40 MPa strength**
+- type: **rHDPE**, US mixed rigid MRF range / literature case
+- stiffness **380–1,250 MPa** — R02 via R01 (Cecon 2023 / Georgiou 2025)
+- strength **41.6–48.4 MPa** — R04 (Eriksen 2019)
+- density **0.94 g/cm³** — R12 / standard rHDPE range
 
-## Result
+### Result
 
-The mechanics evaluates the full swing. The local minimum is **176 × 4 mm**:
+The mechanics evaluates the full stiffness/strength swing and reports:
 
-- capacity **≈1,005–1,292 kg**
-- weight **≈198.5 g**
+- capacity **≈95.4–111.0 kg**
+- weight **≈338.4 g**
 - both requirements inside the target.
 
-The current 180 × 4 mm still passes at 1,028–1,322 kg / 203 g; the app prefers the narrower section
-because it uses less build mass.
+This is the case the sample brief and the 3-minute video use. The app requires no cover sheet: the
+source is named in the brief and the case notes.
 
-## Failure case for the demo
+## 2. Illustrative second case — planter wall
 
-Change the batch low end or the target so the planter cannot be made by geometry alone. The app should
-show the requirement that fails, the material range needed, and the actions:
+- Product: planter wall, compression, 300 × 180 × 4 mm
+- Target: strength 1,000–1,400 kg, weight 180–230 g
+- Delivery: 700–850 MPa stiffness, 14–18 MPa strength, density 0.94 — **illustrative**, not a
+  measured customer batch.
+- Result: 176 × 4 mm, 1,005–1,292 kg, 198.5 g.
 
-- add the declared steadier stream and re-check the blend
-- sort/wash/dry to lift the low end
-- change the section or span
-- route the delivery to another product
-- split the delivery
+The planter case exists to show a second product and multi-requirement switching. It is labeled
+illustrative in this file and should be replaced with a shop's measured range for a production claim.
 
-It must not say “don’t use this delivery.”
+## Failure case for the video
+
+Change the batch low end or a target so the crate/planter cannot be made by geometry alone. The app
+shows the failing requirement, the material range needed, and the actions: add a steadier stream,
+sort/wash/dry, change section or span, route to another product, or split the delivery. It must not say
+“don’t use this delivery.”
 
 ## Honesty
 
-The ranges are illustrative, chosen to exercise the workflow. They are within the published
-recyclate-variability territory in `research/01-recyclate-variability.md` (rPP modulus mean ≈1,100 MPa
-CV ≈18%; strength ≈27 MPa CV ≈13%; density 0.94; spec-compliant lots still swing in filler and
-elongation). For a production claim, replace them with the shop's measured batch. The app accepts the
-shop's own ranges; it does not certify a blend or a part.
+The rHDPE ranges are published measurements, not a guarantee about the next delivery. The planter
+batch is illustrative. The app accepts the shop's own measured ranges; it does not certify a blend or
+a part. Sources: R02 via R01 (Cecon 2023 / Georgiou 2025) for the 380–1,250 MPa MRF range; R04
+(Eriksen 2019) for 41.6–48.4 MPa strength; R12 (Jones 2023) for the HDPE density range.

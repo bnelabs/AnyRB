@@ -818,8 +818,12 @@ Unavailable / nothing usable (no fallback parse is invented):
   defaulted or invented; the UI asks the user instead.
 * **Numeric grounding against the request text:** every extracted number must appear in the text
   (ordinary rounding and explicit unit conversions are allowed, e.g. `0.9 m → 900 mm`,
-  `2.1 GPa → 2100 MPa`, `1240 kg/m3 → 1.24 g/cm3`). Invented/unstated numbers are removed and
-  listed in `_meta.extraction.dropped_ungrounded_fields` — they are never returned.
+  `2.1 GPa → 2100 MPa`, `1240 kg/m3 → 1.24 g/cm3`). **Comma thousands and range dashes are
+  normalized on both sides before comparison:** `1,250 MPa` grounds `1250` (and `2,000`,
+  `1,000`, `1,234,567`), `800-1,250 MPa` grounds `800` and `1250`, and extracted values may also
+  arrive as formatted strings (`"1,250"`). Values that are genuinely not stated (`1,350` when the
+  text says `1,250`) are still removed. Invented/unstated numbers are removed and listed in
+  `_meta.extraction.dropped_ungrounded_fields` — they are never returned.
 * **Targets:** 0–5 entries; only `strength` / `stiffness` / `weight` survive (unknown properties
   dropped); `min`/`max` may each be `null` when only one bound was stated; duplicates keep the
   first; range dashes (`38-50`, `38–50`) are handled as ranges.

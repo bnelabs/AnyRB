@@ -165,13 +165,13 @@ cd AnyRB
 ```bash
 cd AnyRB
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q
-# whole suite: 130 passed, 1 skipped; the product modules add 24 product-proposal,
-# 40 product-advice and 15 product-brief tests (multi-target coverage included).
+# whole suite: 135 passed, 1 skipped; the product modules add 24 product-proposal,
+# 40 product-advice and 20 product-brief tests (multi-target/comma-thousands coverage included).
 
 # product-proposal / advice / brief tests only:
 AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_proposals.py -q   # 24 passed
 AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_advice.py -q      # 40 passed
-AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_brief.py -q       # 15 passed
+AI_MOCK=1 .venv/bin/python -m pytest server/tests/test_product_brief.py -q       # 20 passed
 # (skipped test = optional live smoke test, opt in with ANYRB_LIVE_TEST=1)
 ```
 
@@ -273,7 +273,8 @@ pallet block 800 mm span … strength 38-50 MPa and under 35 kg"}`, 1–1200 cha
 to parse it into **editable structured state**: product, mode, span/width/thickness, 0–5 target
 property requirements (strength/stiffness/weight), plastic batch fields and steady-stream
 availability. It is extract-only: only values explicitly stated in the text are returned
-(`0.9 m → 900 mm` style unit conversions allowed); missing fields stay `null`/`""`/`[]`; unknown
+(`0.9 m → 900 mm` style unit conversions allowed, and formatted numbers normalized:
+`1,250 MPa` grounds `1250`; range dashes handled); missing fields stay `null`/`""`/`[]`; unknown
 target properties/modes and invented numbers are dropped (dropped unstated numbers are listed in
 `_meta.extraction.dropped_ungrounded_fields`); dimensions/density/ranges are clamped; allowed
 modes are cantilever/simple/compression. If Meta is unavailable or nothing stated is found, the

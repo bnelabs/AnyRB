@@ -24,9 +24,9 @@ an advanced mode.
 
 ### The brief (Meta front door)
 
-A text brief can be read by Muse Spark: *“I make a 300 mm planter wall, 180 mm wide and 4 mm thick,
-standing in compression. It must have a load capacity of 1,000–1,400 kg and a weight of 180–230 g. My
-April PP batch, 20% HDPE, is 700–850 MPa stiffness and 14–18 MPa strength…”*.
+A text brief can be read by Muse Spark: *“I make a 400 mm crate side, 60 mm wide and 15 mm thick,
+simply supported. It must have a load capacity of 95–115 kg and a weight of 320–360 g. My batch is a
+published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density 0.94.”*
 
 `POST /api/product/brief` is **extract-only**: every extracted number must be stated in the text, or it
 is dropped; missing fields stay empty. The UI maps the returned product, dimensions, targets and batch
@@ -111,6 +111,4 @@ range, added material and move. It is the shop's build ticket.
   minimum build, blend rule, exact model trace, model move search, no fixed-fallback, no rejection
   copy, advice payload shape, source guards. 26 tests.
 - `AI_MOCK=1 .venv/bin/python -m pytest server/tests -q` — brief/proposals/advice contracts, grounding,
-  no-key, no-test, no-fallback. 130 tests, 1 skipped.
-- `AI_MOCK=1 python3 -m pytest server/tests -q` — server contract, mock/empty behavior, grounding,
-  test-instruction guard, key safety.
+  no-key, no-test, no-fallback. 135 tests, 1 skipped.

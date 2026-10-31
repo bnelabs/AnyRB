@@ -31,7 +31,7 @@ let lastResult = null;
 let lastDecision = null;
 let copyReset = 0;
 
-const SAMPLE_BRIEF = 'I make a 300 mm planter wall, 180 mm wide and 4 mm thick, standing in compression. It must have a load capacity of 1,000–1,400 kg (strength requirement) and a weight of 180–230 g (weight requirement). My April PP batch, 20% HDPE, is 700–850 MPa stiffness and 14–18 MPa strength, density 0.94, with light paper labels. I also have a stiffer bottle stream at 2,000 MPa stiffness and 40 MPa strength.';
+const SAMPLE_BRIEF = 'I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density 0.94.';
 
 
 
@@ -150,11 +150,11 @@ function paint() {
   setValue('plastic-mix', state.plastic.mix);
   $('dirt-level').value = state.plastic.dirtLevel;
   setValue('plastic-dirt', state.plastic.dirt);
-  setValue('e-min', state.plastic.eMin);
-  setValue('e-max', state.plastic.eMax);
-  setValue('s-min', state.plastic.sMin);
-  setValue('s-max', state.plastic.sMax);
-  setValue('density', state.plastic.density);
+  setValue('e-min', state.plastic.eMin || '');
+  setValue('e-max', state.plastic.eMax || '');
+  setValue('s-min', state.plastic.sMin || '');
+  setValue('s-max', state.plastic.sMax || '');
+  setValue('density', state.plastic.density || '');
   $('steady-available').checked = state.steady.available;
   setValue('steady-type', state.steady.type);
   setValue('steady-e', state.steady.eMpa || '');
@@ -603,42 +603,38 @@ function mapBriefToState(brief) {
   const source = brief && typeof brief === 'object' ? brief : {};
   const targets = Array.isArray(source.targets)
     ? source.targets.filter((target) => target && ['strength', 'stiffness', 'weight'].includes(target.property))
-    : null;
+    : [];
   const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
   const steady = source.steady && typeof source.steady === 'object' ? source.steady : {};
-  const next = {
-    ...state,
-    product: source.product || state.product,
-    mode: source.mode || state.mode,
-    spanMm: source.span_mm ?? state.spanMm,
-    widthMm: source.width_mm ?? state.widthMm,
-    thicknessMm: source.thickness_mm ?? state.thicknessMm,
+  return normalizeState({
+    blank: true,
+    product: source.product || '',
+    mode: source.mode || '',
+    spanMm: source.span_mm ?? 0,
+    widthMm: source.width_mm ?? 0,
+    thicknessMm: source.thickness_mm ?? 0,
+    target: targets[0] || { property: '', min: '', max: '' },
+    extraTargets: targets.slice(1),
     plastic: {
-      ...state.plastic,
-      type: plastic.type ?? state.plastic.type,
-      batch: plastic.batch ?? state.plastic.batch,
-      mix: plastic.mix ?? state.plastic.mix,
-      dirt: plastic.dirt ?? state.plastic.dirt,
-      dirtLevel: plastic.dirt_level ?? state.plastic.dirtLevel,
-      eMin: plastic.stiffness_min_mpa ?? state.plastic.eMin,
-      eMax: plastic.stiffness_max_mpa ?? state.plastic.eMax,
-      sMin: plastic.strength_min_mpa ?? state.plastic.sMin,
-      sMax: plastic.strength_max_mpa ?? state.plastic.sMax,
-      density: plastic.density_g_cm3 ?? state.plastic.density,
+      type: plastic.type ?? '',
+      batch: plastic.batch ?? '',
+      mix: plastic.mix ?? '',
+      dirt: plastic.dirt ?? '',
+      dirtLevel: plastic.dirt_level ?? 'none',
+      eMin: plastic.stiffness_min_mpa ?? 0,
+      eMax: plastic.stiffness_max_mpa ?? 0,
+      sMin: plastic.strength_min_mpa ?? 0,
+      sMax: plastic.strength_max_mpa ?? 0,
+      density: plastic.density_g_cm3 ?? 0,
     },
     steady: {
-      ...state.steady,
-      available: typeof steady.available === 'boolean' ? steady.available : state.steady.available,
-      type: steady.type ?? state.steady.type,
-      eMpa: steady.stiffness_mpa ?? state.steady.eMpa,
-      sMpa: steady.strength_mpa ?? state.steady.sMpa,
+      available: typeof steady.available === 'boolean' ? steady.available : false,
+      type: steady.type ?? '',
+      eMpa: steady.stiffness_mpa ?? 0,
+      sMpa: steady.strength_mpa ?? 0,
     },
-  };
-  if (targets) {
-    next.target = targets[0] || { property: '', min: '', max: '' };
-    next.extraTargets = targets.slice(1);
-  }
-  return normalizeState(next);
+    other: state.other,
+  });
 }
 
 async function readBrief() {
@@ -706,6 +702,8 @@ function applyCase(name) {
     thicknessMm: preset.thicknessMm,
     target: { ...preset.target },
     extraTargets: preset.extraTargets.map((target) => ({ ...target })),
+    plastic: preset.plastic ? { ...state.plastic, ...preset.plastic } : { ...DEFAULT_STATE.plastic },
+    steady: preset.steady ? { ...state.steady, ...preset.steady } : { ...DEFAULT_STATE.steady },
   });
   paint();
   refresh();

@@ -20,7 +20,7 @@ every target.
 
 ## What judges should look at
 
-1. First open: no default product. Start from the **planter** example or type a part.
+1. First open: no default product. Start from the **crate** example or type a part.
 2. Add a second requirement (weight + strength) and show the build must satisfy both.
 3. Show the Batch gap and the Ask Meta answer for a failing delivery.
 4. Show the proposal→verifier trace: Meta proposes; verifier rejects or accepts; mechanics finds the
@@ -35,8 +35,8 @@ Do not commit `server/.env`.
 
 ## What is real vs example
 
-- The planter case and batch ranges are a labeled demo case; replace with a shop's measured ranges for
-  production use.
+- The crate case uses a published measured rHDPE range; replace it with the shop's measured ranges for
+  production use. The planter example is illustrative.
 - The mechanics is a rectangular-section model, not a general 3-D solver.
 - The model never authors a strength/stiffness/weight result; the verifier does.
 

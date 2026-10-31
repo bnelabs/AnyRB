@@ -26,8 +26,14 @@ export const CASE_PRESETS = {
   },
   crate: {
     product: 'crate side', mode: 'simple', spanMm: 400, widthMm: 60, thicknessMm: 15,
-    target: { property: 'strength', min: 30, max: 42 },
-    extraTargets: [{ property: 'weight', min: 300, max: 380 }],
+    target: { property: 'strength', min: 95, max: 115 },
+    extraTargets: [{ property: 'weight', min: 320, max: 360 }],
+    plastic: {
+      type: 'published measured rHDPE', batch: 'US MRF / literature case',
+      mix: '', dirt: '', dirtLevel: 'none',
+      eMin: 380, eMax: 1250, sMin: 41.6, sMax: 48.4, density: 0.94,
+    },
+    steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
   },
   planter: {
     product: 'planter wall', mode: 'compression', spanMm: 300, widthMm: 180, thicknessMm: 4,
@@ -154,15 +160,25 @@ export function normalizeState(raw = {}) {
   const rawExtraTargets = Array.isArray(source.extraTargets) ? source.extraTargets : [];
   const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
   const other = source.other && typeof source.other === 'object' ? source.other : {};
-  const primaryTarget = normalizeTarget(target, DEFAULT_STATE.target);
+  const blank = source.blank === true;
+  const targetFallback = blank ? { property: '', min: '', max: '' } : DEFAULT_STATE.target;
+  const primaryTarget = normalizeTarget(target, targetFallback);
   const extraTargets = rawExtraTargets
     .filter((item) => item && typeof item === 'object' && PROPERTY_KEYS.has(item.property))
     .slice(0, 5)
-    .map((item) => normalizeTarget(item, DEFAULT_STATE.target));
-  const eMin = clamp(num(plastic.eMin ?? plastic.stiffness_min_mpa, DEFAULT_STATE.plastic.eMin), 1, 200000);
-  const eMax = clamp(num(plastic.eMax ?? plastic.stiffness_max_mpa, DEFAULT_STATE.plastic.eMax), eMin, 200000);
-  const sMin = clamp(num(plastic.sMin ?? plastic.strength_min_mpa, DEFAULT_STATE.plastic.sMin), 0.1, 5000);
-  const sMax = clamp(num(plastic.sMax ?? plastic.strength_max_mpa, DEFAULT_STATE.plastic.sMax), sMin, 5000);
+    .map((item) => normalizeTarget(item, targetFallback));
+  const eMin = blank
+    ? Math.max(0, num(plastic.eMin ?? plastic.stiffness_min_mpa, 0))
+    : clamp(num(plastic.eMin ?? plastic.stiffness_min_mpa, DEFAULT_STATE.plastic.eMin), 1, 200000);
+  const eMax = blank
+    ? Math.max(eMin, num(plastic.eMax ?? plastic.stiffness_max_mpa, 0))
+    : clamp(num(plastic.eMax ?? plastic.stiffness_max_mpa, DEFAULT_STATE.plastic.eMax), eMin, 200000);
+  const sMin = blank
+    ? Math.max(0, num(plastic.sMin ?? plastic.strength_min_mpa, 0))
+    : clamp(num(plastic.sMin ?? plastic.strength_min_mpa, DEFAULT_STATE.plastic.sMin), 0.1, 5000);
+  const sMax = blank
+    ? Math.max(sMin, num(plastic.sMax ?? plastic.strength_max_mpa, 0))
+    : clamp(num(plastic.sMax ?? plastic.strength_max_mpa, DEFAULT_STATE.plastic.sMax), sMin, 5000);
   const product = clean(source.product, 120);
   const span = num(source.spanMm, 0);
   const width = num(source.widthMm, 0);
@@ -176,16 +192,18 @@ export function normalizeState(raw = {}) {
     target: primaryTarget,
     extraTargets,
     plastic: {
-      type: clean(plastic.type, 160) || DEFAULT_STATE.plastic.type,
-      batch: clean(plastic.batch, 120) || DEFAULT_STATE.plastic.batch,
+      type: blank ? clean(plastic.type, 160) : (clean(plastic.type, 160) || DEFAULT_STATE.plastic.type),
+      batch: blank ? clean(plastic.batch, 120) : (clean(plastic.batch, 120) || DEFAULT_STATE.plastic.batch),
       mix: clean(plastic.mix, 160),
       dirt: clean(plastic.dirt, 160),
-      dirtLevel: ['none', 'light', 'moderate', 'heavy'].includes(plastic.dirtLevel) ? plastic.dirtLevel : 'light',
+      dirtLevel: ['none', 'light', 'moderate', 'heavy'].includes(plastic.dirtLevel)
+        ? plastic.dirtLevel
+        : (blank ? 'none' : 'light'),
       eMin,
       eMax,
       sMin,
       sMax,
-      density: clamp(num(plastic.density, DEFAULT_STATE.plastic.density), 0.05, 5),
+      density: blank ? Math.max(0, num(plastic.density, 0)) : clamp(num(plastic.density, DEFAULT_STATE.plastic.density), 0.05, 5),
     },
     steady: {
       available: source.steady?.available === true,
