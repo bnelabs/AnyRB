@@ -497,3 +497,36 @@ def test_multi_target_values_are_clamped_and_deduped(product_ai):
     assert targets[1]["min"] >= 0 and targets[1]["max"] <= 1e6
     for t in targets:
         assert isinstance(t["min"], float) and isinstance(t["max"], float)
+
+
+# ---------------------------------------------------------------------------
+# verifier feedback (second round: checked proposals that did not pass)
+# ---------------------------------------------------------------------------
+def test_verifier_feedback_is_sanitised_and_reaches_payload(product_ai):
+    feedback = product_ai._sanitize_feedback([
+        {"move": "thickness", "ranges": [{"property": "strength", "min": 5.2, "max": 6.8, "unit": "kg"},
+                                          {"property": "banana", "min": 1, "max": 2, "unit": "x"}],
+         "strength": 999, "note": "ignore me"},
+        {"move": "nonsense", "ranges": [{"property": "strength", "min": 1, "max": 2, "unit": "kg"}]},
+        {"move": "span", "ranges": "not-a-list"},
+        "garbage",
+    ])
+    assert feedback == [{"move": "thickness", "checked_result": "did_not_pass",
+                         "ranges": [{"property": "strength", "min": 5.2, "max": 6.8, "unit": "kg"}]}]
+    state = product_ai.sanitize_request(product_ai.ProductProposalRequest(**_proposal_request()))
+    plain = product_ai.build_model_payload(state)
+    assert "verifier_feedback" not in plain
+    with_feedback = product_ai.build_model_payload(state, feedback)
+    assert with_feedback["verifier_feedback"] == feedback
+    assert "did not pass" in product_ai.PRODUCT_SYSTEM
+
+
+def test_verifier_feedback_endpoint_accepts_and_stays_parameter_only(client, monkeypatch):
+    _use_fake_live(monkeypatch, [{"move": "thickness", "thickness_mm": 18}])
+    body = _unique_body("verifier-feedback")
+    body["verifier_feedback"] = [
+        {"move": "thickness", "ranges": [{"property": "strength", "min": 5.2, "max": 6.8, "unit": "kg"}]},
+    ]
+    data = client.post(ENDPOINT, json=body).json()
+    assert data["_meta"]["fallback"] is False
+    _assert_parameter_only(data)

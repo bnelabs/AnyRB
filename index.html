@@ -563,6 +563,131 @@ h3 {
   .brief-voice { align-self: flex-start; }
 }
 
+/* --- Decision bar: the answer stays on screen while you edit below --- */
+.decision-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 1240px);
+  margin: 0 auto;
+  padding: 12px 40px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.decision-bar[hidden] { display: none; }
+.decision-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
+.decision-dot.fail { background: #a34d28; }
+.decision-bar-text {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+}
+.decision-bar-action {
+  flex: none;
+  border: 0; border-radius: 999px;
+  background: var(--ink); color: #fff;
+  height: 36px; padding: 0 16px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.decision-bar-action:hover { opacity: 0.82; }
+
+/* --- Readiness steps --- */
+.steps {
+  display: flex; flex-wrap: wrap; gap: 10px 28px;
+  list-style: none; margin: 26px 0 0; padding: 0;
+  max-width: 900px;
+}
+.step { display: flex; align-items: baseline; gap: 9px; color: var(--muted); font-size: 13.5px; }
+.step-num {
+  display: inline-grid; place-items: center;
+  width: 20px; height: 20px; flex: none;
+  border: 1px solid var(--field); border-radius: 50%;
+  font-size: 11.5px; color: var(--muted);
+  transform: translateY(4px);
+}
+.step strong { color: inherit; font-weight: 600; }
+.step.is-done { color: var(--ink); }
+.step.is-done .step-num { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+/* --- Range view: what you need vs what the build gives --- */
+.range-view { margin-top: 16px; }
+.range-view:empty { display: none; }
+.rv-title { margin: 0 0 10px; font-size: 13px; font-weight: 600; letter-spacing: -0.005em; }
+.rv-row { margin-bottom: 16px; }
+.rv-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 7px; }
+.rv-name { font-size: 13.5px; color: #2c2c29; }
+.rv-margin { font-size: 12.5px; color: var(--muted); }
+.rv-margin.fail { color: #8a4b2f; font-weight: 500; }
+.rv-track { position: relative; height: 14px; background: #efede8; border-radius: 3px; }
+.rv-target { position: absolute; top: 0; bottom: 0; background: #cfccc0; border-radius: 3px; }
+.rv-bar { position: absolute; top: 3px; bottom: 3px; background: var(--ink); border-radius: 2px; min-width: 3px; }
+.rv-bar.fail { background: #a34d28; }
+.rv-scale { display: flex; justify-content: space-between; margin-top: 4px; color: #98958d; font-size: 11px; }
+.rv-legend { margin: 2px 0 4px; color: var(--muted); font-size: 12px; }
+
+/* --- Run size --- */
+.run-row { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 18px; margin-top: 14px; }
+.run-field { flex: 0 1 190px; margin-bottom: 0; }
+.run-note { flex: 1 1 220px; margin: 0; padding-bottom: 10px; color: #3f3f3b; font-size: 13.5px; line-height: 1.45; }
+.run-note:empty { display: none; }
+
+/* --- Brief actions: the way in is a button, not a footnote --- */
+.brief-submit {
+  height: 44px; padding: 0 18px;
+  border-radius: 999px; background: var(--ink); color: #fff;
+  border-bottom: 0; font-size: 14px; font-weight: 500;
+  align-self: flex-end;
+}
+.brief-submit:hover { opacity: 0.82; border-bottom: 0; }
+.brief-submit:disabled { opacity: 0.35; color: #fff; }
+.brief-voice {
+  height: 44px; padding: 0 16px;
+  border-radius: 999px; background: transparent; color: var(--ink);
+  border: 1px solid var(--field); font-size: 14px;
+  align-self: flex-end;
+}
+.brief-voice:hover { border-color: var(--ink); }
+.brief-voice.is-recording { color: #8a2f2f; border-color: #8a2f2f; }
+.brief-sample {
+  padding: 5px 12px;
+  border: 1px solid var(--field); border-radius: 999px;
+  color: var(--ink); font-size: 12.5px;
+}
+.brief-sample:hover { border-color: var(--ink); }
+
+/* --- Examples as choices --- */
+.case {
+  padding: 7px 14px;
+  border: 1px solid var(--field); border-radius: 999px;
+  font-size: 13.5px;
+}
+.case:hover { border-color: var(--ink); }
+
+/* Trace wording is longer now ("does not pass") */
+.trace-row .trace-state { min-width: 82px; }
+
+@media (max-width: 760px) {
+  .decision-bar { padding: 10px 20px; }
+  .decision-bar-text { font-size: 14px; }
+  .brief-submit, .brief-voice { align-self: stretch; }
+  .steps { gap: 8px 18px; }
+}
+
+/* --- Batch on-ramp --- */
+.batch-note { margin: 0 0 14px; color: #4d4b46; font-size: 13px; line-height: 1.5; }
+.batch-note[hidden] { display: none; }
+.measured-group { margin: 4px 0 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.measured-group summary { cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--ink); padding: 4px 0 8px; }
+.measured-note { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; line-height: 1.5; max-width: 560px; }
+.gap-note { color: var(--muted); font-size: 12.5px; }
+.see-details { display: inline-block; margin: 16px 0 0 14px; color: var(--ink); font-size: 14px; text-decoration: none; border-bottom: 1px solid #bdbab3; padding-bottom: 2px; vertical-align: middle; }
+.see-details:hover { border-bottom-color: var(--ink); }
+.see-details[hidden] { display: none; }
+.brief-status.is-working { color: var(--ink); font-size: 13.5px; font-weight: 500; }
+
 </style>
 </head>
 <body>
@@ -570,6 +695,12 @@ h3 {
   <a class="brand" href="#main" aria-label="AnyRB">AnyRB</a>
   <span class="top-note">From this delivery to a build that holds</span>
 </header>
+
+<div class="decision-bar" id="decision-bar" hidden>
+  <span class="decision-dot" id="decision-dot" aria-hidden="true"></span>
+  <span class="decision-bar-text" id="decision-bar-text"></span>
+  <button class="decision-bar-action" id="decision-bar-action" type="button"></button>
+</div>
 
 <main class="page" id="main">
   <section class="decision" aria-labelledby="decision">
@@ -581,12 +712,17 @@ h3 {
         <button class="brief-sample" id="brief-sample" type="button">Use a sample brief</button>
       </div>
       <div class="brief-row">
-        <textarea id="brief" rows="2" placeholder="e.g. I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load capacity of 95–115 kg and a weight of 320–360 g. My batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density 0.94."></textarea>
+        <textarea id="brief" rows="2" placeholder="The part, what it must hold, and what this delivery measures. Type it, speak it, or use the sample brief."></textarea>
         <button class="brief-submit" id="brief-submit" type="button">Read with Meta</button>
         <button class="brief-voice" id="brief-voice" type="button">Speak</button>
       </div>
       <p class="brief-status" id="brief-status"></p>
     </div>
+    <ol class="steps" id="steps" aria-label="What the decision needs">
+      <li class="step" data-step="part"><span class="step-num">1</span><span class="step-text"><strong>The part</strong> — name it and size it</span></li>
+      <li class="step" data-step="target"><span class="step-num">2</span><span class="step-text"><strong>What must hold</strong> — one property or several</span></li>
+      <li class="step" data-step="batch"><span class="step-num">3</span><span class="step-text"><strong>This delivery</strong> — its measured low and high</span></li>
+    </ol>
     <div class="cases" id="cases" aria-label="Start with a part">
       <span class="cases-label">Examples</span>
       <button class="case" type="button" data-case="bracket">Bracket</button>
@@ -597,12 +733,13 @@ h3 {
       <button class="case" type="button" data-case="custom">Something else</button>
     </div>
     <button class="pill" id="primary" type="button" hidden>Copy build</button>
+    <a class="see-details" id="see-details" href="#builds-panel" hidden>See the build and how its ranges sit ↓</a>
   </section>
 
   <div class="work">
     <section class="engineering" aria-labelledby="engineering-title">
       <h2 id="engineering-title">Engineering</h2>
-      <p class="section-note">Change the build, not the plastic.</p>
+      <p class="section-note">Change the build, not the plastic. Works for a solid rectangular section on the three load paths below. The ranges you enter are checked as entered — no extra safety factor is added.</p>
       <div class="fields">
         <div class="field">
           <label for="product">Product</label>
@@ -634,6 +771,11 @@ h3 {
           <h3>Builds that pass</h3>
           <p class="model-status" id="model-status">Scoring this delivery…</p>
         </div>
+        <div class="range-view" id="range-view"></div>
+        <div class="run-row">
+          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
+          <p class="run-note" id="run-note"></p>
+        </div>
         <ol class="build-list" id="build-list"></ol>
         <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
         <div class="meta-trace" id="meta-trace" hidden></div>
@@ -655,8 +797,13 @@ h3 {
 
     <section class="batch" aria-labelledby="batch-title">
       <h2 id="batch-title">Batch</h2>
-      <p class="section-note">Measured swing sets the build. Dirt tells us what to fix.</p>
+      <p class="section-note">Every delivery of recycled plastic bends and breaks a little differently. Start from a published range for the kind of plastic — or use your supplier's numbers if you have them. Nobody is expected to know these by heart.</p>
       <div class="fields">
+        <div class="field">
+          <label for="batch-source">What do you know about this delivery?</label>
+          <select id="batch-source"></select>
+        </div>
+        <p class="batch-note" id="batch-note" hidden></p>
         <div class="field"><label for="plastic-type">Plastic type</label><input id="plastic-type" type="text" spellcheck="false" placeholder="recycled polypropylene"></div>
         <div class="grid2">
           <div class="field"><label for="plastic-batch">Batch</label><input id="plastic-batch" type="text" spellcheck="false" placeholder="April delivery"></div>
@@ -666,19 +813,23 @@ h3 {
           <div class="field"><label for="dirt-level">Dirt level</label><select id="dirt-level"></select></div>
           <div class="field"><label for="plastic-dirt">What is in it</label><input id="plastic-dirt" type="text" spellcheck="false" placeholder="paper labels"></div>
         </div>
-        <div class="grid2">
-          <div class="field"><label for="e-min">Stiffness low (MPa)</label><input id="e-min" inputmode="decimal" type="text"></div>
-          <div class="field"><label for="e-max">Stiffness high (MPa)</label><input id="e-max" inputmode="decimal" type="text"></div>
-        </div>
-        <div class="grid2">
-          <div class="field"><label for="s-min">Strength low (MPa)</label><input id="s-min" inputmode="decimal" type="text"></div>
-          <div class="field"><label for="s-max">Strength high (MPa)</label><input id="s-max" inputmode="decimal" type="text"></div>
-        </div>
-        <div class="grid2">
-          <div class="field"><label for="density">Density (g/cm³)</label><input id="density" inputmode="decimal" type="text"></div>
-          <div class="field check-field">
-            <label class="check" for="steady-available"><input id="steady-available" type="checkbox"> A steadier plastic is available</label>
+        <details class="measured-group" id="measured-fields">
+          <summary>Have numbers from a supplier sheet or your own test? Enter them exactly</summary>
+          <p class="measured-note">Stiffness is how much the plastic bends. Strength is the load it takes before it breaks. “Low” is the weak end of this delivery — the part has to work even there, so that end sets the build. Your low end should already reflect the dirt and mix above.</p>
+          <div class="grid2">
+            <div class="field"><label for="e-min">Stiffness low (MPa)</label><input id="e-min" inputmode="decimal" type="text"></div>
+            <div class="field"><label for="e-max">Stiffness high (MPa)</label><input id="e-max" inputmode="decimal" type="text"></div>
           </div>
+          <div class="grid2">
+            <div class="field"><label for="s-min">Strength low (MPa)</label><input id="s-min" inputmode="decimal" type="text"></div>
+            <div class="field"><label for="s-max">Strength high (MPa)</label><input id="s-max" inputmode="decimal" type="text"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="density">Density (g/cm³)</label><input id="density" inputmode="decimal" type="text"></div>
+          </div>
+        </details>
+        <div class="field check-field">
+          <label class="check" for="steady-available"><input id="steady-available" type="checkbox"> A steadier plastic is available to mix in</label>
         </div>
         <div id="steady-fields" class="steady-fields" hidden>
           <div class="field"><label for="steady-type">Steadier plastic</label><input id="steady-type" type="text" spellcheck="false" placeholder="stiffer stream"></div>
@@ -744,15 +895,18 @@ const CASE_PRESETS = {
     target: { property: 'strength', min: 95, max: 115 },
     extraTargets: [{ property: 'weight', min: 320, max: 360 }],
     plastic: {
-      type: 'published measured rHDPE', batch: 'US MRF / literature case',
+      type: 'published measured rHDPE', batch: 'single-supplier stretch-film lot (n=50)',
       mix: '', dirt: '', dirtLevel: 'none',
-      eMin: 380, eMax: 1250, sMin: 41.6, sMax: 48.4, density: 0.94,
+      eMin: 1111, eMax: 1589, sMin: 41.6, sMax: 48.4, density: 0.94,
     },
     steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
   },
   planter: {
-    product: 'planter wall', mode: 'compression', spanMm: 300, widthMm: 180, thicknessMm: 4,
-    target: { property: 'strength', min: 1000, max: 1400 },
+    // A thin wall panel carried at both ends. (An earlier version treated
+    // this panel as a compression post and overstated what it carries;
+    // a 4 mm panel buckles long before it crushes.)
+    product: 'planter wall', mode: 'simple', spanMm: 300, widthMm: 180, thicknessMm: 4,
+    target: { property: 'strength', min: 9, max: 12 },
     extraTargets: [{ property: 'weight', min: 180, max: 230 }],
   },
   pallet: {
@@ -761,6 +915,68 @@ const CASE_PRESETS = {
     extraTargets: [{ property: 'weight', min: 1500, max: 1800 }],
   },
 };
+
+/**
+ * Starting ranges for a delivery when the shop has no measurements of its own.
+ * These are published bands, not measurements of any delivery: the first from
+ * data/CASE_STUDY.md (R01/R04), the rest from data/feedstock_library.json
+ * (published mean ± published variation per polymer). The page says where a
+ * range came from whenever one is applied.
+ */
+const PUBLISHED_BATCHES = [
+  {
+    key: 'rhdpe-measured-lot',
+    label: 'Recycled HDPE — one supplier, published measured lot',
+    plastic: { type: 'published measured rHDPE', eMin: 1111, eMax: 1589, sMin: 41.6, sMax: 48.4, density: 0.94 },
+    note: 'Published lot: stiffness from one supplier’s measured plates (1,350 ± 239 MPa, n=50), strength from a published rHDPE table. Not a measurement of your delivery.',
+  },
+  {
+    key: 'rhdpe',
+    label: 'Recycled HDPE — typical published range',
+    plastic: { type: 'recycled HDPE', eMin: 741, eMax: 1159, sMin: 23, sMax: 33, density: 0.95 },
+    note: 'Typical published band for recycled HDPE. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+  {
+    key: 'rpp',
+    label: 'Recycled polypropylene — typical published range',
+    plastic: { type: 'recycled polypropylene', eMin: 902, eMax: 1298, sMin: 23, sMax: 31, density: 0.94 },
+    note: 'Typical published band for recycled polypropylene. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+  {
+    key: 'mixed-polyolefins',
+    label: 'Mixed polyolefins — typical published range (wide)',
+    plastic: { type: 'mixed polyolefins', eMin: 560, eMax: 1040, sMin: 14, sMax: 22, density: 0.93 },
+    note: 'Typical published band for mixed polyolefins; the published evidence here is thinner, so the band is wide. Not a measurement of your delivery.',
+  },
+  {
+    key: 'rpet',
+    label: 'Recycled PET — typical published range',
+    plastic: { type: 'recycled PET', eMin: 2200, eMax: 2800, sMin: 38, sMax: 52, density: 1.34 },
+    note: 'Typical published band for recycled PET. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+  {
+    key: 'rldpe',
+    label: 'Recycled LDPE — typical published range',
+    plastic: { type: 'recycled LDPE', eMin: 188, eMax: 312, sMin: 8, sMax: 12, density: 0.92 },
+    note: 'Typical published band for recycled LDPE. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+];
+
+function publishedBatchFor(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t) return null;
+  if (/ldpe/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rldpe');
+  if (/petg/.test(t)) return null;
+  if (/\bpet\b|polyethylene terephthalate/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpet');
+  if (/mixed|polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
+  if (/hdpe/.test(t)) {
+    return /single|one supplier|measured lot/.test(t)
+      ? PUBLISHED_BATCHES.find((b) => b.key === 'rhdpe-measured-lot')
+      : PUBLISHED_BATCHES.find((b) => b.key === 'rhdpe');
+  }
+  if (/polypropylene|\bpp\b/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpp');
+  return null;
+}
 
 const PROPERTIES = [
   { key: 'strength', label: 'Strength', unit: 'kg', verb: 'carries', noun: 'strength' },
@@ -836,17 +1052,22 @@ function inferMode(name) {
   return 'simple';
 }
 
-function normalizePart(raw, fallback) {
+function normalizePart(raw, fallback, blank = false) {
   const source = raw && typeof raw === 'object' ? raw : {};
   const base = fallback || DEFAULT_STATE;
-  const product = clean(source.product, 120) || clean(source.name, 120) || base.product;
-  const mode = MODE_KEYS.has(source.mode) ? source.mode : (fallback ? inferMode(product) : base.mode);
+  const product = clean(source.product, 120) || clean(source.name, 120) || (blank ? '' : base.product);
+  const mode = MODE_KEYS.has(source.mode)
+    ? source.mode
+    : (blank ? '' : (fallback ? inferMode(product) : base.mode));
+  const span = num(source.spanMm ?? source.span_mm, 0);
+  const width = num(source.widthMm ?? source.width_mm, 0);
+  const thickness = num(source.thicknessMm ?? source.thickness_mm, 0);
   return {
     product,
     mode,
-    spanMm: clamp(num(source.spanMm ?? source.span_mm, base.spanMm), 20, 6000),
-    widthMm: clamp(num(source.widthMm ?? source.width_mm, base.widthMm), 2, 800),
-    thicknessMm: clamp(num(source.thicknessMm ?? source.thickness_mm, base.thicknessMm), 1, 400),
+    spanMm: span > 0 ? clamp(span, 20, 6000) : 0,
+    widthMm: width > 0 ? clamp(width, 2, 800) : 0,
+    thicknessMm: thickness > 0 ? clamp(thickness, 1, 400) : 0,
   };
 }
 
@@ -900,7 +1121,7 @@ function normalizeState(raw = {}) {
   const thickness = num(source.thicknessMm, 0);
   return {
     product,
-    mode: MODE_KEYS.has(source.mode) ? source.mode : (product ? inferMode(product) : DEFAULT_STATE.mode),
+    mode: MODE_KEYS.has(source.mode) ? source.mode : (blank ? '' : (product ? inferMode(product) : DEFAULT_STATE.mode)),
     spanMm: span > 0 ? clamp(span, 20, 6000) : 0,
     widthMm: width > 0 ? clamp(width, 2, 800) : 0,
     thicknessMm: thickness > 0 ? clamp(thickness, 1, 400) : 0,
@@ -926,17 +1147,18 @@ function normalizeState(raw = {}) {
       eMpa: clamp(num(source.steady?.eMpa, 0), 0, 200000),
       sMpa: clamp(num(source.steady?.sMpa, 0), 0, 5000),
     },
-    other: normalizePart(other, {
+    other: normalizePart(other, blank ? { product: '', mode: 'cantilever', spanMm: 0, widthMm: 0, thicknessMm: 0 } : {
       ...DEFAULT_STATE.other,
       product: clean(other.product, 120) || DEFAULT_STATE.other.product,
       mode: MODE_KEYS.has(other.mode) ? other.mode : inferMode(other.product || DEFAULT_STATE.other.product),
-    }),
+    }, blank),
   };
 }
 
 function isReady(stateInput) {
   const state = normalizeState(stateInput);
   if (!state.product) return false;
+  if (!MODE_KEYS.has(state.mode)) return false;
   if (!(state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0)) return false;
   const targets = [state.target, ...state.extraTargets];
   if (!targets.length) return false;
@@ -989,9 +1211,11 @@ function inertia(part) {
 }
 
 function weakInertia(part) {
+  // Weak axis: long side times the short side cubed. A part in compression
+  // buckles about this axis first.
   const a = part.widthMm;
   const b = part.thicknessMm;
-  return (Math.min(a, b) * Math.max(a, b) ** 3) / 12;
+  return (Math.max(a, b) * Math.min(a, b) ** 3) / 12;
 }
 
 /** Load capacity in newtons for a given modulus/strength pair. */
@@ -1105,7 +1329,9 @@ function validCandidate(state, candidate) {
   if (candidate.move === 'current') return true;
   if (candidate.move === 'other') {
     if (!state.other.product) return false;
-    return !samePart(otherPart(state), currentPart(state));
+    const other = otherPart(state);
+    if (!(other.spanMm > 0 && other.widthMm > 0 && other.thicknessMm > 0)) return false;
+    return !samePart(other, currentPart(state));
   }
   if (candidate.move === 'blend') {
     return state.steady.available && state.steady.eMpa > 0 && state.steady.sMpa > 0 && Number.isFinite(candidate.fraction) && candidate.fraction > 0;
@@ -1203,11 +1429,21 @@ function materialGap(stateInput, part, targetInput = null) {
       ? (state.steady.available ? state.steady.eMpa : 0)
       : 0;
   const steadyShort = steadyValue > 0 ? Math.max(0, required.min - steadyValue) : null;
+  // In compression a slender part can buckle before the material crushes.
+  // That limit is set by stiffness, not strength, so name it separately
+  // instead of asking for a stronger plastic that would not help.
+  let buckling = null;
+  if (part.mode === 'compression' && target.property === 'strength') {
+    const eulerKg = (Math.PI ** 2 * state.plastic.eMin * weakInertia(part)) / part.spanMm ** 2 / G;
+    buckling = { governs: eulerKg < target.min, capacityKgAtLowStiffness: eulerKg };
+  }
   const targetRatio = (target.max - target.min) / target.min;
   const batchRatio = batch.min > 0 ? (batch.max - batch.min) / batch.min : Infinity;
   const rangeTooWide = target.property !== 'weight' && batchRatio > targetRatio + 1e-9;
   let action;
-  if (rangeTooWide) {
+  if (buckling && buckling.governs) {
+    action = `This part buckles before it crushes: at the delivery's low stiffness it carries about ${formatNumber(buckling.capacityKgAtLowStiffness)} kg. Make it thicker or shorter, or bring in a stiffer stream — a stronger plastic alone does not lift this.`;
+  } else if (rangeTooWide) {
     action = 'The delivery swings too wide for this range. A thicker or wider section scales both ends together, so it cannot narrow the swing; add a steadier stream or sort out the soft fraction first.';
     if (steadyShort > 0) action += ` Your declared steadier stream gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}.`;
   } else if (steadyShort > 0) {
@@ -1225,7 +1461,7 @@ function materialGap(stateInput, part, targetInput = null) {
   } else {
     action = 'This delivery already sits inside the window for this build.';
   }
-  return { required, batch, shortLow, overHigh, steadyValue, steadyShort, rangeTooWide, action, unit: required.unit, property: target.property };
+  return { required, batch, shortLow, overHigh, steadyValue, steadyShort, rangeTooWide, buckling, action, unit: required.unit, property: target.property };
 }
 
 /** The least-material thickness that makes the current build with this delivery. */
@@ -1407,6 +1643,7 @@ function traceModelProposals(state, proposals) {
   const supportFor = (candidate) => candidate.move === 'span' ? currentMass * 0.2 : 0;
   const trace = [];
   for (const candidate of normalized) {
+    if (!validCandidate(state, candidate)) continue;
     const part = candidatePart(state, candidate);
     const plastic = plasticFor(state, candidate);
     const support = supportFor(candidate);
@@ -1463,13 +1700,14 @@ function evaluateBuilds(stateInput, modelProposals = []) {
   const modelTrace = targetValid ? traceModelProposals(state, modelProposals) : [];
   const candidates = [];
   const seen = new Set();
+  const searched = targetValid ? searchModelMoves(state, modelProposals) : [];
   if (targetValid) {
     for (const exact of modelTrace) if (exact.pass) addCandidate(state, candidates, seen, exact);
     const minimum = minimumThicknessCandidate(state);
     if (minimum) addCandidate(state, candidates, seen, minimum);
     const blend = blendCandidate(state);
     if (blend) addCandidate(state, candidates, seen, blend);
-    for (const candidate of searchModelMoves(state, modelProposals)) addCandidate(state, candidates, seen, candidate);
+    for (const candidate of searched) addCandidate(state, candidates, seen, candidate);
   }
   const evaluated = candidates.map((candidate) => {
     const part = candidatePart(state, candidate);
@@ -1481,13 +1719,25 @@ function evaluateBuilds(stateInput, modelProposals = []) {
       return range;
     });
     const mass = massG(part, plastic.density) + support;
+    // A blend is not free: it uses the steadier stream in every part.
+    // Charge it that stream, in grams a part, so it is ranked on the same
+    // axis as added section material.
+    const addedG = candidate.move === 'blend'
+      ? candidate.fraction * massG(part, plastic.density)
+      : mass - currentMass;
+    const origin = modelTrace.includes(candidate)
+      ? 'meta'
+      : searched.includes(candidate)
+        ? 'meta-direction'
+        : 'local';
     return {
       ...candidate,
       part,
       range: ranges[0],
       ranges,
       massG: mass,
-      addedG: mass - currentMass,
+      addedG,
+      origin,
       pass: targetValid && ranges.every((range, i) => inRange(range, targets[i])),
     };
   });
@@ -1587,7 +1837,8 @@ function decisionFor(stateInput, result) {
     const meta = propertyMeta(primary.property);
     const unit = primary.unit;
     let headline;
-    if (primary.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
+    if (primary.buckling && primary.buckling.governs) headline = 'Thicken or shorten this part.';
+    else if (primary.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
     else if (primary.shortLow > 0) headline = `Lift the ${meta.noun} low end by ${formatNumber(primary.shortLow)} ${unit}.`;
     else if (primary.overHigh > 0) headline = `Bring the ${meta.noun} high end down by ${formatNumber(primary.overHigh)} ${unit}.`;
     else headline = 'This build needs a different section.';
@@ -1595,17 +1846,21 @@ function decisionFor(stateInput, result) {
       const gapMeta = propertyMeta(gap.property);
       return `${gapMeta.noun} needs ${formatRange(gap.required, gap.unit)}; the delivery gives ${formatRange(gap.batch, gap.unit)}.`;
     });
-    const support = `At ${buildSizeText(currentPart(state))}, ${statements.join(' ')} ${primary.action}`;
+    const asStands = result.current
+      ? `as it stands, this build ${rangeText(result.current)} — you need ${targetText}. `
+      : '';
+    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}${statements.join(' ')} ${primary.action}`;
     const copy = [
       'AnyRB plan',
       headline,
       `Current build: ${buildSizeText(currentPart(state))}`,
+      asStands ? `As it stands: ${rangeText(result.current)}; you need ${targetText}` : '',
       ...gaps.map((gap) => {
         const gapMeta = propertyMeta(gap.property);
         return `${gapMeta.label}: needs ${formatRange(gap.required, gap.unit)}, delivery ${formatRange(gap.batch, gap.unit)}`;
       }),
       `Action: ${primary.action}`,
-    ].join('\n');
+    ].filter(Boolean).join('\n');
     return { headline, support, button: 'Ask Meta', copy };
   }
   const winner = result.winner;
@@ -1648,14 +1903,24 @@ function proposalRow(stateInput, item) {
     ? `${item.part.product} · ${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`
     : `${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`;
   const blendPercent = item.move === 'blend' ? Math.round(item.fraction * 100) : null;
+  const originLabel = item.move === 'current'
+    ? 'your build as entered'
+    : item.origin === 'meta'
+      ? 'proposed by Muse Spark'
+      : item.origin === 'meta-direction'
+        ? 'direction from Muse Spark, size calculated here'
+        : 'calculated here';
   return {
     move: moveLabel(state, item),
+    originLabel,
     size,
     property: targets.map((target, i) => {
       const meta = propertyMeta(target.property);
       return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
     }).join(' · '),
-    added: blendPercent ? `${blendPercent}% steady stream` : addedMaterialText(item.addedG),
+    added: blendPercent
+      ? `${blendPercent}% steadier stream · ${formatNumber((blendPercent / 100) * massG(item.part, state.plastic.density))} g a part`
+      : addedMaterialText(item.addedG),
     winner: false,
     blend: blendPercent,
     steadyType: item.move === 'blend' ? state.steady.type : '',
@@ -1813,7 +2078,7 @@ function advicePayload(stateInput, result, question) {
   };
 }
 
-return { G, MODES, CASE_PRESETS, PROPERTIES, MOVES, PROPERTY_DEFAULTS, DEFAULT_STATE, inferMode, blankState, normalizeState, isReady, allTargets, propertyMeta, currentPart, otherPart, capacityN, stiffness, massG, propertyRange, inRange, formatNumber, formatRange, formatTarget, requiredMaterial, materialGap, minimumThicknessCandidate, blendCandidate, normalizeModelProposals, evaluateBuilds, buildSizeText, addedMaterialText, decisionFor, proposalRow, toApiPayload, advicePayload };
+return { G, MODES, CASE_PRESETS, PUBLISHED_BATCHES, publishedBatchFor, PROPERTIES, MOVES, PROPERTY_DEFAULTS, DEFAULT_STATE, inferMode, blankState, normalizeState, isReady, allTargets, propertyMeta, currentPart, otherPart, capacityN, stiffness, massG, propertyRange, inRange, formatNumber, formatRange, formatTarget, requiredMaterial, materialGap, minimumThicknessCandidate, blendCandidate, normalizeModelProposals, evaluateBuilds, buildSizeText, addedMaterialText, decisionFor, proposalRow, toApiPayload, advicePayload };
 })();
 
 /* ===== main.js ===== */
@@ -1823,12 +2088,15 @@ const { DEFAULT_STATE,
   PROPERTIES,
   PROPERTY_DEFAULTS,
   CASE_PRESETS,
+  PUBLISHED_BATCHES,
   advicePayload,
   propertyMeta,
-  blendCandidate,
+  publishedBatchFor,
   buildSizeText,
   decisionFor,
   evaluateBuilds,
+  formatNumber,
+  formatTarget,
   isReady,
   materialGap,
   normalizeState,
@@ -1840,7 +2108,7 @@ const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:8787' : '';
 
-let state = normalizeState(DEFAULT_STATE);
+let state = normalizeState({ blank: true });
 let modelProposals = [];
 let modelState = 'loading';
 let modelSeq = 0;
@@ -1849,8 +2117,13 @@ let adviceSeq = 0;
 let lastResult = null;
 let lastDecision = null;
 let copyReset = 0;
+let metaSource = null;
+let feedbackRound = false;
+let batchSource = '';
+let briefPublished = null;
+let runSize = 0;
 
-const SAMPLE_BRIEF = 'I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density 0.94.';
+const SAMPLE_BRIEF = 'I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE from one supplier, fairly clean, with paper labels on some of it.';
 
 
 
@@ -1980,12 +2253,52 @@ function paint() {
   setValue('steady-s', state.steady.sMpa || '');
   setValue('other-product', state.other.product);
   $('other-mode').value = state.other.mode;
-  setValue('other-span', state.other.spanMm);
-  setValue('other-width', state.other.widthMm);
-  setValue('other-thickness', state.other.thicknessMm);
+  setValue('other-span', state.other.spanMm || '');
+  setValue('other-width', state.other.widthMm || '');
+  setValue('other-thickness', state.other.thicknessMm || '');
   updateTargetLabels();
   updateSteadyVisibility();
   renderExtraTargets();
+  syncBatchSourceUI();
+}
+
+function syncBatchSourceUI() {
+  const select = $('batch-source');
+  if (!select || !select.options.length) return;
+  select.value = batchSource;
+  const note = $('batch-note');
+  const pub = PUBLISHED_BATCHES.find((b) => b.key === batchSource);
+  if (pub) {
+    note.hidden = false;
+    note.textContent = pub.note;
+  } else if (batchSource === 'numbers') {
+    note.hidden = false;
+    note.textContent = 'Using the numbers below, exactly as entered.';
+  } else {
+    note.hidden = true;
+    note.textContent = '';
+  }
+}
+
+function applyBatchSource(key) {
+  batchSource = key;
+  const pub = PUBLISHED_BATCHES.find((b) => b.key === key);
+  if (pub) {
+    state.plastic = {
+      ...state.plastic,
+      type: pub.plastic.type,
+      eMin: pub.plastic.eMin, eMax: pub.plastic.eMax,
+      sMin: pub.plastic.sMin, sMax: pub.plastic.sMax,
+      density: pub.plastic.density,
+    };
+    paint();
+    onFieldChange();
+    return;
+  }
+  if (key === 'numbers') {
+    $('measured-fields').open = true;
+  }
+  syncBatchSourceUI();
 }
 
 function fade(elements, fn) {
@@ -2015,8 +2328,14 @@ function renderBuildList(result) {
     if (item === result.winner) {
       const least = document.createElement('span');
       least.className = 'least';
-      least.textContent = 'least build mass';
+      least.textContent = 'least material brought in';
       move.append(least);
+    }
+    if (row.originLabel) {
+      const origin = document.createElement('span');
+      origin.className = 'least';
+      origin.textContent = row.originLabel;
+      move.append(origin);
     }
     const size = document.createElement('span');
     size.className = 'size';
@@ -2042,6 +2361,10 @@ function renderGap(result) {
     return;
   }
   if (result.winner) {
+    const intro = document.createElement('p');
+    intro.className = 'gap-note';
+    intro.textContent = 'Why this works, in batch terms. “Needs” is what the build asks of the plastic; “gives” is this delivery, in supplier-sheet units (MPa).';
+    gap.append(intro);
     for (const target of result.targets) {
       const meta = propertyMeta(target.property);
       const needed = materialGap(result.state, result.winner.part, target);
@@ -2070,6 +2393,10 @@ function renderGap(result) {
     head.textContent = `This delivery is ${short}.`;
   }
   gap.append(head);
+  const intro = document.createElement('p');
+  intro.className = 'gap-note';
+  intro.textContent = '“Needs” is what the build asks of the plastic; “gives” is this delivery, in supplier-sheet units (MPa).';
+  gap.append(intro);
   for (const item of result.gaps) {
     const meta = propertyMeta(item.property);
     const p = document.createElement('p');
@@ -2091,7 +2418,7 @@ function renderTrace(result) {
   const rejected = items.length - accepted;
   const head = document.createElement('p');
   head.className = 'trace-head';
-  head.textContent = `Muse Spark proposed ${items.length} move${items.length === 1 ? '' : 's'}. The verifier accepted ${accepted} exactly and rejected ${rejected}.`;
+  head.textContent = `Muse Spark proposed ${items.length} move${items.length === 1 ? '' : 's'}. Checked at the exact size proposed: ${accepted} pass${accepted === 1 ? 'es' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
   trace.append(head);
   for (const item of items.slice(0, 5)) {
     const row = proposalRow(result.state, { ...item, addedG: 0, range: item.ranges[0] });
@@ -2099,7 +2426,7 @@ function renderTrace(result) {
     line.className = 'trace-row';
     const state = document.createElement('span');
     state.className = `trace-state ${item.pass ? 'accepted' : 'rejected'}`;
-    state.textContent = item.pass ? 'accepted' : 'rejected';
+    state.textContent = item.pass ? 'passes' : 'does not pass';
     const text = document.createElement('span');
     text.className = 'trace-text';
     text.textContent = `${row.move} · ${row.size} · ${row.property}`;
@@ -2109,7 +2436,7 @@ function renderTrace(result) {
   const note = document.createElement('p');
   note.className = 'trace-note';
   note.textContent = rejected
-    ? 'Rejected moves were handed to the mechanics search; the passing builds above are the verifier’s result.'
+    ? 'Moves that do not pass at the proposed size are handed to the mechanics search; the passing builds above are its result, in the direction Muse Spark proposed.'
     : 'The exact Muse Spark proposals were checked before the mechanics search.';
   trace.append(note);
 }
@@ -2118,6 +2445,133 @@ function formatRange(range, unit) {
   const a = Number(range.min).toLocaleString('en-US', { maximumFractionDigits: 1 });
   const b = Number(range.max).toLocaleString('en-US', { maximumFractionDigits: 1 });
   return `${a}–${b} ${unit}`;
+}
+
+function metaSourceText() {
+  if (!metaSource) return '';
+  const round = feedbackRound ? ' Shown the checked result, Muse Spark proposed again.' : '';
+  if (metaSource.kind === 'live') return ` Live call to ${metaSource.model || 'Muse Spark'}.${round}`;
+  if (metaSource.kind === 'cached') return ` Saved Muse Spark answer — not a new live call.${round}`;
+  if (metaSource.kind === 'offline') return ' Muse Spark is not reachable from here; the calculated build stands on its own.';
+  return '';
+}
+
+function renderSteps() {
+  const partDone = Boolean(state.product && state.mode && state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0);
+  const targetDone = Boolean(state.target.property
+    && [state.target, ...state.extraTargets].every((t) => Number.isFinite(Number(t.min)) && t.min !== '' && Number.isFinite(Number(t.max)) && t.max !== ''));
+  const batchDone = Boolean(state.plastic.eMin > 0 && state.plastic.eMax > 0 && state.plastic.sMin > 0 && state.plastic.sMax > 0 && state.plastic.density > 0);
+  const done = { part: partDone, target: targetDone, batch: batchDone };
+  for (const item of $$('#steps .step')) {
+    item.classList.toggle('is-done', Boolean(done[item.dataset.step]));
+  }
+}
+
+function renderRangeView(result) {
+  const wrap = $('range-view');
+  wrap.replaceChildren();
+  if (!result.ready || !result.current) return;
+  const item = result.winner || result.current;
+  const title = document.createElement('p');
+  title.className = 'rv-title';
+  title.textContent = result.winner
+    ? 'The build above, against each requirement'
+    : 'Your current build, against each requirement';
+  wrap.append(title);
+  result.targets.forEach((target, i) => {
+    const meta = propertyMeta(target.property);
+    const range = item.ranges[i];
+    const passes = range.min >= target.min - 1e-9 && range.max <= target.max + 1e-9;
+    const lo = Math.min(target.min, range.min);
+    const hi = Math.max(target.max, range.max);
+    const pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
+    const d0 = lo - pad;
+    const d1 = hi + pad;
+    const pct = (v) => `${Math.max(0, Math.min(100, ((v - d0) / (d1 - d0)) * 100))}%`;
+    const width = (a, b) => `${Math.max(1.5, ((b - a) / (d1 - d0)) * 100)}%`;
+
+    const row = document.createElement('div');
+    row.className = 'rv-row';
+    const head = document.createElement('div');
+    head.className = 'rv-head';
+    const name = document.createElement('span');
+    name.className = 'rv-name';
+    name.textContent = `${meta.label} — ${meta.verb} ${formatRange(range, meta.unit)}; needs ${formatTarget(target)}`;
+    const margin = document.createElement('span');
+    margin.className = `rv-margin ${passes ? 'pass' : 'fail'}`;
+    if (passes) {
+      const lowMargin = range.min - target.min;
+      const highMargin = target.max - range.max;
+      const atLow = lowMargin <= highMargin;
+      margin.textContent = `closest margin ${formatNumber(Math.min(lowMargin, highMargin))} ${meta.unit} at the ${atLow ? 'low' : 'high'} end`;
+    } else if (range.min < target.min && range.max > target.max) {
+      margin.textContent = `${formatNumber(target.min - range.min)} ${meta.unit} short at the low end, ${formatNumber(range.max - target.max)} over at the high end`;
+    } else if (range.min < target.min) {
+      margin.textContent = `${formatNumber(target.min - range.min)} ${meta.unit} short at the low end`;
+    } else {
+      margin.textContent = `${formatNumber(range.max - target.max)} ${meta.unit} over at the high end`;
+    }
+    head.append(name, margin);
+    const track = document.createElement('div');
+    track.className = 'rv-track';
+    const band = document.createElement('div');
+    band.className = 'rv-target';
+    band.style.left = pct(target.min);
+    band.style.width = width(target.min, target.max);
+    const bar = document.createElement('div');
+    bar.className = `rv-bar ${passes ? 'pass' : 'fail'}`;
+    bar.style.left = pct(range.min);
+    bar.style.width = width(range.min, range.max);
+    track.append(band, bar);
+    const scale = document.createElement('div');
+    scale.className = 'rv-scale';
+    const s0 = document.createElement('span');
+    s0.textContent = `${formatNumber(d0)} ${meta.unit}`;
+    const s1 = document.createElement('span');
+    s1.textContent = `${formatNumber(d1)} ${meta.unit}`;
+    scale.append(s0, s1);
+    row.append(head, track, scale);
+    wrap.append(row);
+  });
+  const legend = document.createElement('p');
+  legend.className = 'rv-legend';
+  legend.textContent = 'Pale band: what you need. Solid bar: what this build gives across the full delivery swing.';
+  wrap.append(legend);
+}
+
+function renderRunNote(result) {
+  const note = $('run-note');
+  if (!result.ready || !result.winner || !(runSize > 0)) {
+    note.textContent = '';
+    return;
+  }
+  const winner = result.winner;
+  const totalKg = (winner.addedG * runSize) / 1000;
+  if (winner.move === 'blend') {
+    const pct = Math.round(winner.fraction * 100);
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that blend uses ${formatNumber(totalKg)} kg of ${state.steady.type || 'the steadier stream'} (${pct}% of every part).`;
+  } else if (Math.abs(winner.addedG) < 0.5) {
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, this build uses the same material a part as the one you entered.`;
+  } else if (winner.addedG > 0) {
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that is ${formatNumber(totalKg)} kg more material than your current build.`;
+  } else {
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that saves ${formatNumber(Math.abs(totalKg))} kg against your current build.`;
+  }
+}
+
+function renderDecisionBar(result, decision) {
+  const bar = $('decision-bar');
+  if (!result.ready || !decision.button) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  $('decision-dot').className = `decision-dot ${result.winner ? 'pass' : 'fail'}`;
+  $('decision-bar-text').textContent = modelState === 'loading'
+    ? `${decision.headline} — checking moves with Muse Spark…`
+    : decision.headline;
+  const action = $('decision-bar-action');
+  action.textContent = decision.button;
 }
 
 function renderStatus(result) {
@@ -2131,11 +2585,11 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'meta') {
-    status.textContent = `${modelProposals.length} moves from Muse Spark. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.`;
+    status.textContent = `${modelProposals.length} moves from Muse Spark. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
     return;
   }
   if (modelState === 'empty') {
-    status.textContent = 'Muse Spark returned no usable moves. The calculated build stands.';
+    status.textContent = `Muse Spark returned no usable moves. The calculated build stands.${metaSourceText()}`;
     return;
   }
   status.textContent = 'Muse Spark is unavailable. The calculated build stands.';
@@ -2152,12 +2606,17 @@ function render(result) {
   $('builds-panel').hidden = !result.ready;
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready;
+  renderSteps();
+  renderDecisionBar(result, decision);
+  $('see-details').hidden = !result.ready;
   fade([$('decision'), $('support')], () => {
     $('decision').textContent = decision.headline;
     $('support').textContent = decision.support;
   });
   if (!result.ready) {
     $('build-list').replaceChildren();
+    $('range-view').replaceChildren();
+    $('run-note').textContent = '';
     $('empty-build').hidden = true;
     $('model-status').textContent = '';
     $('meta-trace').hidden = true;
@@ -2165,6 +2624,8 @@ function render(result) {
     return;
   }
   fade([$('build-list'), $('gap')], () => {
+    renderRangeView(result);
+    renderRunNote(result);
     renderBuildList(result);
     renderGap(result);
     renderTrace(result);
@@ -2237,9 +2698,57 @@ async function fetchProposals() {
     if (fallback) {
       modelProposals = [];
       modelState = 'offline';
+      metaSource = { kind: 'offline', model: data._model || '' };
     } else {
       modelProposals = proposals;
       modelState = proposals.length ? 'meta' : 'empty';
+      metaSource = data._cached
+        ? { kind: 'cached', model: data._model || 'Muse Spark' }
+        : { kind: 'live', model: data._model || 'Muse Spark' };
+    }
+    // One informed second round: if the verifier checked Muse Spark's exact
+    // proposals and any did not pass at that size, show Spark the checked
+    // ranges and let it propose different parameters once.
+    feedbackRound = false;
+    if (!fallback && modelProposals.length) {
+      const checked = evaluateBuilds(state, modelProposals);
+      const failed = (checked.modelTrace || []).filter((item) => !item.pass);
+      if (failed.length) {
+        try {
+          const feedback = failed.map((item) => ({
+            move: item.move === 'other' ? 'other_product' : item.move,
+            ranges: item.ranges.map((range, i) => ({
+              property: checked.targets[i].property,
+              min: range.min,
+              max: range.max,
+              unit: range.unit,
+            })),
+          }));
+          const second = await fetch(`${API_BASE}/api/product/proposals`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, verifier_feedback: feedback }),
+            signal: controller.signal,
+          });
+          const secondData = await second.json();
+          if (seq !== modelSeq) return;
+          const secondProposals = Array.isArray(secondData.proposals) ? secondData.proposals : [];
+          const secondFallback = Boolean(secondData._meta && secondData._meta.fallback);
+          if (second.ok && !secondFallback && secondProposals.length) {
+            const seen = new Set(modelProposals.map((p) => JSON.stringify(p)));
+            for (const proposal of secondProposals) {
+              if (!seen.has(JSON.stringify(proposal))) modelProposals.push(proposal);
+            }
+            modelState = 'meta';
+            metaSource = secondData._cached
+              ? { kind: 'cached', model: secondData._model || 'Muse Spark' }
+              : { kind: 'live', model: secondData._model || 'Muse Spark' };
+            feedbackRound = true;
+          }
+        } catch (error) {
+          // The first round and the calculated build stand.
+        }
+      }
     }
     const result = evaluateBuilds(state, modelProposals);
     render(result);
@@ -2247,6 +2756,7 @@ async function fetchProposals() {
     if (seq !== modelSeq) return;
     modelProposals = [];
     modelState = 'offline';
+    metaSource = { kind: 'offline', model: '' };
     const result = evaluateBuilds(state, []);
     render(result);
   } finally {
@@ -2357,12 +2867,37 @@ function onPrimary() {
 // ---------------------------------------------------------------------------
 setSelectOptions('mode', MODES.map((m) => ({ key: m.key, label: m.label })));
 setSelectOptions('other-mode', MODES.map((m) => ({ key: m.key, label: m.label })));
+for (const id of ['mode', 'other-mode']) {
+  const choose = document.createElement('option');
+  choose.value = '';
+  choose.textContent = 'Choose…';
+  $(id).prepend(choose);
+}
 setSelectOptions('property', PROPERTIES.map((p) => ({ key: p.key, label: `${p.label} (${p.unit})` })));
 {
   const blank = document.createElement('option');
   blank.value = '';
   blank.textContent = 'Choose a property';
   $('property').prepend(blank);
+}
+{
+  const select = $('batch-source');
+  select.replaceChildren();
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = 'Not set yet — pick one';
+  select.append(first);
+  for (const batch of PUBLISHED_BATCHES) {
+    const option = document.createElement('option');
+    option.value = batch.key;
+    option.textContent = batch.label;
+    select.append(option);
+  }
+  const own = document.createElement('option');
+  own.value = 'numbers';
+  own.textContent = 'I have numbers (supplier sheet or my own test)';
+  select.append(own);
+  select.addEventListener('change', () => applyBatchSource(select.value));
 }
 setSelectOptions('dirt-level', [
   { key: 'none', label: 'None' },
@@ -2557,14 +3092,14 @@ async function toggleVoice() {
   }
 }
 
-function mapBriefToState(brief) {
+function mapBriefToState(brief, originalText = '') {
   const source = brief && typeof brief === 'object' ? brief : {};
   const targets = Array.isArray(source.targets)
     ? source.targets.filter((target) => target && ['strength', 'stiffness', 'weight'].includes(target.property))
     : [];
   const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
   const steady = source.steady && typeof source.steady === 'object' ? source.steady : {};
-  return normalizeState({
+  const normalized = normalizeState({
     blank: true,
     product: source.product || '',
     mode: source.mode || '',
@@ -2593,6 +3128,26 @@ function mapBriefToState(brief) {
     },
     other: state.other,
   });
+  return applyPublishedIfMissing(normalized, originalText);
+}
+
+function applyPublishedIfMissing(normalized, originalText = '') {
+  briefPublished = null;
+  const plastic = normalized.plastic;
+  const hasRanges = plastic.eMin > 0 && plastic.eMax > 0 && plastic.sMin > 0 && plastic.sMax > 0 && plastic.density > 0;
+  if (hasRanges) return normalized;
+  const pub = publishedBatchFor(`${plastic.type} ${plastic.batch} ${originalText}`);
+  if (!pub) return normalized;
+  briefPublished = pub;
+  batchSource = pub.key;
+  normalized.plastic = {
+    ...plastic,
+    type: plastic.type || pub.plastic.type,
+    eMin: pub.plastic.eMin, eMax: pub.plastic.eMax,
+    sMin: pub.plastic.sMin, sMax: pub.plastic.sMax,
+    density: pub.plastic.density,
+  };
+  return normalized;
 }
 
 async function readBrief() {
@@ -2606,6 +3161,8 @@ async function readBrief() {
   const button = $('brief-submit');
   button.disabled = true;
   $('brief-status').textContent = 'Muse Spark is reading the brief…';
+  $('brief-status').classList.add('is-working');
+  $('support').textContent = 'Muse Spark is reading the brief. This usually takes about ten seconds — you do not need to fill anything in while it works.';
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
@@ -2618,18 +3175,27 @@ async function readBrief() {
     const data = await response.json();
     if (!response.ok || !data.available || !data.brief) {
       $('brief-status').textContent = 'Muse Spark could not read that brief. Fill the fields below, or try again.';
+      render(evaluateBuilds(state, modelProposals));
       return;
     }
-    state = mapBriefToState(data.brief);
+    state = mapBriefToState(data.brief, text);
     paint();
     refresh();
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
     const targetCount = 1 + state.extraTargets.length;
-    $('brief-status').textContent = `Muse Spark read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill.`;
+    const source = data._cached
+      ? 'That was a saved Muse Spark answer, not a new live call.'
+      : `That was a live read by ${data._model || 'Muse Spark'}.`;
+    const publishedNote = briefPublished
+      ? ` For this delivery I used “${briefPublished.label}” — a published range, not a measurement of this delivery. Change it under Batch if your supplier's numbers differ.`
+      : '';
+    $('brief-status').textContent = `Muse Spark read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill. ${source}${publishedNote}`;
   } catch (error) {
     $('brief-status').textContent = 'Muse Spark is unavailable. Fill the fields below; the local mechanics still works.';
+    render(evaluateBuilds(state, modelProposals));
   } finally {
+    $('brief-status').classList.remove('is-working');
     button.disabled = false;
     window.clearTimeout(timer);
   }
@@ -2637,12 +3203,8 @@ async function readBrief() {
 
 function applyCase(name) {
   if (name === 'custom') {
-    state = normalizeState({
-      ...DEFAULT_STATE,
-      plastic: state.plastic,
-      steady: state.steady,
-      other: state.other,
-    });
+    batchSource = '';
+    state = normalizeState({ blank: true });
     paint();
     refresh();
     $('product').focus();
@@ -2651,6 +3213,7 @@ function applyCase(name) {
   }
   const preset = CASE_PRESETS[name];
   if (!preset) return;
+  batchSource = 'numbers';
   state = normalizeState({
     ...state,
     product: preset.product,
@@ -2693,9 +3256,23 @@ $('brief').addEventListener('keydown', (event) => {
     readBrief();
   }
 });
+for (const id of ['e-min', 'e-max', 's-min', 's-max', 'density']) {
+  $(id).addEventListener('input', () => {
+    if (batchSource !== 'numbers') {
+      batchSource = 'numbers';
+      syncBatchSourceUI();
+    }
+  });
+}
 for (const button of $$('.case')) button.addEventListener('click', () => applyCase(button.dataset.case));
 $('add-target').addEventListener('click', addTarget);
 $('primary').addEventListener('click', onPrimary);
+$('decision-bar-action').addEventListener('click', onPrimary);
+$('run-size').addEventListener('input', (event) => {
+  const parsed = Number(String(event.target.value).replace(/[^0-9]/g, ''));
+  runSize = Number.isFinite(parsed) ? parsed : 0;
+  if (lastResult) renderRunNote(lastResult);
+});
 $('ask-button').addEventListener('click', askMeta);
 $('ask-question').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {

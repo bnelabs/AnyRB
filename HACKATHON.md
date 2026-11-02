@@ -6,30 +6,45 @@
 
 ## The problem
 
-A small shop buys recycled plastic by the delivery. The stiffness and strength swing from batch to
-batch, and dirt, mixed polymer and moisture move the low end further. A conventional workflow either
-over-designs the part or rejects the delivery. The shop needs to know **what can I make from this
-batch, at what size, and what do I add if the batch alone is not enough** — not a verdict on the batch.
+A small shop buys recycled plastic by the delivery. The swing is measured, not guessed: one
+supplier's rHDPE plates came in at 1,350 ± 239 MPa (n=50), while a literature compilation sits at
+1,213 ± 654 MPa and modulus spans 380–1,250 MPa across three US recyclers (research dossier 01,
+sources R01/R02). Ten recycled-PP lots that all met the same specification still ranged 2–24 wt%
+in filler content (R05). A single datasheet number cannot describe that delivery. A conventional
+workflow either over-designs the part or rejects the delivery. The shop needs to know **what can I
+make from this batch, at what size, and what do I add if the batch alone is not enough** — not a
+verdict on the batch.
+
+The beneficiary is stated plainly: this shop is a persona drawn from the segment research in
+`research/`; it has not yet been validated with a named shop, and no customer, saving or market
+figure is claimed. We claim *Build for Your World*; the verifier-checked model loop is the method,
+not a claim of new mechanics.
 
 ## What AnyRB does
 
-1. **Ask in shop language.** The brief bar takes a natural-language request, typed or spoken, such as: *"I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load
-   capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My
-   batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density
-   0.94."*
+1. **Ask in shop language.** The brief bar takes a natural-language request, typed or spoken, such as: *"I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends.
+   Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is
+   recycled HDPE from one supplier, fairly clean."* No engineering units are needed in the ask:
+   the delivery is set to the published range for the plastic named, labelled as published.
    Muse Spark parses it into a product, load path, dimensions, any number of target requirements and
    a batch description. The shop can edit every field. The same brief can be spoken; Muse Voice
    Transcribe supplies the transcript.
 2. **Engineering.** The mechanics evaluates every candidate against **all** requirements at once. A
-   build is shown only when its full property range stays inside every target. The winner uses the
-   least added build mass. The UI starts with no product and no decision; examples are optional.
+   build is shown only when its full property range stays inside every target. The winner brings in
+   the least material per part — added section, or the steadier stream a blend would use in every
+   part. A band-and-bar view shows, per requirement, what is needed against what the build gives
+   across the swing, with the closest margin in numbers. The decision stays pinned at the top of
+   the page while the shop edits below it. The UI starts with no product and no decision; examples
+   are optional.
 3. **Batch.** The delivery's measured swing and dirt are shown against what the build needs. The app
    gives the material gap, a declared steadier-stream blend when it closes the gap, and a place to ask
    Meta what to change or add. It never ends at "don't use this delivery."
-4. **Verification.** Meta proposes moves; a deterministic verifier scores the exact proposal and then
-   searches the passing size in the accepted direction. The UI shows what Meta proposed, what the
-   verifier rejected, and what was accepted. The browser never receives a model-authored result,
-   strength, stiffness or weight.
+4. **Verification.** Meta proposes moves; a deterministic verifier scores the exact proposal at the
+   size proposed. Moves that do not pass are sent back to Muse Spark once, with the calculated
+   ranges, for a different proposal. The mechanics then searches the passing size in the accepted
+   direction. The UI shows what Meta proposed and what passed, labels local calculations as local,
+   and says whether a Meta answer was a live call or a saved one. The browser never receives a
+   model-authored result, strength, stiffness or weight.
 
 ## Meta models in the live path
 
@@ -49,8 +64,10 @@ minimum build and any declared blend; it does not invent alternatives or advice.
 
 The active demo is an **explicit loadable case**, not a default product: a 400 mm simply supported
 crate side, 60 × 15 mm, with **strength 95–115 kg** and **weight 320–360 g**. The batch is a
-**published measured rHDPE range** compiled in the project research: stiffness 380–1,250 MPa (US MRF
-range, R02 via R01), strength 41.6–48.4 MPa (R04), density 0.94 g/cm³ (R12). The mechanics reports
+**assembled published-data example, not one measured delivery**: stiffness 1,111–1,589 MPa
+from a single supplier's stretch-film lot (measured 1,350 ± 239 MPa across 10 plates, n=50, R01 via
+Georgiou 2025), strength 41.6–48.4 MPa from a full rHDPE property table (R04, Eriksen 2019), density
+0.94 g/cm³ (R12). It stands in for a shop's own measured lot, which is what production use requires. The mechanics reports
 **95.4–111.0 kg and 338.4 g** for the current build — inside both targets.
 
 The planter case is an illustrative second example. The user can type any other part and add or
@@ -87,12 +104,14 @@ environment with a spend limit.
 
 ## Verification
 
-- `node app/tests/model.test.mjs` — 26 app tests (mechanics, empty start, multi-requirement selection,
-  exact model trace, gap/blend, source guards).
-- `AI_MOCK=1 .venv/bin/python -m pytest server/tests -q` — 135 server tests, 1 skipped (brief/proposals/
-  advice contracts, extraction grounding, no-key, no-test, no-fallback).
-- Browser smoke: first open makes no API call; sample brief parses (cached in the demo); exact Meta
-  proposals show accepted/rejected in the trace; 1440 px and 390 px have no overflow/errors.
+- `node app/tests/model.test.mjs` — 32 app tests (mechanics including weak-axis compression
+  buckling, blank first open, multi-requirement selection, exact model trace, gap/blend ranking,
+  source guards).
+- `AI_MOCK=1 .venv/bin/python -m pytest server/tests -q` — 138 server tests, 1 skipped (brief/
+  proposals/advice contracts, verifier-feedback round, extraction grounding, no-key, no-fallback).
+- Browser smoke: first open makes no API call; exact Meta proposals show whether they pass in the
+  trace; Meta answers are labelled live or saved; 1440 px and 390 px checked with the refreshed
+  screens in `demo/screenshots/v10/`.
 
 ## Honest limits
 
@@ -100,8 +119,12 @@ environment with a spend limit.
   block); it is not a general 3-D structural solver.
 - The sample batch values are a labeled example, not a laboratory certificate. The shop's own
   measured ranges are what the app uses.
-- The blend is a mixture-rule recommendation from the declared steadier stream; it is not a claim
-  that a physical blend was tested.
+- The blend is a mixture-rule recommendation from the declared steadier stream — the optimistic
+  end of blend behaviour; it is not a claim that a physical blend was tested. A blend is ranked by
+  the steadier-stream grams it uses in every part, on the same axis as added section material.
+- Compression uses weak-axis buckling with pinned ends (effective-length factor 1), stated here
+  because the page does not ask about end fixing. No safety factor is added: the ranges the shop
+  enters are the ranges checked, and the Engineering panel says so.
 - No certification, food-contact or structural qualification is claimed.
 
 ## Why this can win

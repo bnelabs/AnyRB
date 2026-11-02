@@ -4,12 +4,15 @@ import {
   PROPERTIES,
   PROPERTY_DEFAULTS,
   CASE_PRESETS,
+  PUBLISHED_BATCHES,
   advicePayload,
   propertyMeta,
-  blendCandidate,
+  publishedBatchFor,
   buildSizeText,
   decisionFor,
   evaluateBuilds,
+  formatNumber,
+  formatTarget,
   isReady,
   materialGap,
   normalizeState,
@@ -21,7 +24,7 @@ const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:8787' : '';
 
-let state = normalizeState(DEFAULT_STATE);
+let state = normalizeState({ blank: true });
 let modelProposals = [];
 let modelState = 'loading';
 let modelSeq = 0;
@@ -30,8 +33,13 @@ let adviceSeq = 0;
 let lastResult = null;
 let lastDecision = null;
 let copyReset = 0;
+let metaSource = null;
+let feedbackRound = false;
+let batchSource = '';
+let briefPublished = null;
+let runSize = 0;
 
-const SAMPLE_BRIEF = 'I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density 0.94.';
+const SAMPLE_BRIEF = 'I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE from one supplier, fairly clean, with paper labels on some of it.';
 
 
 
@@ -161,12 +169,52 @@ function paint() {
   setValue('steady-s', state.steady.sMpa || '');
   setValue('other-product', state.other.product);
   $('other-mode').value = state.other.mode;
-  setValue('other-span', state.other.spanMm);
-  setValue('other-width', state.other.widthMm);
-  setValue('other-thickness', state.other.thicknessMm);
+  setValue('other-span', state.other.spanMm || '');
+  setValue('other-width', state.other.widthMm || '');
+  setValue('other-thickness', state.other.thicknessMm || '');
   updateTargetLabels();
   updateSteadyVisibility();
   renderExtraTargets();
+  syncBatchSourceUI();
+}
+
+function syncBatchSourceUI() {
+  const select = $('batch-source');
+  if (!select || !select.options.length) return;
+  select.value = batchSource;
+  const note = $('batch-note');
+  const pub = PUBLISHED_BATCHES.find((b) => b.key === batchSource);
+  if (pub) {
+    note.hidden = false;
+    note.textContent = pub.note;
+  } else if (batchSource === 'numbers') {
+    note.hidden = false;
+    note.textContent = 'Using the numbers below, exactly as entered.';
+  } else {
+    note.hidden = true;
+    note.textContent = '';
+  }
+}
+
+function applyBatchSource(key) {
+  batchSource = key;
+  const pub = PUBLISHED_BATCHES.find((b) => b.key === key);
+  if (pub) {
+    state.plastic = {
+      ...state.plastic,
+      type: pub.plastic.type,
+      eMin: pub.plastic.eMin, eMax: pub.plastic.eMax,
+      sMin: pub.plastic.sMin, sMax: pub.plastic.sMax,
+      density: pub.plastic.density,
+    };
+    paint();
+    onFieldChange();
+    return;
+  }
+  if (key === 'numbers') {
+    $('measured-fields').open = true;
+  }
+  syncBatchSourceUI();
 }
 
 function fade(elements, fn) {
@@ -196,8 +244,14 @@ function renderBuildList(result) {
     if (item === result.winner) {
       const least = document.createElement('span');
       least.className = 'least';
-      least.textContent = 'least build mass';
+      least.textContent = 'least material brought in';
       move.append(least);
+    }
+    if (row.originLabel) {
+      const origin = document.createElement('span');
+      origin.className = 'least';
+      origin.textContent = row.originLabel;
+      move.append(origin);
     }
     const size = document.createElement('span');
     size.className = 'size';
@@ -223,6 +277,10 @@ function renderGap(result) {
     return;
   }
   if (result.winner) {
+    const intro = document.createElement('p');
+    intro.className = 'gap-note';
+    intro.textContent = 'Why this works, in batch terms. “Needs” is what the build asks of the plastic; “gives” is this delivery, in supplier-sheet units (MPa).';
+    gap.append(intro);
     for (const target of result.targets) {
       const meta = propertyMeta(target.property);
       const needed = materialGap(result.state, result.winner.part, target);
@@ -251,6 +309,10 @@ function renderGap(result) {
     head.textContent = `This delivery is ${short}.`;
   }
   gap.append(head);
+  const intro = document.createElement('p');
+  intro.className = 'gap-note';
+  intro.textContent = '“Needs” is what the build asks of the plastic; “gives” is this delivery, in supplier-sheet units (MPa).';
+  gap.append(intro);
   for (const item of result.gaps) {
     const meta = propertyMeta(item.property);
     const p = document.createElement('p');
@@ -272,7 +334,7 @@ function renderTrace(result) {
   const rejected = items.length - accepted;
   const head = document.createElement('p');
   head.className = 'trace-head';
-  head.textContent = `Muse Spark proposed ${items.length} move${items.length === 1 ? '' : 's'}. The verifier accepted ${accepted} exactly and rejected ${rejected}.`;
+  head.textContent = `Muse Spark proposed ${items.length} move${items.length === 1 ? '' : 's'}. Checked at the exact size proposed: ${accepted} pass${accepted === 1 ? 'es' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
   trace.append(head);
   for (const item of items.slice(0, 5)) {
     const row = proposalRow(result.state, { ...item, addedG: 0, range: item.ranges[0] });
@@ -280,7 +342,7 @@ function renderTrace(result) {
     line.className = 'trace-row';
     const state = document.createElement('span');
     state.className = `trace-state ${item.pass ? 'accepted' : 'rejected'}`;
-    state.textContent = item.pass ? 'accepted' : 'rejected';
+    state.textContent = item.pass ? 'passes' : 'does not pass';
     const text = document.createElement('span');
     text.className = 'trace-text';
     text.textContent = `${row.move} · ${row.size} · ${row.property}`;
@@ -290,7 +352,7 @@ function renderTrace(result) {
   const note = document.createElement('p');
   note.className = 'trace-note';
   note.textContent = rejected
-    ? 'Rejected moves were handed to the mechanics search; the passing builds above are the verifier’s result.'
+    ? 'Moves that do not pass at the proposed size are handed to the mechanics search; the passing builds above are its result, in the direction Muse Spark proposed.'
     : 'The exact Muse Spark proposals were checked before the mechanics search.';
   trace.append(note);
 }
@@ -299,6 +361,133 @@ function formatRange(range, unit) {
   const a = Number(range.min).toLocaleString('en-US', { maximumFractionDigits: 1 });
   const b = Number(range.max).toLocaleString('en-US', { maximumFractionDigits: 1 });
   return `${a}–${b} ${unit}`;
+}
+
+function metaSourceText() {
+  if (!metaSource) return '';
+  const round = feedbackRound ? ' Shown the checked result, Muse Spark proposed again.' : '';
+  if (metaSource.kind === 'live') return ` Live call to ${metaSource.model || 'Muse Spark'}.${round}`;
+  if (metaSource.kind === 'cached') return ` Saved Muse Spark answer — not a new live call.${round}`;
+  if (metaSource.kind === 'offline') return ' Muse Spark is not reachable from here; the calculated build stands on its own.';
+  return '';
+}
+
+function renderSteps() {
+  const partDone = Boolean(state.product && state.mode && state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0);
+  const targetDone = Boolean(state.target.property
+    && [state.target, ...state.extraTargets].every((t) => Number.isFinite(Number(t.min)) && t.min !== '' && Number.isFinite(Number(t.max)) && t.max !== ''));
+  const batchDone = Boolean(state.plastic.eMin > 0 && state.plastic.eMax > 0 && state.plastic.sMin > 0 && state.plastic.sMax > 0 && state.plastic.density > 0);
+  const done = { part: partDone, target: targetDone, batch: batchDone };
+  for (const item of $$('#steps .step')) {
+    item.classList.toggle('is-done', Boolean(done[item.dataset.step]));
+  }
+}
+
+function renderRangeView(result) {
+  const wrap = $('range-view');
+  wrap.replaceChildren();
+  if (!result.ready || !result.current) return;
+  const item = result.winner || result.current;
+  const title = document.createElement('p');
+  title.className = 'rv-title';
+  title.textContent = result.winner
+    ? 'The build above, against each requirement'
+    : 'Your current build, against each requirement';
+  wrap.append(title);
+  result.targets.forEach((target, i) => {
+    const meta = propertyMeta(target.property);
+    const range = item.ranges[i];
+    const passes = range.min >= target.min - 1e-9 && range.max <= target.max + 1e-9;
+    const lo = Math.min(target.min, range.min);
+    const hi = Math.max(target.max, range.max);
+    const pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
+    const d0 = lo - pad;
+    const d1 = hi + pad;
+    const pct = (v) => `${Math.max(0, Math.min(100, ((v - d0) / (d1 - d0)) * 100))}%`;
+    const width = (a, b) => `${Math.max(1.5, ((b - a) / (d1 - d0)) * 100)}%`;
+
+    const row = document.createElement('div');
+    row.className = 'rv-row';
+    const head = document.createElement('div');
+    head.className = 'rv-head';
+    const name = document.createElement('span');
+    name.className = 'rv-name';
+    name.textContent = `${meta.label} — ${meta.verb} ${formatRange(range, meta.unit)}; needs ${formatTarget(target)}`;
+    const margin = document.createElement('span');
+    margin.className = `rv-margin ${passes ? 'pass' : 'fail'}`;
+    if (passes) {
+      const lowMargin = range.min - target.min;
+      const highMargin = target.max - range.max;
+      const atLow = lowMargin <= highMargin;
+      margin.textContent = `closest margin ${formatNumber(Math.min(lowMargin, highMargin))} ${meta.unit} at the ${atLow ? 'low' : 'high'} end`;
+    } else if (range.min < target.min && range.max > target.max) {
+      margin.textContent = `${formatNumber(target.min - range.min)} ${meta.unit} short at the low end, ${formatNumber(range.max - target.max)} over at the high end`;
+    } else if (range.min < target.min) {
+      margin.textContent = `${formatNumber(target.min - range.min)} ${meta.unit} short at the low end`;
+    } else {
+      margin.textContent = `${formatNumber(range.max - target.max)} ${meta.unit} over at the high end`;
+    }
+    head.append(name, margin);
+    const track = document.createElement('div');
+    track.className = 'rv-track';
+    const band = document.createElement('div');
+    band.className = 'rv-target';
+    band.style.left = pct(target.min);
+    band.style.width = width(target.min, target.max);
+    const bar = document.createElement('div');
+    bar.className = `rv-bar ${passes ? 'pass' : 'fail'}`;
+    bar.style.left = pct(range.min);
+    bar.style.width = width(range.min, range.max);
+    track.append(band, bar);
+    const scale = document.createElement('div');
+    scale.className = 'rv-scale';
+    const s0 = document.createElement('span');
+    s0.textContent = `${formatNumber(d0)} ${meta.unit}`;
+    const s1 = document.createElement('span');
+    s1.textContent = `${formatNumber(d1)} ${meta.unit}`;
+    scale.append(s0, s1);
+    row.append(head, track, scale);
+    wrap.append(row);
+  });
+  const legend = document.createElement('p');
+  legend.className = 'rv-legend';
+  legend.textContent = 'Pale band: what you need. Solid bar: what this build gives across the full delivery swing.';
+  wrap.append(legend);
+}
+
+function renderRunNote(result) {
+  const note = $('run-note');
+  if (!result.ready || !result.winner || !(runSize > 0)) {
+    note.textContent = '';
+    return;
+  }
+  const winner = result.winner;
+  const totalKg = (winner.addedG * runSize) / 1000;
+  if (winner.move === 'blend') {
+    const pct = Math.round(winner.fraction * 100);
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that blend uses ${formatNumber(totalKg)} kg of ${state.steady.type || 'the steadier stream'} (${pct}% of every part).`;
+  } else if (Math.abs(winner.addedG) < 0.5) {
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, this build uses the same material a part as the one you entered.`;
+  } else if (winner.addedG > 0) {
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that is ${formatNumber(totalKg)} kg more material than your current build.`;
+  } else {
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that saves ${formatNumber(Math.abs(totalKg))} kg against your current build.`;
+  }
+}
+
+function renderDecisionBar(result, decision) {
+  const bar = $('decision-bar');
+  if (!result.ready || !decision.button) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  $('decision-dot').className = `decision-dot ${result.winner ? 'pass' : 'fail'}`;
+  $('decision-bar-text').textContent = modelState === 'loading'
+    ? `${decision.headline} — checking moves with Muse Spark…`
+    : decision.headline;
+  const action = $('decision-bar-action');
+  action.textContent = decision.button;
 }
 
 function renderStatus(result) {
@@ -312,11 +501,11 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'meta') {
-    status.textContent = `${modelProposals.length} moves from Muse Spark. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.`;
+    status.textContent = `${modelProposals.length} moves from Muse Spark. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
     return;
   }
   if (modelState === 'empty') {
-    status.textContent = 'Muse Spark returned no usable moves. The calculated build stands.';
+    status.textContent = `Muse Spark returned no usable moves. The calculated build stands.${metaSourceText()}`;
     return;
   }
   status.textContent = 'Muse Spark is unavailable. The calculated build stands.';
@@ -333,12 +522,17 @@ function render(result) {
   $('builds-panel').hidden = !result.ready;
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready;
+  renderSteps();
+  renderDecisionBar(result, decision);
+  $('see-details').hidden = !result.ready;
   fade([$('decision'), $('support')], () => {
     $('decision').textContent = decision.headline;
     $('support').textContent = decision.support;
   });
   if (!result.ready) {
     $('build-list').replaceChildren();
+    $('range-view').replaceChildren();
+    $('run-note').textContent = '';
     $('empty-build').hidden = true;
     $('model-status').textContent = '';
     $('meta-trace').hidden = true;
@@ -346,6 +540,8 @@ function render(result) {
     return;
   }
   fade([$('build-list'), $('gap')], () => {
+    renderRangeView(result);
+    renderRunNote(result);
     renderBuildList(result);
     renderGap(result);
     renderTrace(result);
@@ -418,9 +614,57 @@ async function fetchProposals() {
     if (fallback) {
       modelProposals = [];
       modelState = 'offline';
+      metaSource = { kind: 'offline', model: data._model || '' };
     } else {
       modelProposals = proposals;
       modelState = proposals.length ? 'meta' : 'empty';
+      metaSource = data._cached
+        ? { kind: 'cached', model: data._model || 'Muse Spark' }
+        : { kind: 'live', model: data._model || 'Muse Spark' };
+    }
+    // One informed second round: if the verifier checked Muse Spark's exact
+    // proposals and any did not pass at that size, show Spark the checked
+    // ranges and let it propose different parameters once.
+    feedbackRound = false;
+    if (!fallback && modelProposals.length) {
+      const checked = evaluateBuilds(state, modelProposals);
+      const failed = (checked.modelTrace || []).filter((item) => !item.pass);
+      if (failed.length) {
+        try {
+          const feedback = failed.map((item) => ({
+            move: item.move === 'other' ? 'other_product' : item.move,
+            ranges: item.ranges.map((range, i) => ({
+              property: checked.targets[i].property,
+              min: range.min,
+              max: range.max,
+              unit: range.unit,
+            })),
+          }));
+          const second = await fetch(`${API_BASE}/api/product/proposals`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, verifier_feedback: feedback }),
+            signal: controller.signal,
+          });
+          const secondData = await second.json();
+          if (seq !== modelSeq) return;
+          const secondProposals = Array.isArray(secondData.proposals) ? secondData.proposals : [];
+          const secondFallback = Boolean(secondData._meta && secondData._meta.fallback);
+          if (second.ok && !secondFallback && secondProposals.length) {
+            const seen = new Set(modelProposals.map((p) => JSON.stringify(p)));
+            for (const proposal of secondProposals) {
+              if (!seen.has(JSON.stringify(proposal))) modelProposals.push(proposal);
+            }
+            modelState = 'meta';
+            metaSource = secondData._cached
+              ? { kind: 'cached', model: secondData._model || 'Muse Spark' }
+              : { kind: 'live', model: secondData._model || 'Muse Spark' };
+            feedbackRound = true;
+          }
+        } catch (error) {
+          // The first round and the calculated build stand.
+        }
+      }
     }
     const result = evaluateBuilds(state, modelProposals);
     render(result);
@@ -428,6 +672,7 @@ async function fetchProposals() {
     if (seq !== modelSeq) return;
     modelProposals = [];
     modelState = 'offline';
+    metaSource = { kind: 'offline', model: '' };
     const result = evaluateBuilds(state, []);
     render(result);
   } finally {
@@ -538,12 +783,37 @@ function onPrimary() {
 // ---------------------------------------------------------------------------
 setSelectOptions('mode', MODES.map((m) => ({ key: m.key, label: m.label })));
 setSelectOptions('other-mode', MODES.map((m) => ({ key: m.key, label: m.label })));
+for (const id of ['mode', 'other-mode']) {
+  const choose = document.createElement('option');
+  choose.value = '';
+  choose.textContent = 'Choose…';
+  $(id).prepend(choose);
+}
 setSelectOptions('property', PROPERTIES.map((p) => ({ key: p.key, label: `${p.label} (${p.unit})` })));
 {
   const blank = document.createElement('option');
   blank.value = '';
   blank.textContent = 'Choose a property';
   $('property').prepend(blank);
+}
+{
+  const select = $('batch-source');
+  select.replaceChildren();
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = 'Not set yet — pick one';
+  select.append(first);
+  for (const batch of PUBLISHED_BATCHES) {
+    const option = document.createElement('option');
+    option.value = batch.key;
+    option.textContent = batch.label;
+    select.append(option);
+  }
+  const own = document.createElement('option');
+  own.value = 'numbers';
+  own.textContent = 'I have numbers (supplier sheet or my own test)';
+  select.append(own);
+  select.addEventListener('change', () => applyBatchSource(select.value));
 }
 setSelectOptions('dirt-level', [
   { key: 'none', label: 'None' },
@@ -738,14 +1008,14 @@ async function toggleVoice() {
   }
 }
 
-function mapBriefToState(brief) {
+function mapBriefToState(brief, originalText = '') {
   const source = brief && typeof brief === 'object' ? brief : {};
   const targets = Array.isArray(source.targets)
     ? source.targets.filter((target) => target && ['strength', 'stiffness', 'weight'].includes(target.property))
     : [];
   const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
   const steady = source.steady && typeof source.steady === 'object' ? source.steady : {};
-  return normalizeState({
+  const normalized = normalizeState({
     blank: true,
     product: source.product || '',
     mode: source.mode || '',
@@ -774,6 +1044,26 @@ function mapBriefToState(brief) {
     },
     other: state.other,
   });
+  return applyPublishedIfMissing(normalized, originalText);
+}
+
+function applyPublishedIfMissing(normalized, originalText = '') {
+  briefPublished = null;
+  const plastic = normalized.plastic;
+  const hasRanges = plastic.eMin > 0 && plastic.eMax > 0 && plastic.sMin > 0 && plastic.sMax > 0 && plastic.density > 0;
+  if (hasRanges) return normalized;
+  const pub = publishedBatchFor(`${plastic.type} ${plastic.batch} ${originalText}`);
+  if (!pub) return normalized;
+  briefPublished = pub;
+  batchSource = pub.key;
+  normalized.plastic = {
+    ...plastic,
+    type: plastic.type || pub.plastic.type,
+    eMin: pub.plastic.eMin, eMax: pub.plastic.eMax,
+    sMin: pub.plastic.sMin, sMax: pub.plastic.sMax,
+    density: pub.plastic.density,
+  };
+  return normalized;
 }
 
 async function readBrief() {
@@ -787,6 +1077,8 @@ async function readBrief() {
   const button = $('brief-submit');
   button.disabled = true;
   $('brief-status').textContent = 'Muse Spark is reading the brief…';
+  $('brief-status').classList.add('is-working');
+  $('support').textContent = 'Muse Spark is reading the brief. This usually takes about ten seconds — you do not need to fill anything in while it works.';
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
@@ -799,18 +1091,27 @@ async function readBrief() {
     const data = await response.json();
     if (!response.ok || !data.available || !data.brief) {
       $('brief-status').textContent = 'Muse Spark could not read that brief. Fill the fields below, or try again.';
+      render(evaluateBuilds(state, modelProposals));
       return;
     }
-    state = mapBriefToState(data.brief);
+    state = mapBriefToState(data.brief, text);
     paint();
     refresh();
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
     const targetCount = 1 + state.extraTargets.length;
-    $('brief-status').textContent = `Muse Spark read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill.`;
+    const source = data._cached
+      ? 'That was a saved Muse Spark answer, not a new live call.'
+      : `That was a live read by ${data._model || 'Muse Spark'}.`;
+    const publishedNote = briefPublished
+      ? ` For this delivery I used “${briefPublished.label}” — a published range, not a measurement of this delivery. Change it under Batch if your supplier's numbers differ.`
+      : '';
+    $('brief-status').textContent = `Muse Spark read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill. ${source}${publishedNote}`;
   } catch (error) {
     $('brief-status').textContent = 'Muse Spark is unavailable. Fill the fields below; the local mechanics still works.';
+    render(evaluateBuilds(state, modelProposals));
   } finally {
+    $('brief-status').classList.remove('is-working');
     button.disabled = false;
     window.clearTimeout(timer);
   }
@@ -818,12 +1119,8 @@ async function readBrief() {
 
 function applyCase(name) {
   if (name === 'custom') {
-    state = normalizeState({
-      ...DEFAULT_STATE,
-      plastic: state.plastic,
-      steady: state.steady,
-      other: state.other,
-    });
+    batchSource = '';
+    state = normalizeState({ blank: true });
     paint();
     refresh();
     $('product').focus();
@@ -832,6 +1129,7 @@ function applyCase(name) {
   }
   const preset = CASE_PRESETS[name];
   if (!preset) return;
+  batchSource = 'numbers';
   state = normalizeState({
     ...state,
     product: preset.product,
@@ -874,9 +1172,23 @@ $('brief').addEventListener('keydown', (event) => {
     readBrief();
   }
 });
+for (const id of ['e-min', 'e-max', 's-min', 's-max', 'density']) {
+  $(id).addEventListener('input', () => {
+    if (batchSource !== 'numbers') {
+      batchSource = 'numbers';
+      syncBatchSourceUI();
+    }
+  });
+}
 for (const button of $$('.case')) button.addEventListener('click', () => applyCase(button.dataset.case));
 $('add-target').addEventListener('click', addTarget);
 $('primary').addEventListener('click', onPrimary);
+$('decision-bar-action').addEventListener('click', onPrimary);
+$('run-size').addEventListener('input', (event) => {
+  const parsed = Number(String(event.target.value).replace(/[^0-9]/g, ''));
+  runSize = Number.isFinite(parsed) ? parsed : 0;
+  if (lastResult) renderRunNote(lastResult);
+});
 $('ask-button').addEventListener('click', askMeta);
 $('ask-question').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {

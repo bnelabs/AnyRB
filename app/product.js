@@ -29,15 +29,18 @@ export const CASE_PRESETS = {
     target: { property: 'strength', min: 95, max: 115 },
     extraTargets: [{ property: 'weight', min: 320, max: 360 }],
     plastic: {
-      type: 'published measured rHDPE', batch: 'US MRF / literature case',
+      type: 'published measured rHDPE', batch: 'single-supplier stretch-film lot (n=50)',
       mix: '', dirt: '', dirtLevel: 'none',
-      eMin: 380, eMax: 1250, sMin: 41.6, sMax: 48.4, density: 0.94,
+      eMin: 1111, eMax: 1589, sMin: 41.6, sMax: 48.4, density: 0.94,
     },
     steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
   },
   planter: {
-    product: 'planter wall', mode: 'compression', spanMm: 300, widthMm: 180, thicknessMm: 4,
-    target: { property: 'strength', min: 1000, max: 1400 },
+    // A thin wall panel carried at both ends. (An earlier version treated
+    // this panel as a compression post and overstated what it carries;
+    // a 4 mm panel buckles long before it crushes.)
+    product: 'planter wall', mode: 'simple', spanMm: 300, widthMm: 180, thicknessMm: 4,
+    target: { property: 'strength', min: 9, max: 12 },
     extraTargets: [{ property: 'weight', min: 180, max: 230 }],
   },
   pallet: {
@@ -46,6 +49,68 @@ export const CASE_PRESETS = {
     extraTargets: [{ property: 'weight', min: 1500, max: 1800 }],
   },
 };
+
+/**
+ * Starting ranges for a delivery when the shop has no measurements of its own.
+ * These are published bands, not measurements of any delivery: the first from
+ * data/CASE_STUDY.md (R01/R04), the rest from data/feedstock_library.json
+ * (published mean ± published variation per polymer). The page says where a
+ * range came from whenever one is applied.
+ */
+export const PUBLISHED_BATCHES = [
+  {
+    key: 'rhdpe-measured-lot',
+    label: 'Recycled HDPE — one supplier, published measured lot',
+    plastic: { type: 'published measured rHDPE', eMin: 1111, eMax: 1589, sMin: 41.6, sMax: 48.4, density: 0.94 },
+    note: 'Published lot: stiffness from one supplier’s measured plates (1,350 ± 239 MPa, n=50), strength from a published rHDPE table. Not a measurement of your delivery.',
+  },
+  {
+    key: 'rhdpe',
+    label: 'Recycled HDPE — typical published range',
+    plastic: { type: 'recycled HDPE', eMin: 741, eMax: 1159, sMin: 23, sMax: 33, density: 0.95 },
+    note: 'Typical published band for recycled HDPE. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+  {
+    key: 'rpp',
+    label: 'Recycled polypropylene — typical published range',
+    plastic: { type: 'recycled polypropylene', eMin: 902, eMax: 1298, sMin: 23, sMax: 31, density: 0.94 },
+    note: 'Typical published band for recycled polypropylene. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+  {
+    key: 'mixed-polyolefins',
+    label: 'Mixed polyolefins — typical published range (wide)',
+    plastic: { type: 'mixed polyolefins', eMin: 560, eMax: 1040, sMin: 14, sMax: 22, density: 0.93 },
+    note: 'Typical published band for mixed polyolefins; the published evidence here is thinner, so the band is wide. Not a measurement of your delivery.',
+  },
+  {
+    key: 'rpet',
+    label: 'Recycled PET — typical published range',
+    plastic: { type: 'recycled PET', eMin: 2200, eMax: 2800, sMin: 38, sMax: 52, density: 1.34 },
+    note: 'Typical published band for recycled PET. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+  {
+    key: 'rldpe',
+    label: 'Recycled LDPE — typical published range',
+    plastic: { type: 'recycled LDPE', eMin: 188, eMax: 312, sMin: 8, sMax: 12, density: 0.92 },
+    note: 'Typical published band for recycled LDPE. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+];
+
+export function publishedBatchFor(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t) return null;
+  if (/ldpe/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rldpe');
+  if (/petg/.test(t)) return null;
+  if (/\bpet\b|polyethylene terephthalate/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpet');
+  if (/mixed|polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
+  if (/hdpe/.test(t)) {
+    return /single|one supplier|measured lot/.test(t)
+      ? PUBLISHED_BATCHES.find((b) => b.key === 'rhdpe-measured-lot')
+      : PUBLISHED_BATCHES.find((b) => b.key === 'rhdpe');
+  }
+  if (/polypropylene|\bpp\b/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpp');
+  return null;
+}
 
 export const PROPERTIES = [
   { key: 'strength', label: 'Strength', unit: 'kg', verb: 'carries', noun: 'strength' },
@@ -121,17 +186,22 @@ export function inferMode(name) {
   return 'simple';
 }
 
-function normalizePart(raw, fallback) {
+function normalizePart(raw, fallback, blank = false) {
   const source = raw && typeof raw === 'object' ? raw : {};
   const base = fallback || DEFAULT_STATE;
-  const product = clean(source.product, 120) || clean(source.name, 120) || base.product;
-  const mode = MODE_KEYS.has(source.mode) ? source.mode : (fallback ? inferMode(product) : base.mode);
+  const product = clean(source.product, 120) || clean(source.name, 120) || (blank ? '' : base.product);
+  const mode = MODE_KEYS.has(source.mode)
+    ? source.mode
+    : (blank ? '' : (fallback ? inferMode(product) : base.mode));
+  const span = num(source.spanMm ?? source.span_mm, 0);
+  const width = num(source.widthMm ?? source.width_mm, 0);
+  const thickness = num(source.thicknessMm ?? source.thickness_mm, 0);
   return {
     product,
     mode,
-    spanMm: clamp(num(source.spanMm ?? source.span_mm, base.spanMm), 20, 6000),
-    widthMm: clamp(num(source.widthMm ?? source.width_mm, base.widthMm), 2, 800),
-    thicknessMm: clamp(num(source.thicknessMm ?? source.thickness_mm, base.thicknessMm), 1, 400),
+    spanMm: span > 0 ? clamp(span, 20, 6000) : 0,
+    widthMm: width > 0 ? clamp(width, 2, 800) : 0,
+    thicknessMm: thickness > 0 ? clamp(thickness, 1, 400) : 0,
   };
 }
 
@@ -185,7 +255,7 @@ export function normalizeState(raw = {}) {
   const thickness = num(source.thicknessMm, 0);
   return {
     product,
-    mode: MODE_KEYS.has(source.mode) ? source.mode : (product ? inferMode(product) : DEFAULT_STATE.mode),
+    mode: MODE_KEYS.has(source.mode) ? source.mode : (blank ? '' : (product ? inferMode(product) : DEFAULT_STATE.mode)),
     spanMm: span > 0 ? clamp(span, 20, 6000) : 0,
     widthMm: width > 0 ? clamp(width, 2, 800) : 0,
     thicknessMm: thickness > 0 ? clamp(thickness, 1, 400) : 0,
@@ -211,17 +281,18 @@ export function normalizeState(raw = {}) {
       eMpa: clamp(num(source.steady?.eMpa, 0), 0, 200000),
       sMpa: clamp(num(source.steady?.sMpa, 0), 0, 5000),
     },
-    other: normalizePart(other, {
+    other: normalizePart(other, blank ? { product: '', mode: 'cantilever', spanMm: 0, widthMm: 0, thicknessMm: 0 } : {
       ...DEFAULT_STATE.other,
       product: clean(other.product, 120) || DEFAULT_STATE.other.product,
       mode: MODE_KEYS.has(other.mode) ? other.mode : inferMode(other.product || DEFAULT_STATE.other.product),
-    }),
+    }, blank),
   };
 }
 
 export function isReady(stateInput) {
   const state = normalizeState(stateInput);
   if (!state.product) return false;
+  if (!MODE_KEYS.has(state.mode)) return false;
   if (!(state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0)) return false;
   const targets = [state.target, ...state.extraTargets];
   if (!targets.length) return false;
@@ -274,9 +345,11 @@ function inertia(part) {
 }
 
 function weakInertia(part) {
+  // Weak axis: long side times the short side cubed. A part in compression
+  // buckles about this axis first.
   const a = part.widthMm;
   const b = part.thicknessMm;
-  return (Math.min(a, b) * Math.max(a, b) ** 3) / 12;
+  return (Math.max(a, b) * Math.min(a, b) ** 3) / 12;
 }
 
 /** Load capacity in newtons for a given modulus/strength pair. */
@@ -390,7 +463,9 @@ function validCandidate(state, candidate) {
   if (candidate.move === 'current') return true;
   if (candidate.move === 'other') {
     if (!state.other.product) return false;
-    return !samePart(otherPart(state), currentPart(state));
+    const other = otherPart(state);
+    if (!(other.spanMm > 0 && other.widthMm > 0 && other.thicknessMm > 0)) return false;
+    return !samePart(other, currentPart(state));
   }
   if (candidate.move === 'blend') {
     return state.steady.available && state.steady.eMpa > 0 && state.steady.sMpa > 0 && Number.isFinite(candidate.fraction) && candidate.fraction > 0;
@@ -488,11 +563,21 @@ export function materialGap(stateInput, part, targetInput = null) {
       ? (state.steady.available ? state.steady.eMpa : 0)
       : 0;
   const steadyShort = steadyValue > 0 ? Math.max(0, required.min - steadyValue) : null;
+  // In compression a slender part can buckle before the material crushes.
+  // That limit is set by stiffness, not strength, so name it separately
+  // instead of asking for a stronger plastic that would not help.
+  let buckling = null;
+  if (part.mode === 'compression' && target.property === 'strength') {
+    const eulerKg = (Math.PI ** 2 * state.plastic.eMin * weakInertia(part)) / part.spanMm ** 2 / G;
+    buckling = { governs: eulerKg < target.min, capacityKgAtLowStiffness: eulerKg };
+  }
   const targetRatio = (target.max - target.min) / target.min;
   const batchRatio = batch.min > 0 ? (batch.max - batch.min) / batch.min : Infinity;
   const rangeTooWide = target.property !== 'weight' && batchRatio > targetRatio + 1e-9;
   let action;
-  if (rangeTooWide) {
+  if (buckling && buckling.governs) {
+    action = `This part buckles before it crushes: at the delivery's low stiffness it carries about ${formatNumber(buckling.capacityKgAtLowStiffness)} kg. Make it thicker or shorter, or bring in a stiffer stream — a stronger plastic alone does not lift this.`;
+  } else if (rangeTooWide) {
     action = 'The delivery swings too wide for this range. A thicker or wider section scales both ends together, so it cannot narrow the swing; add a steadier stream or sort out the soft fraction first.';
     if (steadyShort > 0) action += ` Your declared steadier stream gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}.`;
   } else if (steadyShort > 0) {
@@ -510,7 +595,7 @@ export function materialGap(stateInput, part, targetInput = null) {
   } else {
     action = 'This delivery already sits inside the window for this build.';
   }
-  return { required, batch, shortLow, overHigh, steadyValue, steadyShort, rangeTooWide, action, unit: required.unit, property: target.property };
+  return { required, batch, shortLow, overHigh, steadyValue, steadyShort, rangeTooWide, buckling, action, unit: required.unit, property: target.property };
 }
 
 /** The least-material thickness that makes the current build with this delivery. */
@@ -692,6 +777,7 @@ function traceModelProposals(state, proposals) {
   const supportFor = (candidate) => candidate.move === 'span' ? currentMass * 0.2 : 0;
   const trace = [];
   for (const candidate of normalized) {
+    if (!validCandidate(state, candidate)) continue;
     const part = candidatePart(state, candidate);
     const plastic = plasticFor(state, candidate);
     const support = supportFor(candidate);
@@ -748,13 +834,14 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
   const modelTrace = targetValid ? traceModelProposals(state, modelProposals) : [];
   const candidates = [];
   const seen = new Set();
+  const searched = targetValid ? searchModelMoves(state, modelProposals) : [];
   if (targetValid) {
     for (const exact of modelTrace) if (exact.pass) addCandidate(state, candidates, seen, exact);
     const minimum = minimumThicknessCandidate(state);
     if (minimum) addCandidate(state, candidates, seen, minimum);
     const blend = blendCandidate(state);
     if (blend) addCandidate(state, candidates, seen, blend);
-    for (const candidate of searchModelMoves(state, modelProposals)) addCandidate(state, candidates, seen, candidate);
+    for (const candidate of searched) addCandidate(state, candidates, seen, candidate);
   }
   const evaluated = candidates.map((candidate) => {
     const part = candidatePart(state, candidate);
@@ -766,13 +853,25 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
       return range;
     });
     const mass = massG(part, plastic.density) + support;
+    // A blend is not free: it uses the steadier stream in every part.
+    // Charge it that stream, in grams a part, so it is ranked on the same
+    // axis as added section material.
+    const addedG = candidate.move === 'blend'
+      ? candidate.fraction * massG(part, plastic.density)
+      : mass - currentMass;
+    const origin = modelTrace.includes(candidate)
+      ? 'meta'
+      : searched.includes(candidate)
+        ? 'meta-direction'
+        : 'local';
     return {
       ...candidate,
       part,
       range: ranges[0],
       ranges,
       massG: mass,
-      addedG: mass - currentMass,
+      addedG,
+      origin,
       pass: targetValid && ranges.every((range, i) => inRange(range, targets[i])),
     };
   });
@@ -872,7 +971,8 @@ export function decisionFor(stateInput, result) {
     const meta = propertyMeta(primary.property);
     const unit = primary.unit;
     let headline;
-    if (primary.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
+    if (primary.buckling && primary.buckling.governs) headline = 'Thicken or shorten this part.';
+    else if (primary.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
     else if (primary.shortLow > 0) headline = `Lift the ${meta.noun} low end by ${formatNumber(primary.shortLow)} ${unit}.`;
     else if (primary.overHigh > 0) headline = `Bring the ${meta.noun} high end down by ${formatNumber(primary.overHigh)} ${unit}.`;
     else headline = 'This build needs a different section.';
@@ -880,17 +980,21 @@ export function decisionFor(stateInput, result) {
       const gapMeta = propertyMeta(gap.property);
       return `${gapMeta.noun} needs ${formatRange(gap.required, gap.unit)}; the delivery gives ${formatRange(gap.batch, gap.unit)}.`;
     });
-    const support = `At ${buildSizeText(currentPart(state))}, ${statements.join(' ')} ${primary.action}`;
+    const asStands = result.current
+      ? `as it stands, this build ${rangeText(result.current)} — you need ${targetText}. `
+      : '';
+    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}${statements.join(' ')} ${primary.action}`;
     const copy = [
       'AnyRB plan',
       headline,
       `Current build: ${buildSizeText(currentPart(state))}`,
+      asStands ? `As it stands: ${rangeText(result.current)}; you need ${targetText}` : '',
       ...gaps.map((gap) => {
         const gapMeta = propertyMeta(gap.property);
         return `${gapMeta.label}: needs ${formatRange(gap.required, gap.unit)}, delivery ${formatRange(gap.batch, gap.unit)}`;
       }),
       `Action: ${primary.action}`,
-    ].join('\n');
+    ].filter(Boolean).join('\n');
     return { headline, support, button: 'Ask Meta', copy };
   }
   const winner = result.winner;
@@ -933,14 +1037,24 @@ export function proposalRow(stateInput, item) {
     ? `${item.part.product} · ${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`
     : `${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`;
   const blendPercent = item.move === 'blend' ? Math.round(item.fraction * 100) : null;
+  const originLabel = item.move === 'current'
+    ? 'your build as entered'
+    : item.origin === 'meta'
+      ? 'proposed by Muse Spark'
+      : item.origin === 'meta-direction'
+        ? 'direction from Muse Spark, size calculated here'
+        : 'calculated here';
   return {
     move: moveLabel(state, item),
+    originLabel,
     size,
     property: targets.map((target, i) => {
       const meta = propertyMeta(target.property);
       return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
     }).join(' · '),
-    added: blendPercent ? `${blendPercent}% steady stream` : addedMaterialText(item.addedG),
+    added: blendPercent
+      ? `${blendPercent}% steadier stream · ${formatNumber((blendPercent / 100) * massG(item.part, state.plastic.density))} g a part`
+      : addedMaterialText(item.addedG),
     winner: false,
     blend: blendPercent,
     steadyType: item.move === 'blend' ? state.steady.type : '',

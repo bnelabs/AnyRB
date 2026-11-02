@@ -412,3 +412,12 @@ def test_comma_normalizer_and_dash_ranges(product_ai):
     for value in (800.0, 1250.0, 38.0, 50.0, 1500.0):
         assert product_ai._number_was_stated(value, nums), value
     assert not product_ai._number_was_stated(1350.0, nums)
+
+
+def test_brief_prompt_maps_load_to_strength_and_mass_to_weight():
+    from server import product_ai
+    system = product_ai.PRODUCT_BRIEF_SYSTEM
+    assert "load capacity" in system
+    assert "**strength** target" in system
+    assert "**weight** target" in system
+    assert "two targets" in system

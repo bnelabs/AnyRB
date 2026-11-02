@@ -553,3 +553,128 @@ h3 {
 @media (max-width: 760px) {
   .brief-voice { align-self: flex-start; }
 }
+
+/* --- Decision bar: the answer stays on screen while you edit below --- */
+.decision-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 1240px);
+  margin: 0 auto;
+  padding: 12px 40px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.decision-bar[hidden] { display: none; }
+.decision-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
+.decision-dot.fail { background: #a34d28; }
+.decision-bar-text {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+}
+.decision-bar-action {
+  flex: none;
+  border: 0; border-radius: 999px;
+  background: var(--ink); color: #fff;
+  height: 36px; padding: 0 16px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.decision-bar-action:hover { opacity: 0.82; }
+
+/* --- Readiness steps --- */
+.steps {
+  display: flex; flex-wrap: wrap; gap: 10px 28px;
+  list-style: none; margin: 26px 0 0; padding: 0;
+  max-width: 900px;
+}
+.step { display: flex; align-items: baseline; gap: 9px; color: var(--muted); font-size: 13.5px; }
+.step-num {
+  display: inline-grid; place-items: center;
+  width: 20px; height: 20px; flex: none;
+  border: 1px solid var(--field); border-radius: 50%;
+  font-size: 11.5px; color: var(--muted);
+  transform: translateY(4px);
+}
+.step strong { color: inherit; font-weight: 600; }
+.step.is-done { color: var(--ink); }
+.step.is-done .step-num { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+/* --- Range view: what you need vs what the build gives --- */
+.range-view { margin-top: 16px; }
+.range-view:empty { display: none; }
+.rv-title { margin: 0 0 10px; font-size: 13px; font-weight: 600; letter-spacing: -0.005em; }
+.rv-row { margin-bottom: 16px; }
+.rv-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 7px; }
+.rv-name { font-size: 13.5px; color: #2c2c29; }
+.rv-margin { font-size: 12.5px; color: var(--muted); }
+.rv-margin.fail { color: #8a4b2f; font-weight: 500; }
+.rv-track { position: relative; height: 14px; background: #efede8; border-radius: 3px; }
+.rv-target { position: absolute; top: 0; bottom: 0; background: #cfccc0; border-radius: 3px; }
+.rv-bar { position: absolute; top: 3px; bottom: 3px; background: var(--ink); border-radius: 2px; min-width: 3px; }
+.rv-bar.fail { background: #a34d28; }
+.rv-scale { display: flex; justify-content: space-between; margin-top: 4px; color: #98958d; font-size: 11px; }
+.rv-legend { margin: 2px 0 4px; color: var(--muted); font-size: 12px; }
+
+/* --- Run size --- */
+.run-row { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 18px; margin-top: 14px; }
+.run-field { flex: 0 1 190px; margin-bottom: 0; }
+.run-note { flex: 1 1 220px; margin: 0; padding-bottom: 10px; color: #3f3f3b; font-size: 13.5px; line-height: 1.45; }
+.run-note:empty { display: none; }
+
+/* --- Brief actions: the way in is a button, not a footnote --- */
+.brief-submit {
+  height: 44px; padding: 0 18px;
+  border-radius: 999px; background: var(--ink); color: #fff;
+  border-bottom: 0; font-size: 14px; font-weight: 500;
+  align-self: flex-end;
+}
+.brief-submit:hover { opacity: 0.82; border-bottom: 0; }
+.brief-submit:disabled { opacity: 0.35; color: #fff; }
+.brief-voice {
+  height: 44px; padding: 0 16px;
+  border-radius: 999px; background: transparent; color: var(--ink);
+  border: 1px solid var(--field); font-size: 14px;
+  align-self: flex-end;
+}
+.brief-voice:hover { border-color: var(--ink); }
+.brief-voice.is-recording { color: #8a2f2f; border-color: #8a2f2f; }
+.brief-sample {
+  padding: 5px 12px;
+  border: 1px solid var(--field); border-radius: 999px;
+  color: var(--ink); font-size: 12.5px;
+}
+.brief-sample:hover { border-color: var(--ink); }
+
+/* --- Examples as choices --- */
+.case {
+  padding: 7px 14px;
+  border: 1px solid var(--field); border-radius: 999px;
+  font-size: 13.5px;
+}
+.case:hover { border-color: var(--ink); }
+
+/* Trace wording is longer now ("does not pass") */
+.trace-row .trace-state { min-width: 82px; }
+
+@media (max-width: 760px) {
+  .decision-bar { padding: 10px 20px; }
+  .decision-bar-text { font-size: 14px; }
+  .brief-submit, .brief-voice { align-self: stretch; }
+  .steps { gap: 8px 18px; }
+}
+
+/* --- Batch on-ramp --- */
+.batch-note { margin: 0 0 14px; color: #4d4b46; font-size: 13px; line-height: 1.5; }
+.batch-note[hidden] { display: none; }
+.measured-group { margin: 4px 0 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.measured-group summary { cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--ink); padding: 4px 0 8px; }
+.measured-note { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; line-height: 1.5; max-width: 560px; }
+.gap-note { color: var(--muted); font-size: 12.5px; }
+.see-details { display: inline-block; margin: 16px 0 0 14px; color: var(--ink); font-size: 14px; text-decoration: none; border-bottom: 1px solid #bdbab3; padding-bottom: 2px; vertical-align: middle; }
+.see-details:hover { border-bottom-color: var(--ink); }
+.see-details[hidden] { display: none; }
+.brief-status.is-working { color: var(--ink); font-size: 13.5px; font-weight: 500; }

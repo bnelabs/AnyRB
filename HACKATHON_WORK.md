@@ -9,7 +9,7 @@ period (Oct 27–Nov 4). The active submission is the product-first, multi-requi
 | Area | Files | What changed |
 |---|---|---|
 | Product-first page | `app/index.html`, `app/main.js`, `app/styles.css` | Replaced the bracket-default screen with "What do you want to make?", optional case examples, multiple target requirements, Batch section and Ask Meta. |
-| Mechanics + verification | `app/product.js`, `app/tests/model.test.mjs` | Rectangular-section capacity/stiffness/mass, full-swing range test, least-material selection, material gap, blend, exact model trace, model-move search; no invented numbers; 26 app tests. |
+| Mechanics + verification | `app/product.js`, `app/tests/model.test.mjs` | Rectangular-section capacity/stiffness/mass, full-swing range test, least-material selection, material gap, blend, exact model trace, model-move search; no invented numbers; 28 app tests. |
 | Meta brief | `server/product_ai.py`, `server/app.py`, `server/tests/test_product_brief.py` (new), `app/main.js` | Natural-language typed or spoken brief; Muse Voice transcribes, Muse Spark parses into editable product/target/batch state; numbers not stated are dropped. |
 | Verifier trace | `app/product.js`, `app/main.js`, `app/index.html` | Exact Muse Spark proposals are scored and shown as accepted/rejected; the mechanics search then supplies the passing builds. |
 | Meta proposals | `server/product_ai.py`, `server/app.py`, `server/tests/test_product_proposals.py` | Optional `targets` array, all requirements simultaneously, sanitised parameter-only output, no fixed fallback. |

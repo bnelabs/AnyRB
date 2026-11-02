@@ -17,9 +17,10 @@
 
 ### 0:00–0:15 — The problem
 
-**Say:** “A small shop makes crate sides from recycled HDPE. Same part, same mould — but this delivery
-is a mixed-rigid MRF stream, and its stiffness can swing from 380 to 1,250 MPa. The usual choice is
-over-design the part or reject the batch. AnyRB tries to make a plan from the batch instead.”
+**Say:** “A small shop makes crate sides from recycled HDPE. Same part, same mould — but every
+delivery swings, and rejecting the odd one is expensive. This demo uses one published stretch-film lot
+for stiffness and a published full property table for strength, standing in for the shop's own measured
+lot. AnyRB tries to make a plan from the batch instead.”
 
 ### 0:15–0:30 — Open on the question
 
@@ -32,36 +33,46 @@ Point at the examples row but do not choose one yet.
 
 Click **Use a sample brief** (or press **Speak** and say the same brief, or paste it):
 
-> “I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load
-> capacity of 95–115 kg (strength requirement) and a weight of 320–360 g (weight requirement). My
-> batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density
-> 0.94.”
+> “I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side
+> has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE
+> from one supplier, fairly clean, with paper labels on some of it.”
 
-Show the status **Muse Spark is reading the brief…**, then the parsed fields: product, compression, two
-requirements, batch range and steady stream.
+Note what this brief does **not** contain: no stiffness, no strength, no MPa. The shop should never
+have to speak in supplier-sheet units. Show the status **Muse Spark is reading the brief…** (say
+out loud that a live read takes about ten seconds), then the parsed fields, and the Batch line:
+the delivery has been set to the **published measured lot for one supplier's recycled HDPE**,
+labelled as a published range, not a measurement of this delivery.
 
-**Say:** “Muse Spark turns the shop language into editable state. It only extracts what was said;
-missing fields stay empty. The shop can correct anything.”
+**Say:** “Muse Spark turns the shop language into editable state. It only writes down what was
+said. Because the shop named the plastic, the delivery starts from its published range — and the
+page says that's what it is.”
 
-### 0:55–1:20 — Engineering + verifier
+### 0:55–1:20 — See the swing, then the verifier
 
-Show the decision and the **Builds that pass** list. Open the **Meta → verifier** trace under the list.
+Show the range view under **Builds that pass**: for each requirement, the pale band is what the shop
+needs, the solid bar is what the build gives across the full delivery swing. Point at the strength
+margin line — **closest margin 0.4 kg at the low end**. That thin margin is the whole problem in
+one picture, and it is why a single datasheet number is not enough.
 
-**Say:** “Muse Spark proposed moves. The verifier checks the exact proposal against every range across
-the full plastic swing. Rejected proposals are shown, not hidden. Then the mechanics searches the
-passing size in the accepted direction. The model cannot invent a strength or a weight.”
+Open the **Meta → verifier** trace under the list. Note whether the page labels the Meta answer
+live or saved — say which one this is.
 
-Show the **Batch** pane: strength/weight needed vs delivery. The 400 mm crate side, 60 × 15 mm,
-reports **95.4–111.0 kg** and **338.4 g** — inside both requirements.
+**Say:** “Muse Spark proposed moves. The verifier checks each one at the exact size proposed,
+against every range across the full plastic swing. What does not pass is shown, and is sent back
+to Muse Spark once with the checked ranges. Then the mechanics searches the passing size in the
+accepted direction. The model cannot invent a strength or a weight.”
 
-### 1:20–1:55 — A batch that doesn't fit
+### 1:20–1:55 — A batch that doesn't fit (worked case, exact numbers in `data/CASE_STUDY.md`)
 
-Change one requirement or the batch low end so the current geometry fails. Use a second case:
-raise the crate requirement or lower the batch strength. Show the headline **Narrow the … swing** or
-**Lift the … low end**.
+Keep the crate case and change only the strength requirement to **130–150 kg**. The headline becomes
+**“Narrow the strength swing.”** The range view now shows the current build's own bar: it carries
+**95.4–111.0 kg**, 34.6 kg short at the low end. The Batch gap states what this build needs —
+**56.7–65.4 MPa** — against the delivery's **41.6–48.4 MPa**. Scroll as little as possible: the
+decision stays pinned at the top of the page while you edit.
 
-**Say:** “This is the important case. The app does not say ‘don’t use the batch.’ It tells the shop
-what range the build needs, how far the delivery is from it, and what to add or change.”
+**Say:** “This is the important case. The app does not say ‘don’t use the batch.’ It shows what the
+part actually carries today, what range the build needs, how far the delivery is from it, and what
+to add or change.”
 
 Click **Ask Meta about this batch**. Show the grounded answer with concrete actions — wash/sort,
 add the steadier stream, change the section, or route the batch. No test instructions.
@@ -72,7 +83,7 @@ Go back to the passing crate case. Point at:
 
 - the build: `400 mm crate side, 60 × 15 mm`
 - the two ranges it satisfies: 95.4–111.0 kg and 338.4 g
-- the sourced batch: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength
+- the sourced batch: 1,111–1,589 MPa stiffness, 41.6–48.4 MPa strength
 - the **Copy build** button
 
 **Say:** “The shop leaves with a build and a batch recipe, not a rejected delivery. The model proposed;
@@ -86,7 +97,7 @@ Cut to a simple architecture overlay or the README:
 - `/api/product/brief` — Muse Spark extracts the shop ask
 - `/api/product/proposals` — Muse Spark proposes moves; server sanitises parameters
 - `/api/product/advice` — grounded actions, all requirements, no invented numbers
-- 26 app tests + 135 server tests; browser never receives the key
+- 32 app tests + 138 server tests; browser never receives the key
 
 **Say:** “This is a verifiable agent for a physical workflow. The model is in the front door and in
 the explanation; the deterministic verifier owns every physical number.”

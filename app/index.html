@@ -14,6 +14,12 @@
   <span class="top-note">From this delivery to a build that holds</span>
 </header>
 
+<div class="decision-bar" id="decision-bar" hidden>
+  <span class="decision-dot" id="decision-dot" aria-hidden="true"></span>
+  <span class="decision-bar-text" id="decision-bar-text"></span>
+  <button class="decision-bar-action" id="decision-bar-action" type="button"></button>
+</div>
+
 <main class="page" id="main">
   <section class="decision" aria-labelledby="decision">
     <h1 id="decision">What do you want to make?</h1>
@@ -24,12 +30,17 @@
         <button class="brief-sample" id="brief-sample" type="button">Use a sample brief</button>
       </div>
       <div class="brief-row">
-        <textarea id="brief" rows="2" placeholder="e.g. I make a 400 mm crate side, 60 mm wide and 15 mm thick, simply supported. It must have a load capacity of 95–115 kg and a weight of 320–360 g. My batch is a published measured rHDPE range: 380–1,250 MPa stiffness, 41.6–48.4 MPa strength, density 0.94."></textarea>
+        <textarea id="brief" rows="2" placeholder="The part, what it must hold, and what this delivery measures. Type it, speak it, or use the sample brief."></textarea>
         <button class="brief-submit" id="brief-submit" type="button">Read with Meta</button>
         <button class="brief-voice" id="brief-voice" type="button">Speak</button>
       </div>
       <p class="brief-status" id="brief-status"></p>
     </div>
+    <ol class="steps" id="steps" aria-label="What the decision needs">
+      <li class="step" data-step="part"><span class="step-num">1</span><span class="step-text"><strong>The part</strong> — name it and size it</span></li>
+      <li class="step" data-step="target"><span class="step-num">2</span><span class="step-text"><strong>What must hold</strong> — one property or several</span></li>
+      <li class="step" data-step="batch"><span class="step-num">3</span><span class="step-text"><strong>This delivery</strong> — its measured low and high</span></li>
+    </ol>
     <div class="cases" id="cases" aria-label="Start with a part">
       <span class="cases-label">Examples</span>
       <button class="case" type="button" data-case="bracket">Bracket</button>
@@ -40,12 +51,13 @@
       <button class="case" type="button" data-case="custom">Something else</button>
     </div>
     <button class="pill" id="primary" type="button" hidden>Copy build</button>
+    <a class="see-details" id="see-details" href="#builds-panel" hidden>See the build and how its ranges sit ↓</a>
   </section>
 
   <div class="work">
     <section class="engineering" aria-labelledby="engineering-title">
       <h2 id="engineering-title">Engineering</h2>
-      <p class="section-note">Change the build, not the plastic.</p>
+      <p class="section-note">Change the build, not the plastic. Works for a solid rectangular section on the three load paths below. The ranges you enter are checked as entered — no extra safety factor is added.</p>
       <div class="fields">
         <div class="field">
           <label for="product">Product</label>
@@ -77,6 +89,11 @@
           <h3>Builds that pass</h3>
           <p class="model-status" id="model-status">Scoring this delivery…</p>
         </div>
+        <div class="range-view" id="range-view"></div>
+        <div class="run-row">
+          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
+          <p class="run-note" id="run-note"></p>
+        </div>
         <ol class="build-list" id="build-list"></ol>
         <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
         <div class="meta-trace" id="meta-trace" hidden></div>
@@ -98,8 +115,13 @@
 
     <section class="batch" aria-labelledby="batch-title">
       <h2 id="batch-title">Batch</h2>
-      <p class="section-note">Measured swing sets the build. Dirt tells us what to fix.</p>
+      <p class="section-note">Every delivery of recycled plastic bends and breaks a little differently. Start from a published range for the kind of plastic — or use your supplier's numbers if you have them. Nobody is expected to know these by heart.</p>
       <div class="fields">
+        <div class="field">
+          <label for="batch-source">What do you know about this delivery?</label>
+          <select id="batch-source"></select>
+        </div>
+        <p class="batch-note" id="batch-note" hidden></p>
         <div class="field"><label for="plastic-type">Plastic type</label><input id="plastic-type" type="text" spellcheck="false" placeholder="recycled polypropylene"></div>
         <div class="grid2">
           <div class="field"><label for="plastic-batch">Batch</label><input id="plastic-batch" type="text" spellcheck="false" placeholder="April delivery"></div>
@@ -109,19 +131,23 @@
           <div class="field"><label for="dirt-level">Dirt level</label><select id="dirt-level"></select></div>
           <div class="field"><label for="plastic-dirt">What is in it</label><input id="plastic-dirt" type="text" spellcheck="false" placeholder="paper labels"></div>
         </div>
-        <div class="grid2">
-          <div class="field"><label for="e-min">Stiffness low (MPa)</label><input id="e-min" inputmode="decimal" type="text"></div>
-          <div class="field"><label for="e-max">Stiffness high (MPa)</label><input id="e-max" inputmode="decimal" type="text"></div>
-        </div>
-        <div class="grid2">
-          <div class="field"><label for="s-min">Strength low (MPa)</label><input id="s-min" inputmode="decimal" type="text"></div>
-          <div class="field"><label for="s-max">Strength high (MPa)</label><input id="s-max" inputmode="decimal" type="text"></div>
-        </div>
-        <div class="grid2">
-          <div class="field"><label for="density">Density (g/cm³)</label><input id="density" inputmode="decimal" type="text"></div>
-          <div class="field check-field">
-            <label class="check" for="steady-available"><input id="steady-available" type="checkbox"> A steadier plastic is available</label>
+        <details class="measured-group" id="measured-fields">
+          <summary>Have numbers from a supplier sheet or your own test? Enter them exactly</summary>
+          <p class="measured-note">Stiffness is how much the plastic bends. Strength is the load it takes before it breaks. “Low” is the weak end of this delivery — the part has to work even there, so that end sets the build. Your low end should already reflect the dirt and mix above.</p>
+          <div class="grid2">
+            <div class="field"><label for="e-min">Stiffness low (MPa)</label><input id="e-min" inputmode="decimal" type="text"></div>
+            <div class="field"><label for="e-max">Stiffness high (MPa)</label><input id="e-max" inputmode="decimal" type="text"></div>
           </div>
+          <div class="grid2">
+            <div class="field"><label for="s-min">Strength low (MPa)</label><input id="s-min" inputmode="decimal" type="text"></div>
+            <div class="field"><label for="s-max">Strength high (MPa)</label><input id="s-max" inputmode="decimal" type="text"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="density">Density (g/cm³)</label><input id="density" inputmode="decimal" type="text"></div>
+          </div>
+        </details>
+        <div class="field check-field">
+          <label class="check" for="steady-available"><input id="steady-available" type="checkbox"> A steadier plastic is available to mix in</label>
         </div>
         <div id="steady-fields" class="steady-fields" hidden>
           <div class="field"><label for="steady-type">Steadier plastic</label><input id="steady-type" type="text" spellcheck="false" placeholder="stiffer stream"></div>

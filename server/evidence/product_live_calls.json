@@ -1,0 +1,53 @@
+{
+  "generated": "2026-11-02T21:39:22+03:00",
+  "note": "Live check of the judged product endpoints against the local server on 2026-11-02 (key server-side, not recorded). Brief: un-annotated shop wording ('It has to carry 95 to 115 kg, and one panel should weigh 320 to 360 g') returned live in 9.6 s, cached=false, mapping strength 95-115 kg and weight 320-360 g as two targets. Proposals for the same state were returned from the on-disk cache of the identical earlier request (cached=true, original live tokens recorded in _meta). An earlier live brief call with 'load capacity' wording mis-mapped that range to a weight target; the brief prompt now states the load/weight/stiffness mapping and this check verifies the correction.",
+  "brief": {
+    "available": true,
+    "_model": "muse-spark-1.3-contributor",
+    "_cached": false,
+    "_meta": {
+      "model": "muse-spark-1.3-contributor",
+      "cached": false,
+      "fallback": false,
+      "latency_s": 9.591,
+      "tokens": {
+        "completion_tokens": 800,
+        "prompt_tokens": 888,
+        "total_tokens": 1688,
+        "completion_tokens_details": {
+          "reasoning_tokens": 643
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      }
+    }
+  },
+  "proposals": {
+    "moves": [
+      "thickness",
+      "section",
+      "span",
+      "other_product"
+    ],
+    "_model": "muse-spark-1.3-contributor",
+    "_cached": true,
+    "_meta": {
+      "model": "muse-spark-1.3-contributor",
+      "cached": true,
+      "fallback": false,
+      "latency_s": 0.001,
+      "tokens": {
+        "completion_tokens": 715,
+        "prompt_tokens": 1013,
+        "total_tokens": 1728,
+        "completion_tokens_details": {
+          "reasoning_tokens": 634
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      }
+    }
+  }
+}

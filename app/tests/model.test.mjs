@@ -78,6 +78,37 @@ test('the app starts without a product or a decision', () => {
   assert.doesNotMatch(decision.support, /bracket/i);
 });
 
+test('first open carries no batch, steadier stream, or other product', () => {
+  const s = normalizeState({ blank: true });
+  assert.equal(s.plastic.type, '');
+  assert.equal(s.plastic.batch, '');
+  assert.equal(s.plastic.mix, '');
+  assert.equal(s.plastic.dirt, '');
+  assert.equal(s.plastic.eMin, 0);
+  assert.equal(s.plastic.eMax, 0);
+  assert.equal(s.plastic.sMin, 0);
+  assert.equal(s.plastic.sMax, 0);
+  assert.equal(s.plastic.density, 0);
+  assert.equal(s.steady.available, false);
+  assert.equal(s.other.product, '');
+  assert.equal(isReady(s), false);
+});
+
+test('a load path is required before anything is scored', () => {
+  const raw = {
+    blank: true,
+    product: 'crate side',
+    spanMm: 400,
+    widthMm: 60,
+    thicknessMm: 15,
+    target: { property: 'strength', min: 95, max: 115 },
+    plastic: { type: 'rHDPE', eMin: 1111, eMax: 1589, sMin: 41.6, sMax: 48.4, density: 0.94 },
+  };
+  assert.equal(normalizeState(raw).mode, '');
+  assert.equal(isReady(raw), false);
+  assert.equal(isReady({ ...raw, mode: 'simple' }), true);
+});
+
 test('the user can start with any of several product cases', () => {
   for (const name of Object.keys(CASE_PRESETS)) {
     const s = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS[name] });
@@ -128,9 +159,53 @@ test('strength-only bracket: the declared steadier stream closes the gap', () =>
   assert.ok(candidate);
   assert.equal(candidate.move, 'blend');
   const result = evaluateBuilds(s, []);
-  assert.equal(result.winner.move, 'blend');
-  assert.equal(result.winner.fraction, candidate.fraction);
-  assert.match(decisionFor(s, result).headline, /^Blend \d+% of stiffer bottle stream/);
+  const blend = result.passingBest.find((item) => item.move === 'blend');
+  assert.ok(blend, 'the blend build passes');
+  assert.equal(blend.fraction, candidate.fraction);
+  // A blend is charged the steadier stream it uses in every part, so it is
+  // ranked against added section material on the same axis — here the
+  // thicker section brings in less material and wins.
+  assert.ok(blend.addedG > 0);
+  close(blend.addedG, blend.fraction * blend.massG, 1e-9);
+  assert.ok(result.winner.addedG <= blend.addedG);
+});
+
+test('compression: a thin panel buckles about its weak axis', () => {
+  // 180 x 4 mm panel, 300 mm tall: weak-axis Euler load at E=700 MPa is
+  // pi^2 * 700 * (180 * 4^3 / 12) / 300^2 = ~74 N, not the squash load.
+  const part = { product: 'planter wall', mode: 'compression', spanMm: 300, widthMm: 180, thicknessMm: 4 };
+  close(capacityN(part, 700, 14), 73.7, 0.5);
+  assert.ok(capacityN(part, 700, 14) < 14 * 180 * 4 / 100);
+});
+
+test('compression gap names buckling instead of asking for stronger plastic', () => {
+  const s = normalizeState({
+    ...DEFAULT_STATE,
+    product: 'planter wall', mode: 'compression', spanMm: 300, widthMm: 180, thicknessMm: 4,
+    target: { property: 'strength', min: 100, max: 140 }, extraTargets: [],
+  });
+  const gap = materialGap(s, { product: 'planter wall', mode: 'compression', spanMm: 300, widthMm: 180, thicknessMm: 4 }, s.target);
+  assert.ok(gap.buckling && gap.buckling.governs);
+  assert.match(gap.action, /buckles/i);
+});
+
+test('a blank other product never appears in the verifier trace', () => {
+  const s = normalizeState({ blank: true, ...CASE_PRESETS.crate, product: 'crate side', mode: 'simple' });
+  const result = evaluateBuilds(s, [{ move: 'other_product' }]);
+  assert.equal(result.modelTrace.filter((item) => item.move === 'other').length, 0);
+});
+
+test('a failing decision states what the current build actually does', () => {
+  const s = bracket({
+    target: { property: 'strength', min: 80, max: 90 },
+    extraTargets: [],
+    steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
+  });
+  const result = evaluateBuilds(s, []);
+  assert.equal(result.winner, null);
+  const decision = decisionFor(s, result);
+  assert.match(decision.support, /as it stands, this build carries/);
+  assert.match(decision.copy, /As it stands:/);
 });
 
 test('without a steadier stream, the thin build fails and mechanics finds the thicker build', () => {
@@ -328,4 +403,29 @@ test('app source starts with a product question, cases and multiple requirements
   assert.match(js, /\/api\/product\/advice/);
   assert.match(js, /SAMPLE_BRIEF/);
   assert.doesNotMatch(js, /META_API_KEY|api[_-]?key/i);
+});
+
+test('published batches give a starting range with no measurements of your own', async () => {
+  const { PUBLISHED_BATCHES: batches, publishedBatchFor: match } = await import('../product.js');
+  assert.ok(batches.length >= 5);
+  for (const batch of batches) {
+    assert.ok(batch.plastic.eMin > 0 && batch.plastic.eMax >= batch.plastic.eMin, batch.key);
+    assert.ok(batch.plastic.sMin > 0 && batch.plastic.sMax >= batch.plastic.sMin, batch.key);
+    assert.match(batch.note, /Not a measurement of your delivery/);
+  }
+  assert.equal(match('recycled HDPE from one supplier').key, 'rhdpe-measured-lot');
+  assert.equal(match('recycled HDPE').key, 'rhdpe');
+  assert.equal(match('mixed polyolefins').key, 'mixed-polyolefins');
+  assert.equal(match('unobtainium'), null);
+});
+
+test('the sample brief is shop language, and the batch picker is on the page', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="batch-source"/);
+  assert.match(html, /id="measured-fields"/);
+  assert.match(html, /What do you know about this delivery\?/);
+  assert.match(js, /recycled HDPE from one supplier, fairly clean/);
+  assert.doesNotMatch(js, /SAMPLE_BRIEF = '[^']*MPa/);
 });

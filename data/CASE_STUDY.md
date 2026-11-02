@@ -19,7 +19,7 @@ customer-specific part or a certification.
 ### Sourced batch
 
 - type: **rHDPE**, US mixed rigid MRF range / literature case
-- stiffness **380–1,250 MPa** — R02 via R01 (Cecon 2023 / Georgiou 2025)
+- stiffness **1,111–1,589 MPa** — measured 1,350 ± 239 MPa across 10 plates, n=50 (R01 via Georgiou 2025)
 - strength **41.6–48.4 MPa** — R04 (Eriksen 2019)
 - density **0.94 g/cm³** — R12 / standard rHDPE range
 
@@ -36,25 +36,42 @@ source is named in the brief and the case notes.
 
 ## 2. Illustrative second case — planter wall
 
-- Product: planter wall, compression, 300 × 180 × 4 mm
-- Target: strength 1,000–1,400 kg, weight 180–230 g
+- Product: planter wall, supported at both ends, 300 × 180 × 4 mm
+- Target: strength 9–12 kg, weight 180–230 g
 - Delivery: 700–850 MPa stiffness, 14–18 MPa strength, density 0.94 — **illustrative**, not a
   measured customer batch.
-- Result: 176 × 4 mm, 1,005–1,292 kg, 198.5 g.
+- Result: the entered build carries 9.1–11.7 kg and weighs 203.0 g — inside both targets.
 
 The planter case exists to show a second product and multi-requirement switching. It is labeled
 illustrative in this file and should be replaced with a shop's measured range for a production claim.
 
-## Failure case for the video
+Correction worth stating: an earlier version of this case treated the 4 mm panel as a compression
+post and reported over 1,000 kg. A panel that thin buckles about its weak axis long before the
+material crushes — at the low stiffness above it carries about 7.5 kg as a post. The mechanics now
+uses the weak-axis value, a regression test holds it there, and this case is framed as the panel
+it is.
 
-Change the batch low end or a target so the crate/planter cannot be made by geometry alone. The app
-shows the failing requirement, the material range needed, and the actions: add a steadier stream,
-sort/wash/dry, change section or span, route to another product, or split the delivery. It must not say
-“don’t use this delivery.”
+## Failure case for the video (worked, with the app's own numbers)
+
+Keep the crate case above and change only the strength requirement to **130–150 kg** (weight stays
+320–360 g). The app then reports, exactly:
+
+- Headline: **“Narrow the strength swing.”**
+- As it stands, the build **carries 95.4–111.0 kg and weighs 338.4 g** — the strength range sits
+  34.6 kg short at the low end of the 130–150 kg requirement.
+- Material gap: this build needs **56.7–65.4 MPa**; the delivery gives **41.6–48.4 MPa**. The
+  delivery's swing is wider than the requirement window allows, so a thicker or wider section —
+  which scales both ends together — cannot close it.
+- The next actions the app gives: add a steadier stream, sort out the soft fraction, change the
+  section or span, route the delivery to another product, or split it. It does not say
+  “don’t use this delivery.”
+
+These numbers come from the app's mechanics on the inputs above and are covered by the reading of
+the case in `app/tests/model.test.mjs`.
 
 ## Honesty
 
 The rHDPE ranges are published measurements, not a guarantee about the next delivery. The planter
 batch is illustrative. The app accepts the shop's own measured ranges; it does not certify a blend or
-a part. Sources: R02 via R01 (Cecon 2023 / Georgiou 2025) for the 380–1,250 MPa MRF range; R04
+a part. Sources: R01 via Georgiou 2025 for the single-supplier stretch-film lot (1,350 ± 239 MPa, n=50); R04
 (Eriksen 2019) for 41.6–48.4 MPa strength; R12 (Jones 2023) for the HDPE density range.
