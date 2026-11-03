@@ -226,6 +226,7 @@ function syncTreatedSourceUI() {
   // one polymer to another.
   const allowed = treatedOutcomeKeysFor(state.plastic.type, batchSource && batchSource !== 'numbers' ? batchSource : '');
   const select = $('treated-source');
+  const resetNote = state.treated && state.treated.source === 'published' && !allowed.includes(state.treated.publishedKey);
   select.replaceChildren();
   const numbers = document.createElement('option');
   numbers.value = 'numbers';
@@ -247,7 +248,10 @@ function syncTreatedSourceUI() {
   const batch = state.treated && state.treated.source === 'published' ? publishedBatchByKey(state.treated.publishedKey) : null;
   $('treated-numbers').hidden = Boolean(state.treated && state.treated.source === 'published');
   const note = $('treated-published-note');
-  if (batch) {
+  if (resetNote) {
+    note.hidden = false;
+    note.textContent = 'That sorted pick did not match this delivery’s family, so it was cleared — pick again or enter numbers.';
+  } else if (batch) {
     note.hidden = false;
     note.textContent = `After sorting or washing, this delivery is checked as the published range for ${batch.plastic.type} — a range you picked, not a measurement of the sorted delivery.`;
   } else if (state.treated && state.treated.source === 'published') {
@@ -1445,7 +1449,7 @@ async function fillSheet(bust) {
     if (complete) {
       state.plastic = { ...state.plastic, ...named, ...ranges };
       batchSource = 'numbers';
-      $('sheet-status').textContent = `Filled from your text, using only the numbers in it. Check them below — they are exactly what the sheet stated.${sheetSource}`;
+      $('sheet-status').textContent = `Filled from your text, using only the numbers in it, converted to the units used here. Check them below.${sheetSource}`;
       $('sheet-recall').hidden = !data._cached;
     } else {
       const pub = publishedBatchFor(`${named.type} ${text}`);
@@ -1743,7 +1747,7 @@ function render(result) {
   const buildsHead = $('builds-panel').querySelector('.section-head h3');
   if (buildsHead) {
     const blendInList = (result.passingBest || []).some((b) => b.move === 'blend');
-    buildsHead.textContent = !result.winner ? 'No build works yet' : (blendInList ? 'Builds that work — including a mix-in blend' : 'Builds that work');
+    buildsHead.textContent = !result.winner ? 'No build works yet' : (blendInList ? 'Builds that work — including a blend' : 'Builds that work');
   }
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready || (state.target.property === 'none' && !state.extraTargets.length);
@@ -1906,11 +1910,10 @@ async function fetchProposals(bust = false) {
           const secondFallback = Boolean(secondData._meta && secondData._meta.fallback);
           if (second.ok && !secondFallback && secondProposals.length) {
             const seen = new Set(modelProposals.map((p) => JSON.stringify(p)));
-            round2Total = secondProposals.length;
-            round2Exact = evaluateBuilds(state, secondProposals).modelTrace.filter((item) => item.pass).length;
-            for (const proposal of secondProposals) {
-              if (!seen.has(JSON.stringify(proposal))) modelProposals.push(proposal);
-            }
+            const fresh = secondProposals.filter((proposal) => !seen.has(JSON.stringify(proposal)));
+            round2Total = fresh.length;
+            round2Exact = evaluateBuilds(state, fresh).modelTrace.filter((item) => item.pass).length;
+            for (const proposal of fresh) modelProposals.push(proposal);
             modelState = 'meta';
             metaSource = secondData._cached
               ? { kind: 'cached', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s, originalLatency: secondData._meta && secondData._meta.original_latency_s }

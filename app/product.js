@@ -113,10 +113,9 @@ export function publishedBatchByKey(key) {
  * turn one polymer into another, so a published outcome from another family
  * is not offered for a delivery whose family is known. */
 const POLYMER_FAMILIES = {
-  hdpe: ['rhdpe-measured-lot', 'rhdpe'],
+  pe: ['rhdpe-measured-lot', 'rhdpe', 'rldpe'],
   pp: ['rpp'],
   pet: ['rpet', 'rpetg'],
-  pe: ['rldpe'],
   mixed: ['mixed-polyolefins'],
 };
 export function familyOfBatchKey(key) {
@@ -199,8 +198,26 @@ function validTreatedRanges(treated) {
  */
 function isTreatedAvailable(state) {
   if (!state || !state.treated || state.treated.available !== true) return false;
-  if (state.treated.source === 'published') return Boolean(publishedBatchByKey(state.treated.publishedKey));
+  if (state.treated.source === 'published') {
+    if (!publishedBatchByKey(state.treated.publishedKey)) return false;
+    return treatedOutcomeAllowed(state);
+  }
   return validTreatedRanges(state.treated);
+}
+
+/** The checker enforces what the picker promises: a published sort outcome
+ * must be reachable from the delivery in hand — same polymer family (or a
+ * delivery whose family cannot be told, which is left alone). */
+export function treatedOutcomeAllowed(stateInput) {
+  const state = normalizeState(stateInput);
+  if (!state.treated || state.treated.source !== 'published') return true;
+  const batch = publishedBatchByKey(state.treated.publishedKey);
+  if (!batch) return false;
+  const deliveryBatch = publishedBatchFor(String(state.plastic.type || ''));
+  const deliveryFam = deliveryBatch ? familyOfBatchKey(deliveryBatch.key) : null;
+  if (!deliveryFam || deliveryFam === 'mixed') return true;
+  const batchFam = familyOfBatchKey(batch.key);
+  return batchFam === deliveryFam || batchFam === 'mixed';
 }
 
 function treatedRoutePhrase(state) {
@@ -1447,7 +1464,7 @@ export function decisionFor(stateInput, result) {
     : '';
   // A passing build checked against a published band says so in the
   // headline itself: the green instruction must not read as unqualified.
-  const onPublished = state.rangeSource === 'published' ? ' — on a published range' : '';
+  const onPublished = state.rangeSource === 'published' ? ' — delivery on a published range' : '';
   const headline = (winner.move === 'treated'
     ? `Sort or wash this delivery, then make the ${buildSizeText(winner.part)}.`
     : isBlend
@@ -1459,7 +1476,7 @@ export function decisionFor(stateInput, result) {
   } else if (isBlend) {
     support = steadyBatch
       ? `The delivery alone misses. With ${blendPct}% of ${steadyName} — using the published “${steadyBatch.label}” range at its weak end — this build ${rangeText(winner)} — inside your ${targetText}. The blend is a mixture-rule estimate: the optimistic end, not a physically tested recipe.`
-      : `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
+      : `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}. The blend is a mixture-rule estimate: the optimistic end, not a physically tested recipe.`;
   } else if (winner.move === 'other') {
     // An 'other' winner is ranked by added material, so it can win while
     // the entered build also passes (it then uses less material). Only
@@ -1502,7 +1519,7 @@ export function decisionFor(stateInput, result) {
       : isBlend
         ? (steadyBatch
           ? `Blend: ${blendPct}% ${steadyName} — using the published “${steadyBatch.label}” range at its weak end. Mixture-rule estimate, optimistic end, not physically tested.`
-          : `Blend: ${blendPct}% ${steadyName}`)
+          : `Blend: ${blendPct}% ${steadyName}. Mixture-rule estimate, optimistic end, not physically tested.`)
         : '',
     ...numericTargets.map(({ target, i }) => {
       const meta = propertyMeta(target.property);

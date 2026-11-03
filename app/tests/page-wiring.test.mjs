@@ -36,8 +36,8 @@ test('there is no voice path left anywhere', async () => {
   const js = await load('../main.js');
   const html = await load('../index.html');
   const css = await load('../styles.css');
-  assert.doesNotMatch(html, /brief-voice|Use your voice|say it out loud/);
-  assert.doesNotMatch(js, /voiceRecorder|sendVoice|toggleVoice|voiceSource|MediaRecorder|\/api\/voice\/transcribe/);
+  assert.doesNotMatch(html, /brief-voice|Use your voice|say it out loud|Voice is only available/);
+  assert.doesNotMatch(js, /voiceRecorder|sendVoice|toggleVoice|voiceSource|MediaRecorder|\/api\/voice\/transcribe|Voice is only available/);
   assert.doesNotMatch(css, /brief-voice/);
 });
 
@@ -100,6 +100,7 @@ test('sheet cutting is counted in the production note', async () => {
   const html = await load('../index.html');
   assert.match(html, /id="sheet-span"/);
   assert.match(html, /id="sheet-width"/);
+  assert.match(js, /converted to the units used here/);
   assert.match(js, /sheetYield\(\{ sheetSpanMm, sheetWidthMm/);
   assert.match(js, /sheet gives/);
   assert.match(js, /This order needs \${sheets} sheets/);
@@ -107,5 +108,5 @@ test('sheet cutting is counted in the production note', async () => {
 
 test('a blend that also works is named in the builds heading', async () => {
   const js = await load('../main.js');
-  assert.match(js, /including a mix-in blend/);
+  assert.match(js, /including a blend/);
 });

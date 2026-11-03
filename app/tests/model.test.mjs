@@ -14,6 +14,7 @@ import {
   familyOfBatchKey,
   loadPathComparison,
   productionTotals,
+  treatedOutcomeAllowed,
   sheetYield,
   steadyValues,
   treatedOutcomeKeysFor,
@@ -1072,12 +1073,13 @@ test('supplier sheet intake and delivery comparison are wired', async () => {
 });
 
 test('published outcomes stay in the delivery’s own polymer family', () => {
-  assert.equal(familyOfBatchKey('rhdpe-measured-lot'), 'hdpe');
+  assert.equal(familyOfBatchKey('rhdpe-measured-lot'), 'pe');
+  assert.equal(familyOfBatchKey('rldpe'), 'pe');
   assert.equal(familyOfBatchKey('rpetg'), 'pet');
   assert.equal(familyOfBatchKey('mixed-polyolefins'), 'mixed');
   assert.equal(familyOfBatchKey('no-such-batch'), null);
   assert.deepEqual(treatedOutcomeKeysFor('recycled HDPE', 'rhdpe'),
-    ['rhdpe-measured-lot', 'rhdpe', 'mixed-polyolefins']);
+    ['rhdpe-measured-lot', 'rhdpe', 'mixed-polyolefins', 'rldpe']);
   assert.deepEqual(treatedOutcomeKeysFor('', 'numbers'),
     PUBLISHED_BATCHES.map((b) => b.key));
   assert.deepEqual(treatedOutcomeKeysFor('mixed plastics', 'mixed-polyolefins'),
@@ -1117,4 +1119,26 @@ test('a passing headline on a published range says so', () => {
   assert.match(decision.headline, /on a published range/);
   const entered = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate, rangeSource: 'numbers' });
   assert.doesNotMatch(decisionFor(entered, evaluateBuilds(entered, [])).headline, /on a published range/);
+});
+
+test('the checker refuses a cross-family sort outcome even when the picker is bypassed', () => {
+  const hdpe = normalizeState({
+    blank: true, product: 'crate side', mode: 'simple',
+    spanMm: 400, widthMm: 60, thicknessMm: 15,
+    target: { property: 'strength', min: 95, max: 115 },
+    plastic: { type: 'recycled HDPE', eMin: 741, eMax: 1159, sMin: 23, sMax: 33, density: 0.95 },
+    treated: { available: true, source: 'published', publishedKey: 'rpet' },
+  });
+  assert.equal(treatedOutcomeAllowed(hdpe), false);
+  const result = evaluateBuilds(hdpe, []);
+  assert.ok(!result.passingBest.some((b) => b.move === 'treated'));
+  const sameFamily = normalizeState({
+    blank: true, product: 'crate side', mode: 'simple',
+    spanMm: 400, widthMm: 60, thicknessMm: 15,
+    target: { property: 'strength', min: 95, max: 115 },
+    extraTargets: [{ property: 'weight', min: 320, max: 360 }],
+    plastic: { type: 'weak wide', eMin: 400, eMax: 1600, sMin: 18, sMax: 45, density: 0.94 },
+    treated: { available: true, source: 'published', publishedKey: 'rhdpe-measured-lot' },
+  });
+  assert.equal(treatedOutcomeAllowed(sameFamily), true);
 });

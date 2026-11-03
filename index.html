@@ -1661,7 +1661,7 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
       <label for="set-key">Your API key for that provider (optional for Meta)</label>
       <input id="set-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your own key">
     </div>
-    <p class="settings-note" id="key-note">Meta is the built-in choice: if the server already has a Meta key, you do not need your own. With any other provider, your key is needed — the server's key only works for Meta. Any key you enter is kept in this browser tab only, sent only to the server on this machine when the model is called, and never written into the page, the files, or this repository. It is gone when the tab closes. Voice is only available with Meta; with another provider, type instead.</p>
+    <p class="settings-note" id="key-note">Meta is the built-in choice: if the server already has a Meta key, you do not need your own. With any other provider, your key is needed — the server's key only works for Meta. Any key you enter is kept in this browser tab only, sent only to the server on this machine when the model is called, and never written into the page, the files, or this repository. It is gone when the tab closes.</p>
     <div class="settings-row">
       <button class="dl-button" id="set-clear-key" type="button">Remove my key</button>
       <button class="settings-save" id="set-save" type="submit">Save</button>
@@ -1794,10 +1794,9 @@ function publishedBatchByKey(key) {
  * turn one polymer into another, so a published outcome from another family
  * is not offered for a delivery whose family is known. */
 const POLYMER_FAMILIES = {
-  hdpe: ['rhdpe-measured-lot', 'rhdpe'],
+  pe: ['rhdpe-measured-lot', 'rhdpe', 'rldpe'],
   pp: ['rpp'],
   pet: ['rpet', 'rpetg'],
-  pe: ['rldpe'],
   mixed: ['mixed-polyolefins'],
 };
 function familyOfBatchKey(key) {
@@ -1880,8 +1879,26 @@ function validTreatedRanges(treated) {
  */
 function isTreatedAvailable(state) {
   if (!state || !state.treated || state.treated.available !== true) return false;
-  if (state.treated.source === 'published') return Boolean(publishedBatchByKey(state.treated.publishedKey));
+  if (state.treated.source === 'published') {
+    if (!publishedBatchByKey(state.treated.publishedKey)) return false;
+    return treatedOutcomeAllowed(state);
+  }
   return validTreatedRanges(state.treated);
+}
+
+/** The checker enforces what the picker promises: a published sort outcome
+ * must be reachable from the delivery in hand — same polymer family (or a
+ * delivery whose family cannot be told, which is left alone). */
+function treatedOutcomeAllowed(stateInput) {
+  const state = normalizeState(stateInput);
+  if (!state.treated || state.treated.source !== 'published') return true;
+  const batch = publishedBatchByKey(state.treated.publishedKey);
+  if (!batch) return false;
+  const deliveryBatch = publishedBatchFor(String(state.plastic.type || ''));
+  const deliveryFam = deliveryBatch ? familyOfBatchKey(deliveryBatch.key) : null;
+  if (!deliveryFam || deliveryFam === 'mixed') return true;
+  const batchFam = familyOfBatchKey(batch.key);
+  return batchFam === deliveryFam || batchFam === 'mixed';
 }
 
 function treatedRoutePhrase(state) {
@@ -3128,7 +3145,7 @@ function decisionFor(stateInput, result) {
     : '';
   // A passing build checked against a published band says so in the
   // headline itself: the green instruction must not read as unqualified.
-  const onPublished = state.rangeSource === 'published' ? ' — on a published range' : '';
+  const onPublished = state.rangeSource === 'published' ? ' — delivery on a published range' : '';
   const headline = (winner.move === 'treated'
     ? `Sort or wash this delivery, then make the ${buildSizeText(winner.part)}.`
     : isBlend
@@ -3140,7 +3157,7 @@ function decisionFor(stateInput, result) {
   } else if (isBlend) {
     support = steadyBatch
       ? `The delivery alone misses. With ${blendPct}% of ${steadyName} — using the published “${steadyBatch.label}” range at its weak end — this build ${rangeText(winner)} — inside your ${targetText}. The blend is a mixture-rule estimate: the optimistic end, not a physically tested recipe.`
-      : `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
+      : `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}. The blend is a mixture-rule estimate: the optimistic end, not a physically tested recipe.`;
   } else if (winner.move === 'other') {
     // An 'other' winner is ranked by added material, so it can win while
     // the entered build also passes (it then uses less material). Only
@@ -3183,7 +3200,7 @@ function decisionFor(stateInput, result) {
       : isBlend
         ? (steadyBatch
           ? `Blend: ${blendPct}% ${steadyName} — using the published “${steadyBatch.label}” range at its weak end. Mixture-rule estimate, optimistic end, not physically tested.`
-          : `Blend: ${blendPct}% ${steadyName}`)
+          : `Blend: ${blendPct}% ${steadyName}. Mixture-rule estimate, optimistic end, not physically tested.`)
         : '',
     ...numericTargets.map(({ target, i }) => {
       const meta = propertyMeta(target.property);
@@ -3384,7 +3401,7 @@ function advicePayload(stateInput, result, question) {
   };
 }
 
-return { G, MODES, CASE_PRESETS, PUBLISHED_BATCHES, publishedBatchByKey, familyOfBatchKey, treatedOutcomeKeysFor, publishedBatchFor, steadyValues, PROPERTIES, MOVES, PROPERTY_DEFAULTS, DEFAULT_STATE, inferMode, blankState, normalizeState, isReady, allTargets, propertyMeta, currentPart, otherPart, capacityN, stiffness, massG, stiffnessRangeFromLoadBend, effectiveMassG, productionTotals, buildCostPerPart, allocatePriority, propertyRange, inRange, setUnitSystem, getUnitSystem, displayUnit, convertForDisplay, convertFromDisplay, formatNumber, formatRange, formatTarget, requiredMaterial, materialGap, minimumThicknessCandidate, loadPathComparison, sheetYield, blendCandidate, normalizeModelProposals, evaluateBuilds, buildSizeText, addedMaterialText, decisionFor, proposalRow, toApiPayload, advicePayload };
+return { G, MODES, CASE_PRESETS, PUBLISHED_BATCHES, publishedBatchByKey, familyOfBatchKey, treatedOutcomeKeysFor, publishedBatchFor, steadyValues, treatedOutcomeAllowed, PROPERTIES, MOVES, PROPERTY_DEFAULTS, DEFAULT_STATE, inferMode, blankState, normalizeState, isReady, allTargets, propertyMeta, currentPart, otherPart, capacityN, stiffness, massG, stiffnessRangeFromLoadBend, effectiveMassG, productionTotals, buildCostPerPart, allocatePriority, propertyRange, inRange, setUnitSystem, getUnitSystem, displayUnit, convertForDisplay, convertFromDisplay, formatNumber, formatRange, formatTarget, requiredMaterial, materialGap, minimumThicknessCandidate, loadPathComparison, sheetYield, blendCandidate, normalizeModelProposals, evaluateBuilds, buildSizeText, addedMaterialText, decisionFor, proposalRow, toApiPayload, advicePayload };
 })();
 
 /* ===== main.js ===== */
@@ -3616,6 +3633,7 @@ function syncTreatedSourceUI() {
   // one polymer to another.
   const allowed = treatedOutcomeKeysFor(state.plastic.type, batchSource && batchSource !== 'numbers' ? batchSource : '');
   const select = $('treated-source');
+  const resetNote = state.treated && state.treated.source === 'published' && !allowed.includes(state.treated.publishedKey);
   select.replaceChildren();
   const numbers = document.createElement('option');
   numbers.value = 'numbers';
@@ -3637,7 +3655,10 @@ function syncTreatedSourceUI() {
   const batch = state.treated && state.treated.source === 'published' ? publishedBatchByKey(state.treated.publishedKey) : null;
   $('treated-numbers').hidden = Boolean(state.treated && state.treated.source === 'published');
   const note = $('treated-published-note');
-  if (batch) {
+  if (resetNote) {
+    note.hidden = false;
+    note.textContent = 'That sorted pick did not match this delivery’s family, so it was cleared — pick again or enter numbers.';
+  } else if (batch) {
     note.hidden = false;
     note.textContent = `After sorting or washing, this delivery is checked as the published range for ${batch.plastic.type} — a range you picked, not a measurement of the sorted delivery.`;
   } else if (state.treated && state.treated.source === 'published') {
@@ -4835,7 +4856,7 @@ async function fillSheet(bust) {
     if (complete) {
       state.plastic = { ...state.plastic, ...named, ...ranges };
       batchSource = 'numbers';
-      $('sheet-status').textContent = `Filled from your text, using only the numbers in it. Check them below — they are exactly what the sheet stated.${sheetSource}`;
+      $('sheet-status').textContent = `Filled from your text, using only the numbers in it, converted to the units used here. Check them below.${sheetSource}`;
       $('sheet-recall').hidden = !data._cached;
     } else {
       const pub = publishedBatchFor(`${named.type} ${text}`);
@@ -5132,8 +5153,8 @@ function render(result) {
   $('builds-panel').hidden = !result.ready;
   const buildsHead = $('builds-panel').querySelector('.section-head h3');
   if (buildsHead) {
-    const blendAlso = result.winner && (result.passingBest || []).some((b) => b !== result.winner && b.move === 'blend');
-    buildsHead.textContent = !result.winner ? 'No build works yet' : (blendAlso ? 'Builds that work — including a blend' : 'Builds that work');
+    const blendInList = (result.passingBest || []).some((b) => b.move === 'blend');
+    buildsHead.textContent = !result.winner ? 'No build works yet' : (blendInList ? 'Builds that work — including a blend' : 'Builds that work');
   }
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready || (state.target.property === 'none' && !state.extraTargets.length);
@@ -5296,11 +5317,10 @@ async function fetchProposals(bust = false) {
           const secondFallback = Boolean(secondData._meta && secondData._meta.fallback);
           if (second.ok && !secondFallback && secondProposals.length) {
             const seen = new Set(modelProposals.map((p) => JSON.stringify(p)));
-            round2Total = secondProposals.length;
-            round2Exact = evaluateBuilds(state, secondProposals).modelTrace.filter((item) => item.pass).length;
-            for (const proposal of secondProposals) {
-              if (!seen.has(JSON.stringify(proposal))) modelProposals.push(proposal);
-            }
+            const fresh = secondProposals.filter((proposal) => !seen.has(JSON.stringify(proposal)));
+            round2Total = fresh.length;
+            round2Exact = evaluateBuilds(state, fresh).modelTrace.filter((item) => item.pass).length;
+            for (const proposal of fresh) modelProposals.push(proposal);
             modelState = 'meta';
             metaSource = secondData._cached
               ? { kind: 'cached', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s, originalLatency: secondData._meta && secondData._meta.original_latency_s }

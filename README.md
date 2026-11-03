@@ -133,9 +133,9 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 80 app tests (69 checker + 11 page wiring)
+node app/tests/model.test.mjs                           # 81 app tests (70 checker + 11 page wiring)
 node app/tests/combinations.test.mjs                    # 13,200-case combination matrix (9 tests)
-AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 150 server tests (1 live smoke skipped)
+AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 155 server tests (1 live smoke skipped)
 ```
 
 Live evidence (real key, never recorded) is regenerated, not hand-written:

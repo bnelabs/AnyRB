@@ -1011,22 +1011,44 @@ _BRIEF_LIMITS = {
 # Per-field unit conversions allowed when checking "was this number stated?"
 # A number only grounds a field when it appears with a unit that converts to
 # that field's unit: a stated kg load can never ground a gram weight target,
-# a stated mm bend can never ground an N/mm stiffness target, and a lot code
-# or a percent can never ground anything. Unit-less numbers match any field
-# at face value, as before.
+# a stated mm bend can never ground an N/mm stiffness target. A bare number
+# with no neighbouring word ("span 900") still grounds any field at face
+# value, but anything word-like next to the number must be a unit that
+# converts: an unlisted unit word ("boxes"), a percent, a lot or model code
+# ("R2024", "M6", "LOT-2026"), a year, or a dimension range word ("900 long"
+# passes; "95 boxes" does not). Converted values (weight 95000 from "95 kg")
+# can still file under the converted field — deliberate, since the
+# conversion is stated — and that residual is caught by the page-side
+# review flag, not by this gate.
 _BRIEF_UNIT_FACTORS = {
-    "geometry": {"mm": 1.0, "cm": 10.0, "m": 1000.0},
+    "geometry": {"mm": 1.0, "cm": 10.0, "m": 1000.0, "in": 25.4, "inch": 25.4,
+                 "inches": 25.4},
     "strength": {"kg": 1.0, "g": 0.001, "t": 1000.0, "tonne": 1000.0,
-                 "tonnes": 1000.0, "n": 1.0 / 9.80665, "kn": 1000.0 / 9.80665},
-    "stiffness": {"n/mm": 1.0},
-    "weight": {"g": 1.0, "kg": 1000.0, "t": 1e6, "tonne": 1e6, "tonnes": 1e6},
-    "plastic": {"mpa": 1.0, "kpa": 0.001, "gpa": 1000.0},
+                 "tonnes": 1000.0, "n": 1.0 / 9.80665, "kn": 1000.0 / 9.80665,
+                 "lb": 0.45359237, "lbs": 0.45359237, "pound": 0.45359237,
+                 "pounds": 0.45359237},
+    "stiffness": {"n/mm": 1.0, "kn/mm": 1000.0},
+    "weight": {"g": 1.0, "kg": 1000.0, "t": 1e6, "tonne": 1e6, "tonnes": 1e6,
+               "lb": 453.59237, "lbs": 453.59237},
+    "plastic": {"mpa": 1.0, "kpa": 0.001, "gpa": 1000.0, "psi": 0.00689476},
     "density": {"g/cm3": 1.0, "g/cm³": 1.0, "kg/m3": 0.001},
-    "steady": {"mpa": 1.0, "kpa": 0.001, "gpa": 1000.0},
+    "steady": {"mpa": 1.0, "kpa": 0.001, "gpa": 1000.0, "psi": 0.00689476},
 }
+# Words that join or describe numbers without being units: they never become
+# a unit, so "95 to 115 kg", "400 x 60" and "900 long" keep working.
+# Note: bare "in" is NOT in this list — the pattern only ever matches it
+# in a dimension context ("12 in shelf"), so it always means inches here.
+# Everywhere else ("in the shop") the generic branch refuses it.
+_BRIEF_NON_UNITS = ("to", "and", "or", "with", "per", "a", "an", "the", "x",
+                    "for", "of", "on", "at", "by", "from", "long",
+                    "wide", "thick", "tall", "deep", "high", "diameter")
 _BRIEF_NUMBER_RE = re.compile(
-    # longer units first: "g" must not win inside "g/cm3", "kg" inside "kg/m3"
-    r"(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>kg/m3|g/cm3|g/cm³|N/mm|tonnes|tonne|kilograms|kilogram|grams|gram|MPa|kPa|GPa|mm|cm|kg|g|%|\bt\b|\bm\b|\bkN\b|\bN\b)?",
+    # longer units first: "g" must not win inside "g/cm3", "kg" inside "kg/m3";
+    # the trailing guard stops single letters matching inside words, so "10
+    # gaskets" is not 10 grams (the generic fallback then takes the whole
+    # word, which grounds nothing); joiner and dimension words ("to", "long")
+    # are excluded from the generic so ranges and bare sizes still work.
+    r"(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>kg/m3|g/cm3|g/cm³|N/mm|kN/mm|tonnes|tonne|kilograms|kilogram|kilos|kilo|meters|meter|metre|centimeters|centimeter|pounds|pound|lbs|lb|inches|inch|in(?=\s*(?:long|wide|thick|tall|deep|high|diameter|shelf|panel|slat|board|sheet|part|side|rail|plank|strip|bar|rod|tube|pipe|post|beam|plate|block|box|crate|pallet|mat|frame|bracket|arm|lath|$|[,.]))|grams|gram|MPa|kPa|GPa|psi|mm|cm|kg|g|m|t|N|kN|%|(?!(?:to|and|or|with|per|a|an|the|x|for|of|on|at|by|from|in|long|wide|thick|tall|deep|high|diameter)\b)[A-Za-z]{2,}(?:/[A-Za-z0-9³]+)?)?(?![A-Za-z])",
     re.I)
 
 # "1,250" / "12,500" / "1,234,567" are thousands separators, not list delimiters.
@@ -1038,6 +1060,28 @@ _COMMA_THOUSANDS_RE = re.compile(r"(?<=\d),(?=\d{3}(?:[^\d]|$))")
 def normalize_comma_thousands(text: Any) -> str:
     """Remove thousands-separator commas from formatted numbers ("1,250" -> "1250")."""
     return _COMMA_THOUSANDS_RE.sub("", str(text or ""))
+
+
+def _canon_unit(raw: Any) -> str | None:
+    """Canonical unit word, or None for plain numbers. Joiner and dimension
+    words ("to", "long") are not units; anything else unrecognised stays as
+    its own word, which matches no field — an unknown unit grounds nothing."""
+    if not raw:
+        return None
+    unit = str(raw).lower()
+    if unit in ("gram", "grams"):
+        return "g"
+    if unit == "tonne":
+        return "tonnes"
+    if unit in ("kilogram", "kilograms", "kilo", "kilos"):
+        return "kg"
+    if unit in ("meter", "meters", "metre"):
+        return "m"
+    if unit in ("centimeter", "centimeters"):
+        return "cm"
+    if unit in _BRIEF_NON_UNITS:
+        return None
+    return unit
 
 
 def _stated_numbers(text: str) -> list[tuple[float, str | None]]:
@@ -1053,25 +1097,27 @@ def _stated_numbers(text: str) -> list[tuple[float, str | None]]:
             number = float(match.group("num"))
         except (TypeError, ValueError):
             continue
-        unit = (match.group("unit") or "").lower() or None
-        if unit in ("gram", "grams"):
-            unit = "g"
-        elif unit == "tonne":
-            unit = "tonnes"
-        elif unit in ("kilogram", "kilograms"):
-            unit = "kg"
+        start = match.start()
+        if start > 0:
+            prev = normalized[start - 1]
+            # model/lot codes ("R2024", "M6", "V12") are identifiers, not values
+            if prev.isalpha():
+                continue
+            # hyphenated codes ("LOT-2026"): a letter before the dash marks a
+            # code, while a digit before it ("38-50") marks a range.
+            if prev == "-" and start > 1 and normalized[start - 2].isalpha():
+                continue
+        unit = _canon_unit(match.group("unit"))
         if unit is None and index + 1 < len(matches):
             # "95 to 115 kg", "38-50 MPa": a unitless number joined to the
-            # next number by a short range word belongs to that unit too.
+            # next number by a short range word belongs to that unit too —
+            # even an unknown one ("95 to 115 boxes" grounds nothing).
             following = matches[index + 1]
-            if following.start() - match.end() <= 4 and following.group("unit"):
-                unit = following.group("unit").lower() or None
-                if unit in ("gram", "grams"):
-                    unit = "g"
-                elif unit == "tonne":
-                    unit = "tonnes"
-                elif unit in ("kilogram", "kilograms"):
-                    unit = "kg"
+            if following.start() - match.end() <= 4:
+                unit = _canon_unit(following.group("unit"))
+        if unit is None and number == int(number) and 1900 <= number <= 2199:
+            # a bare year ("built in 2024") is a date, not a measurement
+            continue
         out.append((number, unit))
     return out
 

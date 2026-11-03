@@ -637,6 +637,81 @@ def test_kilogram_word_grounds_kg_strength_target(client, monkeypatch):
         ("strength", 2.0, 2.0)]
 
 
+def test_codes_counts_and_years_ground_nothing(client, monkeypatch):
+    # Lot codes ("R2024"), bolt sizes ("M6"), batch years and bare counts are
+    # identifiers and dates, not measurements: none of them ground a field.
+    _use_fake_live(monkeypatch, {
+        "product": "panel",
+        "span_mm": 2024, "width_mm": 6,
+        "targets": [{"property": "strength", "min": 12, "max": 12}],
+    })
+    text = "Make 12 panels, lot R2024, M6 bolts, built in 2024."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    brief = data["brief"]
+    assert brief["span_mm"] is None
+    assert brief["width_mm"] is None
+    assert brief["targets"] == []
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "span_mm" in dropped and "width_mm" in dropped
+    assert "targets[0].min" in dropped
+
+
+def test_inches_pounds_and_psi_convert(client, monkeypatch):
+    _use_fake_live(monkeypatch, {
+        "product": "shelf",
+        "span_mm": 304.8, "thickness_mm": 25.4,
+        "targets": [{"property": "strength", "min": 100, "max": 100}],
+        "plastic": {"strength_min_mpa": 41.4},
+    })
+    text = ("A 12 in shelf, 1 in thick, has to carry 220 lb. "
+            "Plastic strength 6000 psi.")
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    brief = data["brief"]
+    assert brief["span_mm"] == 304.8
+    assert brief["thickness_mm"] == 25.4
+    assert [(t["property"], t["min"], t["max"]) for t in brief["targets"]] == [
+        ("strength", 100.0, 100.0)]
+    assert brief["plastic"]["strength_min_mpa"] == 41.4
+
+
+def test_unknown_unit_words_ground_nothing(client, monkeypatch):
+    # "95 boxes" states a count in boxes, not 95 of anything the app checks.
+    _use_fake_live(monkeypatch, {
+        "product": "crate side",
+        "targets": [{"property": "weight", "min": 95, "max": 95}],
+    })
+    text = "Crate sides, 95 boxes of them, from this delivery."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["targets"] == []
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "targets[0].min" in dropped and "targets[0].max" in dropped
+
+
+def test_converted_kg_load_still_files_as_grams(client, monkeypatch):
+    # Deliberate residual, not a bug fix: "95 kg" converts to 95000 g, so a
+    # model that files weight 95000 is grounded. Telling a 95 kg load from
+    # a 95000 g part weight needs semantics the gate does not have — the
+    # page-side review flag ("looks like the load you stated") covers it.
+    _use_fake_live(monkeypatch, {
+        "product": "crate side",
+        "targets": [{"property": "weight", "min": 95000, "max": 115000}],
+    })
+    text = "Each shelf has to carry 95 to 115 kg."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert [(t["property"], t["min"], t["max"]) for t in data["brief"]["targets"]] == [
+        ("weight", 95000.0, 115000.0)]
+
+
+def test_bare_dimension_word_keeps_grounding(client, monkeypatch):
+    # "900 long" is a stated size with the unit word left out, not a code.
+    _use_fake_live(monkeypatch, {
+        "product": "slat", "span_mm": 900,
+    })
+    text = "Make a slat 900 long."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["span_mm"] == 900.0
+
+
 def test_kg_weight_window_grounds_gram_weight_target(client, monkeypatch):
     # The legitimate conversion: a part weight stated as "0.32 to 0.36 kg"
     # grounds a 320-360 g weight target.
