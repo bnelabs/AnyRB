@@ -1218,6 +1218,18 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .need-choice.is-selected { border-color: var(--accent); background: #2a2a24; color: #fff; font-weight: 600; }
 .verdict-chip.info { background: var(--accent); color: #171713; }
 
+/* --- Production --- */
+.production { margin-top: 22px; border-top: 1px solid var(--line-2); padding-top: 16px; }
+.production-title { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
+.production .run-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: end; margin-top: 0; }
+.production .run-field { margin-bottom: 0; }
+.run-note p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; color: #2c2c29; }
+.run-note p:first-child { margin-top: 12px; }
+.use-note { margin-top: 6px; }
+.use-note p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; color: #2c2c29; }
+.use-note .dl-button { margin-top: 2px; }
+@media (max-width: 1020px) { .production .run-row { grid-template-columns: 1fr; } }
+
 </style>
 </head>
 <body>
@@ -1308,9 +1320,15 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
           <h3>Builds that work</h3>
           <p class="model-status" id="model-status">Scoring this delivery…</p>
         </div>
-        <div class="run-row">
-          <div class="field run-field"><label for="run-size">How many parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
-          <p class="run-note" id="run-note"></p>
+        <div class="production" id="production">
+          <h3 class="production-title">Production</h3>
+          <div class="run-row">
+            <div class="field run-field"><label for="run-size">How many parts in this order?</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
+            <div class="field run-field"><label for="material-have" id="material-have-label">How much of this delivery do you have? (kg)</label><input id="material-have" inputmode="decimal" type="text" placeholder="e.g. 3000"></div>
+            <div class="field run-field"><label for="next-density" id="next-density-label">Next delivery's density, if known (g/cm³)</label><input id="next-density" inputmode="decimal" type="text" placeholder="optional"></div>
+          </div>
+          <div class="run-note" id="run-note"></div>
+          <div class="use-note" id="use-note"></div>
         </div>
         <ol class="build-list" id="build-list"></ol>
         <div class="downloads" id="downloads" hidden>
@@ -2936,6 +2954,8 @@ function parsedValue(id, raw) {
   return Number.isFinite(value) ? convertFromDisplay(value, unit) : raw;
 }
 let runSize = 0;
+let materialHaveKg = 0;
+let nextDensityG = 0;
 
 const SAMPLE_BRIEF = 'I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE from one supplier, fairly clean, with paper labels on some of it.';
 
@@ -3740,23 +3760,101 @@ function applyNeed() {
 
 function renderRunNote(result) {
   const note = $('run-note');
-  if (!result.ready || !result.winner || !(runSize > 0)) {
-    note.textContent = '';
-    return;
+  const use = $('use-note');
+  note.replaceChildren();
+  use.replaceChildren();
+  if (!result.ready) return;
+  const item = result.winner || result.current;
+  if (!item) return;
+  const massG = item.massG;
+  const line = (text) => {
+    const el = document.createElement('p');
+    el.textContent = text;
+    note.append(el);
+    return el;
+  };
+  if (!(runSize > 0) && !(materialHaveKg > 0) && !(nextDensityG > 0)) {
+    line(`One part uses ${fmtVal(massG / 1000, 'kg')} of plastic. Say how many parts are in the order, or how much of this delivery you have, and the totals appear here.`);
   }
-  const winner = result.winner;
-  const totalKg = (winner.addedG * runSize) / 1000;
-  if (winner.move === 'blend') {
-    const pct = Math.round(winner.fraction * 100);
-    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that blend uses ${fmtVal(totalKg, 'kg')} of ${state.steady.type || 'the steadier stream'} (${pct}% of every part).`;
-  } else if (Math.abs(winner.addedG) < 0.5) {
-    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, this build uses the same material a part as the one you entered.`;
-  } else if (winner.addedG > 0) {
-    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that is ${fmtVal(totalKg, 'kg')} more material than your current build.`;
-  } else {
-    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that saves ${fmtVal(Math.abs(totalKg), 'kg')} against your current build.`;
+  if (runSize > 0) {
+    const needKg = (massG * runSize) / 1000;
+    if (item.move === 'blend' && item.fraction) {
+      const pct = Math.round(item.fraction * 100);
+      line(`This order of ${runSize.toLocaleString('en-US')} parts needs ${fmtVal(needKg, 'kg')} of plastic in total — ${fmtVal(needKg * item.fraction, 'kg')} of ${state.steady.type || 'the steadier plastic'} (${pct}%) and ${fmtVal(needKg * (1 - item.fraction), 'kg')} of this delivery.`);
+    } else {
+      line(`This order of ${runSize.toLocaleString('en-US')} parts needs ${fmtVal(needKg, 'kg')} of plastic.`);
+    }
+    if (Math.abs(item.addedG) >= 0.5 && item.move !== 'blend') {
+      const diffKg = (item.addedG * runSize) / 1000;
+      line(item.addedG > 0
+        ? `That is ${fmtVal(diffKg, 'kg')} more than making them exactly as entered.`
+        : `That is ${fmtVal(Math.abs(diffKg), 'kg')} less than making them exactly as entered.`);
+    }
+  }
+  if (materialHaveKg > 0 && massG > 0) {
+    const canMake = Math.floor((materialHaveKg * 1000) / massG);
+    line(`The ${fmtVal(materialHaveKg, 'kg')} of this delivery you have makes about ${canMake.toLocaleString('en-US')} parts.`);
+    if (runSize > 0) {
+      const needKg = (massG * runSize) / 1000;
+      if (materialHaveKg >= needKg) {
+        const leftKg = materialHaveKg - needKg;
+        line(`This delivery covers the order and leaves ${fmtVal(leftKg, 'kg')} — about ${Math.floor((leftKg * 1000) / massG).toLocaleString('en-US')} more parts.`);
+      } else {
+        line(`It does not cover the whole order: you are ${fmtVal(needKg - materialHaveKg, 'kg')} short, so the rest has to come from another delivery or a steadier plastic.`);
+      }
+    }
+  }
+  if (nextDensityG > 0 && state.plastic.density > 0 && Math.abs(nextDensityG - state.plastic.density) > 1e-9) {
+    const nextMassG = massG * (nextDensityG / state.plastic.density);
+    const changePct = Math.round(((nextMassG - massG) / massG) * 1000) / 10;
+    const sign = changePct > 0 ? 'heavier' : 'lighter';
+    let text = `If the next delivery's density is ${fmtVal(nextDensityG, 'g/cm³')} instead of ${fmtVal(state.plastic.density, 'g/cm³')}, one part weighs ${fmtVal(nextMassG / 1000, 'kg')} instead of ${fmtVal(massG / 1000, 'kg')} (${Math.abs(changePct)}% ${sign}).`;
+    if (runSize > 0) text += ` The same order then needs ${fmtVal((nextMassG * runSize) / 1000, 'kg')}.`;
+    if (materialHaveKg > 0) text += ` The same stock makes about ${Math.floor((materialHaveKg * 1000) / nextMassG).toLocaleString('en-US')} parts.`;
+    line(text);
+  }
+
+  // Use vs save: only what the entered facts support.
+  if (state.target.property === 'none' && !state.extraTargets.length) {
+    const p1 = document.createElement('p');
+    p1.textContent = 'For this part, nothing structural is being used up: whether this delivery is weak or strong at its ends does not change whether it works. Its density is all that matters here.';
+    use.append(p1);
+    if (state.steady.available) {
+      const p2 = document.createElement('p');
+      p2.textContent = 'Mixing in a steadier plastic would not change whether this part works, and its density is not entered here — so no mix amount is worked out for it. Steadier material is worth more where a load is checked.';
+      use.append(p2);
+    }
+  }
+  const other = state.other;
+  if (other && other.product && other.spanMm > 0 && other.widthMm > 0 && other.thicknessMm > 0
+      && other.product.toLowerCase() !== String(state.product).toLowerCase()) {
+    const p3 = document.createElement('p');
+    p3.textContent = `You also make ${other.product}. Whether this delivery should be saved for it depends on what that part has to do — that check takes one click:`;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'dl-button';
+    button.textContent = `Check ${other.product} with this delivery`;
+    button.addEventListener('click', () => {
+      const previous = {
+        product: state.product, mode: state.mode,
+        spanMm: state.spanMm, widthMm: state.widthMm, thicknessMm: state.thicknessMm,
+      };
+      state.other = { ...other, product: previous.product, mode: previous.mode || 'simple', spanMm: previous.spanMm, widthMm: previous.widthMm, thicknessMm: previous.thicknessMm };
+      state.product = other.product;
+      state.mode = other.mode || '';
+      state.spanMm = other.spanMm;
+      state.widthMm = other.widthMm;
+      state.thicknessMm = other.thicknessMm;
+      state.target = { property: '', min: '', max: '' };
+      state.extraTargets = [];
+      paint();
+      refresh();
+      document.querySelector('.decision-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    use.append(p3, button);
   }
 }
+
 
 function renderDecisionBar(result, decision) {
   const bar = $('decision-bar');
@@ -4535,6 +4633,16 @@ $('run-size').addEventListener('input', (event) => {
   runSize = Number.isFinite(parsed) ? parsed : 0;
   if (lastResult) renderRunNote(lastResult);
 });
+$('material-have').addEventListener('input', (event) => {
+  const parsed = Number(event.target.value);
+  materialHaveKg = Number.isFinite(parsed) && parsed > 0 ? convertFromDisplay(parsed, 'kg') : 0;
+  if (lastResult) renderRunNote(lastResult);
+});
+$('next-density').addEventListener('input', (event) => {
+  const parsed = Number(event.target.value);
+  nextDensityG = Number.isFinite(parsed) && parsed > 0 ? convertFromDisplay(parsed, 'g/cm³') : 0;
+  if (lastResult) renderRunNote(lastResult);
+});
 $('ask-button').addEventListener('click', askMeta);
 $('ask-question').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
@@ -4660,12 +4768,19 @@ function syncUnitButtons() {
   $('unit-metric').setAttribute('aria-pressed', String(settings.units === 'metric'));
   $('unit-imperial').setAttribute('aria-pressed', String(settings.units === 'imperial'));
 }
+function syncProductionInputs() {
+  $('material-have-label').textContent = `How much of this delivery do you have? (${displayUnit('kg')})`;
+  $('next-density-label').textContent = `Next delivery's density, if known (${displayUnit('g/cm³')})`;
+  if (materialHaveKg > 0) $('material-have').value = String(Math.round(convertForDisplay(materialHaveKg, 'kg') * 1000) / 1000);
+  if (nextDensityG > 0) $('next-density').value = String(Math.round(convertForDisplay(nextDensityG, 'g/cm³') * 1000) / 1000);
+}
 function applyUnits(system) {
   settings.units = system === 'imperial' ? 'imperial' : 'metric';
   localStorage.setItem('anyrb.units', settings.units);
   setUnitSystem(settings.units);
   syncUnitButtons();
   updateUnitLabels();
+  syncProductionInputs();
   paint();
   refresh({ model: false });
 }
@@ -4705,6 +4820,7 @@ $('settings-form').addEventListener('submit', (event) => {
 syncUnitButtons();
 updateUnitLabels();
 syncBriefHelp();
+syncProductionInputs();
 
 paint();
 const initial = evaluateBuilds(state, []);

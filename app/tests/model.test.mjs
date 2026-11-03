@@ -542,3 +542,15 @@ test('how it is held is only required when a load is being checked', () => {
   const held = normalizeState({ ...basePart, mode: 'simple', target: { property: 'strength', min: 5, max: 50 } });
   assert.equal(isReady(held), true);
 });
+
+test('production totals are on the page: order, stock, next density', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="material-have"/);
+  assert.match(html, /id="next-density"/);
+  assert.match(html, /id="use-note"/);
+  assert.match(js, /makes about/);
+  assert.match(js, /does not cover the whole order/);
+  assert.match(js, /Check .* with this delivery/);
+});

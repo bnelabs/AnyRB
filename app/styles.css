@@ -1208,3 +1208,15 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .need-choice:hover { border-color: var(--accent); }
 .need-choice.is-selected { border-color: var(--accent); background: #2a2a24; color: #fff; font-weight: 600; }
 .verdict-chip.info { background: var(--accent); color: #171713; }
+
+/* --- Production --- */
+.production { margin-top: 22px; border-top: 1px solid var(--line-2); padding-top: 16px; }
+.production-title { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
+.production .run-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: end; margin-top: 0; }
+.production .run-field { margin-bottom: 0; }
+.run-note p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; color: #2c2c29; }
+.run-note p:first-child { margin-top: 12px; }
+.use-note { margin-top: 6px; }
+.use-note p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; color: #2c2c29; }
+.use-note .dl-button { margin-top: 2px; }
+@media (max-width: 1020px) { .production .run-row { grid-template-columns: 1fr; } }
