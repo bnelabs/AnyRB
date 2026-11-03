@@ -686,16 +686,16 @@ export function materialGap(stateInput, part, targetInput = null) {
   if (buckling && buckling.governs) {
     action = `This part buckles before it crushes: at the delivery's low stiffness it carries about ${formatNumber(buckling.capacityKgAtLowStiffness)} kg. Make it thicker or shorter, or bring in a stiffer stream — a stronger plastic alone does not lift this.`;
   } else if (rangeTooWide) {
-    action = 'This delivery varies too much for the range you need. A thicker or wider part raises both ends together, so it cannot fix this. Mix in a steadier plastic, or sort the weakest pieces out first.';
-    if (steadyShort > 0) action += ` Your declared steadier stream gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}.`;
+    action = 'This delivery varies too much for the range you need. A thicker or wider part raises both ends together, so it cannot fix this. Mix in another plastic that measures nearly the same every time, or sort the weakest pieces out first.';
+    if (steadyShort > 0) action += ` The other plastic you named gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}.`;
   } else if (steadyShort > 0) {
-    action = `Your steadier plastic gives ${formatNumber(steadyValue)} ${required.unit}; this part needs at least ${formatNumber(required.min)} ${required.unit}. Use a stronger steadier plastic, or change the part size.`;
+    action = `The other plastic you named gives ${formatNumber(steadyValue)} ${required.unit}; this part needs at least ${formatNumber(required.min)} ${required.unit}. Use a stronger mix-in plastic, or change the part size.`;
   } else if (shortLow > 0 && overHigh > 0) {
     action = 'Raise the weak end and bring the strong end down.';
   } else if (shortLow > 0) {
     action = target.property === 'weight'
       ? 'Use a denser fraction, or change the section.'
-      : 'Blend with the declared steadier stream, or add a stream that reaches the low end.';
+      : 'Mix in the other plastic you named, or bring in one that reaches the weak end.';
   } else if (overHigh > 0) {
     action = target.property === 'weight'
       ? 'Use less of the dense fraction, or change the section.'
@@ -1158,7 +1158,7 @@ export function decisionFor(stateInput, result) {
     };
   }
   const isBlend = winner.move === 'blend';
-  const steadyName = state.steady.type || 'a steadier plastic';
+  const steadyName = state.steady.type || 'the mix-in plastic';
   const blendPct = isBlend ? Math.round(winner.fraction * 100) : 0;
   const headline = winner.move === 'treated'
     ? `Sort or wash this delivery, then make the ${buildSizeText(winner.part)}.`
@@ -1226,7 +1226,7 @@ export function proposalRow(stateInput, item) {
         return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
       }).join(' · '),
     added: blendPercent
-      ? `${blendPercent}% steadier plastic · ${formatNumber(convertForDisplay((blendPercent / 100) * massG(item.part, state.plastic.density), 'g'))} ${displayUnit('g')} a part`
+      ? `${blendPercent}% mix-in plastic · ${formatNumber(convertForDisplay((blendPercent / 100) * massG(item.part, state.plastic.density), 'g'))} ${displayUnit('g')} a part`
       : addedMaterialText(item.addedG),
     winner: false,
     blend: blendPercent,

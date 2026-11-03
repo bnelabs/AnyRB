@@ -4,7 +4,7 @@
 
 A small shop buys recycled plastic by the delivery, and no two deliveries bend or break the same
 way. AnyRB turns one delivery into a decision: a build that holds, a blend that closes the gap, or
-the exact change — thicker section, steadier stream, different part — that makes the delivery
+the exact change — thicker section, a mix-in plastic, different part — that makes the delivery
 usable. If a delivery cannot hold the part as entered, the result is the material range the part
 needs and the changes that could close the gap.
 
@@ -68,7 +68,7 @@ works for Meta, and voice is only available with Meta.
 - Tighten the requirement to **130–150 kg**. Now no build passes, and the app says so in the
   part's own terms first: as it stands it carries 95.4–111.0 kg. Then the batch terms: this build
   needs a plastic strength of 56.7–65.4 MPa; this delivery gives 41.6–48.4 MPa — and thickening
-  the part can't fix a swing that wide, so the levers are a steadier stream, sorting, a different
+  the part can't fix a swing that wide, so the levers are mixing in another plastic, sorting, a different
   section, or a different part for this delivery.
 
 Both cases are written out in [data/CASE_STUDY.md](data/CASE_STUDY.md).

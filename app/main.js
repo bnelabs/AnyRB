@@ -1025,7 +1025,7 @@ function renderCost(result) {
     const cells = [
       `${row.move}${cost != null && cheapest != null && Math.abs(cost - cheapest) < 1e-9 ? ' · Cheapest' : ''}`,
       fmtVal(build.massG, 'g'),
-      cost == null ? 'needs steadier price' : money(cost),
+      cost == null ? 'needs its price' : money(cost),
       cost == null ? '—' : runSize > 0 ? money(cost * runSize) : 'add order size',
     ];
     cells.forEach((text, idx) => {
@@ -1063,11 +1063,11 @@ function renderCost(result) {
       const note = document.createElement('p');
       note.className = 'cost-ask';
       if (breakEven > 0 && steadyPricePerKg <= breakEven) {
-        note.textContent = `Break-even: the steadier plastic could cost up to ${money(breakEven)} per kg before blending stops being cheaper than the ${proposalRow(result.state, bestAlt.b).move.toLowerCase()}. You entered ${money(steadyPricePerKg)} — blending is the cheaper one at that price.`;
+        note.textContent = `Break-even: the mix-in plastic could cost up to ${money(breakEven)} per kg before blending stops being cheaper than the ${proposalRow(result.state, bestAlt.b).move.toLowerCase()}. You entered ${money(steadyPricePerKg)} — blending is the cheaper one at that price.`;
       } else if (breakEven > 0) {
-        note.textContent = `Break-even: blending would only beat the ${proposalRow(result.state, bestAlt.b).move.toLowerCase()} on cost if the steadier plastic cost ${money(breakEven)} per kg or less. You entered ${money(steadyPricePerKg)} — so blending is not the cheaper one here.`;
+        note.textContent = `Break-even: blending would only beat the ${proposalRow(result.state, bestAlt.b).move.toLowerCase()} on cost if the mix-in plastic cost ${money(breakEven)} per kg or less. You entered ${money(steadyPricePerKg)} — so blending is not the cheaper one here.`;
       } else {
-        note.textContent = 'Even if the steadier plastic were free, blending would not beat the best build without it on cost.';
+        note.textContent = 'Even if the mix-in plastic were free, blending would not beat the best build without it on cost.';
       }
       view.append(note);
     }
@@ -1075,7 +1075,7 @@ function renderCost(result) {
   if (costs.some((c) => c == null)) {
     const ask = document.createElement('p');
     ask.className = 'cost-ask';
-    ask.textContent = 'One build above is missing a price — the steadier plastic, or sorting/washing. Add it per kg above and its cost can be compared too.';
+    ask.textContent = 'One build above is missing a price — the mix-in plastic, or sorting/washing. Add it per kg above and its cost can be compared too.';
     view.append(ask);
   }
 }
@@ -1190,7 +1190,7 @@ function renderShare(result) {
   const needMainKg = (mainUsage * shareQtyMain) / 1000;
   const needOtherKg = (otherUsage * shareQtyOther) / 1000;
   const steadyKg = ((steadyOf(mainItem) * shareQtyMain) + (steadyOf(otherItem) * shareQtyOther)) / 1000;
-  if (steadyKg > 0) line(`Together they also use ${fmtVal(steadyKg, 'kg')} of the steadier plastic, counted separately.`);
+  if (steadyKg > 0) line(`Together they also use ${fmtVal(steadyKg, 'kg')} of the mix-in plastic, counted separately.`);
   if (!(materialHaveKg > 0)) {
     line(`Together, the two orders need ${fmtVal(needMainKg + needOtherKg, 'kg')} of this delivery. Say how much you have — under Production in Results — and whether it covers both appears here.`);
     return;
@@ -1218,7 +1218,7 @@ function renderShare(result) {
   line(`This delivery cannot cover both orders in full. ${allocLine(mainName, aFirst, shareQtyMain, profile.name, bAfterA, shareQtyOther)}`);
   line(allocLine(profile.name, bFirst, shareQtyOther, mainName, aAfterB, shareQtyMain));
   if (batchPricePerKg > 0) {
-    line(`At the delivery price you entered, the full two orders would cost ${money((needMainKg + needOtherKg) * batchPricePerKg)} of this delivery's plastic${steadyKg > 0 && steadyPricePerKg > 0 ? `, plus ${money(steadyKg * steadyPricePerKg)} of the steadier plastic` : ''}.`);
+    line(`At the delivery price you entered, the full two orders would cost ${money((needMainKg + needOtherKg) * batchPricePerKg)} of this delivery's plastic${steadyKg > 0 && steadyPricePerKg > 0 ? `, plus ${money(steadyKg * steadyPricePerKg)} of the mix-in plastic` : ''}.`);
   }
 }
 $('share-other').addEventListener('change', (event) => {
@@ -1395,7 +1395,7 @@ function renderRunNote(result) {
     const needKg = (massG * runSize) / 1000;
     if (item.move === 'blend' && item.fraction) {
       const pct = Math.round(item.fraction * 100);
-      line(`This order of ${runSize.toLocaleString('en-US')} parts needs ${fmtVal(needKg, 'kg')} of plastic in total — ${fmtVal(needKg * item.fraction, 'kg')} of ${state.steady.type || 'the steadier plastic'} (${pct}%) and ${fmtVal(needKg * (1 - item.fraction), 'kg')} of this delivery.`);
+      line(`This order of ${runSize.toLocaleString('en-US')} parts needs ${fmtVal(needKg, 'kg')} of plastic in total — ${fmtVal(needKg * item.fraction, 'kg')} of ${state.steady.type || 'the mix-in plastic'} (${pct}%) and ${fmtVal(needKg * (1 - item.fraction), 'kg')} of this delivery.`);
     } else {
       line(`This order of ${runSize.toLocaleString('en-US')} parts needs ${fmtVal(needKg, 'kg')} of plastic.`);
     }
@@ -1415,7 +1415,7 @@ function renderRunNote(result) {
         const leftKg = materialHaveKg - needKg;
         line(`This delivery covers the order and leaves ${fmtVal(leftKg, 'kg')} — about ${Math.floor((leftKg * 1000) / massG).toLocaleString('en-US')} more parts.`);
       } else {
-        line(`It does not cover the whole order: you are ${fmtVal(needKg - materialHaveKg, 'kg')} short, so the rest has to come from another delivery or a steadier plastic.`);
+        line(`It does not cover the whole order: you are ${fmtVal(needKg - materialHaveKg, 'kg')} short, so the rest has to come from another delivery or the mix-in plastic.`);
       }
     }
   }
@@ -1436,7 +1436,7 @@ function renderRunNote(result) {
     use.append(p1);
     if (state.steady.available) {
       const p2 = document.createElement('p');
-      p2.textContent = 'Mixing in a steadier plastic would not change whether this part works, and its density is not entered here — so no mix amount is worked out for it. Steadier material is worth more where a load is checked.';
+      p2.textContent = 'Mixing in another plastic would not change whether this part works, and its density is not entered here — so no mix amount is worked out for it. A mix-in plastic is worth more where a load is checked.';
       use.append(p2);
     }
   }
@@ -2423,7 +2423,7 @@ function syncProductionInputs() {
   $('material-have-label').textContent = `How much of this delivery do you have? (${displayUnit('kg')})`;
   $('next-density-label').textContent = `Next delivery's density, if known (${displayUnit('g/cm³')})`;
   $('cost-batch-label').textContent = `This delivery costs, per ${displayUnit('kg')}`;
-  $('cost-steady-label').textContent = `Steadier plastic costs, per ${displayUnit('kg')}`;
+  $('cost-steady-label').textContent = `The mix-in plastic costs, per ${displayUnit('kg')}`;
   $('cost-treat-label').textContent = `Sorting/washing costs, per ${displayUnit('kg')}`;
   $('cost-currency').value = costCurrency;
   if (materialHaveKg > 0) $('material-have').value = String(Math.round(convertForDisplay(materialHaveKg, 'kg') * 1000) / 1000);
