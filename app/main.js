@@ -757,6 +757,21 @@ function renderNeed(result) {
     row.className = 'need-row';
     row.id = 'need-range-row';
     row.append(a.wrap, b.wrap);
+    // Stiffness in N/mm is a lab number; nobody should have to supply it.
+    // Ask what presses on the part and how far it may bend instead.
+    const stiff = document.createElement('div');
+    stiff.id = 'need-stiff';
+    stiff.hidden = true;
+    const stiffNote = document.createElement('p');
+    stiffNote.className = 'need-stiff-note';
+    stiffNote.textContent = 'You do not need to know the stiffness number. Say what presses on it and how far it may bend down under that weight — the form works out the stiffness range from that. Only the lowest stiffness will matter unless you also give a smallest bend.';
+    const sLoad = needInput('need-s-load', 'How much weight presses on it', displayUnit('kg'));
+    const sBend = needInput('need-s-bend', 'How far may it bend down, at most', displayUnit('mm'));
+    const sBendMin = needInput('need-s-bend-min', 'How far should it still bend, at least (optional)', displayUnit('mm'));
+    const sRow = document.createElement('div');
+    sRow.className = 'need-row';
+    sRow.append(sLoad.wrap, sBend.wrap, sBendMin.wrap);
+    stiff.append(stiffNote, sRow);
     const setUnits = () => {
       const meta = propertyMeta(control.dataset.prop || 'strength');
       a.wrap.querySelector('label').textContent = `Lowest acceptable (${displayUnit(meta.unit)})`;
@@ -770,13 +785,14 @@ function renderNeed(result) {
       button.addEventListener('click', () => {
         control.dataset.prop = key;
         for (const el of choices.querySelectorAll('.need-choice')) el.classList.toggle('is-selected', el === button);
-        row.hidden = key === 'none';
-        if (key !== 'none') setUnits();
+        row.hidden = key === 'none' || key === 'stiffness';
+        stiff.hidden = key !== 'stiffness';
+        if (key !== 'none' && key !== 'stiffness') setUnits();
       });
       choices.append(button);
     }
     setUnits();
-    control.append(choices, row);
+    control.append(choices, stiff, row);
   } else if (needStep === 'batch') {
     question.textContent = 'What is this delivery closest to?';
     why.textContent = state.plastic.type
@@ -871,6 +887,23 @@ function applyNeed() {
       state.extraTargets = [];
       paint();
       refresh({ model: false });
+      return;
+    }
+    if (property === 'stiffness') {
+      const loadRaw = $('need-s-load').value.trim();
+      const bendRaw = $('need-s-bend').value.trim();
+      const bendMinRaw = $('need-s-bend-min').value.trim();
+      const loadKg = loadRaw === '' ? NaN : convertFromDisplay(Number(loadRaw), 'kg');
+      const bendMm = bendRaw === '' ? NaN : convertFromDisplay(Number(bendRaw), 'mm');
+      const bendMinMm = bendMinRaw === '' ? 0 : convertFromDisplay(Number(bendMinRaw), 'mm');
+      if (!(loadKg > 0) || !(bendMm > 0) || bendMinMm < 0 || (bendMinMm > 0 && bendMinMm > bendMm)) {
+        return fail('Give the weight that presses on it and how far it may bend down under that weight. The smallest bend, if you give one, cannot be more than the largest bend.');
+      }
+      const lowStiffness = (loadKg * 9.80665) / bendMm;
+      const highStiffness = bendMinMm > 0 ? (loadKg * 9.80665) / bendMinMm : lowStiffness * 10;
+      state.target = { property: 'stiffness', min: lowStiffness, max: Math.max(highStiffness, lowStiffness) };
+      paint();
+      refresh();
       return;
     }
     const meta = propertyMeta(property);

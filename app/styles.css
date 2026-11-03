@@ -1220,3 +1220,4 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .use-note p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; color: #2c2c29; }
 .use-note .dl-button { margin-top: 2px; }
 @media (max-width: 1020px) { .production .run-row { grid-template-columns: 1fr; } }
+.need-stiff-note { margin: 0 0 12px; color: #b9b6a9; font-size: 14px; line-height: 1.55; max-width: 640px; }

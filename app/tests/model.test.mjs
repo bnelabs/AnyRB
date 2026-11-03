@@ -554,3 +554,11 @@ test('production totals are on the page: order, stock, next density', async () =
   assert.match(js, /does not cover the whole order/);
   assert.match(js, /Check .* with this delivery/);
 });
+
+test('stiffness is asked as weight and bend, not as a lab number', async () => {
+  const fs = await import('node:fs/promises');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(js, /need-s-load/);
+  assert.match(js, /need-s-bend/);
+  assert.match(js, /You do not need to know the stiffness number/);
+});
