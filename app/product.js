@@ -1035,7 +1035,7 @@ export function decisionFor(stateInput, result) {
       }),
       `Action: ${primary.action}`,
     ].filter(Boolean).join('\n');
-    return { headline, support, button: 'Ask Meta', copy };
+    return { headline, support, button: 'Ask about this delivery', copy };
   }
   const winner = result.winner;
   const isBlend = winner.move === 'blend';
@@ -1080,9 +1080,9 @@ export function proposalRow(stateInput, item) {
   const originLabel = item.move === 'current'
     ? 'your build as entered'
     : item.origin === 'meta'
-      ? 'proposed by Muse Spark'
+      ? 'proposed by the model'
       : item.origin === 'meta-direction'
-        ? 'direction from Muse Spark, size calculated here'
+        ? 'direction from the model, size calculated here'
         : 'calculated here';
   return {
     move: moveLabel(state, item),

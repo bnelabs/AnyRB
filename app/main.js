@@ -55,6 +55,23 @@ setUnitSystem(settings.units);
 function modelOff() {
   return settings.provider === 'local';
 }
+const MODEL_NAMES = {
+  'muse-spark-1.3-contributor': 'Muse Spark 1.3 Contributor',
+  'muse-spark-1.3': 'Muse Spark 1.3',
+};
+function aiName() {
+  return MODEL_NAMES[settings.model] || 'the model';
+}
+function friendlyModel(id) {
+  return MODEL_NAMES[id] || 'the model';
+}
+function syncBriefHelp() {
+  const help = document.querySelector('.brief-help');
+  if (!help) return;
+  help.textContent = modelOff()
+    ? 'The model is off in Settings. Type the fields below, or pick an example.'
+    : `These words go to ${aiName()} on the server, which fills the fields below from what you said. You can correct every field afterwards.`;
+}
 function metaHeaders(json = true) {
   const headers = {};
   if (json) headers['Content-Type'] = 'application/json';
@@ -386,7 +403,7 @@ function renderTrace(result) {
   const rejected = items.length - accepted;
   const head = document.createElement('p');
   head.className = 'trace-head';
-  head.textContent = `Muse Spark proposed ${items.length} move${items.length === 1 ? '' : 's'}. Checked at the exact size proposed: ${accepted} pass${accepted === 1 ? 'es' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
+  head.textContent = `${aiName()} proposed ${items.length} move${items.length === 1 ? '' : 's'}. Checked at the exact size proposed: ${accepted} pass${accepted === 1 ? 'es' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
   trace.append(head);
   for (const item of items.slice(0, 5)) {
     const row = proposalRow(result.state, { ...item, addedG: 0, range: item.ranges[0] });
@@ -404,8 +421,8 @@ function renderTrace(result) {
   const note = document.createElement('p');
   note.className = 'trace-note';
   note.textContent = rejected
-    ? 'Moves that do not pass at the proposed size are handed to the mechanics search; the passing builds above are its result, in the direction Muse Spark proposed.'
-    : 'The exact Muse Spark proposals were checked before the mechanics search.';
+    ? 'Moves that do not pass at the proposed size are handed to the mechanics search; the passing builds above are its result, in the direction the model proposed.'
+    : 'The exact model proposals were checked before the mechanics search.';
   trace.append(note);
 }
 
@@ -420,10 +437,10 @@ function fmtVal(value, unit) {
 
 function metaSourceText() {
   if (!metaSource) return '';
-  const round = feedbackRound ? ' Shown the checked result, Muse Spark proposed again.' : '';
-  if (metaSource.kind === 'live') return ` Live call to ${metaSource.model || 'Muse Spark'}.${round}`;
-  if (metaSource.kind === 'cached') return ` Saved Muse Spark answer — not a new live call.${round}`;
-  if (metaSource.kind === 'offline') return ' Muse Spark is not reachable from here; the calculated build stands on its own.';
+  const round = feedbackRound ? ' Shown the checked result, the model proposed again.' : '';
+  if (metaSource.kind === 'live') return ` Live call to ${friendlyModel(metaSource.model)}.${round}`;
+  if (metaSource.kind === 'cached') return ` Saved ${friendlyModel(metaSource.model)} answer — not a new live call.${round}`;
+  if (metaSource.kind === 'offline') return ' The model is not reachable from here; the calculated build stands on its own.';
   return '';
 }
 
@@ -440,7 +457,7 @@ function renderProgress(result) {
     : modelState === 'meta'
       ? `${modelProposals.length} move${modelProposals.length === 1 ? '' : 's'} checked`
       : modelState === 'loading'
-        ? 'checking with Muse Spark…'
+        ? `checking with ${aiName()}…`
         : modelState === 'local'
           ? 'off in Settings — the local checker is running'
           : 'not checked yet';
@@ -448,7 +465,7 @@ function renderProgress(result) {
     { label: 'The part', detail: partDone ? `${state.product}, sized below` : 'name it and set its size', done: partDone },
     { label: 'What must hold', detail: targetDone ? 'set below — every one has to hold at once' : 'add at least one property range', done: targetDone },
     { label: 'This delivery', detail: batchDone ? 'set below' : 'pick a published range, or enter supplier numbers', done: batchDone },
-    { label: 'Meta check', detail: metaDetail, done: modelState === 'meta', info: true },
+    { label: 'Model check', detail: metaDetail, done: modelState === 'meta', info: true },
     {
       label: 'Decision',
       detail: result && result.winner
@@ -584,7 +601,7 @@ function renderDecisionBar(result, decision) {
   bar.hidden = false;
   $('decision-dot').className = `decision-dot ${result.winner ? 'pass' : 'fail'}`;
   $('decision-bar-text').textContent = modelState === 'loading'
-    ? `${decision.headline} — checking moves with Muse Spark…`
+    ? `${decision.headline} — checking moves with ${aiName()}…`
     : decision.headline;
   const action = $('decision-bar-action');
   action.textContent = decision.button;
@@ -597,11 +614,11 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'loading') {
-    status.textContent = 'Muse Spark is proposing moves…';
+    status.textContent = `${aiName()} is proposing moves…`;
     return;
   }
   if (modelState === 'meta') {
-    status.textContent = `${modelProposals.length} moves from Muse Spark. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
+    status.textContent = `${modelProposals.length} moves from ${aiName()}. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
     return;
   }
   if (modelState === 'local') {
@@ -609,10 +626,10 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'empty') {
-    status.textContent = `Muse Spark returned no usable moves. The calculated build stands.${metaSourceText()}`;
+    status.textContent = `${aiName()} returned no usable moves. The calculated build stands.${metaSourceText()}`;
     return;
   }
-  status.textContent = 'Muse Spark is unavailable. The calculated build stands.';
+  status.textContent = 'The model is unavailable. The calculated build stands.';
 }
 
 function render(result) {
@@ -821,7 +838,7 @@ async function askMeta() {
     $('ask-status').textContent = 'The model is off in Settings, so there is no Meta answer. The calculated plan above still applies.';
     return;
   }
-  $('ask-status').textContent = 'Muse Spark is thinking…';
+  $('ask-status').textContent = `${aiName()} is thinking…`;
   $('ask-answer').replaceChildren();
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
@@ -837,11 +854,11 @@ async function askMeta() {
     if (!data.available || !data.answer) {
       const reason = data._meta && data._meta.reason_code;
       if (reason === 'grounding_failed') {
-        $('ask-status').textContent = 'Muse Spark’s answer did not stay with the numbers here. The calculated plan still applies.';
+        $('ask-status').textContent = 'The answer did not stay with the numbers here. The calculated plan still applies.';
       } else if (reason === 'test_instruction') {
-        $('ask-status').textContent = 'Muse Spark’s answer was not a make-or-change action. The calculated plan still applies.';
+        $('ask-status').textContent = 'The answer was not a make-or-change action. The calculated plan still applies.';
       } else {
-        $('ask-status').textContent = 'Muse Spark is unavailable right now. The calculated plan still applies.';
+        $('ask-status').textContent = 'The model is unavailable right now. The calculated plan still applies.';
       }
       return;
     }
@@ -860,7 +877,7 @@ async function askMeta() {
     }
   } catch (error) {
     if (seq !== adviceSeq) return;
-    $('ask-status').textContent = 'Muse Spark is unavailable right now. The calculated plan still applies.';
+    $('ask-status').textContent = 'The model is unavailable right now. The calculated plan still applies.';
   } finally {
     window.clearTimeout(timer);
   }
@@ -1080,7 +1097,7 @@ async function sendVoice(blob) {
     field.focus();
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
-    $('brief-status').textContent = 'Muse Voice heard the brief. Muse Spark is reading it…';
+    $('brief-status').textContent = `Voice heard the brief. ${aiName()} is reading it…`;
     await readBrief();
   } catch (error) {
     $('brief-status').textContent = 'Muse Voice is unavailable. Type the brief instead.';
@@ -1210,9 +1227,9 @@ async function readBrief() {
   }
   const button = $('brief-submit');
   button.disabled = true;
-  $('brief-status').textContent = 'Muse Spark is reading the brief…';
+  $('brief-status').textContent = `${aiName()} is reading the brief…`;
   $('brief-status').classList.add('is-working');
-  $('support').textContent = 'Muse Spark is reading the brief. This usually takes about ten seconds — you do not need to fill anything in while it works.';
+  $('support').textContent = `${aiName()} is reading the brief. This usually takes about ten seconds — you do not need to fill anything in while it works.`;
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
@@ -1224,7 +1241,7 @@ async function readBrief() {
     });
     const data = await response.json();
     if (!response.ok || !data.available || !data.brief) {
-      $('brief-status').textContent = 'Muse Spark could not read that brief. Fill the fields below, or try again.';
+      $('brief-status').textContent = `${aiName()} could not read that brief. Fill the fields below, or try again.`;
       render(evaluateBuilds(state, modelProposals));
       return;
     }
@@ -1235,14 +1252,14 @@ async function readBrief() {
     field.scrollTop = 0;
     const targetCount = 1 + state.extraTargets.length;
     const source = data._cached
-      ? 'That was a saved Muse Spark answer, not a new live call.'
-      : `That was a live read by ${data._model || 'Muse Spark'}.`;
+      ? `That was a saved ${friendlyModel(data._model)} answer, not a new live call.`
+      : `That was a live read by ${friendlyModel(data._model)}.`;
     const publishedNote = briefPublished
       ? ` For this delivery I used “${briefPublished.label}” — a published range, not a measurement of this delivery. Change it under Batch if your supplier's numbers differ.`
       : '';
-    $('brief-status').textContent = `Muse Spark read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill. ${source}${publishedNote}`;
+    $('brief-status').textContent = `${aiName()} read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill. ${source}${publishedNote}`;
   } catch (error) {
-    $('brief-status').textContent = 'Muse Spark is unavailable. Fill the fields below; the local mechanics still works.';
+    $('brief-status').textContent = 'The model is unavailable. Fill the fields below; the local mechanics still works.';
     render(evaluateBuilds(state, modelProposals));
   } finally {
     $('brief-status').classList.remove('is-working');
@@ -1478,10 +1495,12 @@ $('settings-form').addEventListener('submit', (event) => {
     sessionStorage.setItem('anyrb.key', userKey);
   }
   $('settings-dialog').close();
+  syncBriefHelp();
   refresh();
 });
 syncUnitButtons();
 updateUnitLabels();
+syncBriefHelp();
 
 paint();
 const initial = evaluateBuilds(state, []);

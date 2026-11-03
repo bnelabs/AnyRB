@@ -149,7 +149,7 @@ test('a requirement that cannot be met stops the build even if another could', (
   assert.ok(result.gaps[1].overHigh > 0 || result.gaps[1].shortLow > 0);
   const decision = decisionFor(s, result);
   assert.doesNotMatch(decision.headline, /do not use|don't use/i);
-  assert.equal(decision.button, 'Ask Meta');
+  assert.equal(decision.button, 'Ask about this delivery');
 });
 
 test('strength-only bracket: the declared steadier stream closes the gap', () => {
@@ -319,7 +319,7 @@ test('an impossible target does not say "do not use the delivery"', () => {
   const decision = decisionFor(s, result);
   assert.doesNotMatch(decision.headline, /do not use|don't use/i);
   assert.match(decision.headline, /^(Lift the strength low end|Narrow the strength swing)/);
-  assert.equal(decision.button, 'Ask Meta');
+  assert.equal(decision.button, 'Ask about this delivery');
 });
 
 test('multi-target gaps are reported for each target', () => {

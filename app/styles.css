@@ -829,3 +829,70 @@ body { background: var(--paper); }
   .top { padding: 18px 18px 0; }
   .decision-panel { padding: 28px 22px 26px; border-radius: 16px; }
 }
+
+/* ==========================================================================
+   Mobile-first product layer — designed for the phone first.
+   Big touch targets, one column, the decision always reachable.
+   ========================================================================== */
+@media (max-width: 1020px) {
+  .page { padding: 0 16px 64px; }
+  .top { padding: 16px 16px 0; flex-wrap: wrap; gap: 10px 14px; }
+  .top-actions { margin-left: 0; }
+  .unit-toggle button, .settings-open { height: 42px; padding: 0 16px; font-size: 14px; }
+
+  .decision-panel { margin-top: 16px; padding: 26px 20px 24px; border-radius: 18px; }
+  .decision-panel h1 { font-size: clamp(32px, 9vw, 44px); line-height: 1.04; }
+  .decision-panel .support { font-size: 17px; }
+  .brief-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .brief-row textarea { min-height: 96px; font-size: 16px; }
+  .brief-submit, .brief-voice { height: 52px; width: 100%; font-size: 16px; }
+  .brief-head { flex-wrap: wrap; gap: 8px; }
+  .brief-sample { height: 38px; padding: 0 14px; font-size: 13.5px; }
+  .cases { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .cases::-webkit-scrollbar { display: none; }
+  .cases .case { flex: none; height: 42px; padding: 0 16px; font-size: 14.5px; }
+  .cases-label { flex: none; align-self: center; }
+  .decision-panel .pill { height: 52px; width: 100%; font-size: 16px; }
+  .see-details { display: block; margin: 14px 0 0; font-size: 15px; }
+
+  .progress { margin-top: 22px; }
+  .progress-list { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .progress-list::-webkit-scrollbar { display: none; }
+  .progress-item { flex: none; font-size: 14px; background: #232320; border: 1px solid #33332f; border-radius: 999px; padding: 7px 13px 7px 8px; }
+  .progress-next { font-size: 15px; }
+
+  .work { margin-top: 18px; gap: 18px; }
+  .engineering, .batch { padding: 22px 18px 24px; border-radius: 16px; }
+  .field input, .field select { height: 52px; font-size: 16px; border-radius: 12px; }
+  .field label { font-size: 11.5px; }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .check { font-size: 15px; padding: 8px 0; }
+  .check input { width: 22px; height: 22px; }
+  .add-target, .remove-target { min-height: 44px; font-size: 15px; }
+
+  .results { padding: 22px 18px 24px; border-radius: 16px; }
+  .build-row { grid-template-columns: 1fr 1fr; gap: 8px 14px; padding: 16px 0; }
+  .build-row .move { grid-column: 1 / -1; font-size: 15px; }
+  .build-row .added { justify-self: start; }
+  .rv-name { font-size: 14.5px; }
+  .rv-margin { font-size: 13px; }
+  .run-row { flex-direction: column; align-items: stretch; }
+  .downloads-row { flex-direction: column; }
+  .dl-button { height: 48px; width: 100%; font-size: 15px; }
+  .ask-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .ask-row input { height: 52px; font-size: 16px; }
+  .ask-button { height: 48px; font-size: 15px; }
+  .trace-row { font-size: 12.5px; }
+
+  .decision-bar { padding: 10px 16px; gap: 10px; }
+  .decision-bar-text { font-size: 14.5px; }
+  .decision-bar-action { height: 42px; padding: 0 15px; font-size: 14px; }
+
+  .settings { padding: 22px 20px; border-radius: 18px; }
+  .settings .field input, .settings .field select { height: 52px; font-size: 16px; }
+  .settings-row { flex-wrap: wrap; }
+  .settings-save { height: 48px; }
+}
+@media (min-width: 1021px) {
+  .brief-submit, .brief-voice { min-width: 168px; }
+}
