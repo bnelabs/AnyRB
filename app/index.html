@@ -44,6 +44,16 @@
       <p class="brief-help">These words go to Muse Spark on the server, which fills the fields below from what you said. You can correct every field afterwards.</p>
       <p class="brief-status" id="brief-status"></p>
     </div>
+    <div class="cases" id="cases" aria-label="Start with a part">
+      <span class="cases-label">Examples</span>
+      <button class="case" type="button" data-case="bracket">Bracket</button>
+      <button class="case" type="button" data-case="slat">Slat</button>
+      <button class="case" type="button" data-case="crate">Crate</button>
+      <button class="case" type="button" data-case="planter">Planter</button>
+      <button class="case" type="button" data-case="pallet">Pallet block</button>
+      <button class="case" type="button" data-case="custom">Something else</button>
+    </div>
+    <p class="case-note" id="case-note" hidden></p>
     <div class="need" id="need-panel" hidden>
       <p class="need-kicker">Still needed</p>
       <h3 class="need-question" id="need-question"></h3>
@@ -63,41 +73,14 @@
       </div>
       <ol class="progress-list" id="progress-list"></ol>
     </div>
-    <div class="cases" id="cases" aria-label="Start with a part">
-      <span class="cases-label">Examples</span>
-      <button class="case" type="button" data-case="bracket">Bracket</button>
-      <button class="case" type="button" data-case="slat">Slat</button>
-      <button class="case" type="button" data-case="crate">Crate</button>
-      <button class="case" type="button" data-case="planter">Planter</button>
-      <button class="case" type="button" data-case="pallet">Pallet block</button>
-      <button class="case" type="button" data-case="custom">Something else</button>
-    </div>
-    <p class="case-note" id="case-note" hidden></p>
-    <div class="saved" id="saved-bar">
-      <div class="saved-group">
-        <label for="saved-products">Saved parts</label>
-        <div class="saved-row">
-          <select id="saved-products"></select>
-          <button class="saved-button" id="save-product" type="button">Save this part</button>
-          <button class="saved-button" id="delete-product" type="button" hidden>Delete</button>
-        </div>
-      </div>
-      <div class="saved-group">
-        <label for="saved-deliveries">Saved deliveries</label>
-        <div class="saved-row">
-          <select id="saved-deliveries"></select>
-          <button class="saved-button" id="save-delivery" type="button">Save this delivery</button>
-          <button class="saved-button" id="delete-delivery" type="button" hidden>Delete</button>
-        </div>
-      </div>
-      <p class="saved-note" id="saved-note">Save a part or a delivery once, then pick it here next time instead of typing it again. Saved on this machine only.</p>
-    </div>
+
+
     <button class="pill" id="primary" type="button" hidden>Copy build</button>
     <a class="see-details" id="see-details" href="#verdict" hidden>See the result ↓</a>
   </section>
 
   <div class="work">
-    <aside class="results" aria-label="Results">
+    <aside class="results" id="results-panel" aria-label="Results">
       <p class="results-kicker">Results</p>
       <div class="verdict" id="verdict" hidden>
         <div class="verdict-head">
@@ -145,7 +128,7 @@
           </div>
           <p class="downloads-formats">The build sheet is a text file to print or paste. The spreadsheet opens in Excel or Google Sheets. JSON is the same results as data for another system, in metric with the units named in the file.</p>
         </div>
-        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
+        <p class="empty-build" id="empty-build" hidden>No build passes yet. What this delivery would need is just below.</p>
         <div class="meta-trace" id="meta-trace" hidden></div>
       </div>
 
@@ -305,6 +288,28 @@
         </div>
       </div>
       <div class="share-result" id="share-result" aria-live="polite"></div>
+    </section>
+    <section class="saved-section" aria-labelledby="saved-title">
+      <h2 id="saved-title"><span class="sec-num">04</span>Saved parts and deliveries</h2>
+    <div class="saved saved-light" id="saved-bar">
+      <div class="saved-group">
+        <label for="saved-products">Saved parts</label>
+        <div class="saved-row">
+          <select id="saved-products"></select>
+          <button class="saved-button" id="save-product" type="button">Save this part</button>
+          <button class="saved-button" id="delete-product" type="button" hidden>Delete</button>
+        </div>
+      </div>
+      <div class="saved-group">
+        <label for="saved-deliveries">Saved deliveries</label>
+        <div class="saved-row">
+          <select id="saved-deliveries"></select>
+          <button class="saved-button" id="save-delivery" type="button">Save this delivery</button>
+          <button class="saved-button" id="delete-delivery" type="button" hidden>Delete</button>
+        </div>
+      </div>
+      <p class="saved-note" id="saved-note">Save a part or a delivery once, then pick it here next time instead of typing it again. Saved on this machine only.</p>
+    </div>
     </section>
     </div>
 

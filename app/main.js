@@ -35,7 +35,7 @@ const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:8787' : '';
 
 let state = normalizeState({ blank: true });
 let modelProposals = [];
-let modelState = 'loading';
+let modelState = 'idle';
 let modelSeq = 0;
 let modelTimer = 0;
 let adviceSeq = 0;
@@ -502,7 +502,7 @@ function renderTrace(result) {
   note.className = 'trace-note';
   note.textContent = rejected
     ? 'Moves that don’t work at that size go to the checker, which finds a size that works in the same direction. Those are the builds above.'
-    : 'The exact model proposals were checked before the mechanics search.';
+    : 'Every size the model proposed was checked exactly as proposed.';
   trace.append(note);
 }
 
@@ -583,7 +583,7 @@ function renderProgress(result) {
   else if (!targetDone) next = 'Next: say what it has to do — how much it carries, how stiff, or how much it may weigh.';
   else if (!batchDone) next = 'Next: set this delivery — pick a published range, or enter supplier numbers.';
   else if (result && result.winner) next = 'Next: copy the build, or download it under “Builds that work”.';
-  else if (result && result.ready) next = 'Next: follow the change in the headline — or ask Meta about this batch below.';
+  else if (result && result.ready) next = 'Next: follow the change in the headline — or ask about this delivery below.';
   else next = 'Next: finish the steps above.';
   $('progress-next').textContent = next;
 }
@@ -655,7 +655,9 @@ function renderVerdict(result, decision) {
     if (passes) {
       const lowMargin = range.min - target.min;
       const highMargin = target.max - range.max;
-      status.textContent = `Inside · ${fmtVal(Math.min(lowMargin, highMargin), meta.unit)} to spare`;
+      const spare = Math.min(lowMargin, highMargin);
+      const spareShown = spare < 1 ? Math.round(spare * 10) / 10 : spare;
+      status.textContent = `Inside · ${fmtVal(spareShown, meta.unit)} to spare`;
     } else if (range.min < target.min && range.max > target.max) {
       status.textContent = `Short ${fmtVal(target.min - range.min, meta.unit)} low, over ${fmtVal(range.max - target.max, meta.unit)} high`;
     } else if (range.min < target.min) {
@@ -748,8 +750,7 @@ function needInput(id, label, unit, value = '') {
 
 function renderNeed(result) {
   const panel = $('need-panel');
-  const started = Boolean(state.product || state.spanMm > 0 || state.target.property || state.plastic.type);
-  if (result.ready || !started) {
+  if (result.ready) {
     panel.hidden = true;
     needStep = null;
     renderedNeedStep = null;
@@ -828,7 +829,7 @@ function renderNeed(result) {
   } else if (needStep === 'target') {
     question.textContent = 'What does it have to do?';
     why.textContent = /panel|insulation|board|sheet|tile|cover/.test(String(state.product).toLowerCase())
-      ? 'Panels like this usually do not carry a load, and this checker cannot measure insulation or sound. If nothing sits or presses on it, choose “None of these” — you will get its weight and batch notes instead of a load answer it cannot give.'
+      ? 'Panels like this usually do not carry a load, and this checker cannot measure insulation or sound. If nothing sits or presses on it, choose “None of these” — you will get its weight and delivery notes instead of a load answer it cannot give.'
       : state.product
         ? `Your description named the ${state.product}, but did not say what it has to do. Choose the one that fits — or “None of these” if it carries no load.`
         : 'Choose the one that fits — or “None of these” if it carries no load.';
@@ -1614,6 +1615,7 @@ function render(result) {
   primary.hidden = !decision.button;
   primary.textContent = decision.button || '';
   primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
+  $('results-panel').hidden = !result.ready;
   $('builds-panel').hidden = !result.ready;
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready || (state.target.property === 'none' && !state.extraTargets.length);
@@ -1814,7 +1816,7 @@ function clearAdvice() {
 async function askMeta() {
   if (!lastResult || !lastResult.ready) return;
   const input = $('ask-question');
-  const question = (input.value.trim() || 'What should I add or change to make this batch work?').slice(0, 800);
+  const question = (input.value.trim() || 'What should I add or change to make this delivery work?').slice(0, 800);
   input.value = question;
   const result = lastResult || evaluateBuilds(state, modelProposals);
   const payload = advicePayload(state, result, question);

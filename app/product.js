@@ -635,6 +635,14 @@ function validCandidate(state, candidate) {
     const width = candidate.widthMm == null ? state.widthMm : candidate.widthMm;
     if (width < state.widthMm - 1e-9) return false;
   }
+  if (candidate.move === 'span') {
+    // Span is the part's length, also its own size: a span move may
+    // lengthen it or change how it is held, but may not shorten the
+    // product into a different product to hit a range — and may not
+    // "save" material by quietly making a smaller part.
+    const span = candidate.spanMm == null ? state.spanMm : candidate.spanMm;
+    if (span < state.spanMm - 1e-9) return false;
+  }
   const part = candidatePart(state, candidate);
   return !samePart(part, currentPart(state));
 }

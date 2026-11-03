@@ -16,6 +16,10 @@
   --muted: #6f6a5b;
   --faint: #9a9584;
   --line: #ddd8c6;
+  --line-2: #ddd8c6;
+  --card: #fcfbf6;
+  --field: #ddd8c6;
+  --white: #fcfbf6;
   --line-strong: #c9c3ac;
   --dark-line: #3b3a32;
   --dark-mute: #a8a496;
@@ -1261,3 +1265,12 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 #sheet-fill { margin-top: 10px; }
 .compare-field { margin-top: 18px; max-width: 420px; }
 .compare-view { margin-top: 6px; }
+
+/* Saved library as its own light bench section (moved out of the hero) */
+.saved-section { background: var(--card); border: 1px solid var(--line-2); border-radius: 16px; padding: 26px 28px 30px; min-width: 0; margin-top: 20px; }
+.saved-section h2 { font-size: 17px; margin: 0 0 6px; }
+.saved-light { margin-top: 14px; border-top: 1px solid var(--line-2); padding-top: 16px; }
+.saved-light .saved-group label { color: var(--muted); }
+.saved-light .saved-row select { background: var(--white); border: 1px solid var(--field); color: var(--ink); }
+.saved-light .saved-button { border: 1px solid var(--line-strong); color: var(--ink); }
+.saved-light .saved-note { color: var(--muted); }

@@ -301,16 +301,24 @@ test('model move span is clamped and a failing span is not shown', () => {
 
 test('a span build is weighed as its own section, with no added support mass', () => {
   const s = bracket({
-    target: { property: 'weight', min: 50, max: 60 },
+    target: { property: 'weight', min: 70, max: 80 },
     extraTargets: [],
     steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
   });
-  const result = evaluateBuilds(s, [{ move: 'span', span_mm: 150 }]);
+  const result = evaluateBuilds(s, [{ move: 'span', span_mm: 200 }]);
   const span = result.passingBest.find((item) => item.move === 'span');
-  assert.ok(span, 'the shorter span inside the weight window must be offered');
+  assert.ok(span, 'the longer span inside the weight window must be offered');
   assert.equal(span.massG, massG(span.part, s.plastic.density));
   assert.equal(span.ranges[0].min, span.massG);
   assert.equal(span.ranges[0].max, span.massG);
+});
+
+test('a span move may not shorten the part to save material', () => {
+  const s = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate });
+  const result = evaluateBuilds(s, [{ move: 'span', span_mm: 320 }]);
+  assert.equal(result.winner.move, 'current');
+  assert.equal(result.winner.part.spanMm, 400);
+  assert.equal(result.passingBest.some((item) => item.move === 'span' && item.part.spanMm < 400), false);
 });
 
 test('model blend only survives when steady is declared', () => {

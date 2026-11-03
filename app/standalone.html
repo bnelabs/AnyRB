@@ -25,6 +25,10 @@
   --muted: #6f6a5b;
   --faint: #9a9584;
   --line: #ddd8c6;
+  --line-2: #ddd8c6;
+  --card: #fcfbf6;
+  --field: #ddd8c6;
+  --white: #fcfbf6;
   --line-strong: #c9c3ac;
   --dark-line: #3b3a32;
   --dark-mute: #a8a496;
@@ -1271,6 +1275,15 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .compare-field { margin-top: 18px; max-width: 420px; }
 .compare-view { margin-top: 6px; }
 
+/* Saved library as its own light bench section (moved out of the hero) */
+.saved-section { background: var(--card); border: 1px solid var(--line-2); border-radius: 16px; padding: 26px 28px 30px; min-width: 0; margin-top: 20px; }
+.saved-section h2 { font-size: 17px; margin: 0 0 6px; }
+.saved-light { margin-top: 14px; border-top: 1px solid var(--line-2); padding-top: 16px; }
+.saved-light .saved-group label { color: var(--muted); }
+.saved-light .saved-row select { background: var(--white); border: 1px solid var(--field); color: var(--ink); }
+.saved-light .saved-button { border: 1px solid var(--line-strong); color: var(--ink); }
+.saved-light .saved-note { color: var(--muted); }
+
 </style>
 </head>
 <body>
@@ -1309,6 +1322,16 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
       <p class="brief-help">These words go to Muse Spark on the server, which fills the fields below from what you said. You can correct every field afterwards.</p>
       <p class="brief-status" id="brief-status"></p>
     </div>
+    <div class="cases" id="cases" aria-label="Start with a part">
+      <span class="cases-label">Examples</span>
+      <button class="case" type="button" data-case="bracket">Bracket</button>
+      <button class="case" type="button" data-case="slat">Slat</button>
+      <button class="case" type="button" data-case="crate">Crate</button>
+      <button class="case" type="button" data-case="planter">Planter</button>
+      <button class="case" type="button" data-case="pallet">Pallet block</button>
+      <button class="case" type="button" data-case="custom">Something else</button>
+    </div>
+    <p class="case-note" id="case-note" hidden></p>
     <div class="need" id="need-panel" hidden>
       <p class="need-kicker">Still needed</p>
       <h3 class="need-question" id="need-question"></h3>
@@ -1328,41 +1351,14 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
       </div>
       <ol class="progress-list" id="progress-list"></ol>
     </div>
-    <div class="cases" id="cases" aria-label="Start with a part">
-      <span class="cases-label">Examples</span>
-      <button class="case" type="button" data-case="bracket">Bracket</button>
-      <button class="case" type="button" data-case="slat">Slat</button>
-      <button class="case" type="button" data-case="crate">Crate</button>
-      <button class="case" type="button" data-case="planter">Planter</button>
-      <button class="case" type="button" data-case="pallet">Pallet block</button>
-      <button class="case" type="button" data-case="custom">Something else</button>
-    </div>
-    <p class="case-note" id="case-note" hidden></p>
-    <div class="saved" id="saved-bar">
-      <div class="saved-group">
-        <label for="saved-products">Saved parts</label>
-        <div class="saved-row">
-          <select id="saved-products"></select>
-          <button class="saved-button" id="save-product" type="button">Save this part</button>
-          <button class="saved-button" id="delete-product" type="button" hidden>Delete</button>
-        </div>
-      </div>
-      <div class="saved-group">
-        <label for="saved-deliveries">Saved deliveries</label>
-        <div class="saved-row">
-          <select id="saved-deliveries"></select>
-          <button class="saved-button" id="save-delivery" type="button">Save this delivery</button>
-          <button class="saved-button" id="delete-delivery" type="button" hidden>Delete</button>
-        </div>
-      </div>
-      <p class="saved-note" id="saved-note">Save a part or a delivery once, then pick it here next time instead of typing it again. Saved on this machine only.</p>
-    </div>
+
+
     <button class="pill" id="primary" type="button" hidden>Copy build</button>
     <a class="see-details" id="see-details" href="#verdict" hidden>See the result ↓</a>
   </section>
 
   <div class="work">
-    <aside class="results" aria-label="Results">
+    <aside class="results" id="results-panel" aria-label="Results">
       <p class="results-kicker">Results</p>
       <div class="verdict" id="verdict" hidden>
         <div class="verdict-head">
@@ -1410,7 +1406,7 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
           </div>
           <p class="downloads-formats">The build sheet is a text file to print or paste. The spreadsheet opens in Excel or Google Sheets. JSON is the same results as data for another system, in metric with the units named in the file.</p>
         </div>
-        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
+        <p class="empty-build" id="empty-build" hidden>No build passes yet. What this delivery would need is just below.</p>
         <div class="meta-trace" id="meta-trace" hidden></div>
       </div>
 
@@ -1570,6 +1566,28 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
         </div>
       </div>
       <div class="share-result" id="share-result" aria-live="polite"></div>
+    </section>
+    <section class="saved-section" aria-labelledby="saved-title">
+      <h2 id="saved-title"><span class="sec-num">04</span>Saved parts and deliveries</h2>
+    <div class="saved saved-light" id="saved-bar">
+      <div class="saved-group">
+        <label for="saved-products">Saved parts</label>
+        <div class="saved-row">
+          <select id="saved-products"></select>
+          <button class="saved-button" id="save-product" type="button">Save this part</button>
+          <button class="saved-button" id="delete-product" type="button" hidden>Delete</button>
+        </div>
+      </div>
+      <div class="saved-group">
+        <label for="saved-deliveries">Saved deliveries</label>
+        <div class="saved-row">
+          <select id="saved-deliveries"></select>
+          <button class="saved-button" id="save-delivery" type="button">Save this delivery</button>
+          <button class="saved-button" id="delete-delivery" type="button" hidden>Delete</button>
+        </div>
+      </div>
+      <p class="saved-note" id="saved-note">Save a part or a delivery once, then pick it here next time instead of typing it again. Saved on this machine only.</p>
+    </div>
     </section>
     </div>
 
@@ -2271,6 +2289,14 @@ function validCandidate(state, candidate) {
     // product into a different product to hit a range.
     const width = candidate.widthMm == null ? state.widthMm : candidate.widthMm;
     if (width < state.widthMm - 1e-9) return false;
+  }
+  if (candidate.move === 'span') {
+    // Span is the part's length, also its own size: a span move may
+    // lengthen it or change how it is held, but may not shorten the
+    // product into a different product to hit a range — and may not
+    // "save" material by quietly making a smaller part.
+    const span = candidate.spanMm == null ? state.spanMm : candidate.spanMm;
+    if (span < state.spanMm - 1e-9) return false;
   }
   const part = candidatePart(state, candidate);
   return !samePart(part, currentPart(state));
@@ -3133,7 +3159,7 @@ const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:8787' : '';
 
 let state = normalizeState({ blank: true });
 let modelProposals = [];
-let modelState = 'loading';
+let modelState = 'idle';
 let modelSeq = 0;
 let modelTimer = 0;
 let adviceSeq = 0;
@@ -3600,7 +3626,7 @@ function renderTrace(result) {
   note.className = 'trace-note';
   note.textContent = rejected
     ? 'Moves that don’t work at that size go to the checker, which finds a size that works in the same direction. Those are the builds above.'
-    : 'The exact model proposals were checked before the mechanics search.';
+    : 'Every size the model proposed was checked exactly as proposed.';
   trace.append(note);
 }
 
@@ -3681,7 +3707,7 @@ function renderProgress(result) {
   else if (!targetDone) next = 'Next: say what it has to do — how much it carries, how stiff, or how much it may weigh.';
   else if (!batchDone) next = 'Next: set this delivery — pick a published range, or enter supplier numbers.';
   else if (result && result.winner) next = 'Next: copy the build, or download it under “Builds that work”.';
-  else if (result && result.ready) next = 'Next: follow the change in the headline — or ask Meta about this batch below.';
+  else if (result && result.ready) next = 'Next: follow the change in the headline — or ask about this delivery below.';
   else next = 'Next: finish the steps above.';
   $('progress-next').textContent = next;
 }
@@ -3753,7 +3779,9 @@ function renderVerdict(result, decision) {
     if (passes) {
       const lowMargin = range.min - target.min;
       const highMargin = target.max - range.max;
-      status.textContent = `Inside · ${fmtVal(Math.min(lowMargin, highMargin), meta.unit)} to spare`;
+      const spare = Math.min(lowMargin, highMargin);
+      const spareShown = spare < 1 ? Math.round(spare * 10) / 10 : spare;
+      status.textContent = `Inside · ${fmtVal(spareShown, meta.unit)} to spare`;
     } else if (range.min < target.min && range.max > target.max) {
       status.textContent = `Short ${fmtVal(target.min - range.min, meta.unit)} low, over ${fmtVal(range.max - target.max, meta.unit)} high`;
     } else if (range.min < target.min) {
@@ -3846,8 +3874,7 @@ function needInput(id, label, unit, value = '') {
 
 function renderNeed(result) {
   const panel = $('need-panel');
-  const started = Boolean(state.product || state.spanMm > 0 || state.target.property || state.plastic.type);
-  if (result.ready || !started) {
+  if (result.ready) {
     panel.hidden = true;
     needStep = null;
     renderedNeedStep = null;
@@ -3926,7 +3953,7 @@ function renderNeed(result) {
   } else if (needStep === 'target') {
     question.textContent = 'What does it have to do?';
     why.textContent = /panel|insulation|board|sheet|tile|cover/.test(String(state.product).toLowerCase())
-      ? 'Panels like this usually do not carry a load, and this checker cannot measure insulation or sound. If nothing sits or presses on it, choose “None of these” — you will get its weight and batch notes instead of a load answer it cannot give.'
+      ? 'Panels like this usually do not carry a load, and this checker cannot measure insulation or sound. If nothing sits or presses on it, choose “None of these” — you will get its weight and delivery notes instead of a load answer it cannot give.'
       : state.product
         ? `Your description named the ${state.product}, but did not say what it has to do. Choose the one that fits — or “None of these” if it carries no load.`
         : 'Choose the one that fits — or “None of these” if it carries no load.';
@@ -4712,6 +4739,7 @@ function render(result) {
   primary.hidden = !decision.button;
   primary.textContent = decision.button || '';
   primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
+  $('results-panel').hidden = !result.ready;
   $('builds-panel').hidden = !result.ready;
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready || (state.target.property === 'none' && !state.extraTargets.length);
@@ -4912,7 +4940,7 @@ function clearAdvice() {
 async function askMeta() {
   if (!lastResult || !lastResult.ready) return;
   const input = $('ask-question');
-  const question = (input.value.trim() || 'What should I add or change to make this batch work?').slice(0, 800);
+  const question = (input.value.trim() || 'What should I add or change to make this delivery work?').slice(0, 800);
   input.value = question;
   const result = lastResult || evaluateBuilds(state, modelProposals);
   const payload = advicePayload(state, result, question);
