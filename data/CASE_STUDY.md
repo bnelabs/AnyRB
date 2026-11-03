@@ -55,15 +55,20 @@ it is.
 Keep the crate case above and change only the strength requirement to **130–150 kg** (weight stays
 320–360 g). The app then reports, exactly:
 
-- Headline: **“Narrow the strength swing.”**
+- Headline: **“This delivery varies too much in strength.”**
 - As it stands, the build **carries 95.4–111.0 kg and weighs 338.4 g** — the strength range sits
   34.6 kg short at the low end of the 130–150 kg requirement.
 - Material gap: this build needs **56.7–65.4 MPa**; the delivery gives **41.6–48.4 MPa**. The
-  delivery's swing is wider than the requirement window allows, so a thicker or wider section —
-  which scales both ends together — cannot close it.
-- The next actions the app gives: add a steadier stream, sort out the soft fraction, change the
-  section or span, route the delivery to another product, or split it. It does not say
-  “don’t use this delivery.”
+  delivery's swing is wider than the requirement window allows, so a thicker or wider part —
+  which raises both ends together — cannot close it.
+- The action the app gives, in its own words: “This delivery varies too much for the range you
+  need. A thicker or wider part raises both ends together, so it cannot fix this. Mix in another
+  plastic that measures nearly the same every time, or sort the weakest pieces out first.” It does
+  not say “don’t use this delivery.”
+
+In the passing case the app also says what it does not do: “Ranges are checked as entered — no
+safety margin added. The closest margin is thin — make one and check it before a run.” The
+0.4 kg margin at the low end earns that sentence.
 
 These numbers come from the app's mechanics on the inputs above and are exercised in
 `app/tests/model.test.mjs`.
@@ -72,5 +77,7 @@ These numbers come from the app's mechanics on the inputs above and are exercise
 
 The rHDPE ranges are published measurements, not a guarantee about the next delivery. The planter
 batch is illustrative. The app accepts the shop's own measured ranges; it does not certify a blend or
-a part. Sources: R01 via Georgiou 2025 for the single-supplier stretch-film lot (1,350 ± 239 MPa, n=50); R04
-(Eriksen 2019) for 41.6–48.4 MPa strength; R12 (Jones 2023) for the HDPE density range.
+a part. Sources: R01 (Georgiou et al., PNAS 2025) for the single-supplier stretch-film lot
+(1,350 ± 239 MPa, n=50); R04 (Eriksen 2019) for 41.6–48.4 MPa strength; R12 (Jones 2023) for the
+HDPE density range. The full source list, including what cannot be named from this repository,
+is in [SOURCES.md](SOURCES.md).

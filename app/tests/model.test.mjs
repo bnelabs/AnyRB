@@ -435,6 +435,31 @@ test('published batches give a starting range with no measurements of your own',
   assert.equal(match('unobtainium'), null);
 });
 
+test('thin-evidence ranges and example numbers are labelled as what they are', async () => {
+  const { PUBLISHED_BATCHES: batches } = await import('../product.js');
+  const thin = batches.filter((b) => b.thinEvidence).map((b) => b.key);
+  assert.deepEqual(thin.sort(), ['mixed-polyolefins', 'rldpe']);
+  for (const batch of batches.filter((b) => b.thinEvidence)) {
+    assert.match(batch.note, /not to use it for load-bearing claims/);
+  }
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="case-note"/);
+  assert.match(js, /Example numbers for a/);
+  assert.match(js, /rough guide only/);
+  assert.match(html, /They do not change any number here/);
+  assert.match(html, /no safety margin is added, and it certifies nothing/);
+});
+
+test('a passing decision names a thin margin and the missing safety margin', () => {
+  const s = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate });
+  const decision = decisionFor(s, evaluateBuilds(s, []));
+  assert.match(decision.support, /no safety margin added/);
+  assert.match(decision.support, /closest margin is thin — make one and check it/);
+  assert.match(decision.copy, /no safety margin added/);
+});
+
 test('the sample brief is shop language, and the batch picker is on the page', async () => {
   const fs = await import('node:fs/promises');
   const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');

@@ -288,6 +288,10 @@ function syncBatchSourceUI() {
   if (pub) {
     note.hidden = false;
     note.textContent = pub.note;
+    const structural = [state.target, ...state.extraTargets].some((t) => t.property === 'strength' || t.property === 'stiffness');
+    if (pub.thinEvidence && structural) {
+      note.textContent += ' You are checking a load on this range: treat that answer as a rough guide only, and use your own numbers for a part that has to hold.';
+    }
   } else if (batchSource === 'numbers') {
     note.hidden = false;
     note.textContent = 'Using the numbers below, exactly as entered.';
@@ -2192,9 +2196,11 @@ async function readBrief() {
 }
 
 function applyCase(name) {
+  const caseNote = $('case-note');
   if (name === 'custom') {
     batchSource = '';
     state = normalizeState({ blank: true });
+    if (caseNote) { caseNote.hidden = true; caseNote.textContent = ''; }
     paint();
     refresh();
     $('product').focus();
@@ -2203,7 +2209,15 @@ function applyCase(name) {
   }
   const preset = CASE_PRESETS[name];
   if (!preset) return;
-  batchSource = 'numbers';
+  // Only the crate example carries a sourced delivery range. Every other
+  // example runs on example numbers, and says so where the user can see it.
+  batchSource = preset.plastic ? 'rhdpe-measured-lot' : 'numbers';
+  if (caseNote) {
+    caseNote.hidden = false;
+    caseNote.textContent = preset.plastic
+      ? 'The crate example uses a published measured rHDPE lot (named under “This delivery”) — it is not a measurement of your delivery.'
+      : `Example numbers for a ${preset.product} — not measured. Replace the delivery numbers below with your own before you rely on the answer.`;
+  }
   state = normalizeState({
     ...state,
     product: preset.product,

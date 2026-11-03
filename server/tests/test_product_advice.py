@@ -321,10 +321,9 @@ def test_prompt_contract(product_ai):
     assert "do not compute new numbers" in lowered
     assert "no certification" in lowered
     assert "untrusted" in lowered
-    # hard user rule: no test/trial/sample/prototype/measure instructions
-    assert "strictly forbidden" in lowered
-    assert "never instruct the user to test, trial, prototype, sample or measure" in lowered
-    assert "process actions only" in lowered
+    # no safety margin is added, so a physical check of one piece is honest advice
+    assert "make one piece first and check it" in lowered
+    assert "no safety margin added" in lowered
     # multi-target support: all supplied requirements and gaps must be addressed
     assert "targets" in lowered
     assert "every supplied requirement" in lowered
@@ -430,53 +429,8 @@ def test_negative_values_still_grounded_and_rejected(client, monkeypatch):
     assert -99.0 in data2["_meta"]["grounding"]["ungrounded_numbers"]
 
 
-# ---------------------------------------------------------------------------
-# hard rule: advice must never tell the user to test/trial/measure a piece
-# ---------------------------------------------------------------------------
-def test_trial_instruction_is_rejected(client, monkeypatch):
-    """Regression: live advice action "Trial the heavy bracket build with thicker section"."""
-    _use_fake_live(monkeypatch, {
-        "answer": "Blend 30 % of the virgin PETG stream and use the thicker section build.",
-        "actions": ["Trial the heavy bracket build with thicker section"],
-    })
-    data = client.post(ENDPOINT, json=_unique_body("trial-instruction")).json()
-    assert data["available"] is False
-    assert data["answer"] == "" and data["actions"] == []
-    assert data["_meta"]["reason_code"] == "test_instruction"
-    assert data["_meta"]["fallback"] is True
-    # the rejected model text is not echoed (only the generic guard reason is)
-    body_text = json.dumps(data).lower()
-    assert "heavy bracket build with thicker section" not in body_text
-    assert "blend 30" not in body_text
-
-
-@pytest.mark.parametrize("instruction", [
-    "Test a piece first",
-    "Run a trial of the build",
-    "Make a sample part",
-    "Prototype it before production",
-    "Measure the deflection after printing",
-    "Run a test on a coupon",
-    "Try a piece to see",
-    "Check the part after printing",
-    "Sampling the batch before the run",
-    "Pilot run the bracket",
-])
-def test_test_instruction_variants_are_rejected(client, monkeypatch, instruction):
-    _use_fake_live(monkeypatch, {
-        "answer": "Blend 30 % of the virgin PETG stream.",
-        "actions": [instruction],
-    })
-    data = client.post(ENDPOINT, json=_unique_body("test-variant")).json()
-    assert data["available"] is False, instruction
-    assert data["answer"] == "" and data["actions"] == []
-    assert data["_meta"]["reason_code"] == "test_instruction"
-    # the model's instruction itself is not echoed back (only the generic guard reason)
-    assert instruction.lower() not in json.dumps(data).lower()
-
-
 def test_ordinary_process_advice_is_accepted(client, monkeypatch):
-    """Wash/sort/dry/blend/section/route/split process advice must NOT be blocked."""
+    """Wash/sort/dry/blend/section/route/split process advice must be accepted."""
     _use_fake_live(monkeypatch, {
         "answer": ("Your batch spans 30-44 MPa against a 38-50 MPa target, so blend about "
                    "30 % of the virgin PETG stream, wash and dry the flakes, use the thicker "
@@ -495,43 +449,32 @@ def test_ordinary_process_advice_is_accepted(client, monkeypatch):
     assert len(data["actions"]) == 5
 
 
-def test_innocuous_test_like_words_are_not_rejected(client, monkeypatch):
+# ---------------------------------------------------------------------------
+# advice may tell the user to make one piece and check it first
+# ---------------------------------------------------------------------------
+def test_make_one_and_check_advice_is_accepted(client, monkeypatch):
+    """Ranges are checked as entered with no safety margin: a physical check
+    of one piece is honest advice, not a banned instruction."""
     _use_fake_live(monkeypatch, {
-        "answer": ("Use the latest section build; it is the greatest improvement in the "
-                   "supplied plan and the contest between the two options is already clear."),
-        "actions": ["Use the thicker section build from the plan"],
+        "answer": "Blend 30 % of the virgin PETG stream and use the thicker section build.",
+        "actions": ["Make one piece first and check it against the requirement before a run"],
     })
-    data = client.post(ENDPOINT, json=_unique_body("innocuous")).json()
+    data = client.post(ENDPOINT, json=_unique_body("make-one-check")).json()
     assert data["available"] is True, data["_meta"].get("reason_code")
+    assert data["_meta"]["grounding"]["ok"] is True
 
 
-def test_test_instruction_guard_unit_cases(product_ai):
-    assert product_ai.contains_test_instruction(
-        "Trial the heavy bracket build with thicker section")
-    for text in ("test", "Tests", "testing", "tested", "run a test", "trial", "trials",
-                 "trialled", "sample", "samples", "sampling", "prototype", "prototyping",
-                 "measure", "measured", "measurement", "measurements", "coupon",
-                 "specimens", "try a piece", "check the part", "pilot run", "go/no-go"):
-        assert product_ai.contains_test_instruction(text), text
-    for text in ("latest", "greatest", "contest", "attest", "interest",
-                 "Blend 30 % of the steadier stream", "Sort, wash and dry the flakes",
-                 "Use the thicker section build", "Split the delivery across both products",
-                 "Route the batch to the planter panel", "Change the span to reduce deflection"):
-        assert not product_ai.contains_test_instruction(text), text
-
-
-def test_no_test_advice_fallback_is_invented(client, monkeypatch):
-    """A rejected test instruction yields an empty result — no substitute advice list."""
+def test_process_and_check_actions_can_coexist(client, monkeypatch):
     _use_fake_live(monkeypatch, {
-        "answer": "Run a test on a coupon first.",
-        "actions": ["Measure the printed part", "Trial the build"],
+        "answer": "Blend 30 % of the virgin PETG stream, wash and dry the flakes, and use the thicker section build.",
+        "actions": [
+            "Blend 30 % of the virgin PETG stream into this batch",
+            "Make one piece first and check it before a run",
+        ],
     })
-    data = client.post(ENDPOINT, json=_unique_body("no-fallback")).json()
-    assert data == {
-        "answer": "", "actions": [], "available": False,
-        "_meta": data["_meta"], "_model": data["_model"], "_cached": data["_cached"],
-    }
-    assert data["_meta"]["reason_code"] == "test_instruction"
+    data = client.post(ENDPOINT, json=_unique_body("process-and-check")).json()
+    assert data["available"] is True, data["_meta"].get("reason_code")
+    assert len(data["actions"]) == 2
 
 
 # ---------------------------------------------------------------------------

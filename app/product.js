@@ -80,7 +80,8 @@ export const PUBLISHED_BATCHES = [
     key: 'mixed-polyolefins',
     label: 'Mixed plastics — typical published range (wide)',
     plastic: { type: 'mixed plastics', eMin: 560, eMax: 1040, sMin: 14, sMax: 22, density: 0.93 },
-    note: 'Typical published band measured on mixed polyolefins (kinds of plastic mixed together). The published evidence here is thinner, so the band is wide. Not a measurement of your delivery.',
+    thinEvidence: true,
+    note: 'Typical published band measured on mixed polyolefins (kinds of plastic mixed together). The published evidence here is thin — the source library grades it D and says not to use it for load-bearing claims — so the band is wide. Not a measurement of your delivery.',
   },
   {
     key: 'rpet',
@@ -98,7 +99,8 @@ export const PUBLISHED_BATCHES = [
     key: 'rldpe',
     label: 'Recycled LDPE — typical published range',
     plastic: { type: 'recycled LDPE', eMin: 188, eMax: 312, sMin: 8, sMax: 12, density: 0.92 },
-    note: 'Typical published band for recycled LDPE. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+    thinEvidence: true,
+    note: 'Typical published band for recycled LDPE. The published evidence here is thin — the source library grades it D and says not to use it for load-bearing claims. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
   },
 ];
 
@@ -1110,10 +1112,12 @@ export function decisionFor(stateInput, result) {
           ? 'It would be stiffer than you asked for.'
           : 'It would weigh more than you asked for.';
     } else headline = 'This part needs a different size.';
-    const statements = gaps.map((gap) => {
-      const gapMeta = propertyMeta(gap.property);
-      return `${gapMeta.noun} needs ${formatRange(gap.required, gap.unit)}; the delivery gives ${formatRange(gap.batch, gap.unit)}.`;
-    });
+    const statements = gaps
+      .filter((gap) => gap.shortLow > 0 || gap.overHigh > 0)
+      .map((gap) => {
+        const gapMeta = propertyMeta(gap.property);
+        return `${gapMeta.noun} needs ${formatRange(gap.required, gap.unit)}; the delivery gives ${formatRange(gap.batch, gap.unit)}.`;
+      });
     const asStands = result.current
       ? `as it stands, this build ${rangeText(result.current)} — you need ${targetText}. `
       : '';
@@ -1123,7 +1127,7 @@ export function decisionFor(stateInput, result) {
       headline,
       `Current build: ${buildSizeText(currentPart(state))}`,
       asStands ? `As it stands: ${rangeText(result.current)}; you need ${targetText}` : '',
-      ...gaps.map((gap) => {
+      ...gaps.filter((gap) => gap.shortLow > 0 || gap.overHigh > 0).map((gap) => {
         const gapMeta = propertyMeta(gap.property);
         return `${gapMeta.label}: needs ${formatRange(gap.required, gap.unit)}, delivery ${formatRange(gap.batch, gap.unit)}`;
       }),
@@ -1174,9 +1178,18 @@ export function decisionFor(stateInput, result) {
   } else {
     support = `As entered, this part misses. This build ${rangeText(winner)} — inside your ${targetText}.`;
   }
+  const spares = numericTargets.map(({ target, i }) => {
+    const range = winner.ranges ? winner.ranges[i] : winner.range;
+    const scale = Math.max(Math.abs(target.min), Math.abs(target.max), 1e-9);
+    return Math.min(range.min - target.min, target.max - range.max) / scale;
+  });
+  const thinMargin = spares.length && Math.min(...spares) < 0.05;
+  support += ' Ranges are checked as entered — no safety margin added.';
+  if (thinMargin) support += ' The closest margin is thin — make one and check it before a run.';
   const copy = [
     'AnyRB build',
     headline,
+    'Checked as entered — no safety margin added.' + (thinMargin ? ' The closest margin is thin: make one and check it before a run.' : ''),
     `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
     `Mix: ${state.plastic.mix || 'none stated'}; dirt: ${state.plastic.dirt || 'none stated'}`,
     winner.move === 'treated' ? 'First: sort or wash this delivery, to the ranges entered under This delivery' : isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',

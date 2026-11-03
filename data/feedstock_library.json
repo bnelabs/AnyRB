@@ -3,7 +3,7 @@
  "generated": "2026-10-29",
  "project": "AnyRB",
  "owner": "researcher-variability (task-1)",
- "provenance": "All values are literature-derived engineering estimates for decision-support software, NOT measured reliability. Every number is traceable to research/refs/refs-01.json; assumptions are flagged.",
+ "provenance": "All values are literature-derived engineering estimates for decision-support software, NOT measured reliability. Named sources are listed in data/SOURCES.md; codes R03, R06-R11 and R17-R36 refer to a research dossier not included in this repository (several read at abstract level only - see gaps), and bands resting on them should be read as published starting points.",
  "units": {
   "E": "MPa (tensile/effective modulus unless noted)",
   "yield_strength": "MPa (tensile stress at yield; for rPET values are strength at break where single number reported)",

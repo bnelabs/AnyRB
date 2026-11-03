@@ -11,9 +11,10 @@ needs and the changes that could close the gap.
 ## Why this exists
 
 Recycled plastic's swing is measured, not guessed. One supplier's recycled-HDPE plates measured
-1,350 ± 239 MPa across 50 samples; across published sources the same material runs from about
-380 to 1,870 MPa, and ten recycled-polypropylene lots that all passed the same specification
-still ranged from 2% to 24% filler (sources in [data/CASE_STUDY.md](data/CASE_STUDY.md)).
+1,350 ± 239 MPa across 50 samples; measured across three US recycling facilities the same
+material runs from 380 to 1,250 MPa, and ten recycled-polypropylene lots that all passed the
+same specification still ranged from 2% to 24% filler (sources in
+[data/SOURCES.md](data/SOURCES.md)).
 A part designed to one datasheet number is over-built for most deliveries and under-built for the
 weak one. The usual answers are to reject the odd delivery or to make everything heavier.
 AnyRB is the third answer: design to the delivery you actually have.
@@ -27,10 +28,12 @@ The page asks one question — **What do you want to make?** — and needs three
    360 g."* Muse Spark (or Muse Voice Transcribe first, if you speak) turns that into editable
    fields. It only writes down what you said.
 2. **This delivery.** Pick the kind of plastic and start from its **published range** — recycled
-   HDPE, polypropylene, mixed polyolefins, PET, LDPE — or, if your supplier gave you numbers,
+   HDPE, polypropylene, mixed plastics, PET, PETG, LDPE — or, if your supplier gave you numbers,
    enter those instead. You are not expected to know stiffness and strength values; the published
    range is labelled as published wherever it is used, and your own numbers replace it the moment
-   you type them.
+   you type them. Two of those bands (mixed plastics and LDPE) rest on thin published evidence —
+   the library behind them grades it D and says not to use it for load-bearing claims — and the
+   page repeats that warning when you check a load on them.
 3. **The decision.** The headline at the top becomes the answer and stays pinned there while you
    edit: the size to make, what it carries and weighs across the whole swing of this delivery,
    and — under it — a bar for each requirement showing what you need against what the build
@@ -80,13 +83,13 @@ Four jobs, all through the local server — the browser never holds an API key:
 | Job | Model | What you see |
 |---|---|---|
 | Read the typed or spoken brief into fields | Muse Spark 1.3 Contributor, Muse Voice Transcribe | Editable fields; anything you didn't say stays empty |
-| Propose sizes and batch moves | Muse Spark 1.3 Contributor | Each proposal checked at the exact size proposed; what doesn't pass is shown, then sent back to Muse Spark once with the checked ranges |
+| Propose sizes and delivery moves | Muse Spark 1.3 Contributor | Each proposal checked at the exact size proposed; what doesn't pass is shown, then sent back to Muse Spark once with the checked ranges |
 | Answer "what should I add or change?" | Muse Spark 1.3 Contributor | Actions using only your numbers, or nothing when it has nothing grounded to say |
-| — | — | Every Meta answer is labelled a live call or a saved one |
+| — | — | Proposal and brief answers say whether they are a live call or a saved one, and which model answered |
 
 The model proposes; a deterministic checker disposes. No strength, stiffness or weight on the
 page is written by a model — every one is calculated from the part size and the delivery range,
-and the page labels each build "proposed by Muse Spark," "direction from Muse Spark, size
+and the page labels each build "proposed by the model," "direction from the model, size
 calculated here," or "calculated here." Without the server, the checker still runs on your
 numbers; with no model available the page shows the calculated build and the material gap, and no suggested moves.
 
@@ -119,8 +122,9 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 36 app tests
-AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 139 server tests
+node app/tests/model.test.mjs                           # 53 app tests
+node app/tests/combinations.test.mjs                    # 13,200-case combination matrix
+AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 135 server tests (1 live smoke skipped)
 ```
 
 ## What's in this repository

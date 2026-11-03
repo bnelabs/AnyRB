@@ -72,6 +72,7 @@
       <button class="case" type="button" data-case="pallet">Pallet block</button>
       <button class="case" type="button" data-case="custom">Something else</button>
     </div>
+    <p class="case-note" id="case-note" hidden></p>
     <div class="saved" id="saved-bar">
       <div class="saved-group">
         <label for="saved-products">Saved parts</label>
@@ -163,7 +164,7 @@
         <div class="bench">
     <section class="engineering" aria-labelledby="engineering-title">
       <h2 id="engineering-title"><span class="sec-num">01</span>The part</h2>
-      <p class="section-note">The part, its size, and what it has to do. Works for a solid rectangular section held in one of the three ways below. The ranges you enter are checked exactly as entered.</p>
+      <p class="section-note">The part, its size, and what it has to do. Works for a solid rectangular section held in one of the three ways below. The ranges you enter are checked exactly as entered — no safety margin is added, and it certifies nothing.</p>
       <div class="fields">
         <div class="field">
           <label for="product">Product</label>
@@ -229,6 +230,7 @@
           <div class="field"><label for="dirt-level">Dirt level</label><select id="dirt-level"></select></div>
           <div class="field"><label for="plastic-dirt">What is in it</label><input id="plastic-dirt" type="text" spellcheck="false" placeholder="paper labels"></div>
         </div>
+        <p class="measured-note">Dirt and mix are written on the build ticket. They do not change any number here — your low end below should already reflect them.</p>
         <details class="measured-group" id="measured-fields">
           <summary>Have numbers from a supplier sheet or your own test? Enter them exactly</summary>
           <p class="measured-note">Stiffness is how much the plastic bends. Strength is the load it takes before it breaks. “Low” is the weak end of this delivery — the part has to work even there, so that end sets the build. Your low end should already reflect the dirt and mix above.</p>

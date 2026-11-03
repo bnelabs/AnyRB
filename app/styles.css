@@ -421,6 +421,12 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
   font-weight: 600;
 }
 .case:active { border-color: var(--accent); color: var(--accent); }
+.case-note {
+  margin: 10px 0 0;
+  color: var(--dark-mute);
+  font-size: 13px;
+  line-height: 1.5;
+}
 
 /* primary action + jump link, inside the panel */
 .pill {
