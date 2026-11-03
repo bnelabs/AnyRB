@@ -2097,6 +2097,122 @@ $('settings-form').addEventListener('submit', (event) => {
   syncBriefHelp();
   refresh();
 });
+
+// ---------------------------------------------------------------------------
+// Saved parts and deliveries: enter once, reuse every order.
+// Stored in this browser on this machine only.
+// ---------------------------------------------------------------------------
+const SAVED_PRODUCTS_KEY = 'anyrb.products.v1';
+const SAVED_DELIVERIES_KEY = 'anyrb.deliveries.v1';
+function loadLibrary(key) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(raw) ? raw.filter((item) => item && typeof item.name === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function storeLibrary(key, items) {
+  try { localStorage.setItem(key, JSON.stringify(items)); } catch { /* storage unavailable */ }
+}
+function renderSavedOptions() {
+  const products = loadLibrary(SAVED_PRODUCTS_KEY);
+  const deliveries = loadLibrary(SAVED_DELIVERIES_KEY);
+  const fill = (select, items, emptyLabel) => {
+    const current = select.value;
+    select.replaceChildren();
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = items.length ? 'Pick one…' : emptyLabel;
+    select.append(first);
+    for (const item of items) {
+      const option = document.createElement('option');
+      option.value = item.name;
+      option.textContent = item.name;
+      select.append(option);
+    }
+    if (items.some((item) => item.name === current)) select.value = current;
+  };
+  fill($('saved-products'), products, 'No parts saved yet');
+  fill($('saved-deliveries'), deliveries, 'No deliveries saved yet');
+  $('delete-product').hidden = !$('saved-products').value;
+  $('delete-delivery').hidden = !$('saved-deliveries').value;
+}
+function savedNote(text) {
+  $('saved-note').textContent = text;
+}
+$('save-product').addEventListener('click', () => {
+  const name = String(state.product || '').trim();
+  if (!name) {
+    savedNote('Name the part first — in “The part” below — then save it here.');
+    return;
+  }
+  const items = loadLibrary(SAVED_PRODUCTS_KEY).filter((item) => item.name !== name);
+  items.push({
+    name,
+    product: state.product, mode: state.mode,
+    spanMm: state.spanMm, widthMm: state.widthMm, thicknessMm: state.thicknessMm,
+    target: state.target, extraTargets: state.extraTargets, other: state.other,
+  });
+  storeLibrary(SAVED_PRODUCTS_KEY, items);
+  renderSavedOptions();
+  $('saved-products').value = name;
+  $('delete-product').hidden = false;
+  savedNote(`Saved “${name}”. Next time, pick it here instead of typing it again.`);
+});
+$('saved-products').addEventListener('change', (event) => {
+  const item = loadLibrary(SAVED_PRODUCTS_KEY).find((entry) => entry.name === event.target.value);
+  $('delete-product').hidden = !item;
+  if (!item) return;
+  state = normalizeState({
+    ...state,
+    product: item.product, mode: item.mode,
+    spanMm: item.spanMm, widthMm: item.widthMm, thicknessMm: item.thicknessMm,
+    target: item.target, extraTargets: item.extraTargets || [], other: item.other || state.other,
+  });
+  paint();
+  refresh();
+  savedNote(`Loaded “${item.name}”. The delivery below is unchanged.`);
+});
+$('delete-product').addEventListener('click', () => {
+  const name = $('saved-products').value;
+  storeLibrary(SAVED_PRODUCTS_KEY, loadLibrary(SAVED_PRODUCTS_KEY).filter((item) => item.name !== name));
+  renderSavedOptions();
+  savedNote(`Deleted “${name}”.`);
+});
+$('save-delivery').addEventListener('click', () => {
+  const name = String(state.plastic.batch || state.plastic.type || '').trim();
+  if (!name) {
+    savedNote('Say what this delivery is first — under “This delivery” below — then save it here.');
+    return;
+  }
+  const items = loadLibrary(SAVED_DELIVERIES_KEY).filter((item) => item.name !== name);
+  items.push({ name, plastic: state.plastic, steady: state.steady, batchSource });
+  storeLibrary(SAVED_DELIVERIES_KEY, items);
+  renderSavedOptions();
+  $('saved-deliveries').value = name;
+  $('delete-delivery').hidden = false;
+  savedNote(`Saved the delivery “${name}”. Next order, pick it here instead of entering it again.`);
+});
+$('saved-deliveries').addEventListener('change', (event) => {
+  const item = loadLibrary(SAVED_DELIVERIES_KEY).find((entry) => entry.name === event.target.value);
+  $('delete-delivery').hidden = !item;
+  if (!item) return;
+  state.plastic = { ...state.plastic, ...item.plastic };
+  if (item.steady) state.steady = { ...item.steady };
+  batchSource = item.batchSource || 'numbers';
+  paint();
+  refresh();
+  savedNote(`Loaded the delivery “${item.name}”. The part above is unchanged.`);
+});
+$('delete-delivery').addEventListener('click', () => {
+  const name = $('saved-deliveries').value;
+  storeLibrary(SAVED_DELIVERIES_KEY, loadLibrary(SAVED_DELIVERIES_KEY).filter((item) => item.name !== name));
+  renderSavedOptions();
+  savedNote(`Deleted the delivery “${name}”.`);
+});
+renderSavedOptions();
+
 syncUnitButtons();
 updateUnitLabels();
 syncBriefHelp();

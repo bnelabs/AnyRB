@@ -573,3 +573,14 @@ test('cost comparison is wired: prices, currency, cheapest build', async () => {
   assert.match(js, /What each build costs/);
   assert.match(js, /Cheapest/);
 });
+
+test('saved parts and deliveries are wired to this machine only', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="saved-products"/);
+  assert.match(html, /id="saved-deliveries"/);
+  assert.match(js, /anyrb\.products\.v1/);
+  assert.match(js, /anyrb\.deliveries\.v1/);
+  assert.match(js, /localStorage/);
+});

@@ -1242,6 +1242,16 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .cost-table tr.is-cheapest td { font-weight: 650; }
 .cost-table tr.is-cheapest td:first-child { box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
 
+/* --- Saved parts and deliveries (in the decision panel) --- */
+.saved { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; margin-top: 26px; border-top: 1px solid #33332f; padding-top: 20px; }
+.saved-group label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #98958a; margin-bottom: 7px; }
+.saved-row { display: flex; gap: 8px; }
+.saved-row select { flex: 1 1 auto; min-width: 0; height: 44px; background: #232320; border: 1px solid #3f3f39; color: #f5f2e9; border-radius: 10px; padding: 0 10px; font-size: 14px; }
+.saved-button { flex: none; height: 44px; padding: 0 13px; border: 1px solid #4c4c46; background: transparent; color: #e9e6db; border-radius: 999px; font-size: 13px; cursor: pointer; }
+.saved-button:hover { border-color: var(--accent); }
+.saved-note { grid-column: 1 / -1; margin: 0; color: #98958a; font-size: 12.5px; line-height: 1.5; }
+@media (max-width: 760px) { .saved { grid-template-columns: 1fr; } }
+
 </style>
 </head>
 <body>
@@ -1307,6 +1317,25 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
       <button class="case" type="button" data-case="planter">Planter</button>
       <button class="case" type="button" data-case="pallet">Pallet block</button>
       <button class="case" type="button" data-case="custom">Something else</button>
+    </div>
+    <div class="saved" id="saved-bar">
+      <div class="saved-group">
+        <label for="saved-products">Saved parts</label>
+        <div class="saved-row">
+          <select id="saved-products"></select>
+          <button class="saved-button" id="save-product" type="button">Save this part</button>
+          <button class="saved-button" id="delete-product" type="button" hidden>Delete</button>
+        </div>
+      </div>
+      <div class="saved-group">
+        <label for="saved-deliveries">Saved deliveries</label>
+        <div class="saved-row">
+          <select id="saved-deliveries"></select>
+          <button class="saved-button" id="save-delivery" type="button">Save this delivery</button>
+          <button class="saved-button" id="delete-delivery" type="button" hidden>Delete</button>
+        </div>
+      </div>
+      <p class="saved-note" id="saved-note">Save a part or a delivery once, then pick it here next time instead of typing it again. Saved on this machine only.</p>
     </div>
     <button class="pill" id="primary" type="button" hidden>Copy build</button>
     <a class="see-details" id="see-details" href="#verdict" hidden>See the result ↓</a>
@@ -4970,6 +4999,122 @@ $('settings-form').addEventListener('submit', (event) => {
   syncBriefHelp();
   refresh();
 });
+
+// ---------------------------------------------------------------------------
+// Saved parts and deliveries: enter once, reuse every order.
+// Stored in this browser on this machine only.
+// ---------------------------------------------------------------------------
+const SAVED_PRODUCTS_KEY = 'anyrb.products.v1';
+const SAVED_DELIVERIES_KEY = 'anyrb.deliveries.v1';
+function loadLibrary(key) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(raw) ? raw.filter((item) => item && typeof item.name === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function storeLibrary(key, items) {
+  try { localStorage.setItem(key, JSON.stringify(items)); } catch { /* storage unavailable */ }
+}
+function renderSavedOptions() {
+  const products = loadLibrary(SAVED_PRODUCTS_KEY);
+  const deliveries = loadLibrary(SAVED_DELIVERIES_KEY);
+  const fill = (select, items, emptyLabel) => {
+    const current = select.value;
+    select.replaceChildren();
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = items.length ? 'Pick one…' : emptyLabel;
+    select.append(first);
+    for (const item of items) {
+      const option = document.createElement('option');
+      option.value = item.name;
+      option.textContent = item.name;
+      select.append(option);
+    }
+    if (items.some((item) => item.name === current)) select.value = current;
+  };
+  fill($('saved-products'), products, 'No parts saved yet');
+  fill($('saved-deliveries'), deliveries, 'No deliveries saved yet');
+  $('delete-product').hidden = !$('saved-products').value;
+  $('delete-delivery').hidden = !$('saved-deliveries').value;
+}
+function savedNote(text) {
+  $('saved-note').textContent = text;
+}
+$('save-product').addEventListener('click', () => {
+  const name = String(state.product || '').trim();
+  if (!name) {
+    savedNote('Name the part first — in “The part” below — then save it here.');
+    return;
+  }
+  const items = loadLibrary(SAVED_PRODUCTS_KEY).filter((item) => item.name !== name);
+  items.push({
+    name,
+    product: state.product, mode: state.mode,
+    spanMm: state.spanMm, widthMm: state.widthMm, thicknessMm: state.thicknessMm,
+    target: state.target, extraTargets: state.extraTargets, other: state.other,
+  });
+  storeLibrary(SAVED_PRODUCTS_KEY, items);
+  renderSavedOptions();
+  $('saved-products').value = name;
+  $('delete-product').hidden = false;
+  savedNote(`Saved “${name}”. Next time, pick it here instead of typing it again.`);
+});
+$('saved-products').addEventListener('change', (event) => {
+  const item = loadLibrary(SAVED_PRODUCTS_KEY).find((entry) => entry.name === event.target.value);
+  $('delete-product').hidden = !item;
+  if (!item) return;
+  state = normalizeState({
+    ...state,
+    product: item.product, mode: item.mode,
+    spanMm: item.spanMm, widthMm: item.widthMm, thicknessMm: item.thicknessMm,
+    target: item.target, extraTargets: item.extraTargets || [], other: item.other || state.other,
+  });
+  paint();
+  refresh();
+  savedNote(`Loaded “${item.name}”. The delivery below is unchanged.`);
+});
+$('delete-product').addEventListener('click', () => {
+  const name = $('saved-products').value;
+  storeLibrary(SAVED_PRODUCTS_KEY, loadLibrary(SAVED_PRODUCTS_KEY).filter((item) => item.name !== name));
+  renderSavedOptions();
+  savedNote(`Deleted “${name}”.`);
+});
+$('save-delivery').addEventListener('click', () => {
+  const name = String(state.plastic.batch || state.plastic.type || '').trim();
+  if (!name) {
+    savedNote('Say what this delivery is first — under “This delivery” below — then save it here.');
+    return;
+  }
+  const items = loadLibrary(SAVED_DELIVERIES_KEY).filter((item) => item.name !== name);
+  items.push({ name, plastic: state.plastic, steady: state.steady, batchSource });
+  storeLibrary(SAVED_DELIVERIES_KEY, items);
+  renderSavedOptions();
+  $('saved-deliveries').value = name;
+  $('delete-delivery').hidden = false;
+  savedNote(`Saved the delivery “${name}”. Next order, pick it here instead of entering it again.`);
+});
+$('saved-deliveries').addEventListener('change', (event) => {
+  const item = loadLibrary(SAVED_DELIVERIES_KEY).find((entry) => entry.name === event.target.value);
+  $('delete-delivery').hidden = !item;
+  if (!item) return;
+  state.plastic = { ...state.plastic, ...item.plastic };
+  if (item.steady) state.steady = { ...item.steady };
+  batchSource = item.batchSource || 'numbers';
+  paint();
+  refresh();
+  savedNote(`Loaded the delivery “${item.name}”. The part above is unchanged.`);
+});
+$('delete-delivery').addEventListener('click', () => {
+  const name = $('saved-deliveries').value;
+  storeLibrary(SAVED_DELIVERIES_KEY, loadLibrary(SAVED_DELIVERIES_KEY).filter((item) => item.name !== name));
+  renderSavedOptions();
+  savedNote(`Deleted the delivery “${name}”.`);
+});
+renderSavedOptions();
+
 syncUnitButtons();
 updateUnitLabels();
 syncBriefHelp();

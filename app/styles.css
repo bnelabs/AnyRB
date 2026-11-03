@@ -1232,3 +1232,13 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .cost-table td.num { font-family: var(--mono); font-size: 12px; }
 .cost-table tr.is-cheapest td { font-weight: 650; }
 .cost-table tr.is-cheapest td:first-child { box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
+
+/* --- Saved parts and deliveries (in the decision panel) --- */
+.saved { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; margin-top: 26px; border-top: 1px solid #33332f; padding-top: 20px; }
+.saved-group label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #98958a; margin-bottom: 7px; }
+.saved-row { display: flex; gap: 8px; }
+.saved-row select { flex: 1 1 auto; min-width: 0; height: 44px; background: #232320; border: 1px solid #3f3f39; color: #f5f2e9; border-radius: 10px; padding: 0 10px; font-size: 14px; }
+.saved-button { flex: none; height: 44px; padding: 0 13px; border: 1px solid #4c4c46; background: transparent; color: #e9e6db; border-radius: 999px; font-size: 13px; cursor: pointer; }
+.saved-button:hover { border-color: var(--accent); }
+.saved-note { grid-column: 1 / -1; margin: 0; color: #98958a; font-size: 12.5px; line-height: 1.5; }
+@media (max-width: 760px) { .saved { grid-template-columns: 1fr; } }
