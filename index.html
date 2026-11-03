@@ -1537,10 +1537,18 @@ const PUBLISHED_BATCHES = [
 function publishedBatchFor(text) {
   const t = String(text || '').toLowerCase();
   if (!t) return null;
+  if (/mixed polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
+  // A delivery naming two or more kinds of plastic gets no automatic range:
+  // no single published band describes it, and picking one would be a guess.
+  const kinds = [
+    /ldpe/.test(t), /hdpe/.test(t), /petg/.test(t),
+    /\bpet\b|polyethylene terephthalate/.test(t),
+    /polypropylene|\bpp\b/.test(t), /\babs\b/.test(t), /\bpvc\b/.test(t),
+  ].filter(Boolean).length;
+  if (kinds >= 2) return null;
   if (/ldpe/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rldpe');
   if (/petg/.test(t)) return null;
   if (/\bpet\b|polyethylene terephthalate/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpet');
-  if (/mixed|polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
   if (/hdpe/.test(t)) {
     return /single|one supplier|measured lot/.test(t)
       ? PUBLISHED_BATCHES.find((b) => b.key === 'rhdpe-measured-lot')
@@ -2426,9 +2434,17 @@ function addedMaterialText(addedG) {
 function decisionFor(stateInput, result) {
   const state = normalizeState(stateInput);
   if (!result.ready) {
+    if (state.product) {
+      return {
+        headline: 'What does it have to do?',
+        support: `The ${state.product} is in the form. Say how much it has to carry, how stiff it has to be, or how much it may weigh — and set this delivery. The result appears as soon as those are in.`, 
+        button: null,
+        copy: '',
+      };
+    }
     return {
       headline: 'What do you want to make?',
-      support: 'Name the part, set one or more properties that have to hold, and describe this delivery.',
+      support: 'Name the part, say what it has to do, and describe this delivery.',
       button: null,
       copy: '',
     };
@@ -2737,6 +2753,7 @@ let metaSource = null;
 let feedbackRound = false;
 let batchSource = '';
 let briefPublished = null;
+let briefBatchChoiceNeeded = false;
 
 // Settings: provider/model/units persist on this machine; the user's own key
 // is kept in session storage (this tab only) and sent only to the local server.
@@ -2751,22 +2768,12 @@ setUnitSystem(settings.units);
 function modelOff() {
   return settings.provider === 'local';
 }
-const MODEL_NAMES = {
-  'muse-spark-1.3-contributor': 'Muse Spark 1.3 Contributor',
-  'muse-spark-1.3': 'Muse Spark 1.3',
-};
-function aiName() {
-  return MODEL_NAMES[settings.model] || 'the model';
-}
-function friendlyModel(id) {
-  return MODEL_NAMES[id] || 'the model';
-}
 function syncBriefHelp() {
   const help = document.querySelector('.brief-help');
   if (!help) return;
   help.textContent = modelOff()
     ? 'The model is off in Settings. Type the fields below, or pick an example.'
-    : `These words go to ${aiName()} on the server, which fills the fields below from what you said. You can correct every field afterwards.`;
+    : 'These words are sent to the model you chose in Settings, which fills the fields below from what you said. You can correct every field afterwards.';
 }
 function metaHeaders(json = true) {
   const headers = {};
@@ -3099,7 +3106,7 @@ function renderTrace(result) {
   const rejected = items.length - accepted;
   const head = document.createElement('p');
   head.className = 'trace-head';
-  head.textContent = `${aiName()} proposed ${items.length} move${items.length === 1 ? '' : 's'}. At the size proposed: ${accepted} work${accepted === 1 ? 's' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
+  head.textContent = `The model proposed ${items.length} move${items.length === 1 ? '' : 's'}. At the size proposed: ${accepted} work${accepted === 1 ? 's' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
   trace.append(head);
   for (const item of items.slice(0, 5)) {
     const row = proposalRow(result.state, { ...item, addedG: 0, range: item.ranges[0] });
@@ -3134,8 +3141,8 @@ function fmtVal(value, unit) {
 function metaSourceText() {
   if (!metaSource) return '';
   const round = feedbackRound ? ' Shown the checked result, the model proposed again.' : '';
-  if (metaSource.kind === 'live') return ` Live call to ${friendlyModel(metaSource.model)}.${round}`;
-  if (metaSource.kind === 'cached') return ` Saved ${friendlyModel(metaSource.model)} answer — not a new live call.${round}`;
+  if (metaSource.kind === 'live') return ` Live answer, just now.${round}`;
+  if (metaSource.kind === 'cached') return ` Saved answer from an earlier call.${round}`;
   if (metaSource.kind === 'offline') return ' The model is not reachable from here; the calculated build stands on its own.';
   return '';
 }
@@ -3153,7 +3160,7 @@ function renderProgress(result) {
     : modelState === 'meta'
       ? `${modelProposals.length} move${modelProposals.length === 1 ? '' : 's'} checked`
       : modelState === 'loading'
-        ? `checking with ${aiName()}…`
+        ? 'asking the model for sizes…'
         : modelState === 'local'
           ? 'off in Settings — the local checker is running'
           : 'not checked yet';
@@ -3188,7 +3195,7 @@ function renderProgress(result) {
   }
   let next;
   if (!partDone) next = 'Next: name the part and set its size.';
-  else if (!targetDone) next = 'Next: add a property that has to hold.';
+  else if (!targetDone) next = 'Next: say what it has to do — how much it carries, how stiff, or how much it may weigh.';
   else if (!batchDone) next = 'Next: set this delivery — pick a published range, or enter supplier numbers.';
   else if (result && result.winner) next = 'Next: copy the build, or download it under “Builds that work”.';
   else if (result && result.ready) next = 'Next: follow the change in the headline — or ask Meta about this batch below.';
@@ -3384,7 +3391,7 @@ function renderDecisionBar(result, decision) {
   bar.hidden = false;
   $('decision-dot').className = `decision-dot ${result.winner ? 'pass' : 'fail'}`;
   $('decision-bar-text').textContent = modelState === 'loading'
-    ? `${decision.headline} — checking moves with ${aiName()}…`
+    ? `${decision.headline} — asking the model for sizes…`
     : decision.headline;
   const action = $('decision-bar-action');
   action.textContent = decision.button;
@@ -3397,11 +3404,11 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'loading') {
-    status.textContent = `${aiName()} is proposing moves…`;
+    status.textContent = 'The model is suggesting sizes…';
     return;
   }
   if (modelState === 'meta') {
-    status.textContent = `${modelProposals.length} moves from ${aiName()}. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
+    status.textContent = `${modelProposals.length} suggested moves. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
     return;
   }
   if (modelState === 'local') {
@@ -3409,7 +3416,7 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'empty') {
-    status.textContent = `${aiName()} returned no usable moves. The calculated build stands.${metaSourceText()}`;
+    status.textContent = `The model returned no usable moves. The calculated build stands.${metaSourceText()}`;
     return;
   }
   status.textContent = 'The model is unavailable. The calculated build stands.';
@@ -3541,10 +3548,10 @@ async function fetchProposals() {
       modelProposals = proposals;
       modelState = proposals.length ? 'meta' : 'empty';
       metaSource = data._cached
-        ? { kind: 'cached', model: data._model || 'Muse Spark' }
-        : { kind: 'live', model: data._model || 'Muse Spark' };
+        ? { kind: 'cached', model: data._model || '' }
+        : { kind: 'live', model: data._model || '' };
     }
-    // One informed second round: if the verifier checked Muse Spark's exact
+    // One informed second round: if the checker rejected the model's exact
     // proposals and any did not pass at that size, show Spark the checked
     // ranges and let it propose different parameters once.
     feedbackRound = false;
@@ -3579,8 +3586,8 @@ async function fetchProposals() {
             }
             modelState = 'meta';
             metaSource = secondData._cached
-              ? { kind: 'cached', model: secondData._model || 'Muse Spark' }
-              : { kind: 'live', model: secondData._model || 'Muse Spark' };
+              ? { kind: 'cached', model: secondData._model || '' }
+              : { kind: 'live', model: secondData._model || '' };
             feedbackRound = true;
           }
         } catch (error) {
@@ -3623,7 +3630,7 @@ async function askMeta() {
     $('ask-status').textContent = 'The model is off in Settings, so there is no answer from it. The plan above still applies.';
     return;
   }
-  $('ask-status').textContent = `${aiName()} is thinking…`;
+  $('ask-status').textContent = 'Thinking…';
   $('ask-answer').replaceChildren();
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
@@ -3882,7 +3889,7 @@ async function sendVoice(blob) {
     field.focus();
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
-    $('brief-status').textContent = `Voice heard it. ${aiName()} is filling in the form…`;
+    $('brief-status').textContent = 'Heard it. Filling in the form…';
     await readBrief();
   } catch (error) {
     $('brief-status').textContent = 'Voice is unavailable. Type the description instead.';
@@ -3980,11 +3987,17 @@ function mapBriefToState(brief, originalText = '') {
 
 function applyPublishedIfMissing(normalized, originalText = '') {
   briefPublished = null;
+  briefBatchChoiceNeeded = false;
   const plastic = normalized.plastic;
   const hasRanges = plastic.eMin > 0 && plastic.eMax > 0 && plastic.sMin > 0 && plastic.sMax > 0 && plastic.density > 0;
   if (hasRanges) return normalized;
   const pub = publishedBatchFor(`${plastic.type} ${plastic.batch} ${originalText}`);
-  if (!pub) return normalized;
+  if (!pub) {
+    // A plastic was named but no single published range describes it
+    // (e.g. several kinds mixed). Say so instead of guessing one.
+    briefBatchChoiceNeeded = Boolean(plastic.type || plastic.batch);
+    return normalized;
+  }
   briefPublished = pub;
   batchSource = pub.key;
   normalized.plastic = {
@@ -4012,9 +4025,9 @@ async function readBrief() {
   }
   const button = $('brief-submit');
   button.disabled = true;
-  $('brief-status').textContent = `${aiName()} is filling in the form…`;
+  $('brief-status').textContent = 'Filling in the form…';
   $('brief-status').classList.add('is-working');
-  $('support').textContent = `${aiName()} is filling in the form. This usually takes about ten seconds — you do not need to fill anything in while it works.`;
+  $('support').textContent = 'Filling in the form. This usually takes about ten seconds — you do not need to fill anything in while it works.';
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
@@ -4026,7 +4039,7 @@ async function readBrief() {
     });
     const data = await response.json();
     if (!response.ok || !data.available || !data.brief) {
-      $('brief-status').textContent = `${aiName()} could not fill the form from that description. Try again, or fill the fields below.`;
+      $('brief-status').textContent = 'That description could not be filled in. Try again, or fill the fields below.';
       render(evaluateBuilds(state, modelProposals));
       return;
     }
@@ -4035,14 +4048,22 @@ async function readBrief() {
     refresh();
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
-    const targetCount = 1 + state.extraTargets.length;
-    const source = data._cached
-      ? `That was a saved ${friendlyModel(data._model)} answer, not a new live call.`
-      : `That was a live read by ${friendlyModel(data._model)}.`;
-    const publishedNote = briefPublished
-      ? ` For this delivery I used “${briefPublished.label}” — a published range, not a measurement of this delivery. Change it under Batch if your supplier's numbers differ.`
-      : '';
-    $('brief-status').textContent = `${aiName()} filled in ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill. ${source}${publishedNote}`;
+    const filledTargets = [state.target, ...state.extraTargets]
+      .filter((t) => t.property && t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)));
+    const sourcePlain = data._cached
+      ? 'That was a saved answer from an earlier call.'
+      : 'That answer just came in.';
+    let status = 'Done — the part is in the form.';
+    if (!filledTargets.length) {
+      status += ' No result yet: your description did not say what it has to do. Add that below — how much it has to carry, how stiff it has to be, or how much it may weigh.';
+    }
+    if (briefBatchChoiceNeeded) {
+      status += ' This delivery names more than one kind of plastic, so no range was chosen for it. Pick the closest one under “This delivery”, or enter your supplier’s numbers.';
+    } else if (briefPublished) {
+      status += ` For this delivery, the published range “${briefPublished.label}” was used — that is a published range, not a measurement of this delivery. Change it under “This delivery” if your supplier’s numbers differ.`;
+    }
+    status += ` ${sourcePlain}`;
+    $('brief-status').textContent = status;
   } catch (error) {
     $('brief-status').textContent = 'The model is unavailable. Fill the fields below; the checker on this page still works.';
     render(evaluateBuilds(state, modelProposals));

@@ -1030,8 +1030,11 @@ _BRIEF_MODE_ALIASES = {"cantilever": "cantilever", "cantilevered": "cantilever",
                        "compression": "compression"}
 
 _BRIEF_LIMITS = {
-    "span_mm": LIMITS["span_mm"], "width_mm": LIMITS["width_mm"],
-    "thickness_mm": LIMITS["thickness_mm"],
+    # Geometry limits for extraction match the app's own part limits. These
+    # must not reuse the proposal LIMITS: a stated 600 mm width was silently
+    # cut to the proposal cap of 500 mm.
+    "span_mm": (20.0, 6000.0), "width_mm": (2.0, 800.0),
+    "thickness_mm": (1.0, 400.0),
     "target": (0.0, 1e6), "plastic": (0.1, 1e6), "density_g_cm3": (0.5, 3.0),
     "steady": (0.1, 1e6),
 }

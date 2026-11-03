@@ -99,10 +99,18 @@ export const PUBLISHED_BATCHES = [
 export function publishedBatchFor(text) {
   const t = String(text || '').toLowerCase();
   if (!t) return null;
+  if (/mixed polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
+  // A delivery naming two or more kinds of plastic gets no automatic range:
+  // no single published band describes it, and picking one would be a guess.
+  const kinds = [
+    /ldpe/.test(t), /hdpe/.test(t), /petg/.test(t),
+    /\bpet\b|polyethylene terephthalate/.test(t),
+    /polypropylene|\bpp\b/.test(t), /\babs\b/.test(t), /\bpvc\b/.test(t),
+  ].filter(Boolean).length;
+  if (kinds >= 2) return null;
   if (/ldpe/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rldpe');
   if (/petg/.test(t)) return null;
   if (/\bpet\b|polyethylene terephthalate/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpet');
-  if (/mixed|polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
   if (/hdpe/.test(t)) {
     return /single|one supplier|measured lot/.test(t)
       ? PUBLISHED_BATCHES.find((b) => b.key === 'rhdpe-measured-lot')
@@ -988,9 +996,17 @@ export function addedMaterialText(addedG) {
 export function decisionFor(stateInput, result) {
   const state = normalizeState(stateInput);
   if (!result.ready) {
+    if (state.product) {
+      return {
+        headline: 'What does it have to do?',
+        support: `The ${state.product} is in the form. Say how much it has to carry, how stiff it has to be, or how much it may weigh — and set this delivery. The result appears as soon as those are in.`, 
+        button: null,
+        copy: '',
+      };
+    }
     return {
       headline: 'What do you want to make?',
-      support: 'Name the part, set one or more properties that have to hold, and describe this delivery.',
+      support: 'Name the part, say what it has to do, and describe this delivery.',
       button: null,
       copy: '',
     };

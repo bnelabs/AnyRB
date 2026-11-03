@@ -250,9 +250,9 @@ def test_out_of_range_values_are_clamped(client, monkeypatch):
     })
     text = "crate with span 9000 mm, width 900 mm, thickness 0.5 mm and density 9.9 g/cm3"
     brief = client.post(ENDPOINT, json={"text": text}).json()["brief"]
-    assert brief["span_mm"] == 5000.0
-    assert brief["width_mm"] == 500.0
-    assert brief["thickness_mm"] == 2.0
+    assert brief["span_mm"] == 6000.0
+    assert brief["width_mm"] == 800.0
+    assert brief["thickness_mm"] == 1.0
     assert brief["plastic"]["density_g_cm3"] == 3.0
 
 
@@ -421,3 +421,14 @@ def test_brief_prompt_maps_load_to_strength_and_mass_to_weight():
     assert "**strength** target" in system
     assert "**weight** target" in system
     assert "two targets" in system
+
+
+def test_stated_600mm_width_is_not_silently_cut(client, monkeypatch):
+    _use_fake_live(monkeypatch, {
+        "product": "insulation panels", "mode": "simple",
+        "span_mm": 1200, "width_mm": 600, "thickness_mm": 15,
+    })
+    text = ("I make insulation panels, 1200 mm long, 600 mm wide and 15 mm thick, "
+            "supported at both ends.")
+    brief = client.post(ENDPOINT, json={"text": text}).json()["brief"]
+    assert (brief["span_mm"], brief["width_mm"], brief["thickness_mm"]) == (1200.0, 600.0, 15.0)

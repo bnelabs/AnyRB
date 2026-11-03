@@ -416,6 +416,8 @@ test('published batches give a starting range with no measurements of your own',
   assert.equal(match('recycled HDPE from one supplier').key, 'rhdpe-measured-lot');
   assert.equal(match('recycled HDPE').key, 'rhdpe');
   assert.equal(match('mixed polyolefins').key, 'mixed-polyolefins');
+  assert.equal(match('recycled HDPE, ABS, PET and PP from several suppliers'), null);
+  assert.equal(match('recycled PET').key, 'rpet');
   assert.equal(match('unobtainium'), null);
 });
 
