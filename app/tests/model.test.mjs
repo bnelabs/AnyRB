@@ -594,3 +594,17 @@ test('sharing one delivery between two products is wired', async () => {
   assert.match(js, /cannot cover both orders in full/);
   assert.match(js, /goes first/);
 });
+
+test('inference provider menu offers endpoints beyond Meta, with details', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  for (const provider of ['openrouter', 'openai', 'anthropic', 'google', 'nvidia', 'deepseek', 'custom']) {
+    assert.match(html, new RegExp(`value="${provider}"`));
+  }
+  assert.match(html, /id="set-endpoint"/);
+  assert.match(html, /id="set-model-text"/);
+  assert.match(js, /X-User-Provider/);
+  assert.match(js, /X-User-Base-Url/);
+  assert.match(js, /Voice is only available with Meta/);
+});

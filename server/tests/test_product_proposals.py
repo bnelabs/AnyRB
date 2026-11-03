@@ -563,3 +563,68 @@ def test_user_supplied_key_is_used_for_this_request_only(client, monkeypatch):
     assert live["_meta"]["fallback"] is False
     assert seen["auth"] == "Bearer user-test-key-123"
     assert "user-test-key-123" not in _json.dumps(live)
+
+
+def _capture_transport(monkeypatch, reply_json):
+    from server import meta_client
+    seen = {}
+
+    class FakeResponse:
+        status_code = 200
+        def raise_for_status(self): return None
+        def json(self): return reply_json
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, url, headers=None, json=None):
+            seen["url"] = url; seen["headers"] = headers or {}; seen["json"] = json or {}
+            return FakeResponse()
+
+    monkeypatch.setattr(meta_client.httpx, "Client", FakeClient)
+    monkeypatch.setattr(meta_client, "MOCK", False)
+    monkeypatch.setattr(meta_client, "KEY", "")
+    return seen
+
+
+def test_openai_compatible_provider_uses_its_endpoint_and_key(client, monkeypatch):
+    import json as _json
+    seen = _capture_transport(monkeypatch, {"choices": [{"message": {"content": _json.dumps({"proposals": [{"move": "thickness", "thickness_mm": 16}]})}}], "usage": {}})
+    body = _unique_body("provider-openrouter")
+    data = client.post(ENDPOINT, json=body, headers={
+        "X-User-Provider": "openrouter", "X-User-Base-Url": "https://openrouter.ai/api/v1",
+        "X-User-Meta-Key": "or-key-1", "X-User-Meta-Model": "some/model-1",
+    }).json()
+    assert data["_meta"]["fallback"] is False
+    assert data["_meta"]["model"] == "some/model-1"
+    assert seen["url"] == "https://openrouter.ai/api/v1/chat/completions"
+    assert seen["headers"].get("Authorization") == "Bearer or-key-1"
+    assert seen["json"]["model"] == "some/model-1"
+    assert "or-key-1" not in _json.dumps(data)
+
+
+def test_anthropic_provider_uses_messages_api(client, monkeypatch):
+    import json as _json
+    seen = _capture_transport(monkeypatch, {"content": [{"type": "text", "text": _json.dumps({"proposals": [{"move": "span", "span_mm": 500, "mode": "simple"}]})}], "usage": {"input_tokens": 10, "output_tokens": 5}})
+    body = _unique_body("provider-anthropic")
+    data = client.post(ENDPOINT, json=body, headers={
+        "X-User-Provider": "anthropic", "X-User-Base-Url": "https://api.anthropic.com/v1",
+        "X-User-Meta-Key": "ant-key-1", "X-User-Meta-Model": "claude-test-1",
+    }).json()
+    assert data["_meta"]["fallback"] is False
+    assert seen["url"] == "https://api.anthropic.com/v1/messages"
+    assert seen["headers"].get("x-api-key") == "ant-key-1"
+    assert seen["json"]["model"] == "claude-test-1"
+    assert "messages" in seen["json"] and "system" in seen["json"]
+
+
+def test_custom_endpoint_must_be_https_or_localhost(client, monkeypatch):
+    _capture_transport(monkeypatch, {"choices": [{"message": {"content": "{}"}}], "usage": {}})
+    body = _unique_body("provider-bad-url")
+    data = client.post(ENDPOINT, json=body, headers={
+        "X-User-Provider": "custom", "X-User-Base-Url": "http://evil.example.com/v1",
+        "X-User-Meta-Key": "k", "X-User-Meta-Model": "m",
+    }).json()
+    # an http (non-localhost) endpoint is refused: no live call, no invented moves
+    assert data["proposals"] == [] and data["_meta"]["fallback"] is True

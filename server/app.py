@@ -80,13 +80,15 @@ def _rate_limit(request: Request) -> None:
 
 
 def _user_meta_scope(request: Request):
-    """The page's Settings may supply the user's own Meta key/model per request.
+    """The page's Settings may supply the user's own provider/endpoint/model/key per request.
 
     Read from headers only, used for this request only, never stored or logged.
     """
     key = (request.headers.get("x-user-meta-key") or "").strip()[:512] or None
     model = (request.headers.get("x-user-meta-model") or "").strip() or None
-    return meta_client.request_scope(key=key, model=model)
+    provider = (request.headers.get("x-user-provider") or "").strip().lower() or None
+    base_url = (request.headers.get("x-user-base-url") or "").strip() or None
+    return meta_client.request_scope(key=key, model=model, provider=provider, base_url=base_url)
 
 
 def _want_mock(request: Request) -> bool | None:

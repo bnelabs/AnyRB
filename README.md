@@ -52,11 +52,13 @@ the file).
 **Units** switch between metric and imperial from the top of the page. Fields, requirements,
 ranges, margins and the build ticket all convert; the checker itself always calculates in metric.
 
-**Settings** (top right) is where the model is chosen: Meta Model API with Muse Spark 1.3
-Contributor or Muse Spark 1.3, or no model at all — the local checker only. If the server has no
-key of its own, you can paste yours there. Your key stays in the browser tab, is sent only to the
-server on this machine when Meta is called, and is gone when the tab closes; it is never written
-into the page or these files.
+**Settings** (top right) is where inference is chosen: Meta Model API (Muse Spark 1.3 Contributor
+or Muse Spark 1.3), OpenRouter, OpenAI, Anthropic, Google, NVIDIA, DeepSeek, a custom
+OpenAI-compatible endpoint, or no model at all — the local checker only. Each provider takes its
+endpoint (filled in, editable), its model name, and your own key for it. A key stays in the
+browser tab, is sent only to the server on this machine when the model is called, and is gone
+when the tab closes; it is never written into the page or these files. The server's own key only
+works for Meta, and voice is only available with Meta.
 
 ## Sixty seconds, with the numbers the app gives
 

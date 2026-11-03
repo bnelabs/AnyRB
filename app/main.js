@@ -46,11 +46,27 @@ let briefBatchChoiceNeeded = false;
 
 // Settings: provider/model/units persist on this machine; the user's own key
 // is kept in session storage (this tab only) and sent only to the local server.
+const PROVIDER_BASES = {
+  meta: 'https://api.meta.ai/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  google: 'https://generativelanguage.googleapis.com/v1beta/openai',
+  nvidia: 'https://integrate.api.nvidia.com/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  custom: '',
+  local: '',
+};
+let savedEndpoints = {};
+try { savedEndpoints = JSON.parse(localStorage.getItem('anyrb.endpoints') || '{}') || {}; } catch { savedEndpoints = {}; }
 let settings = {
   provider: localStorage.getItem('anyrb.provider') || 'meta',
   model: localStorage.getItem('anyrb.model') || 'muse-spark-1.3-contributor',
+  modelText: localStorage.getItem('anyrb.modelText') || '',
+  endpoint: localStorage.getItem('anyrb.endpoint') || '',
   units: localStorage.getItem('anyrb.units') || 'metric',
 };
+if (!settings.endpoint) settings.endpoint = savedEndpoints[settings.provider] || PROVIDER_BASES[settings.provider] || '';
 let userKey = sessionStorage.getItem('anyrb.key') || '';
 setUnitSystem(settings.units);
 
@@ -68,7 +84,9 @@ function metaHeaders(json = true) {
   const headers = {};
   if (json) headers['Content-Type'] = 'application/json';
   if (userKey) headers['X-User-Meta-Key'] = userKey;
-  headers['X-User-Meta-Model'] = settings.model;
+  headers['X-User-Provider'] = settings.provider;
+  headers['X-User-Base-Url'] = settings.endpoint || PROVIDER_BASES[settings.provider] || '';
+  headers['X-User-Meta-Model'] = settings.provider === 'meta' ? settings.model : settings.modelText;
   return headers;
 }
 
@@ -1813,6 +1831,10 @@ async function toggleVoice() {
     $('brief-status').textContent = 'The model is off in Settings, so voice is off too. Type the description, or turn the model on in Settings.';
     return;
   }
+  if (settings.provider !== 'meta' && !(voiceRecorder && voiceRecorder.state === 'recording')) {
+    $('brief-status').textContent = 'Voice is only available with Meta. Type the description instead, or switch the provider in Settings.';
+    return;
+  }
   if (voiceRecorder && voiceRecorder.state === 'recording') {
     button.disabled = true;
     button.textContent = 'Reading voice…';
@@ -2227,11 +2249,29 @@ function applyUnits(system) {
 $('unit-metric').addEventListener('click', () => applyUnits('metric'));
 $('unit-imperial').addEventListener('click', () => applyUnits('imperial'));
 
+function syncProviderFields() {
+  const provider = $('set-provider').value;
+  const isMeta = provider === 'meta';
+  const isLocal = provider === 'local';
+  $('set-endpoint-field').hidden = isLocal;
+  $('set-model-field').hidden = !isMeta;
+  $('set-model-text-field').hidden = isMeta || isLocal;
+  $('set-key-field').hidden = isLocal;
+  if (!isLocal) {
+    const endpoint = $('set-endpoint');
+    endpoint.value = savedEndpoints[provider] || PROVIDER_BASES[provider] || '';
+    endpoint.placeholder = provider === 'custom' ? 'e.g. http://localhost:11434/v1 or https://…' : (PROVIDER_BASES[provider] || 'https://…');
+  }
+}
+$('set-provider').addEventListener('change', syncProviderFields);
 $('settings-open').addEventListener('click', () => {
   $('set-provider').value = settings.provider;
   $('set-model').value = settings.model;
+  $('set-model-text').value = settings.modelText;
   $('set-key').value = '';
   $('set-key').placeholder = userKey ? 'Your key is saved for this tab' : 'Paste your own key';
+  syncProviderFields();
+  if (settings.endpoint && settings.provider !== 'local') $('set-endpoint').value = settings.endpoint;
   $('settings-dialog').showModal();
 });
 $('set-cancel').addEventListener('click', () => $('settings-dialog').close());
@@ -2246,8 +2286,16 @@ $('settings-form').addEventListener('submit', (event) => {
   event.preventDefault();
   settings.provider = $('set-provider').value;
   settings.model = $('set-model').value;
+  settings.modelText = $('set-model-text').value.trim();
+  settings.endpoint = $('set-endpoint').value.trim();
   localStorage.setItem('anyrb.provider', settings.provider);
   localStorage.setItem('anyrb.model', settings.model);
+  localStorage.setItem('anyrb.modelText', settings.modelText);
+  localStorage.setItem('anyrb.endpoint', settings.endpoint);
+  if (settings.provider !== 'local' && settings.endpoint) {
+    savedEndpoints[settings.provider] = settings.endpoint;
+    try { localStorage.setItem('anyrb.endpoints', JSON.stringify(savedEndpoints)); } catch { /* storage unavailable */ }
+  }
   const entered = $('set-key').value.trim();
   if (entered) {
     userKey = entered;

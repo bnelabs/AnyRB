@@ -274,24 +274,39 @@
   <form id="settings-form" method="dialog">
     <h2 id="settings-title">Settings</h2>
     <div class="field">
-      <label for="set-provider">Model</label>
+      <label for="set-provider">Inference provider</label>
       <select id="set-provider">
         <option value="meta">Meta Model API</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="google">Google (Gemini)</option>
+        <option value="nvidia">NVIDIA</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="custom">Custom endpoint (works like OpenAI)</option>
         <option value="local">No model — local checker only</option>
       </select>
     </div>
-    <div class="field">
+    <div class="field" id="set-endpoint-field">
+      <label for="set-endpoint">Endpoint</label>
+      <input id="set-endpoint" type="text" autocomplete="off" spellcheck="false" placeholder="https://…">
+    </div>
+    <div class="field" id="set-model-field">
       <label for="set-model">Muse Spark model</label>
       <select id="set-model">
         <option value="muse-spark-1.3-contributor">Muse Spark 1.3 Contributor</option>
         <option value="muse-spark-1.3">Muse Spark 1.3</option>
       </select>
     </div>
-    <div class="field">
-      <label for="set-key">Your Meta API key (optional)</label>
+    <div class="field" id="set-model-text-field" hidden>
+      <label for="set-model-text">Model name</label>
+      <input id="set-model-text" type="text" autocomplete="off" spellcheck="false" placeholder="The model name from that provider">
+    </div>
+    <div class="field" id="set-key-field">
+      <label for="set-key">Your API key for that provider (optional for Meta)</label>
       <input id="set-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your own key">
     </div>
-    <p class="settings-note" id="key-note">If the server already has a key, you do not need one. Your own key is kept in this browser tab only, sent only to the server on this machine when Meta is called, and never written into the page, the files, or this repository. It is gone when the tab closes.</p>
+    <p class="settings-note" id="key-note">Meta is the built-in choice: if the server already has a Meta key, you do not need your own. With any other provider, your key is needed — the server's key only works for Meta. Any key you enter is kept in this browser tab only, sent only to the server on this machine when the model is called, and never written into the page, the files, or this repository. It is gone when the tab closes. Voice is only available with Meta; with another provider, type instead.</p>
     <div class="settings-row">
       <button class="dl-button" id="set-clear-key" type="button">Remove my key</button>
       <button class="settings-save" id="set-save" type="submit">Save</button>

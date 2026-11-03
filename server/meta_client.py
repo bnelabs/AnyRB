@@ -231,34 +231,85 @@ def _response_hash(payload: dict) -> str:
         return ""
 
 
-# Per-request credentials supplied by the page's Settings (the user's own key
-# and model choice). Set by the app layer for one request only; never stored,
-# never logged (redact() covers the override as well as the env key).
+# Per-request inference settings supplied by the page's Settings (the user's
+# own provider, endpoint, model and key). Set by the app layer for one request
+# only; never stored, never logged (redact() covers the override as well as
+# the env key). Meta is the default and the hackathon path; other providers
+# are the user's own choice, using the same checked maths.
 import contextvars as _contextvars
+import re as _re
+from urllib.parse import urlparse as _urlparse
 
 _KEY_OVERRIDE = _contextvars.ContextVar("anyrb_key_override", default=None)
 _MODEL_OVERRIDE = _contextvars.ContextVar("anyrb_model_override", default=None)
+_PROVIDER_OVERRIDE = _contextvars.ContextVar("anyrb_provider_override", default=None)
+_BASE_OVERRIDE = _contextvars.ContextVar("anyrb_base_override", default=None)
 ALLOWED_MODEL_OVERRIDES = {"muse-spark-1.3-contributor", "muse-spark-1.3"}
+PROVIDER_BASES = {
+    "meta": "https://api.meta.ai/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+    "openai": "https://api.openai.com/v1",
+    "anthropic": "https://api.anthropic.com/v1",
+    "google": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "nvidia": "https://integrate.api.nvidia.com/v1",
+    "deepseek": "https://api.deepseek.com/v1",
+    "custom": "",
+}
+
+
+def _clean_base_url(value):
+    if not value or not isinstance(value, str):
+        return None
+    url = value.strip().rstrip("/")
+    if len(url) > 300:
+        return None
+    try:
+        parsed = _urlparse(url)
+    except Exception:
+        return None
+    if parsed.scheme == "https" and parsed.netloc:
+        return url
+    if parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1"):
+        return url
+    return None
+
+
+def _clean_model(value, provider):
+    if not value or not isinstance(value, str):
+        return None
+    model = value.strip()
+    if provider == "meta":
+        return model if model in ALLOWED_MODEL_OVERRIDES else None
+    if 0 < len(model) <= 160 and _re.fullmatch(r"[A-Za-z0-9._:/+\-]+", model):
+        return model
+    return None
 
 
 class _request_scope:
-    def __init__(self, key=None, model=None):
+    def __init__(self, key=None, model=None, provider=None, base_url=None):
+        self.provider = provider if provider in PROVIDER_BASES else None
+        effective_provider = self.provider or "meta"
         self.key = key or None
-        self.model = model if model in ALLOWED_MODEL_OVERRIDES else None
+        self.model = _clean_model(model, effective_provider)
+        self.base_url = _clean_base_url(base_url)
 
     def __enter__(self):
         self._k = _KEY_OVERRIDE.set(self.key)
         self._m = _MODEL_OVERRIDE.set(self.model)
+        self._p = _PROVIDER_OVERRIDE.set(self.provider)
+        self._b = _BASE_OVERRIDE.set(self.base_url)
         return self
 
     def __exit__(self, *exc):
         _KEY_OVERRIDE.reset(self._k)
         _MODEL_OVERRIDE.reset(self._m)
+        _PROVIDER_OVERRIDE.reset(self._p)
+        _BASE_OVERRIDE.reset(self._b)
         return False
 
 
-def request_scope(key=None, model=None):
-    return _request_scope(key, model)
+def request_scope(key=None, model=None, provider=None, base_url=None):
+    return _request_scope(key, model, provider, base_url)
 
 
 def _effective_key() -> str:
@@ -266,8 +317,25 @@ def _effective_key() -> str:
     return override if override else KEY
 
 
+def _effective_provider() -> str:
+    return _PROVIDER_OVERRIDE.get() or "meta"
+
+
+def _effective_base() -> str:
+    override = _BASE_OVERRIDE.get()
+    if override:
+        return override
+    provider = _effective_provider()
+    if provider == "meta":
+        return BASE
+    return PROVIDER_BASES.get(provider, "")
+
+
 def _effective_model() -> str:
-    return _MODEL_OVERRIDE.get() or MODEL_SPARK
+    override = _MODEL_OVERRIDE.get()
+    if override:
+        return override
+    return MODEL_SPARK if _effective_provider() == "meta" else ""
 
 
 def _headers() -> dict:
@@ -360,33 +428,61 @@ def _mock_payload(kind: str, payload: dict, reason: str) -> dict:
 # Muse Spark
 # ---------------------------------------------------------------------------
 def _spark_http(system: str, payload: dict, model: str) -> tuple[dict | None, dict, str | None]:
-    """One model attempt with a single transient retry. Returns (parsed, usage, error)."""
-    body = {
-        "model": model,
-        "messages": [{"role": "system", "content": system},
-                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)}],
-        "temperature": 0.2,
-        "max_tokens": MAX_TOKENS,
-        "reasoning_effort": REASONING_EFFORT,
-        "response_format": {"type": "json_object"},
-    }
+    """One model attempt with a single transient retry. Returns (parsed, usage, error).
+
+    Meta, OpenRouter, OpenAI, Google, NVIDIA, DeepSeek and custom endpoints
+    speak OpenAI-style chat completions; Anthropic speaks its Messages API.
+    The prompts and the JSON-only contract are identical either way.
+    """
+    provider = _effective_provider()
+    base = _effective_base()
+    if not base:
+        return None, {}, "no endpoint configured for this provider"
+    user_text = json.dumps(payload, ensure_ascii=False, default=str)
     last_err = None
     for attempt in (1, 2):
         try:
             with httpx.Client(timeout=TIMEOUT) as c:
-                r = c.post(f"{BASE}/chat/completions", headers=_headers(), json=body)
+                if provider == "anthropic":
+                    r = c.post(
+                        f"{base}/messages",
+                        headers={"x-api-key": _effective_key(), "anthropic-version": "2023-06-01",
+                                 "Content-Type": "application/json"},
+                        json={"model": model, "system": system,
+                              "messages": [{"role": "user", "content": user_text}],
+                              "max_tokens": MAX_TOKENS},
+                    )
+                else:
+                    body = {
+                        "model": model,
+                        "messages": [{"role": "system", "content": system},
+                                     {"role": "user", "content": user_text}],
+                        "temperature": 0.2,
+                        "max_tokens": MAX_TOKENS,
+                        "response_format": {"type": "json_object"},
+                    }
+                    if provider == "meta":
+                        body["reasoning_effort"] = REASONING_EFFORT
+                    r = c.post(f"{base}/chat/completions", headers=_headers(), json=body)
                 if r.status_code in (429, 500, 502, 503, 504) and attempt == 1:
                     last_err = f"HTTP {r.status_code}"
                     time.sleep(1.0)
                     continue
                 r.raise_for_status()
                 j = r.json()
-            choice = (j.get("choices") or [{}])[0]
-            content = (choice.get("message") or {}).get("content") or ""
-            usage = j.get("usage") or {}
+            if provider == "anthropic":
+                blocks = j.get("content") or []
+                content = "".join(b.get("text", "") for b in blocks if isinstance(b, dict))
+                raw_usage = j.get("usage") or {}
+                usage = {"prompt_tokens": raw_usage.get("input_tokens"),
+                         "completion_tokens": raw_usage.get("output_tokens")}
+            else:
+                choice = (j.get("choices") or [{}])[0]
+                content = (choice.get("message") or {}).get("content") or ""
+                usage = j.get("usage") or {}
             parsed = _parse_json(content)
             if parsed is None:
-                return None, usage, f"unparseable content (finish={choice.get('finish_reason')})"
+                return None, usage, "unparseable content"
             return parsed, usage, None
         except Exception as e:  # noqa: BLE001
             last_err = f"{type(e).__name__}: {e}"
@@ -405,7 +501,7 @@ def spark_json(kind: str, system: str, payload: dict,
     deterministic fallback. `_meta` describes what actually happened.
     """
     mock_flag = _effective_mock(mock)
-    cache_key = f"spark_{cache_name or kind}_{_hash('spark', _effective_model(), kind, payload)}.json"
+    cache_key = f"spark_{cache_name or kind}_{_hash('spark', _effective_provider(), _effective_base(), _effective_model(), kind, payload)}.json"
     if mock_flag:
         return _fallback_result(kind, fallback, 0.0, True, "forced mock mode", "mock")
     cached = _cache_get(cache_key)
@@ -417,7 +513,13 @@ def spark_json(kind: str, system: str, payload: dict,
     t0 = time.time()
     last_err = None
     _primary = _effective_model()
-    for model in ((_primary,) if _primary == MODEL_SPARK_STANDARD else (_primary, MODEL_SPARK_STANDARD)):
+    if not _primary:
+        return _fallback_result(kind, fallback, 0.0, True, "no model chosen for this provider", "offline")
+    if _effective_provider() == "meta" and not _MODEL_OVERRIDE.get():
+        _models = (_primary,) if _primary == MODEL_SPARK_STANDARD else (_primary, MODEL_SPARK_STANDARD)
+    else:
+        _models = (_primary,)
+    for model in _models:
         parsed, usage, err = _spark_http(system, payload, model)
         if parsed is None:
             last_err = err
@@ -541,6 +643,8 @@ def transcribe(audio: bytes, filename: str = "brief.wav", mock: bool | None = No
     cached = _cache_get(cache_key)
     if cached:
         return _cached_result(kind, cached)
+    if _effective_provider() != "meta":
+        return _mock_payload(kind, {"transcript": "", "duration_s": None}, "voice transcription is only available with Meta")
     if not _effective_key():
         return _mock_payload(kind, {"transcript": "", "duration_s": None}, "META_API_KEY not set")
     t0 = time.time()
