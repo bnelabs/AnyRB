@@ -105,6 +105,9 @@ def configured() -> dict:
 def redact(text: Any, limit: int = 240) -> str:
     """Strip the API key from any string before it is logged or returned."""
     s = str(text)
+    for _secret in {KEY, _effective_key()}:
+        if _secret:
+            s = s.replace(_secret, "[redacted-key]")
     if KEY:
         s = s.replace(KEY, "[redacted-key]")
         # also catch a partially-printed key
@@ -228,8 +231,47 @@ def _response_hash(payload: dict) -> str:
         return ""
 
 
+# Per-request credentials supplied by the page's Settings (the user's own key
+# and model choice). Set by the app layer for one request only; never stored,
+# never logged (redact() covers the override as well as the env key).
+import contextvars as _contextvars
+
+_KEY_OVERRIDE = _contextvars.ContextVar("anyrb_key_override", default=None)
+_MODEL_OVERRIDE = _contextvars.ContextVar("anyrb_model_override", default=None)
+ALLOWED_MODEL_OVERRIDES = {"muse-spark-1.3-contributor", "muse-spark-1.3"}
+
+
+class _request_scope:
+    def __init__(self, key=None, model=None):
+        self.key = key or None
+        self.model = model if model in ALLOWED_MODEL_OVERRIDES else None
+
+    def __enter__(self):
+        self._k = _KEY_OVERRIDE.set(self.key)
+        self._m = _MODEL_OVERRIDE.set(self.model)
+        return self
+
+    def __exit__(self, *exc):
+        _KEY_OVERRIDE.reset(self._k)
+        _MODEL_OVERRIDE.reset(self._m)
+        return False
+
+
+def request_scope(key=None, model=None):
+    return _request_scope(key, model)
+
+
+def _effective_key() -> str:
+    override = _KEY_OVERRIDE.get()
+    return override if override else KEY
+
+
+def _effective_model() -> str:
+    return _MODEL_OVERRIDE.get() or MODEL_SPARK
+
+
 def _headers() -> dict:
-    return {"Authorization": f"Bearer {KEY}", "Content-Type": "application/json"}
+    return {"Authorization": f"Bearer {_effective_key()}", "Content-Type": "application/json"}
 
 
 # ---------------------------------------------------------------------------
@@ -363,18 +405,19 @@ def spark_json(kind: str, system: str, payload: dict,
     deterministic fallback. `_meta` describes what actually happened.
     """
     mock_flag = _effective_mock(mock)
-    cache_key = f"spark_{cache_name or kind}_{_hash('spark', MODEL_SPARK, kind, payload)}.json"
+    cache_key = f"spark_{cache_name or kind}_{_hash('spark', _effective_model(), kind, payload)}.json"
     if mock_flag:
         return _fallback_result(kind, fallback, 0.0, True, "forced mock mode", "mock")
     cached = _cache_get(cache_key)
     if cached:
         return _cached_result(kind, cached)
-    if not KEY:
+    if not _effective_key():
         return _fallback_result(kind, fallback, 0.0, True, "META_API_KEY not set", "offline")
 
     t0 = time.time()
     last_err = None
-    for model in (MODEL_SPARK, MODEL_SPARK_STANDARD):
+    _primary = _effective_model()
+    for model in ((_primary,) if _primary == MODEL_SPARK_STANDARD else (_primary, MODEL_SPARK_STANDARD)):
         parsed, usage, err = _spark_http(system, payload, model)
         if parsed is None:
             last_err = err
@@ -498,7 +541,7 @@ def transcribe(audio: bytes, filename: str = "brief.wav", mock: bool | None = No
     cached = _cache_get(cache_key)
     if cached:
         return _cached_result(kind, cached)
-    if not KEY:
+    if not _effective_key():
         return _mock_payload(kind, {"transcript": "", "duration_s": None}, "META_API_KEY not set")
     t0 = time.time()
     try:
@@ -508,7 +551,7 @@ def transcribe(audio: bytes, filename: str = "brief.wav", mock: bool | None = No
                  "audio": (filename, wav, "audio/wav")}
         with httpx.Client(timeout=TIMEOUT) as c:
             r = c.post(f"{BASE}/asr/transcribe",
-                       headers={"Authorization": f"Bearer {KEY}", "Accept": "application/json"},
+                       headers={"Authorization": f"Bearer {_effective_key()}", "Accept": "application/json"},
                        files=files)
             r.raise_for_status()
             j = r.json()

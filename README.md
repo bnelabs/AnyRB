@@ -41,6 +41,22 @@ Change any number and the answer updates in place. Add a second or third require
 and weight and stiffness together — and every one of them has to hold at once. State how many
 parts are in the run and grams become kilograms.
 
+A **Progress** list under the question shows where you are at all times: the part, what must
+hold, this delivery, the Meta check, and the decision — each marked done or not, with one line
+naming the single next thing to do. **Results live on the page** (decision at the top, builds and
+range view below) and can be taken away as a build ticket (.txt, for the shop floor), a table
+(.csv, for a spreadsheet), or the same results as data (.json, in metric with the units named in
+the file).
+
+**Units** switch between metric and imperial from the top of the page. Fields, requirements,
+ranges, margins and the build ticket all convert; the checker itself always calculates in metric.
+
+**Settings** (top right) is where the model is chosen: Meta Model API with Muse Spark 1.3
+Contributor or Muse Spark 1.3, or no model at all — the local checker only. If the server has no
+key of its own, you can paste yours there. Your key stays in the browser tab, is sent only to the
+server on this machine when Meta is called, and is gone when the tab closes; it is never written
+into the page or these files.
+
 ## Sixty seconds, with the numbers the app gives
 
 - Open the page, choose **Crate**. The build carries **95.4–111.0 kg** and weighs **338.4 g** —
@@ -109,8 +125,8 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 34 app tests
-AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 138 server tests
+node app/tests/model.test.mjs                           # 36 app tests
+AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 139 server tests
 ```
 
 ## What's in this repository

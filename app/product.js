@@ -410,6 +410,42 @@ export function inRange(range, target) {
     && range.min >= target.min - 1e-9 && range.max <= target.max + 1e-9;
 }
 
+// ---------------------------------------------------------------------------
+// Display units. Everything inside the checker is metric (mm, kg, g, N/mm,
+// MPa, g/cm3). The page can display imperial; conversion happens only in the
+// formatting helpers below, never in the mechanics.
+// ---------------------------------------------------------------------------
+let unitSystem = 'metric';
+const IMPERIAL = {
+  kg: { factor: 2.2046226, unit: 'lb' },
+  g: { factor: 0.03527396, unit: 'oz' },
+  'N/mm': { factor: 5.710147, unit: 'lbf/in' },
+  MPa: { factor: 145.0377, unit: 'psi' },
+  'g/cm³': { factor: 62.42796, unit: 'lb/ft³' },
+  mm: { factor: 1 / 25.4, unit: 'in' },
+};
+
+export function setUnitSystem(system) {
+  unitSystem = system === 'imperial' ? 'imperial' : 'metric';
+}
+export function getUnitSystem() {
+  return unitSystem;
+}
+export function displayUnit(unit) {
+  if (unitSystem !== 'imperial') return unit;
+  return (IMPERIAL[unit] || {}).unit || unit;
+}
+export function convertForDisplay(value, unit) {
+  if (unitSystem !== 'imperial' || !Number.isFinite(value)) return value;
+  const entry = IMPERIAL[unit];
+  return entry ? value * entry.factor : value;
+}
+export function convertFromDisplay(value, unit) {
+  if (unitSystem !== 'imperial' || !Number.isFinite(value)) return value;
+  const entry = IMPERIAL[unit];
+  return entry ? value / entry.factor : value;
+}
+
 export function formatNumber(value) {
   if (!Number.isFinite(value)) return '—';
   const abs = Math.abs(value);
@@ -418,14 +454,17 @@ export function formatNumber(value) {
 }
 
 export function formatRange(range, unit = '') {
-  const suffix = (unit || range.unit) ? ` ${unit || range.unit}` : '';
-  if (Math.abs(range.max - range.min) < 1e-9) return `${formatNumber(range.min)}${suffix}`;
-  return `${formatNumber(range.min)}–${formatNumber(range.max)}${suffix}`;
+  const sourceUnit = unit || range.unit || '';
+  const suffix = sourceUnit ? ` ${displayUnit(sourceUnit)}` : '';
+  const lo = convertForDisplay(range.min, sourceUnit);
+  const hi = convertForDisplay(range.max, sourceUnit);
+  if (Math.abs(range.max - range.min) < 1e-9) return `${formatNumber(lo)}${suffix}`;
+  return `${formatNumber(lo)}–${formatNumber(hi)}${suffix}`;
 }
 
 export function formatTarget(target) {
   const meta = propertyMeta(target.property);
-  return `${formatNumber(target.min)}–${formatNumber(target.max)} ${meta.unit}`;
+  return `${formatNumber(convertForDisplay(target.min, meta.unit))}–${formatNumber(convertForDisplay(target.max, meta.unit))} ${displayUnit(meta.unit)}`;
 }
 
 function candidatePart(state, candidate) {
@@ -936,13 +975,14 @@ function moveLabel(state, candidate) {
 }
 
 export function buildSizeText(part) {
-  return `${formatNumber(part.spanMm)} mm ${part.product}, ${formatNumber(part.widthMm)} × ${formatNumber(part.thicknessMm)} mm`;
+  const unit = displayUnit('mm');
+  return `${formatNumber(convertForDisplay(part.spanMm, 'mm'))} ${unit} ${part.product}, ${formatNumber(convertForDisplay(part.widthMm, 'mm'))} × ${formatNumber(convertForDisplay(part.thicknessMm, 'mm'))} ${unit}`;
 }
 
 export function addedMaterialText(addedG) {
   if (Math.abs(addedG) < 0.5) return 'no added material';
   const sign = addedG > 0 ? '+' : '−';
-  return `${sign}${formatNumber(Math.abs(addedG))} g`;
+  return `${sign}${formatNumber(convertForDisplay(Math.abs(addedG), 'g'))} ${displayUnit('g')}`;
 }
 
 export function decisionFor(stateInput, result) {
@@ -1012,7 +1052,7 @@ export function decisionFor(stateInput, result) {
   } else if (result.current.pass) {
     support = `This build ${rangeText(winner)} from this delivery — inside your ${targetText}.`;
   } else {
-    support = `The ${formatNumber(state.thicknessMm)} mm version misses. This build ${rangeText(winner)} — inside your ${targetText}.`;
+    support = `The ${formatNumber(convertForDisplay(state.thicknessMm, 'mm'))} ${displayUnit('mm')} version misses. This build ${rangeText(winner)} — inside your ${targetText}.`;
   }
   const copy = [
     'AnyRB build',
@@ -1034,8 +1074,8 @@ export function proposalRow(stateInput, item) {
   const state = normalizeState(stateInput);
   const targets = [state.target, ...state.extraTargets];
   const size = item.move === 'other'
-    ? `${item.part.product} · ${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`
-    : `${formatNumber(item.part.spanMm)} mm · ${formatNumber(item.part.widthMm)} × ${formatNumber(item.part.thicknessMm)} mm`;
+    ? `${item.part.product} · ${formatNumber(convertForDisplay(item.part.spanMm, 'mm'))} ${displayUnit('mm')} · ${formatNumber(convertForDisplay(item.part.widthMm, 'mm'))} × ${formatNumber(convertForDisplay(item.part.thicknessMm, 'mm'))} ${displayUnit('mm')}`
+    : `${formatNumber(convertForDisplay(item.part.spanMm, 'mm'))} ${displayUnit('mm')} · ${formatNumber(convertForDisplay(item.part.widthMm, 'mm'))} × ${formatNumber(convertForDisplay(item.part.thicknessMm, 'mm'))} ${displayUnit('mm')}`;
   const blendPercent = item.move === 'blend' ? Math.round(item.fraction * 100) : null;
   const originLabel = item.move === 'current'
     ? 'your build as entered'
@@ -1053,7 +1093,7 @@ export function proposalRow(stateInput, item) {
       return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
     }).join(' · '),
     added: blendPercent
-      ? `${blendPercent}% steadier stream · ${formatNumber((blendPercent / 100) * massG(item.part, state.plastic.density))} g a part`
+      ? `${blendPercent}% steadier stream · ${formatNumber(convertForDisplay((blendPercent / 100) * massG(item.part, state.plastic.density), 'g'))} ${displayUnit('g')} a part`
       : addedMaterialText(item.addedG),
     winner: false,
     blend: blendPercent,

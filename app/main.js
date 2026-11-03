@@ -6,7 +6,11 @@ import {
   CASE_PRESETS,
   PUBLISHED_BATCHES,
   advicePayload,
+  convertForDisplay,
+  convertFromDisplay,
+  displayUnit,
   propertyMeta,
+  setUnitSystem,
   publishedBatchFor,
   buildSizeText,
   decisionFor,
@@ -37,6 +41,52 @@ let metaSource = null;
 let feedbackRound = false;
 let batchSource = '';
 let briefPublished = null;
+
+// Settings: provider/model/units persist on this machine; the user's own key
+// is kept in session storage (this tab only) and sent only to the local server.
+let settings = {
+  provider: localStorage.getItem('anyrb.provider') || 'meta',
+  model: localStorage.getItem('anyrb.model') || 'muse-spark-1.3-contributor',
+  units: localStorage.getItem('anyrb.units') || 'metric',
+};
+let userKey = sessionStorage.getItem('anyrb.key') || '';
+setUnitSystem(settings.units);
+
+function modelOff() {
+  return settings.provider === 'local';
+}
+function metaHeaders(json = true) {
+  const headers = {};
+  if (json) headers['Content-Type'] = 'application/json';
+  if (userKey) headers['X-User-Meta-Key'] = userKey;
+  headers['X-User-Meta-Model'] = settings.model;
+  return headers;
+}
+
+const FIELD_UNITS = {
+  span: 'mm', width: 'mm', thickness: 'mm',
+  'other-span': 'mm', 'other-width': 'mm', 'other-thickness': 'mm',
+  'e-min': 'MPa', 'e-max': 'MPa', 's-min': 'MPa', 's-max': 'MPa',
+  'steady-e': 'MPa', 'steady-s': 'MPa', density: 'g/cm³',
+};
+function shownValue(id, metric) {
+  if (metric === '' || metric === 0 || metric == null) return '';
+  const unit = FIELD_UNITS[id];
+  const value = unit ? convertForDisplay(Number(metric), unit) : Number(metric);
+  return String(Math.round(value * 1000) / 1000);
+}
+function shownTarget(metric, property) {
+  if (metric === '' || metric == null || metric === 0) return '';
+  const meta = PROPERTIES.find((item) => item.key === property) || PROPERTIES[0];
+  const value = convertForDisplay(Number(metric), meta.unit);
+  return String(Math.round(value * 1000) / 1000);
+}
+function parsedValue(id, raw) {
+  const unit = FIELD_UNITS[id];
+  if (!unit || raw === '') return raw;
+  const value = Number(String(raw).replace(/,/g, ''));
+  return Number.isFinite(value) ? convertFromDisplay(value, unit) : raw;
+}
 let runSize = 0;
 
 const SAMPLE_BRIEF = 'I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE from one supplier, fairly clean, with paper labels on some of it.';
@@ -61,8 +111,8 @@ function setSelectOptions(id, items) {
 
 function updateTargetLabels() {
   const meta = PROPERTIES.find((p) => p.key === state.target.property);
-  $('target-min-label').textContent = meta ? `Low (${meta.unit})` : 'Low';
-  $('target-max-label').textContent = meta ? `High (${meta.unit})` : 'High';
+  $('target-min-label').textContent = meta ? `Low (${displayUnit(meta.unit)})` : 'Low';
+  $('target-max-label').textContent = meta ? `High (${displayUnit(meta.unit)})` : 'High';
 }
 
 function updateSteadyVisibility() {
@@ -87,7 +137,7 @@ function renderExtraTargets() {
     for (const item of PROPERTIES) {
       const option = document.createElement('option');
       option.value = item.key;
-      option.textContent = `${item.label} (${item.unit})`;
+      option.textContent = `${item.label} (${displayUnit(item.unit)})`;
       select.append(option);
     }
     select.value = target.property;
@@ -103,13 +153,14 @@ function renderExtraTargets() {
     const lowField = document.createElement('div');
     lowField.className = 'field';
     const lowLabel = document.createElement('label');
-    lowLabel.textContent = `Low (${targetUnit(target.property)})`;
+    lowLabel.textContent = `Low (${displayUnit(targetUnit(target.property))})`;
     const low = document.createElement('input');
     low.type = 'text';
     low.inputMode = 'decimal';
-    low.value = target.min == null ? '' : String(target.min);
+    low.value = target.min == null || target.min === '' ? '' : String(Math.round(convertForDisplay(Number(target.min), targetUnit(target.property)) * 1000) / 1000);
     low.addEventListener('input', () => {
-      state.extraTargets[index].min = low.value;
+      const n = Number(low.value.replace(/,/g, ''));
+      state.extraTargets[index].min = low.value === '' || !Number.isFinite(n) ? low.value : convertFromDisplay(n, targetUnit(target.property));
       onFieldChange();
     });
     lowField.append(lowLabel, low);
@@ -117,13 +168,14 @@ function renderExtraTargets() {
     const highField = document.createElement('div');
     highField.className = 'field';
     const highLabel = document.createElement('label');
-    highLabel.textContent = `High (${targetUnit(target.property)})`;
+    highLabel.textContent = `High (${displayUnit(targetUnit(target.property))})`;
     const high = document.createElement('input');
     high.type = 'text';
     high.inputMode = 'decimal';
-    high.value = target.max == null ? '' : String(target.max);
+    high.value = target.max == null || target.max === '' ? '' : String(Math.round(convertForDisplay(Number(target.max), targetUnit(target.property)) * 1000) / 1000);
     high.addEventListener('input', () => {
-      state.extraTargets[index].max = high.value;
+      const n = Number(high.value.replace(/,/g, ''));
+      state.extraTargets[index].max = high.value === '' || !Number.isFinite(n) ? high.value : convertFromDisplay(n, targetUnit(target.property));
       onFieldChange();
     });
     highField.append(highLabel, high);
@@ -147,31 +199,31 @@ function renderExtraTargets() {
 function paint() {
   setValue('product', state.product);
   $('mode').value = state.mode;
-  setValue('span', state.spanMm || '');
-  setValue('width', state.widthMm || '');
-  setValue('thickness', state.thicknessMm || '');
+  setValue('span', shownValue('span', state.spanMm));
+  setValue('width', shownValue('width', state.widthMm));
+  setValue('thickness', shownValue('thickness', state.thicknessMm));
   $('property').value = state.target.property;
-  setValue('target-min', state.target.min || '');
-  setValue('target-max', state.target.max || '');
+  setValue('target-min', shownTarget(state.target.min, state.target.property));
+  setValue('target-max', shownTarget(state.target.max, state.target.property));
   setValue('plastic-type', state.plastic.type);
   setValue('plastic-batch', state.plastic.batch);
   setValue('plastic-mix', state.plastic.mix);
   $('dirt-level').value = state.plastic.dirtLevel;
   setValue('plastic-dirt', state.plastic.dirt);
-  setValue('e-min', state.plastic.eMin || '');
-  setValue('e-max', state.plastic.eMax || '');
-  setValue('s-min', state.plastic.sMin || '');
-  setValue('s-max', state.plastic.sMax || '');
-  setValue('density', state.plastic.density || '');
+  setValue('e-min', shownValue('e-min', state.plastic.eMin));
+  setValue('e-max', shownValue('e-max', state.plastic.eMax));
+  setValue('s-min', shownValue('s-min', state.plastic.sMin));
+  setValue('s-max', shownValue('s-max', state.plastic.sMax));
+  setValue('density', shownValue('density', state.plastic.density));
   $('steady-available').checked = state.steady.available;
   setValue('steady-type', state.steady.type);
-  setValue('steady-e', state.steady.eMpa || '');
-  setValue('steady-s', state.steady.sMpa || '');
+  setValue('steady-e', shownValue('steady-e', state.steady.eMpa));
+  setValue('steady-s', shownValue('steady-s', state.steady.sMpa));
   setValue('other-product', state.other.product);
   $('other-mode').value = state.other.mode;
-  setValue('other-span', state.other.spanMm || '');
-  setValue('other-width', state.other.widthMm || '');
-  setValue('other-thickness', state.other.thicknessMm || '');
+  setValue('other-span', shownValue('other-span', state.other.spanMm));
+  setValue('other-width', shownValue('other-width', state.other.widthMm));
+  setValue('other-thickness', shownValue('other-thickness', state.other.thicknessMm));
   updateTargetLabels();
   updateSteadyVisibility();
   renderExtraTargets();
@@ -358,9 +410,12 @@ function renderTrace(result) {
 }
 
 function formatRange(range, unit) {
-  const a = Number(range.min).toLocaleString('en-US', { maximumFractionDigits: 1 });
-  const b = Number(range.max).toLocaleString('en-US', { maximumFractionDigits: 1 });
-  return `${a}–${b} ${unit}`;
+  const a = convertForDisplay(Number(range.min), unit).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  const b = convertForDisplay(Number(range.max), unit).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  return `${a}–${b} ${displayUnit(unit)}`;
+}
+function fmtVal(value, unit) {
+  return `${formatNumber(convertForDisplay(value, unit))} ${displayUnit(unit)}`;
 }
 
 function metaSourceText() {
@@ -372,15 +427,60 @@ function metaSourceText() {
   return '';
 }
 
-function renderSteps() {
+function renderProgress(result) {
+  const wrap = $('progress-list');
+  if (!wrap) return;
+  wrap.replaceChildren();
   const partDone = Boolean(state.product && state.mode && state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0);
-  const targetDone = Boolean(state.target.property
-    && [state.target, ...state.extraTargets].every((t) => Number.isFinite(Number(t.min)) && t.min !== '' && Number.isFinite(Number(t.max)) && t.max !== ''));
+  const targets = [state.target, ...state.extraTargets].filter((t) => t && t.property);
+  const targetDone = Boolean(targets.length && targets.every((t) => t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max))));
   const batchDone = Boolean(state.plastic.eMin > 0 && state.plastic.eMax > 0 && state.plastic.sMin > 0 && state.plastic.sMax > 0 && state.plastic.density > 0);
-  const done = { part: partDone, target: targetDone, batch: batchDone };
-  for (const item of $$('#steps .step')) {
-    item.classList.toggle('is-done', Boolean(done[item.dataset.step]));
+  const metaDetail = modelOff()
+    ? 'off in Settings — the local checker is running'
+    : modelState === 'meta'
+      ? `${modelProposals.length} move${modelProposals.length === 1 ? '' : 's'} checked`
+      : modelState === 'loading'
+        ? 'checking with Muse Spark…'
+        : modelState === 'local'
+          ? 'off in Settings — the local checker is running'
+          : 'not checked yet';
+  const items = [
+    { label: 'The part', detail: partDone ? `${state.product}, sized below` : 'name it and set its size', done: partDone },
+    { label: 'What must hold', detail: targetDone ? 'set below — every one has to hold at once' : 'add at least one property range', done: targetDone },
+    { label: 'This delivery', detail: batchDone ? 'set below' : 'pick a published range, or enter supplier numbers', done: batchDone },
+    { label: 'Meta check', detail: metaDetail, done: modelState === 'meta', info: true },
+    {
+      label: 'Decision',
+      detail: result && result.winner
+        ? 'ready — pinned at the top, builds below'
+        : result && result.ready
+          ? 'no build passes — the headline names the change'
+          : 'appears when the first three are set',
+      done: Boolean(result && result.ready),
+    },
+  ];
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.className = `progress-item${item.done ? ' is-done' : ''}${item.info && !item.done ? ' is-info' : ''}`;
+    const mark = document.createElement('span');
+    mark.className = 'p-mark';
+    mark.textContent = item.done ? '✓' : '–';
+    const text = document.createElement('span');
+    text.className = 'p-text';
+    const strong = document.createElement('strong');
+    strong.textContent = item.label;
+    text.append(strong, document.createTextNode(` — ${item.detail}`));
+    li.append(mark, text);
+    wrap.append(li);
   }
+  let next;
+  if (!partDone) next = 'Next: name the part and set its size.';
+  else if (!targetDone) next = 'Next: add a property that has to hold.';
+  else if (!batchDone) next = 'Next: set this delivery — pick a published range, or enter supplier numbers.';
+  else if (result && result.winner) next = 'Next: copy the build, or download it under “Builds that pass”.';
+  else if (result && result.ready) next = 'Next: follow the change in the headline — or ask Meta about this batch below.';
+  else next = 'Next: finish the steps above.';
+  $('progress-next').textContent = next;
 }
 
 function renderRangeView(result) {
@@ -419,13 +519,13 @@ function renderRangeView(result) {
       const lowMargin = range.min - target.min;
       const highMargin = target.max - range.max;
       const atLow = lowMargin <= highMargin;
-      margin.textContent = `closest margin ${formatNumber(Math.min(lowMargin, highMargin))} ${meta.unit} at the ${atLow ? 'low' : 'high'} end`;
+      margin.textContent = `closest margin ${fmtVal(Math.min(lowMargin, highMargin), meta.unit)} at the ${atLow ? 'low' : 'high'} end`;
     } else if (range.min < target.min && range.max > target.max) {
-      margin.textContent = `${formatNumber(target.min - range.min)} ${meta.unit} short at the low end, ${formatNumber(range.max - target.max)} over at the high end`;
+      margin.textContent = `${fmtVal(target.min - range.min, meta.unit)} short at the low end, ${fmtVal(range.max - target.max, meta.unit)} over at the high end`;
     } else if (range.min < target.min) {
-      margin.textContent = `${formatNumber(target.min - range.min)} ${meta.unit} short at the low end`;
+      margin.textContent = `${fmtVal(target.min - range.min, meta.unit)} short at the low end`;
     } else {
-      margin.textContent = `${formatNumber(range.max - target.max)} ${meta.unit} over at the high end`;
+      margin.textContent = `${fmtVal(range.max - target.max, meta.unit)} over at the high end`;
     }
     head.append(name, margin);
     const track = document.createElement('div');
@@ -442,9 +542,9 @@ function renderRangeView(result) {
     const scale = document.createElement('div');
     scale.className = 'rv-scale';
     const s0 = document.createElement('span');
-    s0.textContent = `${formatNumber(d0)} ${meta.unit}`;
+    s0.textContent = fmtVal(d0, meta.unit);
     const s1 = document.createElement('span');
-    s1.textContent = `${formatNumber(d1)} ${meta.unit}`;
+    s1.textContent = fmtVal(d1, meta.unit);
     scale.append(s0, s1);
     row.append(head, track, scale);
     wrap.append(row);
@@ -465,13 +565,13 @@ function renderRunNote(result) {
   const totalKg = (winner.addedG * runSize) / 1000;
   if (winner.move === 'blend') {
     const pct = Math.round(winner.fraction * 100);
-    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that blend uses ${formatNumber(totalKg)} kg of ${state.steady.type || 'the steadier stream'} (${pct}% of every part).`;
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that blend uses ${fmtVal(totalKg, 'kg')} of ${state.steady.type || 'the steadier stream'} (${pct}% of every part).`;
   } else if (Math.abs(winner.addedG) < 0.5) {
     note.textContent = `At ${runSize.toLocaleString('en-US')} parts, this build uses the same material a part as the one you entered.`;
   } else if (winner.addedG > 0) {
-    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that is ${formatNumber(totalKg)} kg more material than your current build.`;
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that is ${fmtVal(totalKg, 'kg')} more material than your current build.`;
   } else {
-    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that saves ${formatNumber(Math.abs(totalKg))} kg against your current build.`;
+    note.textContent = `At ${runSize.toLocaleString('en-US')} parts, that saves ${fmtVal(Math.abs(totalKg), 'kg')} against your current build.`;
   }
 }
 
@@ -504,6 +604,10 @@ function renderStatus(result) {
     status.textContent = `${modelProposals.length} moves from Muse Spark. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
     return;
   }
+  if (modelState === 'local') {
+    status.textContent = 'Model is off in Settings. The calculated build stands.';
+    return;
+  }
   if (modelState === 'empty') {
     status.textContent = `Muse Spark returned no usable moves. The calculated build stands.${metaSourceText()}`;
     return;
@@ -522,9 +626,10 @@ function render(result) {
   $('builds-panel').hidden = !result.ready;
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready;
-  renderSteps();
+  renderProgress(result);
   renderDecisionBar(result, decision);
   $('see-details').hidden = !result.ready;
+  $('downloads').hidden = !result.ready;
   fade([$('decision'), $('support')], () => {
     $('decision').textContent = decision.headline;
     $('support').textContent = decision.support;
@@ -577,7 +682,15 @@ function setNumeric(path, value) {
 
 function bind(id, path, { number = false } = {}) {
   $(id).addEventListener('input', (event) => {
-    setNumeric(path, number ? event.target.value : event.target.value);
+    let value = event.target.value;
+    if (id === 'target-min' || id === 'target-max') {
+      const meta = PROPERTIES.find((item) => item.key === state.target.property) || PROPERTIES[0];
+      const n = Number(String(value).replace(/,/g, ''));
+      if (value !== '' && Number.isFinite(n)) value = convertFromDisplay(n, meta.unit);
+    } else {
+      value = parsedValue(id, value);
+    }
+    setNumeric(path, value);
     onFieldChange();
   });
 }
@@ -595,6 +708,13 @@ function bindSelect(id, path, after = null) {
 // ---------------------------------------------------------------------------
 async function fetchProposals() {
   if (!isReady(state)) return;
+  if (modelOff()) {
+    modelProposals = [];
+    modelState = 'local';
+    metaSource = null;
+    render(evaluateBuilds(state, []));
+    return;
+  }
   const seq = ++modelSeq;
   const payload = toApiPayload(state);
   const controller = new AbortController();
@@ -602,7 +722,7 @@ async function fetchProposals() {
   try {
     const response = await fetch(`${API_BASE}/api/product/proposals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: metaHeaders(),
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -642,7 +762,7 @@ async function fetchProposals() {
           }));
           const second = await fetch(`${API_BASE}/api/product/proposals`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: metaHeaders(),
             body: JSON.stringify({ ...payload, verifier_feedback: feedback }),
             signal: controller.signal,
           });
@@ -697,6 +817,10 @@ async function askMeta() {
   const result = lastResult || evaluateBuilds(state, modelProposals);
   const payload = advicePayload(state, result, question);
   const seq = ++adviceSeq;
+  if (modelOff()) {
+    $('ask-status').textContent = 'The model is off in Settings, so there is no Meta answer. The calculated plan above still applies.';
+    return;
+  }
   $('ask-status').textContent = 'Muse Spark is thinking…';
   $('ask-answer').replaceChildren();
   const controller = new AbortController();
@@ -704,7 +828,7 @@ async function askMeta() {
   try {
     const response = await fetch(`${API_BASE}/api/product/advice`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: metaHeaders(),
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -941,6 +1065,7 @@ async function sendVoice(blob) {
   try {
     const response = await fetch(`${API_BASE}/api/voice/transcribe`, {
       method: 'POST',
+      headers: metaHeaders(false),
       body: data,
       signal: controller.signal,
     });
@@ -967,6 +1092,10 @@ async function sendVoice(blob) {
 
 async function toggleVoice() {
   const button = $('brief-voice');
+  if (modelOff() && !(voiceRecorder && voiceRecorder.state === 'recording')) {
+    $('brief-status').textContent = 'The model is off in Settings, so voice is off too. Type the brief, or turn Meta on in Settings.';
+    return;
+  }
   if (voiceRecorder && voiceRecorder.state === 'recording') {
     button.disabled = true;
     button.textContent = 'Reading voice…';
@@ -1074,6 +1203,11 @@ async function readBrief() {
     $('brief-status').textContent = 'Describe the part, the properties that must hold, and this delivery.';
     return;
   }
+  if (modelOff()) {
+    $('brief-status').textContent = 'The model is off in Settings, so the brief is not read. Fill the fields below, pick an example, or turn Meta on in Settings.';
+    field.focus();
+    return;
+  }
   const button = $('brief-submit');
   button.disabled = true;
   $('brief-status').textContent = 'Muse Spark is reading the brief…';
@@ -1084,7 +1218,7 @@ async function readBrief() {
   try {
     const response = await fetch(`${API_BASE}/api/product/brief`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: metaHeaders(),
       body: JSON.stringify({ text }),
       signal: controller.signal,
     });
@@ -1202,6 +1336,152 @@ document.addEventListener('keydown', (event) => {
 function closeDetails() {
   $$('details[open]').forEach((details) => { details.open = false; });
 }
+
+
+// ---------------------------------------------------------------------------
+// Downloads, settings, units
+// ---------------------------------------------------------------------------
+function downloadFile(name, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function resultsCsv(result) {
+  const rows = [['Requirement', 'Needs low', 'Needs high', 'Unit', 'Build low', 'Build high', 'Inside']];
+  const item = result.winner || result.current;
+  result.targets.forEach((target, i) => {
+    const meta = propertyMeta(target.property);
+    const range = item.ranges[i];
+    rows.push([
+      meta.label,
+      Math.round(convertForDisplay(target.min, meta.unit) * 1000) / 1000,
+      Math.round(convertForDisplay(target.max, meta.unit) * 1000) / 1000,
+      displayUnit(meta.unit),
+      Math.round(convertForDisplay(range.min, meta.unit) * 1000) / 1000,
+      Math.round(convertForDisplay(range.max, meta.unit) * 1000) / 1000,
+      range.min >= target.min - 1e-9 && range.max <= target.max + 1e-9 ? 'yes' : 'no',
+    ]);
+  });
+  rows.push([]);
+  rows.push(['Build', 'From', 'Size', 'Ranges', 'Material a part']);
+  for (const build of result.passingBest) {
+    const row = proposalRow(result.state, build);
+    rows.push([row.move, row.originLabel, row.size, row.property, row.added]);
+  }
+  if (!result.passingBest.length && result.gaps) {
+    rows.push([]);
+    rows.push(['Gap', 'Needs', 'This delivery gives']);
+    for (const gap of result.gaps) rows.push([gap.property, formatRange(gap.required, gap.unit), formatRange(gap.batch, gap.unit)]);
+  }
+  return rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+}
+
+function resultsJson(result) {
+  const clean = (build) => build ? {
+    move: build.move,
+    from: proposalRow(result.state, build).originLabel,
+    size: build.part,
+    ranges: build.ranges,
+    material_a_part_g: Math.round(build.addedG * 10) / 10,
+  } : null;
+  return JSON.stringify({
+    exportedFrom: 'AnyRB page',
+    units: 'metric (mm, kg, g, N/mm, MPa, g/cm3) — the page converts for display; this file does not',
+    part: { product: state.product, mode: state.mode, spanMm: state.spanMm, widthMm: state.widthMm, thicknessMm: state.thicknessMm },
+    targets: result.targets,
+    delivery: { type: state.plastic.type, stiffnessMpa: [state.plastic.eMin, state.plastic.eMax], strengthMpa: [state.plastic.sMin, state.plastic.sMax], density: state.plastic.density },
+    decision: lastDecision ? lastDecision.headline : '',
+    currentBuild: clean(result.current),
+    winningBuild: clean(result.winner),
+    passingBuilds: result.passingBest.map(clean),
+  }, null, 2);
+}
+
+$('dl-txt').addEventListener('click', () => {
+  if (!lastResult || !lastDecision) return;
+  downloadFile('anyrb-build.txt', `${lastDecision.copy}\n`, 'text/plain');
+});
+$('dl-csv').addEventListener('click', () => {
+  if (!lastResult) return;
+  downloadFile('anyrb-results.csv', resultsCsv(lastResult), 'text/csv');
+});
+$('dl-json').addEventListener('click', () => {
+  if (!lastResult) return;
+  downloadFile('anyrb-results.json', resultsJson(lastResult), 'application/json');
+});
+
+const FIELD_LABELS = {
+  span: 'Span', width: 'Width', thickness: 'Thickness',
+  'other-span': 'Span', 'other-width': 'Width', 'other-thickness': 'Thickness',
+  'e-min': 'Stiffness low', 'e-max': 'Stiffness high', 's-min': 'Strength low', 's-max': 'Strength high',
+  density: 'Density', 'steady-e': 'Its stiffness', 'steady-s': 'Its strength',
+};
+function updateUnitLabels() {
+  for (const [id, label] of Object.entries(FIELD_LABELS)) {
+    const el = document.querySelector(`label[for="${id}"]`);
+    if (el) el.textContent = `${label} (${displayUnit(FIELD_UNITS[id])})`;
+  }
+  const currentProperty = $('property').value;
+  setSelectOptions('property', PROPERTIES.map((item) => ({ key: item.key, label: `${item.label} (${displayUnit(item.unit)})` })));
+  $('property').value = currentProperty || state.target.property;
+  updateTargetLabels();
+}
+function syncUnitButtons() {
+  $('unit-metric').classList.toggle('is-active', settings.units === 'metric');
+  $('unit-imperial').classList.toggle('is-active', settings.units === 'imperial');
+  $('unit-metric').setAttribute('aria-pressed', String(settings.units === 'metric'));
+  $('unit-imperial').setAttribute('aria-pressed', String(settings.units === 'imperial'));
+}
+function applyUnits(system) {
+  settings.units = system === 'imperial' ? 'imperial' : 'metric';
+  localStorage.setItem('anyrb.units', settings.units);
+  setUnitSystem(settings.units);
+  syncUnitButtons();
+  updateUnitLabels();
+  paint();
+  refresh({ model: false });
+}
+$('unit-metric').addEventListener('click', () => applyUnits('metric'));
+$('unit-imperial').addEventListener('click', () => applyUnits('imperial'));
+
+$('settings-open').addEventListener('click', () => {
+  $('set-provider').value = settings.provider;
+  $('set-model').value = settings.model;
+  $('set-key').value = '';
+  $('set-key').placeholder = userKey ? 'Your key is saved for this tab' : 'Paste your own key';
+  $('settings-dialog').showModal();
+});
+$('set-cancel').addEventListener('click', () => $('settings-dialog').close());
+$('set-clear-key').addEventListener('click', () => {
+  userKey = '';
+  sessionStorage.removeItem('anyrb.key');
+  $('set-key').value = '';
+  $('set-key').placeholder = 'Paste your own key';
+  $('key-note').textContent = 'Your key was removed from this tab.';
+});
+$('settings-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  settings.provider = $('set-provider').value;
+  settings.model = $('set-model').value;
+  localStorage.setItem('anyrb.provider', settings.provider);
+  localStorage.setItem('anyrb.model', settings.model);
+  const entered = $('set-key').value.trim();
+  if (entered) {
+    userKey = entered;
+    sessionStorage.setItem('anyrb.key', userKey);
+  }
+  $('settings-dialog').close();
+  refresh();
+});
+syncUnitButtons();
+updateUnitLabels();
 
 paint();
 const initial = evaluateBuilds(state, []);

@@ -79,6 +79,16 @@ def _rate_limit(request: Request) -> None:
     q.append(now)
 
 
+def _user_meta_scope(request: Request):
+    """The page's Settings may supply the user's own Meta key/model per request.
+
+    Read from headers only, used for this request only, never stored or logged.
+    """
+    key = (request.headers.get("x-user-meta-key") or "").strip()[:512] or None
+    model = (request.headers.get("x-user-meta-model") or "").strip() or None
+    return meta_client.request_scope(key=key, model=model)
+
+
 def _want_mock(request: Request) -> bool | None:
     """Per-request mock override: ?mock=1 / ?mock=0 or X-AnyRB-Mock header.
 
@@ -561,21 +571,24 @@ def proof_memo(body: schemas.ProofIn, request: Request) -> dict:
 def product_proposals(body: product_ai.ProductProposalRequest, request: Request) -> dict:
     """Meta-proposed MOVE parameters only; the browser scores them deterministically."""
     _rate_limit(request)
-    return product_ai.propose(body, mock=_want_mock(request))
+    with _user_meta_scope(request):
+        return product_ai.propose(body, mock=_want_mock(request))
 
 
 @app.post("/api/product/advice")
 def product_advice(body: product_ai.ProductAdviceRequest, request: Request) -> dict:
     """Meta batch-help advice with practical actions; only supplied numbers are allowed."""
     _rate_limit(request)
-    return product_ai.advise(body, mock=_want_mock(request))
+    with _user_meta_scope(request):
+        return product_ai.advise(body, mock=_want_mock(request))
 
 
 @app.post("/api/product/brief")
 def product_brief(body: product_ai.ProductBriefRequest, request: Request) -> dict:
     """Meta natural-language shop request -> editable brief (extract-only, never invented)."""
     _rate_limit(request)
-    return product_ai.parse_product_brief(body, mock=_want_mock(request))
+    with _user_meta_scope(request):
+        return product_ai.parse_product_brief(body, mock=_want_mock(request))
 
 
 @app.post("/api/voice/transcribe")
@@ -584,8 +597,9 @@ async def voice_transcribe(request: Request, audio: UploadFile = File(...)) -> d
     data = await audio.read()
     if not data or len(data) > MAX_UPLOAD:
         raise HTTPException(413, "audio missing or too large")
-    out = meta_client.transcribe(data, filename=audio.filename or "brief.wav",
-                                 mock=_want_mock(request))
+    with _user_meta_scope(request):
+        out = meta_client.transcribe(data, filename=audio.filename or "brief.wav",
+                                     mock=_want_mock(request))
     return _respond(schemas.VoiceResponse, {
         "transcript": out.get("transcript", ""),
         "duration_s": out.get("duration_s"),

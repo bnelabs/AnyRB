@@ -12,6 +12,12 @@
 <header class="top">
   <a class="brand" href="#main" aria-label="AnyRB">AnyRB</a>
   <span class="top-note">From this delivery to a build that holds</span>
+  <div class="top-actions">
+    <div class="unit-toggle" role="group" aria-label="Units">
+      <button id="unit-metric" type="button">Metric</button><button id="unit-imperial" type="button">Imperial</button>
+    </div>
+    <button class="settings-open" id="settings-open" type="button">Settings</button>
+  </div>
 </header>
 
 <div class="decision-bar" id="decision-bar" hidden>
@@ -36,11 +42,13 @@
       </div>
       <p class="brief-status" id="brief-status"></p>
     </div>
-    <ol class="steps" id="steps" aria-label="What the decision needs">
-      <li class="step" data-step="part"><span class="step-num">1</span><span class="step-text"><strong>The part</strong> — name it and size it</span></li>
-      <li class="step" data-step="target"><span class="step-num">2</span><span class="step-text"><strong>What must hold</strong> — one property or several</span></li>
-      <li class="step" data-step="batch"><span class="step-num">3</span><span class="step-text"><strong>This delivery</strong> — its measured low and high</span></li>
-    </ol>
+    <div class="progress" id="progress">
+      <div class="progress-head">
+        <h3 class="progress-title">Progress</h3>
+        <p class="progress-next" id="progress-next"></p>
+      </div>
+      <ol class="progress-list" id="progress-list"></ol>
+    </div>
     <div class="cases" id="cases" aria-label="Start with a part">
       <span class="cases-label">Examples</span>
       <button class="case" type="button" data-case="bracket">Bracket</button>
@@ -95,6 +103,15 @@
           <p class="run-note" id="run-note"></p>
         </div>
         <ol class="build-list" id="build-list"></ol>
+        <div class="downloads" id="downloads" hidden>
+          <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
+          <div class="downloads-row">
+            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
+            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
+            <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
+          </div>
+          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
+        </div>
         <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
         <div class="meta-trace" id="meta-trace" hidden></div>
       </div>
@@ -172,6 +189,36 @@
     </section>
   </div>
 </main>
+
+<dialog class="settings" id="settings-dialog" aria-labelledby="settings-title">
+  <form id="settings-form" method="dialog">
+    <h2 id="settings-title">Settings</h2>
+    <div class="field">
+      <label for="set-provider">Model</label>
+      <select id="set-provider">
+        <option value="meta">Meta Model API</option>
+        <option value="local">No model — local checker only</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="set-model">Muse Spark model</label>
+      <select id="set-model">
+        <option value="muse-spark-1.3-contributor">Muse Spark 1.3 Contributor</option>
+        <option value="muse-spark-1.3">Muse Spark 1.3</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="set-key">Your Meta API key (optional)</label>
+      <input id="set-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your own key">
+    </div>
+    <p class="settings-note" id="key-note">If the server already has a key, you do not need one. Your own key is kept in this browser tab only, sent only to the server on this machine when Meta is called, and never written into the page, the files, or this repository. It is gone when the tab closes.</p>
+    <div class="settings-row">
+      <button class="dl-button" id="set-clear-key" type="button">Remove my key</button>
+      <button class="settings-save" id="set-save" type="submit">Save</button>
+      <button class="dl-button" id="set-cancel" type="button">Cancel</button>
+    </div>
+  </form>
+</dialog>
 
 <div class="sr-only" id="live" aria-live="polite" aria-atomic="true"></div>
 <script type="module" src="main.js"></script>

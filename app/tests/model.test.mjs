@@ -429,3 +429,37 @@ test('the sample brief is shop language, and the batch picker is on the page', a
   assert.match(js, /recycled HDPE from one supplier, fairly clean/);
   assert.doesNotMatch(js, /SAMPLE_BRIEF = '[^']*MPa/);
 });
+
+test('imperial display converts values and never touches the mechanics', async () => {
+  const m = await import('../product.js');
+  const part = { product: 'crate side', mode: 'simple', spanMm: 400, widthMm: 60, thicknessMm: 15 };
+  const metricCapacity = m.capacityN(part, 1000, 40);
+  m.setUnitSystem('imperial');
+  try {
+    assert.match(m.formatRange({ min: 100, max: 100, unit: 'kg' }), /lb/);
+    assert.match(m.formatRange({ min: 700, max: 850, unit: 'MPa' }), /psi/);
+    assert.match(m.buildSizeText(part), /in crate side/);
+    assert.doesNotMatch(m.buildSizeText(part), /mm/);
+    assert.equal(m.capacityN(part, 1000, 40), metricCapacity);
+  } finally {
+    m.setUnitSystem('metric');
+  }
+  assert.match(m.buildSizeText(part), /400 mm crate side/);
+});
+
+test('settings, progress and downloads are wired without a key in the source', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="settings-dialog"/);
+  assert.match(html, /id="set-provider"/);
+  assert.match(html, /id="unit-imperial"/);
+  assert.match(html, /id="progress-list"/);
+  assert.match(html, /id="dl-txt"/);
+  assert.match(html, /id="dl-csv"/);
+  assert.match(html, /id="dl-json"/);
+  assert.match(js, /X-User-Meta-Key/);
+  assert.match(js, /sessionStorage/);
+  assert.match(js, /setUnitSystem/);
+  assert.doesNotMatch(js, /META_API_KEY\s*=/);
+});

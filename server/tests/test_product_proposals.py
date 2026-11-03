@@ -530,3 +530,36 @@ def test_verifier_feedback_endpoint_accepts_and_stays_parameter_only(client, mon
     data = client.post(ENDPOINT, json=body).json()
     assert data["_meta"]["fallback"] is False
     _assert_parameter_only(data)
+
+
+def test_user_supplied_key_is_used_for_this_request_only(client, monkeypatch):
+    import json as _json
+    from server import meta_client
+    seen = {}
+
+    class FakeResponse:
+        status_code = 200
+        def raise_for_status(self): return None
+        def json(self):
+            return {"choices": [{"message": {"content": _json.dumps({"proposals": [{"move": "thickness", "thickness_mm": 16}]})}, "finish_reason": "stop"}], "usage": {}}
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, *a, **k):
+            seen["auth"] = (k.get("headers") or {}).get("Authorization")
+            return FakeResponse()
+
+    monkeypatch.setattr(meta_client.httpx, "Client", FakeClient)
+    monkeypatch.setattr(meta_client, "MOCK", False)
+    monkeypatch.setattr(meta_client, "KEY", "")
+    body = _unique_body("user-key")
+    # without a key: offline fallback, no invented proposals
+    offline = client.post(ENDPOINT, json=body).json()
+    assert offline["proposals"] == [] and offline["_meta"]["fallback"] is True
+    # with the user's own key in the header: the live path runs with that key
+    live = client.post(ENDPOINT, json=body, headers={"X-User-Meta-Key": "user-test-key-123"}).json()
+    assert live["_meta"]["fallback"] is False
+    assert seen["auth"] == "Bearer user-test-key-123"
+    assert "user-test-key-123" not in _json.dumps(live)
