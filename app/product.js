@@ -617,12 +617,12 @@ export function materialGap(stateInput, part, targetInput = null) {
   if (buckling && buckling.governs) {
     action = `This part buckles before it crushes: at the delivery's low stiffness it carries about ${formatNumber(buckling.capacityKgAtLowStiffness)} kg. Make it thicker or shorter, or bring in a stiffer stream — a stronger plastic alone does not lift this.`;
   } else if (rangeTooWide) {
-    action = 'The delivery swings too wide for this range. A thicker or wider section scales both ends together, so it cannot narrow the swing; add a steadier stream or sort out the soft fraction first.';
+    action = 'This delivery varies too much for the range you need. A thicker or wider part raises both ends together, so it cannot fix this. Mix in a steadier plastic, or sort the weakest pieces out first.';
     if (steadyShort > 0) action += ` Your declared steadier stream gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}.`;
   } else if (steadyShort > 0) {
-    action = `Your declared steadier stream gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}. Add a stronger stream or change the section.`;
+    action = `Your steadier plastic gives ${formatNumber(steadyValue)} ${required.unit}; this part needs at least ${formatNumber(required.min)} ${required.unit}. Use a stronger steadier plastic, or change the part size.`;
   } else if (shortLow > 0 && overHigh > 0) {
-    action = 'Lift the low end and bring the high end down.';
+    action = 'Raise the weak end and bring the strong end down.';
   } else if (shortLow > 0) {
     action = target.property === 'weight'
       ? 'Use a denser fraction, or change the section.'
@@ -1012,9 +1012,9 @@ export function decisionFor(stateInput, result) {
     const unit = primary.unit;
     let headline;
     if (primary.buckling && primary.buckling.governs) headline = 'Thicken or shorten this part.';
-    else if (primary.rangeTooWide) headline = `Narrow the ${meta.noun} swing.`;
-    else if (primary.shortLow > 0) headline = `Lift the ${meta.noun} low end by ${formatNumber(primary.shortLow)} ${unit}.`;
-    else if (primary.overHigh > 0) headline = `Bring the ${meta.noun} high end down by ${formatNumber(primary.overHigh)} ${unit}.`;
+    else if (primary.rangeTooWide) headline = `This delivery varies too much in ${meta.noun}.`;
+    else if (primary.shortLow > 0) headline = `The weak end of the ${meta.noun} must rise by ${formatNumber(primary.shortLow)} ${unit}.`;
+    else if (primary.overHigh > 0) headline = `The strong end of the ${meta.noun} must come down by ${formatNumber(primary.overHigh)} ${unit}.`;
     else headline = 'This build needs a different section.';
     const statements = gaps.map((gap) => {
       const gapMeta = propertyMeta(gap.property);
@@ -1093,7 +1093,7 @@ export function proposalRow(stateInput, item) {
       return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
     }).join(' · '),
     added: blendPercent
-      ? `${blendPercent}% steadier stream · ${formatNumber(convertForDisplay((blendPercent / 100) * massG(item.part, state.plastic.density), 'g'))} ${displayUnit('g')} a part`
+      ? `${blendPercent}% steadier plastic · ${formatNumber(convertForDisplay((blendPercent / 100) * massG(item.part, state.plastic.density), 'g'))} ${displayUnit('g')} a part`
       : addedMaterialText(item.addedG),
     winner: false,
     blend: blendPercent,

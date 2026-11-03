@@ -11,7 +11,7 @@
 <body>
 <header class="top">
   <a class="brand" href="#main" aria-label="AnyRB">AnyRB</a>
-  <span class="top-note">From this delivery to a build that holds</span>
+  <span class="top-note">What can this delivery become?</span>
   <div class="top-actions">
     <div class="unit-toggle" role="group" aria-label="Units">
       <button id="unit-metric" type="button">Metric</button><button id="unit-imperial" type="button">Imperial</button>
@@ -34,12 +34,12 @@
     <div class="brief">
       <div class="brief-head">
         <label for="brief">Describe the part and this delivery</label>
-        <button class="brief-sample" id="brief-sample" type="button">Try an example brief</button>
+        <button class="brief-sample" id="brief-sample" type="button">Try an example</button>
       </div>
       <div class="brief-row">
-        <textarea id="brief" rows="2" placeholder="The part, what it must hold, and what this delivery measures. Type it, speak it, or use the sample brief."></textarea>
-        <button class="brief-submit" id="brief-submit" type="button">Read my brief</button>
-        <button class="brief-voice" id="brief-voice" type="button">Speak</button>
+        <textarea id="brief" rows="2" placeholder="The part, what it has to do, and what this delivery is like. Type it, or say it out loud."></textarea>
+        <button class="brief-submit" id="brief-submit" type="button">Fill in the form</button>
+        <button class="brief-voice" id="brief-voice" type="button">Use your voice</button>
       </div>
       <p class="brief-help">These words go to Muse Spark on the server, which fills the fields below from what you said. You can correct every field afterwards.</p>
       <p class="brief-status" id="brief-status"></p>
@@ -81,35 +81,35 @@
       </div>
       <div class="builds" id="builds-panel" hidden>
         <div class="section-head">
-          <h3>Builds that pass</h3>
+          <h3>Builds that work</h3>
           <p class="model-status" id="model-status">Scoring this delivery…</p>
         </div>
         <div class="range-view" id="range-view"></div>
         <div class="run-row">
-          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
+          <div class="field run-field"><label for="run-size">How many parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
           <p class="run-note" id="run-note"></p>
         </div>
         <ol class="build-list" id="build-list"></ol>
         <div class="downloads" id="downloads" hidden>
           <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
           <div class="downloads-row">
-            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
-            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
+            <button class="dl-button" id="dl-txt" type="button">Build sheet (.txt)</button>
+            <button class="dl-button" id="dl-csv" type="button">Spreadsheet (.csv)</button>
             <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
           </div>
-          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
+          <p class="downloads-formats">The build sheet is a text file to print or paste. The spreadsheet opens in Excel or Google Sheets. JSON is the same results as data for another system, in metric with the units named in the file.</p>
         </div>
         <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
         <div class="meta-trace" id="meta-trace" hidden></div>
       </div>
 
-      <h3 class="results-subhead" id="gap-title" hidden>In batch terms — what the plastic needs to be</h3>
+      <h3 class="results-subhead" id="gap-title" hidden>What this delivery would need</h3>
       <div class="gap" id="gap" aria-live="polite" hidden></div>
 
       <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
         <h3 id="ask-title">Ask about this delivery</h3>
         <div class="ask-row">
-          <input id="ask-question" type="text" placeholder="What should I add or change to make this batch work?" autocomplete="off">
+          <input id="ask-question" type="text" placeholder="What should I add or change to make this delivery work?" autocomplete="off">
           <button class="ask-button" id="ask-button" type="button">Ask</button>
         </div>
         <p class="ask-status" id="ask-status"></p>
@@ -119,15 +119,15 @@
 
         <div class="bench">
     <section class="engineering" aria-labelledby="engineering-title">
-      <h2 id="engineering-title"><span class="sec-num">01</span>Engineering</h2>
-      <p class="section-note">Change the build, not the plastic. Works for a solid rectangular section on the three load paths below. The ranges you enter are checked as entered — no extra safety factor is added.</p>
+      <h2 id="engineering-title"><span class="sec-num">01</span>The part</h2>
+      <p class="section-note">The part, its size, and what it has to do. Works for a solid rectangular section held in one of the three ways below. The ranges you enter are checked exactly as entered.</p>
       <div class="fields">
         <div class="field">
           <label for="product">Product</label>
           <input id="product" type="text" spellcheck="false" placeholder="planter, crate, slat, pallet block…">
         </div>
         <div class="field">
-          <label for="mode">Carries load by</label>
+          <label for="mode">How the part is held</label>
           <select id="mode"></select>
         </div>
         <div class="grid3">
@@ -136,7 +136,7 @@
           <div class="field"><label for="thickness">Thickness (mm)</label><input id="thickness" inputmode="decimal" type="text" placeholder="mm"></div>
         </div>
         <div class="field">
-          <label for="property">What has to hold</label>
+          <label for="property">What it has to do</label>
           <select id="property"></select>
         </div>
         <div class="grid2">
@@ -148,10 +148,10 @@
       </div>
 
       <details class="other-group">
-        <summary>Other product you sell</summary>
+        <summary>Another product you make</summary>
         <div class="fields">
           <div class="field"><label for="other-product">Product</label><input id="other-product" type="text" spellcheck="false" placeholder="a heavier part you sell"></div>
-          <div class="field"><label for="other-mode">Carries load by</label><select id="other-mode"></select></div>
+          <div class="field"><label for="other-mode">How the part is held</label><select id="other-mode"></select></div>
           <div class="grid3">
             <div class="field"><label for="other-span">Span (mm)</label><input id="other-span" inputmode="decimal" type="text"></div>
             <div class="field"><label for="other-width">Width (mm)</label><input id="other-width" inputmode="decimal" type="text"></div>
@@ -162,7 +162,7 @@
     </section>
 
     <section class="batch" aria-labelledby="batch-title">
-      <h2 id="batch-title"><span class="sec-num">02</span>Batch</h2>
+      <h2 id="batch-title"><span class="sec-num">02</span>This delivery</h2>
       <p class="section-note">Every delivery of recycled plastic bends and breaks a little differently. Start from a published range for the kind of plastic — or use your supplier's numbers if you have them. Nobody is expected to know these by heart.</p>
       <div class="fields">
         <div class="field">
@@ -198,7 +198,7 @@
           <label class="check" for="steady-available"><input id="steady-available" type="checkbox"> A steadier plastic is available to mix in</label>
         </div>
         <div id="steady-fields" class="steady-fields" hidden>
-          <div class="field"><label for="steady-type">Steadier plastic</label><input id="steady-type" type="text" spellcheck="false" placeholder="stiffer stream"></div>
+          <div class="field"><label for="steady-type">Steadier plastic</label><input id="steady-type" type="text" spellcheck="false" placeholder="the stiffer plastic you can get"></div>
           <div class="grid2">
             <div class="field"><label for="steady-e">Its stiffness (MPa)</label><input id="steady-e" inputmode="decimal" type="text"></div>
             <div class="field"><label for="steady-s">Its strength (MPa)</label><input id="steady-s" inputmode="decimal" type="text"></div>

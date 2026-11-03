@@ -318,7 +318,7 @@ test('an impossible target does not say "do not use the delivery"', () => {
   assert.ok(result.gaps.length);
   const decision = decisionFor(s, result);
   assert.doesNotMatch(decision.headline, /do not use|don't use/i);
-  assert.match(decision.headline, /^(Lift the strength low end|Narrow the strength swing)/);
+  assert.match(decision.headline, /^(The weak end of the strength must rise|This delivery varies too much)/);
   assert.equal(decision.button, 'Ask about this delivery');
 });
 

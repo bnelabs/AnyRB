@@ -313,7 +313,7 @@ function renderBuildList(result) {
     if (item === result.winner) {
       const least = document.createElement('span');
       least.className = 'least';
-      least.textContent = 'least material brought in';
+      least.textContent = 'uses the least extra material';
       move.append(least);
     }
     if (row.originLabel) {
@@ -348,7 +348,7 @@ function renderGap(result) {
   if (result.winner) {
     const intro = document.createElement('p');
     intro.className = 'gap-note';
-    intro.textContent = 'Why this works, in batch terms. “Needs” is what the build asks of the plastic; “gives” is this delivery, in supplier-sheet units (MPa).';
+    intro.textContent = '“Needs” is what the part asks of the plastic. “Gives” is this delivery, in the units a supplier sheet uses (MPa).';
     gap.append(intro);
     for (const target of result.targets) {
       const meta = propertyMeta(target.property);
@@ -370,7 +370,7 @@ function renderGap(result) {
   const head = document.createElement('p');
   head.className = 'gap-head';
   if (primary.rangeTooWide) {
-    head.textContent = 'This delivery swings too wide for at least one target.';
+    head.textContent = 'This delivery varies too much for at least one of these.';
   } else {
     const short = primary.shortLow > 0
       ? `${primary.shortLow.toFixed(primary.shortLow >= 10 ? 0 : 1)} ${primary.unit} short at the low end`
@@ -380,7 +380,7 @@ function renderGap(result) {
   gap.append(head);
   const intro = document.createElement('p');
   intro.className = 'gap-note';
-  intro.textContent = '“Needs” is what the build asks of the plastic; “gives” is this delivery, in supplier-sheet units (MPa).';
+  intro.textContent = '“Needs” is what the part asks of the plastic. “Gives” is this delivery, in the units a supplier sheet uses (MPa).';
   gap.append(intro);
   for (const item of result.gaps) {
     const meta = propertyMeta(item.property);
@@ -403,7 +403,7 @@ function renderTrace(result) {
   const rejected = items.length - accepted;
   const head = document.createElement('p');
   head.className = 'trace-head';
-  head.textContent = `${aiName()} proposed ${items.length} move${items.length === 1 ? '' : 's'}. Checked at the exact size proposed: ${accepted} pass${accepted === 1 ? 'es' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
+  head.textContent = `${aiName()} proposed ${items.length} move${items.length === 1 ? '' : 's'}. At the size proposed: ${accepted} work${accepted === 1 ? 's' : ''}, ${rejected} do${rejected === 1 ? 'es' : ''} not.`;
   trace.append(head);
   for (const item of items.slice(0, 5)) {
     const row = proposalRow(result.state, { ...item, addedG: 0, range: item.ranges[0] });
@@ -421,7 +421,7 @@ function renderTrace(result) {
   const note = document.createElement('p');
   note.className = 'trace-note';
   note.textContent = rejected
-    ? 'Moves that do not pass at the proposed size are handed to the mechanics search; the passing builds above are its result, in the direction the model proposed.'
+    ? 'Moves that don’t work at that size go to the checker, which finds a size that works in the same direction. Those are the builds above.'
     : 'The exact model proposals were checked before the mechanics search.';
   trace.append(note);
 }
@@ -463,7 +463,7 @@ function renderProgress(result) {
           : 'not checked yet';
   const items = [
     { label: 'The part', detail: partDone ? `${state.product}, sized below` : 'name it and set its size', done: partDone },
-    { label: 'What must hold', detail: targetDone ? 'set below — every one has to hold at once' : 'add at least one property range', done: targetDone },
+    { label: 'What it has to do', detail: targetDone ? 'set below — every one has to hold at once' : 'add at least one property range', done: targetDone },
     { label: 'This delivery', detail: batchDone ? 'set below' : 'pick a published range, or enter supplier numbers', done: batchDone },
     { label: 'Model check', detail: metaDetail, done: modelState === 'meta', info: true },
     {
@@ -494,7 +494,7 @@ function renderProgress(result) {
   if (!partDone) next = 'Next: name the part and set its size.';
   else if (!targetDone) next = 'Next: add a property that has to hold.';
   else if (!batchDone) next = 'Next: set this delivery — pick a published range, or enter supplier numbers.';
-  else if (result && result.winner) next = 'Next: copy the build, or download it under “Builds that pass”.';
+  else if (result && result.winner) next = 'Next: copy the build, or download it under “Builds that work”.';
   else if (result && result.ready) next = 'Next: follow the change in the headline — or ask Meta about this batch below.';
   else next = 'Next: finish the steps above.';
   $('progress-next').textContent = next;
@@ -512,7 +512,7 @@ function renderVerdict(result, decision) {
   $('gap-title').hidden = false;
   const item = result.winner || result.current;
   const chip = $('verdict-chip');
-  chip.textContent = result.winner ? 'Works' : 'Does not pass';
+  chip.textContent = result.winner ? 'Works' : 'Doesn’t work yet';
   chip.className = `verdict-chip ${result.winner ? 'pass' : 'fail'}`;
   $('verdict-title').textContent = decision.headline;
   $('verdict-build').textContent = result.winner
@@ -541,7 +541,7 @@ function renderVerdict(result, decision) {
     if (passes) {
       const lowMargin = range.min - target.min;
       const highMargin = target.max - range.max;
-      status.textContent = `Inside · margin ${fmtVal(Math.min(lowMargin, highMargin), meta.unit)}`;
+      status.textContent = `Inside · ${fmtVal(Math.min(lowMargin, highMargin), meta.unit)} to spare`;
     } else if (range.min < target.min && range.max > target.max) {
       status.textContent = `Short ${fmtVal(target.min - range.min, meta.unit)} low, over ${fmtVal(range.max - target.max, meta.unit)} high`;
     } else if (range.min < target.min) {
@@ -579,7 +579,7 @@ function renderVerdict(result, decision) {
   legend.className = 'v-legend';
   const lc = document.createElement('td');
   lc.colSpan = 4;
-  lc.textContent = 'Pale band: what you need. Solid bar: what this build gives across the full delivery swing.';
+  lc.textContent = 'Pale band: what you need. Dark bar: what this build gives, from the weakest to the strongest end of this delivery.';
   legend.append(lc);
   tbody.append(legend);
   $('verdict-next').textContent = result.winner
@@ -655,7 +655,7 @@ function renderRangeView(result) {
   });
   const legend = document.createElement('p');
   legend.className = 'rv-legend';
-  legend.textContent = 'Pale band: what you need. Solid bar: what this build gives across the full delivery swing.';
+  legend.textContent = 'Pale band: what you need. Dark bar: what this build gives, from the weakest to the strongest end of this delivery.';
   wrap.append(legend);
 }
 
@@ -924,7 +924,7 @@ async function askMeta() {
   const payload = advicePayload(state, result, question);
   const seq = ++adviceSeq;
   if (modelOff()) {
-    $('ask-status').textContent = 'The model is off in Settings, so there is no Meta answer. The calculated plan above still applies.';
+    $('ask-status').textContent = 'The model is off in Settings, so there is no answer from it. The plan above still applies.';
     return;
   }
   $('ask-status').textContent = `${aiName()} is thinking…`;
@@ -1151,7 +1151,7 @@ function encodeWav(buffer) {
 
 function resetVoiceButton() {
   const button = $('brief-voice');
-  button.textContent = 'Speak';
+  button.textContent = 'Use your voice';
   button.classList.remove('is-recording');
   button.setAttribute('aria-pressed', 'false');
   button.disabled = false;
@@ -1163,7 +1163,7 @@ function resetVoiceButton() {
 }
 
 async function sendVoice(blob) {
-  $('brief-status').textContent = 'Muse Voice is transcribing the brief…';
+  $('brief-status').textContent = 'Writing down what you said…';
   const data = new FormData();
   data.append('audio', blob, 'brief.wav');
   const controller = new AbortController();
@@ -1178,7 +1178,7 @@ async function sendVoice(blob) {
     const result = await response.json();
     const transcript = (result.transcript || '').trim();
     if (!response.ok || !transcript) {
-      $('brief-status').textContent = 'Muse Voice could not hear that brief. Try again or type it.';
+      $('brief-status').textContent = 'The voice could not be heard clearly. Try again, or type it.';
       return;
     }
     const field = $('brief');
@@ -1186,10 +1186,10 @@ async function sendVoice(blob) {
     field.focus();
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
-    $('brief-status').textContent = `Voice heard the brief. ${aiName()} is reading it…`;
+    $('brief-status').textContent = `Voice heard it. ${aiName()} is filling in the form…`;
     await readBrief();
   } catch (error) {
-    $('brief-status').textContent = 'Muse Voice is unavailable. Type the brief instead.';
+    $('brief-status').textContent = 'Voice is unavailable. Type the description instead.';
   } finally {
     window.clearTimeout(timer);
     resetVoiceButton();
@@ -1199,7 +1199,7 @@ async function sendVoice(blob) {
 async function toggleVoice() {
   const button = $('brief-voice');
   if (modelOff() && !(voiceRecorder && voiceRecorder.state === 'recording')) {
-    $('brief-status').textContent = 'The model is off in Settings, so voice is off too. Type the brief, or turn Meta on in Settings.';
+    $('brief-status').textContent = 'The model is off in Settings, so voice is off too. Type the description, or turn the model on in Settings.';
     return;
   }
   if (voiceRecorder && voiceRecorder.state === 'recording') {
@@ -1210,7 +1210,7 @@ async function toggleVoice() {
   }
   if (voiceBusy) return;
   if (!navigator.mediaDevices || !window.MediaRecorder) {
-    $('brief-status').textContent = 'This browser cannot record audio. Type the brief instead.';
+    $('brief-status').textContent = 'This browser cannot record audio. Type the description instead.';
     return;
   }
   voiceBusy = true;
@@ -1228,7 +1228,7 @@ async function toggleVoice() {
         const wav = await blobToWav(blob);
         await sendVoice(wav);
       } catch (error) {
-        $('brief-status').textContent = 'Could not convert that recording. Type the brief instead.';
+        $('brief-status').textContent = 'Could not use that recording. Type the description instead.';
         resetVoiceButton();
       }
     });
@@ -1236,9 +1236,9 @@ async function toggleVoice() {
     button.textContent = 'Stop';
     button.classList.add('is-recording');
     button.setAttribute('aria-pressed', 'true');
-    $('brief-status').textContent = 'Listening. Say the brief, then press Stop.';
+    $('brief-status').textContent = 'Listening — describe the part out loud, then press Stop.';
   } catch (error) {
-    $('brief-status').textContent = 'Microphone permission was not granted. Type the brief instead.';
+    $('brief-status').textContent = 'Microphone permission was not given. Type the description instead.';
     resetVoiceButton();
   }
 }
@@ -1306,19 +1306,19 @@ async function readBrief() {
   const text = field.value.trim();
   if (!text) {
     field.focus();
-    $('brief-status').textContent = 'Describe the part, the properties that must hold, and this delivery.';
+    $('brief-status').textContent = 'Describe the part, what it has to do, and this delivery.';
     return;
   }
   if (modelOff()) {
-    $('brief-status').textContent = 'The model is off in Settings, so the brief is not read. Fill the fields below, pick an example, or turn Meta on in Settings.';
+    $('brief-status').textContent = 'The model is off in Settings, so this won’t be filled in for you. Fill the fields below, pick an example, or turn the model on in Settings.';
     field.focus();
     return;
   }
   const button = $('brief-submit');
   button.disabled = true;
-  $('brief-status').textContent = `${aiName()} is reading the brief…`;
+  $('brief-status').textContent = `${aiName()} is filling in the form…`;
   $('brief-status').classList.add('is-working');
-  $('support').textContent = `${aiName()} is reading the brief. This usually takes about ten seconds — you do not need to fill anything in while it works.`;
+  $('support').textContent = `${aiName()} is filling in the form. This usually takes about ten seconds — you do not need to fill anything in while it works.`;
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
@@ -1330,7 +1330,7 @@ async function readBrief() {
     });
     const data = await response.json();
     if (!response.ok || !data.available || !data.brief) {
-      $('brief-status').textContent = `${aiName()} could not read that brief. Fill the fields below, or try again.`;
+      $('brief-status').textContent = `${aiName()} could not fill the form from that description. Try again, or fill the fields below.`;
       render(evaluateBuilds(state, modelProposals));
       return;
     }
@@ -1346,9 +1346,9 @@ async function readBrief() {
     const publishedNote = briefPublished
       ? ` For this delivery I used “${briefPublished.label}” — a published range, not a measurement of this delivery. Change it under Batch if your supplier's numbers differ.`
       : '';
-    $('brief-status').textContent = `${aiName()} read ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill. ${source}${publishedNote}`;
+    $('brief-status').textContent = `${aiName()} filled in ${state.product || 'the part'} and ${targetCount} requirement${targetCount === 1 ? '' : 's'}. Check the fields; anything not stated remains yours to fill. ${source}${publishedNote}`;
   } catch (error) {
-    $('brief-status').textContent = 'The model is unavailable. Fill the fields below; the local mechanics still works.';
+    $('brief-status').textContent = 'The model is unavailable. Fill the fields below; the checker on this page still works.';
     render(evaluateBuilds(state, modelProposals));
   } finally {
     $('brief-status').classList.remove('is-working');
