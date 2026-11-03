@@ -5,7 +5,8 @@
 A small shop buys recycled plastic by the delivery, and no two deliveries bend or break the same
 way. AnyRB turns one delivery into a decision: a build that holds, a blend that closes the gap, or
 the exact change — thicker section, steadier stream, different part — that makes the delivery
-usable. It never answers "don't use this batch."
+usable. If a delivery cannot hold the part as entered, the result is the material range the part
+needs and the changes that could close the gap.
 
 ## Why this exists
 
@@ -85,16 +86,7 @@ The model proposes; a deterministic checker disposes. No strength, stiffness or 
 page is written by a model — every one is calculated from the part size and the delivery range,
 and the page labels each build "proposed by Muse Spark," "direction from Muse Spark, size
 calculated here," or "calculated here." Without the server, the checker still runs on your
-numbers; there are no canned moves and no canned advice behind it.
-
-## What it will never do
-
-- Say "don't use this delivery." A soft, dirty or mixed batch is an input. The output is a build,
-  a blend, or a named change — never a rejection and never a homework assignment to go test a piece.
-- Invent a number. Not a property, not a measurement, not a margin. If a range is published rather
-  than measured, the page says so where the range is used.
-- Assume your part. No default product, load path or requirement; the examples are starting
-  points you can overwrite, not templates you must fit.
+numbers; with no model available the page shows the calculated build and the material gap, and no suggested moves.
 
 ## Where the numbers come from, and the edges of the checker
 
@@ -113,7 +105,7 @@ source at the point of use.
 ## Run it
 
 ```bash
-cp server/.env.example server/.env   # add a Meta Model API key; never commit it
+cp server/.env.example server/.env   # add a Meta Model API key (gitignored)
 .venv/bin/python -m server.app       # http://127.0.0.1:8787
 ```
 
