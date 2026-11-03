@@ -3395,7 +3395,7 @@ function renderGap(result) {
       const needText = formatRange(needed.required, needed.unit);
       const batchText = formatRange(needed.batch, needed.unit);
       if (result.winner.move === 'blend') {
-        p.textContent = `${meta.label}: the base delivery gives ${batchText}; this build needs ${needText}. ${Math.round(result.winner.fraction * 100)}% of ${result.state.steady.type || 'the steadier stream'} brings it into the window.`;
+        p.textContent = `${meta.label}: the base delivery gives ${batchText}; this build needs ${needText}. ${Math.round(result.winner.fraction * 100)}% of ${result.state.steady.type || 'the mix-in plastic'} brings it into the window.`;
       } else {
         p.textContent = `${meta.label}: this build needs ${needText}; your delivery gives ${batchText}. It fits.`;
       }
