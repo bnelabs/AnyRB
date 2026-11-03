@@ -30,7 +30,7 @@ The mechanics evaluates the full stiffness/strength swing and reports:
 - weight **≈338.4 g**
 - both requirements inside the target.
 
-This is the case the sample brief and the 3-minute video use. The app requires no cover sheet: the
+This is the case the sample brief uses. The app requires no cover sheet: the
 source is named in the brief and the case notes.
 
 ## 2. Illustrative second case — planter wall

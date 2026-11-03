@@ -12,6 +12,8 @@ AnyRB is built for Konverta's own planned use in its recycled-plastic work — t
 company is the intended first user. It has not been run on a production order yet, and no
 customer, saving or market figure is claimed here.
 
+![A passing decision: the build carries 95.4–111 kg and weighs 338.4 g, inside both requirements](demo/screenshots/v10/decision-range.png)
+
 ## Why this exists
 
 Recycled plastic's swing is measured, not guessed. One supplier's recycled-HDPE plates measured
@@ -64,17 +66,19 @@ ranges, margins and the build ticket all convert; the checker itself always calc
 
 ## Sixty seconds, with the numbers the app gives
 
-- Open the page, choose **Crate**. The build carries **95.4–111.0 kg** and weighs **338.4 g** —
+- Open the page, choose **Crate**. The build carries **95.4–111 kg** and weighs **338.4 g** —
   inside the 95–115 kg and 320–360 g requirements. The strength bar shows why this is a close
   call: **closest margin 0.4 kg at the low end**. A slightly weaker delivery would fail it.
 - Tighten the requirement to **130–150 kg**. Now no build passes, and the app says so in the
-  part's own terms first: as it stands it carries 95.4–111.0 kg, and thickening the part can't
+  part's own terms first: as it stands it carries 95.4–111 kg, and thickening the part can't
   fix a delivery that varies this much — so the levers are mixing in another plastic, sorting
   the weakest pieces out, a different size, or a different part for this delivery. (The worked
   case in [data/CASE_STUDY.md](data/CASE_STUDY.md) also gives the supplier-sheet numbers behind
   that verdict, for anyone who has them.)
 
 Both cases are written out in [data/CASE_STUDY.md](data/CASE_STUDY.md).
+
+![The same delivery failing a harder requirement: the gap stated in plain words, with the production panel after it](demo/screenshots/v10/failure-gap.png)
 
 ## What Meta does here
 
@@ -121,9 +125,13 @@ source at the point of use.
 ## Run it
 
 ```bash
+make setup                            # one-off: creates .venv, installs requirements
 cp server/.env.example server/.env   # add a Meta Model API key (gitignored)
 .venv/bin/python -m server.app       # http://127.0.0.1:8787
 ```
+
+Without a key the checker still runs on your numbers in the browser; the three
+Meta jobs (brief, proposals, advice) need the server and a key.
 
 Open http://127.0.0.1:8787. Opening the built `index.html` directly also works for the checker;
 it calls the same local server for Meta. `Dockerfile` and `render.yaml` describe a one-process
@@ -133,9 +141,10 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 81 app tests (70 checker + 11 page wiring)
+node app/tests/model.test.mjs                           # 70 checker tests
+node app/tests/page-wiring.test.mjs                     # 11 page-wiring tests
 node app/tests/combinations.test.mjs                    # 13,200-case combination matrix (9 tests)
-AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 155 server tests (1 live smoke skipped)
+AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 117 server tests
 ```
 
 Live evidence (real key, never recorded) is regenerated, not hand-written:
@@ -152,6 +161,6 @@ last run). Outputs: `server/evidence/product_live_calls.json`,
 | `app/` | The page: `product.js` (checker), `main.js` (page), `index.html`, `styles.css`, tests |
 | `server/` | FastAPI server: Meta calls, sanitising, grounding (`product_ai.py`, `meta_client.py`) |
 | `data/` | The worked cases, their sources, and the published feedstock ranges the delivery picker uses |
-| `demo/` | Product screenshots, architecture slide, reference video |
+| `demo/` | Product screenshots and architecture slide |
 | `LICENSE` | MIT |
 
