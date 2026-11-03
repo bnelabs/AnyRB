@@ -506,8 +506,15 @@ function renderVerdict(result, decision) {
   chip.textContent = result.winner ? 'Works' : 'Doesn’t work yet';
   chip.className = `verdict-chip ${result.winner ? 'pass' : 'fail'}`;
   $('verdict-title').textContent = decision.headline;
+  const addedG = item.addedG || 0;
+  const materialAmount = Math.abs(addedG) >= 1000 ? fmtVal(Math.abs(addedG) / 1000, 'kg') : fmtVal(Math.abs(addedG), 'g');
+  const materialText = Math.abs(addedG) < 0.5
+    ? 'same material a part as entered'
+    : addedG > 0
+      ? `${materialAmount} more material a part than as entered`
+      : `${materialAmount} less material a part than as entered`;
   $('verdict-build').textContent = result.winner
-    ? `${proposalRow(result.state, item).originLabel} · material: ${proposalRow(result.state, item).added}`
+    ? `${proposalRow(result.state, item).originLabel} · ${materialText}`
     : `As entered: ${buildSizeText(item.part)}`;
   const tbody = $('verdict-rows');
   tbody.replaceChildren();
@@ -680,9 +687,11 @@ function renderNeed(result) {
     control.append(wrap);
   } else if (needStep === 'target') {
     question.textContent = 'What does it have to do?';
-    why.textContent = state.product
-      ? `Your description named the ${state.product}, but did not say what it has to do. Pick one and give the lowest and highest that are acceptable.`
-      : 'Pick what matters and give the lowest and highest that are acceptable.';
+    why.textContent = /panel|insulation|board|sheet|tile|cover/.test(String(state.product).toLowerCase())
+      ? 'Panels like this usually do not carry a load — how much it may weigh, or how much it may bend, is usually what matters. Pick “carry a load” only if something will sit or press on it.'
+      : state.product
+        ? `Your description named the ${state.product}, but did not say what it has to do. Pick one and give the lowest and highest that are acceptable.`
+        : 'Pick what matters and give the lowest and highest that are acceptable.';
     const wrap = document.createElement('div');
     wrap.className = 'need-field';
     const lab = document.createElement('label');
@@ -707,10 +716,19 @@ function renderNeed(result) {
     };
     select.addEventListener('change', setUnits);
     setUnits();
+    const noLoad = document.createElement('button');
+    noLoad.type = 'button';
+    noLoad.className = 'need-chip';
+    noLoad.textContent = 'It doesn’t carry a load';
+    noLoad.addEventListener('click', () => {
+      select.value = 'weight';
+      setUnits();
+      $('need-n-low').focus();
+    });
     const row = document.createElement('div');
     row.className = 'need-row';
     row.append(a.wrap, b.wrap);
-    control.append(wrap, row);
+    control.append(wrap, noLoad, row);
   } else if (needStep === 'batch') {
     question.textContent = 'What is this delivery closest to?';
     why.textContent = state.plastic.type
@@ -1557,7 +1575,7 @@ async function readBrief() {
       status += ' No result yet: your description did not say what it has to do. The question is right below — answer it and the result appears.';
     }
     if (briefBatchChoiceNeeded) {
-      status += ' This delivery names more than one kind of plastic, so no range was chosen for it. That question is below too.';
+      status += ' This delivery does not match one published range, so none was chosen for it. That question is below too.';
     } else if (briefPublished) {
       status += ` For this delivery, the published range “${briefPublished.label}” was used — that is a published range, not a measurement of this delivery. Change it under “This delivery” if your supplier’s numbers differ.`;
     }

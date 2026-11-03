@@ -276,7 +276,7 @@ test('model output accepts other_product and drops invented result keys', () => 
   const s = bracket();
   const normalized = normalizeModelProposals(s, [
     { move: 'other_product', strength: 999, result: 'x' },
-    { move: 'section', width_mm: 30, thickness_mm: 11, certification: 'yes' },
+    { move: 'section', width_mm: 46, thickness_mm: 11, certification: 'yes' },
     { move: 'nonsense' },
   ]);
   assert.equal(normalized.length, 2);
@@ -416,7 +416,7 @@ test('published batches give a starting range with no measurements of your own',
   assert.equal(match('recycled HDPE from one supplier').key, 'rhdpe-measured-lot');
   assert.equal(match('recycled HDPE').key, 'rhdpe');
   assert.equal(match('mixed polyolefins').key, 'mixed-polyolefins');
-  assert.equal(match('recycled HDPE, ABS, PET and PP from several suppliers'), null);
+  assert.equal(match('recycled HDPE, ABS, PET and PP from several suppliers').key, 'mixed-polyolefins');
   assert.equal(match('recycled PET').key, 'rpet');
   assert.equal(match('unobtainium'), null);
 });
@@ -491,4 +491,14 @@ test('a blank start stays blank after re-normalising (no silent default delivery
   const result = evaluateBuilds(again, []);
   assert.equal(result.winner, null);
   assert.equal(result.ready, false);
+});
+
+test('a section move may widen a part but may not shrink its width', () => {
+  const s = bracket({ extraTargets: [] });
+  const result = evaluateBuilds(s, [{ move: 'section', widthMm: 10, thicknessMm: 40 }]);
+  for (const build of result.passingBest) {
+    assert.ok(build.part.widthMm >= s.widthMm - 1e-9, `width shrank to ${build.part.widthMm}`);
+  }
+  const traced = evaluateBuilds(s, [{ move: 'section', widthMm: 10, thicknessMm: 40 }]);
+  assert.equal(traced.modelTrace.filter((item) => item.move === 'section').length, 0);
 });

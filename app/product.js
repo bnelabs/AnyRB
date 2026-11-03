@@ -78,9 +78,9 @@ export const PUBLISHED_BATCHES = [
   },
   {
     key: 'mixed-polyolefins',
-    label: 'Mixed polyolefins — typical published range (wide)',
-    plastic: { type: 'mixed polyolefins', eMin: 560, eMax: 1040, sMin: 14, sMax: 22, density: 0.93 },
-    note: 'Typical published band for mixed polyolefins; the published evidence here is thinner, so the band is wide. Not a measurement of your delivery.',
+    label: 'Mixed plastics — typical published range (wide)',
+    plastic: { type: 'mixed plastics', eMin: 560, eMax: 1040, sMin: 14, sMax: 22, density: 0.93 },
+    note: 'Typical published band measured on mixed polyolefins (kinds of plastic mixed together). The published evidence here is thinner, so the band is wide. Not a measurement of your delivery.',
   },
   {
     key: 'rpet',
@@ -100,14 +100,15 @@ export function publishedBatchFor(text) {
   const t = String(text || '').toLowerCase();
   if (!t) return null;
   if (/mixed polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
-  // A delivery naming two or more kinds of plastic gets no automatic range:
-  // no single published band describes it, and picking one would be a guess.
+  // A delivery naming two or more kinds of plastic is a mixed delivery:
+  // it uses the wide published mixed range, labelled as exactly that,
+  // rather than asking the user to repeat what they already said.
   const kinds = [
     /ldpe/.test(t), /hdpe/.test(t), /petg/.test(t),
     /\bpet\b|polyethylene terephthalate/.test(t),
     /polypropylene|\bpp\b/.test(t), /\babs\b/.test(t), /\bpvc\b/.test(t),
   ].filter(Boolean).length;
-  if (kinds >= 2) return null;
+  if (kinds >= 2) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
   if (/ldpe/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rldpe');
   if (/petg/.test(t)) return null;
   if (/\bpet\b|polyethylene terephthalate/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpet');
@@ -521,6 +522,13 @@ function validCandidate(state, candidate) {
   }
   if (candidate.move === 'blend') {
     return state.steady.available && state.steady.eMpa > 0 && state.steady.sMpa > 0 && Number.isFinite(candidate.fraction) && candidate.fraction > 0;
+  }
+  if (candidate.move === 'section') {
+    // Width is the part's own size (a 600 mm panel is a 600 mm panel).
+    // A section move may widen it to carry more; it may not shrink the
+    // product into a different product to hit a range.
+    const width = candidate.widthMm == null ? state.widthMm : candidate.widthMm;
+    if (width < state.widthMm - 1e-9) return false;
   }
   const part = candidatePart(state, candidate);
   return !samePart(part, currentPart(state));
@@ -1072,8 +1080,10 @@ export function decisionFor(stateInput, result) {
     support = `The ${state.product} has no passing build. This delivery makes the ${state.other.product}: ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (result.current.pass) {
     support = `This build ${rangeText(winner)} from this delivery — inside your ${targetText}.`;
-  } else {
+  } else if (Math.abs(winner.part.thicknessMm - state.thicknessMm) > 1e-9) {
     support = `The ${formatNumber(convertForDisplay(state.thicknessMm, 'mm'))} ${displayUnit('mm')} version misses. This build ${rangeText(winner)} — inside your ${targetText}.`;
+  } else {
+    support = `As entered, this part misses. This build ${rangeText(winner)} — inside your ${targetText}.`;
   }
   const copy = [
     'AnyRB build',
