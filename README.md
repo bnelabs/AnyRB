@@ -131,7 +131,10 @@ cp server/.env.example server/.env   # add a Meta Model API key (gitignored)
 ```
 
 Without a key the checker still runs on your numbers in the browser; the three
-Meta jobs (brief, proposals, advice) need the server and a key.
+Meta jobs (brief, proposals, advice) need the server and a key. The public demo
+carries the builder's key in the server environment, so visitors never need one —
+your own key, entered under Settings, stays in your browser tab and is sent only
+to the server on this machine when the model is called.
 
 Open http://127.0.0.1:8787. Opening the built `index.html` directly also works for the checker;
 it calls the same local server for Meta. `Dockerfile` and `render.yaml` describe a one-process
