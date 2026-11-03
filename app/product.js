@@ -9,9 +9,9 @@
 
 export const G = 9.80665;
 export const MODES = [
-  { key: 'cantilever', label: 'Fixed at one end' },
-  { key: 'simple', label: 'Supported at both ends' },
-  { key: 'compression', label: 'Stands in compression' },
+  { key: 'cantilever', label: 'Held at one end' },
+  { key: 'simple', label: 'Held at both ends' },
+  { key: 'compression', label: 'Stood upright, pushed down' },
 ];
 export const CASE_PRESETS = {
   bracket: {
@@ -308,7 +308,11 @@ export function normalizeState(raw = {}) {
 export function isReady(stateInput) {
   const state = normalizeState(stateInput);
   if (!state.product) return false;
-  if (!MODE_KEYS.has(state.mode)) return false;
+  // How the part is held only matters if something structural is being
+  // checked. A weight-only or no-load part may lie flat with no load path.
+  const needsMode = [state.target, ...state.extraTargets]
+    .some((t) => t && (t.property === 'strength' || t.property === 'stiffness'));
+  if (needsMode && !MODE_KEYS.has(state.mode)) return false;
   if (!(state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0)) return false;
   const targets = [state.target, ...state.extraTargets];
   if (!targets.length) return false;

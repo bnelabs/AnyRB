@@ -528,3 +528,17 @@ test('a part that carries no load gets its weight, not an invented load answer',
   assert.match(decision.headline, /No load to check/);
   assert.match(decision.support, /31,248|31248/);
 });
+
+test('how it is held is only required when a load is being checked', () => {
+  const basePart = {
+    blank: true, product: 'floor mat', spanMm: 900, widthMm: 600, thicknessMm: 8,
+    plastic: { type: 'mixed plastics', eMin: 560, eMax: 1040, sMin: 14, sMax: 22, density: 0.93 },
+  };
+  const weightOnly = normalizeState({ ...basePart, target: { property: 'weight', min: 1000, max: 9000 } });
+  assert.equal(weightOnly.mode, '');
+  assert.equal(isReady(weightOnly), true);
+  const structural = normalizeState({ ...basePart, target: { property: 'strength', min: 5, max: 50 } });
+  assert.equal(isReady(structural), false);
+  const held = normalizeState({ ...basePart, mode: 'simple', target: { property: 'strength', min: 5, max: 50 } });
+  assert.equal(isReady(held), true);
+});

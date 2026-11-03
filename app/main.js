@@ -629,8 +629,11 @@ function missingSteps() {
   const steps = [];
   if (!state.product) steps.push('product');
   if (!(state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0)) steps.push('size');
-  if (!state.mode) steps.push('held');
   if (!validTargets().length) steps.push('target');
+  // Only ask how it is held when a load is actually being checked.
+  const needsMode = [state.target, ...state.extraTargets]
+    .some((t) => t && (t.property === 'strength' || t.property === 'stiffness'));
+  if (needsMode && !state.mode) steps.push('held');
   const batchSet = state.plastic.eMin > 0 && state.plastic.eMax > 0 && state.plastic.sMin > 0 && state.plastic.sMax > 0 && state.plastic.density > 0;
   if (!batchSet) steps.push(needBatchNumbers ? 'batch-numbers' : 'batch');
   return steps;
@@ -705,24 +708,29 @@ function renderNeed(result) {
     row.append(a.wrap, b.wrap, c.wrap);
     control.append(row);
   } else if (needStep === 'held') {
-    question.textContent = 'How is it held?';
-    why.textContent = 'This decides how the load goes through the part.';
-    const wrap = document.createElement('div');
-    wrap.className = 'need-field';
-    const lab = document.createElement('label');
-    lab.htmlFor = 'need-mode';
-    lab.textContent = 'Held';
-    const select = document.createElement('select');
-    select.id = 'need-mode';
-    for (const mode of MODES) {
-      const option = document.createElement('option');
-      option.value = mode.key;
-      option.textContent = mode.label;
-      select.append(option);
+    question.textContent = 'How does it carry the load?';
+    why.textContent = 'A part held at one end bends differently from one held at both ends. If it just lies flat, choose that — then there is no load to check across it.';
+    control.dataset.mode = state.mode || 'simple';
+    const choices = document.createElement('div');
+    choices.className = 'need-choices';
+    const options = [
+      ['cantilever', 'Held at one end — like a shelf bracket sticking out'],
+      ['simple', 'Held at both ends — like a plank across two supports'],
+      ['compression', 'Stood upright and pushed down — like a post or a block'],
+      ['flat', 'It lies flat or just sits there — nothing holds it up'],
+    ];
+    for (const [key, label] of options) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `need-choice${key === control.dataset.mode ? ' is-selected' : ''}`;
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        control.dataset.mode = key;
+        for (const el of choices.querySelectorAll('.need-choice')) el.classList.toggle('is-selected', el === button);
+      });
+      choices.append(button);
     }
-    select.value = 'simple';
-    wrap.append(lab, select);
-    control.append(wrap);
+    control.append(choices);
   } else if (needStep === 'target') {
     question.textContent = 'What does it have to do?';
     why.textContent = /panel|insulation|board|sheet|tile|cover/.test(String(state.product).toLowerCase())
@@ -824,7 +832,15 @@ function applyNeed() {
     if (!(span > 0 && width > 0 && thick > 0)) return fail('Give all three sizes, as numbers.');
     state.spanMm = span; state.widthMm = width; state.thicknessMm = thick;
   } else if (needStep === 'held') {
-    state.mode = $('need-mode').value;
+    const chosen = $('need-control').dataset.mode || 'simple';
+    if (chosen === 'flat') {
+      // Lying flat means there is no span to carry a load across.
+      state.target = { property: 'none', min: '', max: '' };
+      state.extraTargets = [];
+      state.mode = '';
+    } else {
+      state.mode = chosen;
+    }
   } else if (needStep === 'target') {
     const property = $('need-control').dataset.prop || 'strength';
     if (property === 'none') {
