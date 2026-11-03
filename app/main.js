@@ -994,7 +994,7 @@ function renderCost(result) {
   table.className = 'cost-table';
   const head = document.createElement('thead');
   const hr = document.createElement('tr');
-  for (const label of ['Build', 'Plastic a part', 'Cost a part', runSize > 0 ? `Cost for ${runSize.toLocaleString('en-US')}` : 'Cost a part × order']) {
+  for (const label of ['Build', 'Plastic a part', 'Cost a part', runSize > 0 ? `Cost for ${runSize.toLocaleString('en-US')}` : 'For the order']) {
     const th = document.createElement('th');
     th.textContent = label;
     hr.append(th);
@@ -1046,6 +1046,31 @@ function renderCost(result) {
       ? `As entered, one part uses ${money(entered)} of plastic — but it does not work, so that money buys no good parts yet.`
       : 'As entered, this part does not work yet, so its cost buys no good parts yet.';
     view.append(note);
+  }
+  // Break-even: how expensive the steadier plastic could get before the
+  // blend stops beating the best build that does not use it.
+  const blendIndex = builds.findIndex((b) => b.move === 'blend' && b.fraction);
+  if (blendIndex >= 0 && steadyPricePerKg > 0 && costs[blendIndex] != null) {
+    const blend = builds[blendIndex];
+    const steadyKg = (blend.massG / 1000) * blend.fraction;
+    const batchKg = (blend.massG / 1000) * (1 - blend.fraction);
+    const alternatives = builds
+      .map((b, i) => ({ b, cost: costs[i] }))
+      .filter((entry, i) => i !== blendIndex && entry.cost != null);
+    if (steadyKg > 0 && alternatives.length) {
+      const bestAlt = alternatives.reduce((a, b) => (a.cost <= b.cost ? a : b));
+      const breakEven = (bestAlt.cost - batchKg * batchPricePerKg) / steadyKg;
+      const note = document.createElement('p');
+      note.className = 'cost-ask';
+      if (breakEven > 0 && steadyPricePerKg <= breakEven) {
+        note.textContent = `Break-even: the steadier plastic could cost up to ${money(breakEven)} per kg before blending stops being cheaper than the ${proposalRow(result.state, bestAlt.b).move.toLowerCase()}. You entered ${money(steadyPricePerKg)} — blending is the cheaper one at that price.`;
+      } else if (breakEven > 0) {
+        note.textContent = `Break-even: blending would only beat the ${proposalRow(result.state, bestAlt.b).move.toLowerCase()} on cost if the steadier plastic cost ${money(breakEven)} per kg or less. You entered ${money(steadyPricePerKg)} — so blending is not the cheaper one here.`;
+      } else {
+        note.textContent = 'Even if the steadier plastic were free, blending would not beat the best build without it on cost.';
+      }
+      view.append(note);
+    }
   }
   if (costs.some((c) => c == null)) {
     const ask = document.createElement('p');
