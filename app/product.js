@@ -459,9 +459,11 @@ export function productionTotals({ massG: partMassG, runSize = 0, haveKg = 0, wa
 /** Plastic cost of one part of a build, or null when a needed price is missing.
  * `treatLossPct` is the share of the delivery lost in sorting/washing: the
  * treated plastic in one part took more raw delivery than the part weighs. */
-export function buildCostPerPart(build, { batchPricePerKg = 0, steadyPricePerKg = 0, treatPricePerKg = 0, treatLossPct = 0 } = {}) {
+export function buildCostPerPart(build, { batchPricePerKg = 0, steadyPricePerKg = 0, treatPricePerKg = 0, treatLossPct = 0, wastePct = 0 } = {}) {
   if (!(build && build.massG > 0) || !(batchPricePerKg > 0)) return null;
-  const massKg = build.massG / 1000;
+  // Money and material must agree: a part that needs waste making it
+  // costs for the waste too, exactly as the order total counts it.
+  const massKg = effectiveMassG(build.massG, wastePct) / 1000;
   if (build.move === 'blend' && build.fraction) {
     if (!(steadyPricePerKg > 0)) return null;
     return massKg * ((1 - build.fraction) * batchPricePerKg + build.fraction * steadyPricePerKg);
@@ -1196,7 +1198,7 @@ export function decisionFor(stateInput, result) {
     const asStands = result.current
       ? `as it stands, this build ${rangeText(result.current)} — you need ${targetText}. `
       : '';
-    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}In supplier numbers: ${statements.join(' ')} ${primary.action}`;
+    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}In supplier numbers: ${statements.join(' ')} ${primary.action} Ranges are checked as entered — no safety margin is added to any of these numbers.`;
     const copy = [
       'AnyRB plan',
       headline,
@@ -1207,6 +1209,7 @@ export function decisionFor(stateInput, result) {
         return `${gapMeta.label}: needs ${formatRange(gap.required, gap.unit)}, delivery ${formatRange(gap.batch, gap.unit)}`;
       }),
       `Action: ${primary.action}`,
+      'Checked as entered — no safety margin is added to any of these numbers.',
     ].filter(Boolean).join('\n');
     return { headline, support, button: 'Ask about this delivery', copy };
   }

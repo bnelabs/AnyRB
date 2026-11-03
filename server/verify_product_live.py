@@ -36,6 +36,11 @@ from server.app import app  # noqa: E402
 EVIDENCE = Path(__file__).resolve().parent / "evidence" / "product_live_calls.json"
 client = TestClient(app)
 MARKER = uuid.uuid4().hex[:8]
+# The exact headers the page sends (Settings defaults to Meta): the evidence
+# must prove the request shape the browser actually makes, key included.
+BROWSER_HEADERS = {"X-User-Provider": "meta",
+                   "X-User-Base-Url": "https://api.meta.ai/v1",
+                   "X-User-Meta-Model": "muse-spark-1.3-contributor"}
 
 STATE = {
     "product": {"name": "crate side", "mode": "simple", "span_mm": 400,
@@ -76,11 +81,12 @@ def main() -> int:
                   "15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, "
                   "and one side should weigh 320 to 360 g. This delivery is recycled HDPE "
                   "from one supplier, fairly clean, with paper labels on some of it.")
-    brief = client.post("/api/product/brief", json={"text": brief_text}).json()
+    STATE["plastic"]["batch"] = f"single-supplier stretch-film lot ({MARKER})"
+    brief = client.post("/api/product/brief", json={"text": brief_text}, headers=BROWSER_HEADERS).json()
     out["calls"]["brief"] = {"available": brief.get("available"), **meta_of(brief),
                              "brief_keys": sorted((brief.get("brief") or {}).keys())}
 
-    proposals = client.post("/api/product/proposals", json=STATE).json()
+    proposals = client.post("/api/product/proposals", json=STATE, headers=BROWSER_HEADERS).json()
     out["calls"]["proposals"] = {"moves": [p.get("move") for p in proposals.get("proposals", [])],
                                  **meta_of(proposals)}
 
@@ -88,11 +94,11 @@ def main() -> int:
         {"property": "strength", "min": 80.0, "max": 92.0, "unit": "kg"},
         {"property": "weight", "min": 338.4, "max": 338.4, "unit": "g"}]}]
     second = client.post("/api/product/proposals",
-                         json={**STATE, "verifier_feedback": feedback}).json()
+                         json={**STATE, "verifier_feedback": feedback}, headers=BROWSER_HEADERS).json()
     out["calls"]["proposals_feedback_round"] = {
         "moves": [p.get("move") for p in second.get("proposals", [])], **meta_of(second)}
 
-    advice = client.post("/api/product/advice", json={
+    advice = client.post("/api/product/advice", headers=BROWSER_HEADERS, json={
         "question": "What should I change if this delivery is not strong enough?",
         **STATE,
         "steady": {"available": False, "type": "", "stiffness_mpa": 0, "strength_mpa": 0},
@@ -109,10 +115,10 @@ def main() -> int:
     wav = Path(f"/tmp/anyrb_voice_{MARKER}.wav")
     try:
         subprocess.run(["say", "-o", str(wav), "--file-format=WAVE", "--data-format=LEI16@16000",
-                        "I make crate sides, 400 millimetres long, supported at both ends."],
+                        f"I make crate sides, 400 millimetres long, supported at both ends. Run {MARKER}."],
                        check=True, timeout=60, capture_output=True)
         with wav.open("rb") as fh:
-            voice = client.post("/api/voice/transcribe",
+            voice = client.post("/api/voice/transcribe", headers=BROWSER_HEADERS,
                                 files={"audio": ("brief.wav", fh, "audio/wav")}).json()
         out["calls"]["voice"] = {"transcript_chars": len((voice.get("transcript") or "").strip()),
                                  **meta_of(voice)}

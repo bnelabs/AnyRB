@@ -720,3 +720,21 @@ def test_cache_identity_includes_prompt_and_presenting_key(monkeypatch, tmp_path
         other_prompt = meta_client.spark_json("probe_kind", "system-b", payload, fallback)
     assert other_prompt["_meta"]["cached"] is False
     assert calls["n"] == 3
+
+
+def test_browser_shaped_meta_request_uses_server_key(client, monkeypatch):
+    """The page always sends X-User-Base-Url with the canonical Meta endpoint.
+    That is the server's own endpoint: the server key must still be used."""
+    import json as _json
+    from server import meta_client
+    seen = _capture_transport(monkeypatch, {"choices": [{"message": {"content": _json.dumps({"proposals": [{"move": "thickness", "thickness_mm": 16}]})}}], "usage": {}})
+    monkeypatch.setattr(meta_client, "KEY", "server-secret-key")
+    body = _unique_body("browser-shaped-meta")
+    data = client.post(ENDPOINT, json=body, headers={
+        "X-User-Provider": "meta", "X-User-Base-Url": "https://api.meta.ai/v1",
+        "X-User-Meta-Model": "muse-spark-1.3-contributor",
+    }).json()
+    assert data["_meta"]["fallback"] is False
+    assert seen["url"] == "https://api.meta.ai/v1/chat/completions"
+    assert seen["headers"].get("Authorization") == "Bearer server-secret-key"
+    assert "server-secret-key" not in _json.dumps(data)

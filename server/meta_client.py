@@ -326,7 +326,11 @@ def _effective_key() -> str:
         return override
     if _effective_provider() != "meta":
         return ""
-    if _BASE_OVERRIDE.get():
+    base_override = _BASE_OVERRIDE.get()
+    # The page always sends its endpoint, including the canonical Meta one.
+    # That is this server's own endpoint, not a third party: only a base
+    # that differs from the configured Meta base withholds the server key.
+    if base_override and base_override != BASE:
         return ""
     return KEY
 
@@ -529,8 +533,10 @@ def spark_json(kind: str, system: str, payload: dict,
     if cached:
         return _cached_result(kind, cached)
     if not _effective_key():
-        reason = ("META_API_KEY not set" if _effective_provider() == "meta"
-                  else "no key for this provider: add your own key in Settings")
+        if _effective_provider() != "meta" or (_BASE_OVERRIDE.get() and _BASE_OVERRIDE.get() != BASE):
+            reason = "no key for this provider or endpoint: add your own key in Settings"
+        else:
+            reason = "META_API_KEY not set"
         return _fallback_result(kind, fallback, 0.0, True, reason, "offline")
 
     t0 = time.time()
@@ -592,7 +598,7 @@ def generate_image(prompt: str, mock: bool | None = None) -> dict:
     cached = _cache_get(cache_key)
     if cached:
         return _cached_result(kind, cached)
-    if _effective_provider() != "meta" or _BASE_OVERRIDE.get():
+    if _effective_provider() != "meta" or (_BASE_OVERRIDE.get() and _BASE_OVERRIDE.get() != BASE):
         return _mock_payload(kind, {"image_data_url": None, "illustrative": True,
                                     "prompt": prompt}, "image generation is only available with Meta")
     if not _effective_key():
@@ -669,7 +675,7 @@ def transcribe(audio: bytes, filename: str = "brief.wav", mock: bool | None = No
     cached = _cache_get(cache_key)
     if cached:
         return _cached_result(kind, cached)
-    if _effective_provider() != "meta" or _BASE_OVERRIDE.get():
+    if _effective_provider() != "meta" or (_BASE_OVERRIDE.get() and _BASE_OVERRIDE.get() != BASE):
         return _mock_payload(kind, {"transcript": "", "duration_s": None}, "voice transcription is only available with Meta")
     if not _effective_key():
         return _mock_payload(kind, {"transcript": "", "duration_s": None}, "META_API_KEY not set")
@@ -737,7 +743,7 @@ def sam_segment(image: bytes, concept: str, mime: str = "image/jpeg",
     cached = _cache_get(cache_key)
     if cached:
         return _cached_result(kind, cached)
-    if _effective_provider() != "meta" or _BASE_OVERRIDE.get():
+    if _effective_provider() != "meta" or (_BASE_OVERRIDE.get() and _BASE_OVERRIDE.get() != BASE):
         return _mock_payload(kind, {"concept": concept, "boxes": [], "count": 0,
                                     "mocked": True}, "image segmentation is only available with Meta")
     if not _effective_key():

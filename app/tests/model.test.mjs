@@ -68,6 +68,8 @@ test('production maths: waste, stock cover, allocation and build cost', () => {
   assert.equal(buildCostPerPart({ move: 'blend', fraction: 0.25, massG: 200 }, { batchPricePerKg: 10 }), null);
   // treated: 200 g in the part took 250 g of raw delivery at 20% loss
   close(buildCostPerPart({ move: 'treated', massG: 200 }, { batchPricePerKg: 10, treatPricePerKg: 5, treatLossPct: 20 }), 3.5, 1e-9);
+  // money counts waste exactly as material does: 10% waste on 200 g at 10/kg
+  close(buildCostPerPart({ move: 'current', massG: 200 }, { batchPricePerKg: 10, wastePct: 10 }), 2.2, 1e-9);
 });
 
 test('mechanics: cantilever capacity, stiffness and mass', () => {
@@ -545,6 +547,16 @@ test('settings, progress and downloads are wired without a key in the source', a
   assert.match(js, /sessionStorage/);
   assert.match(js, /setUnitSystem/);
   assert.doesNotMatch(js, /META_API_KEY\s*=/);
+});
+
+test('ticket carries where the range came from, and the builds heading tells the truth', async () => {
+  const fs = await import('node:fs/promises');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(js, /function ticketText/);
+  assert.match(js, /Range source:/);
+  assert.match(js, /No build works yet/);
+  assert.match(html, /Delivery name/);
 });
 
 test('settings keeps Meta in front and labels every model answer', async () => {

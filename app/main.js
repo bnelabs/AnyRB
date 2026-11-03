@@ -462,7 +462,7 @@ function renderGap(result) {
   intro.className = 'gap-note';
   intro.textContent = '“Needs” is what the part asks of the plastic. “Gives” is this delivery, in the units a supplier sheet uses (MPa).';
   gap.append(intro);
-  for (const item of result.gaps) {
+  for (const item of result.gaps.filter((g) => g.shortLow > 0 || g.overHigh > 0)) {
     const meta = propertyMeta(item.property);
     const p = document.createElement('p');
     p.textContent = `${meta.label}: needs ${formatRange(item.required, item.unit)}; delivery gives ${formatRange(item.batch, item.unit)}. ${item.action}`;
@@ -515,7 +515,7 @@ function answerSourceLine(data) {
   const model = (data && data._model) || meta.model || '';
   const who = model && model !== 'fallback' ? `${model} · ` : '';
   const when = (data && data._cached) || meta.cached ? 'saved answer from an earlier call' : 'live answer';
-  const latency = Number(meta.latency_s);
+  const latency = Number(meta.cached ? meta.original_latency_s : meta.latency_s);
   const timing = Number.isFinite(latency) && latency > 0 ? ` · ${latency < 10 ? latency.toFixed(1) : Math.round(latency)}s` : '';
   return `${who}${when}${timing}`;
 }
@@ -523,11 +523,11 @@ function answerSourceLine(data) {
 function metaSourceText() {
   if (!metaSource) return '';
   const who = metaSource.model ? `${metaSource.model} · ` : '';
-  const latency = Number(metaSource.latency);
+  const latency = Number(metaSource.kind === 'cached' ? metaSource.originalLatency : metaSource.latency);
   const timing = Number.isFinite(latency) && latency > 0 ? ` · ${latency < 10 ? latency.toFixed(1) : Math.round(latency)}s` : '';
   const round = feedbackRound ? ' Shown the checked result, the model proposed again.' : '';
   if (metaSource.kind === 'live') return ` ${who}live answer, just now${timing}.${round}`;
-  if (metaSource.kind === 'cached') return ` ${who}saved answer from an earlier call.${round}`;
+  if (metaSource.kind === 'cached') return ` ${who}saved answer from an earlier call${timing ? ` (that call took ${timing.slice(3)})` : ''}.${round}`;
   if (metaSource.kind === 'offline') return ' The model is not reachable from here; the calculated build stands on its own.';
   return '';
 }
@@ -561,7 +561,7 @@ function renderProgress(result) {
         : result && result.ready
           ? 'no build passes — the headline names the change'
           : 'appears when the first three are set',
-      done: Boolean(result && result.ready),
+      done: Boolean(result && result.winner),
     },
   ];
   for (const item of items) {
@@ -785,11 +785,12 @@ function renderNeed(result) {
   apply.textContent = 'Continue';
 
   if (needStep === 'product') {
-    question.textContent = 'What do you want to make?';
-    why.textContent = 'Name the part. Everything else is built around it.';
+    question.textContent = 'Name the part';
+    why.textContent = 'Everything else is built around it.';
     const { wrap } = needInput('need-product', 'The part');
     control.append(wrap);
-    setTimeout(() => $('need-product').focus(), 0);
+    // Focus moves into the question only once the user is under way;
+    // stealing it on first paint lands keyboard users mid-form.
   } else if (needStep === 'size') {
     question.textContent = 'How big is it?';
     why.textContent = 'Length, width and thickness — the size you make it at today is a good start.';
@@ -855,7 +856,7 @@ function renderNeed(result) {
     stiff.hidden = true;
     const stiffNote = document.createElement('p');
     stiffNote.className = 'need-stiff-note';
-    stiffNote.textContent = 'You do not need to know the stiffness number. Say what presses on it and how far it may bend down under that weight — the form works out the stiffness range from that. Only the lowest stiffness will matter unless you also give a smallest bend.';
+    stiffNote.textContent = 'You do not need to know the stiffness number. Say what presses on it and how far it may bend down under that weight — the form works out the stiffness range from that. Only the lowest stiffness will matter unless you also give a smallest bend — without one, the form sets the high end at ten times the low end.';
     const sLoad = needInput('need-s-load', 'How much weight presses on it', displayUnit('kg'));
     const sBend = needInput('need-s-bend', 'How far may it bend down, at most', displayUnit('mm'));
     const sBendMin = needInput('need-s-bend-min', 'How far should it still bend, at least (optional)', displayUnit('mm'));
@@ -1059,7 +1060,7 @@ function renderCost(result) {
   table.append(head);
   const body = document.createElement('tbody');
   const costOf = (build) => buildCostPerPart(build, {
-    batchPricePerKg, steadyPricePerKg, treatPricePerKg, treatLossPct,
+    batchPricePerKg, steadyPricePerKg, treatPricePerKg, treatLossPct, wastePct,
   });
   const costs = builds.map(costOf);
   const computable = costs.filter((c) => c != null && Number.isFinite(c));
@@ -1255,8 +1256,10 @@ function renderShare(result) {
     line('Say how many of each are ordered, and whether this delivery covers both appears here.');
     return;
   }
-  const needMainKg = (mainUsage * shareQtyMain) / 1000;
-  const needOtherKg = (otherUsage * shareQtyOther) / 1000;
+  const effMainKg = mainUsage * (1 + wastePct / 100);
+  const effOtherKg = otherUsage * (1 + wastePct / 100);
+  const needMainKg = (effMainKg * shareQtyMain) / 1000;
+  const needOtherKg = (effOtherKg * shareQtyOther) / 1000;
   const steadyKg = ((steadyOf(mainItem) * shareQtyMain) + (steadyOf(otherItem) * shareQtyOther)) / 1000;
   if (steadyKg > 0) line(`Together they also use ${fmtVal(steadyKg, 'kg')} of the mix-in plastic, counted separately.`);
   if (!(materialHaveKg > 0)) {
@@ -1269,10 +1272,8 @@ function renderShare(result) {
     line(`Both orders fit in this delivery. Together they use ${fmtVal(needMainKg + needOtherKg, 'kg')} of the ${fmtVal(stock, 'kg')} you have, leaving ${fmtVal(left, 'kg')} — about ${Math.floor((left * 1000) / mainUsage).toLocaleString('en-US')} more ${mainName}, or ${Math.floor((left * 1000) / otherUsage).toLocaleString('en-US')} more ${profile.name}.`);
     return;
   }
-  const effMain = mainUsage * (1 + wastePct / 100);
-  const effOther = otherUsage * (1 + wastePct / 100);
-  const allocA = allocatePriority(stock, { qty: shareQtyMain, usageG: effMain }, { qty: shareQtyOther, usageG: effOther });
-  const allocB = allocatePriority(stock, { qty: shareQtyOther, usageG: effOther }, { qty: shareQtyMain, usageG: effMain });
+  const allocA = allocatePriority(stock, { qty: shareQtyMain, usageG: effMainKg }, { qty: shareQtyOther, usageG: effOtherKg });
+  const allocB = allocatePriority(stock, { qty: shareQtyOther, usageG: effOtherKg }, { qty: shareQtyMain, usageG: effMainKg });
   const [aFirst, bAfterA] = [allocA.firstMade, allocA.secondMade];
   const [bFirst, aAfterB] = [allocB.firstMade, allocB.secondMade];
   if (wastePct > 0) line(`Your ${wastePct}% waste and rejects are counted in those shares.`);
@@ -1617,6 +1618,8 @@ function render(result) {
   primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
   $('results-panel').hidden = !result.ready;
   $('builds-panel').hidden = !result.ready;
+  const buildsHead = $('builds-panel').querySelector('.section-head h3');
+  if (buildsHead) buildsHead.textContent = result.winner ? 'Builds that work' : 'No build works yet';
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready || (state.target.property === 'none' && !state.extraTargets.length);
   renderProgress(result);
@@ -1738,13 +1741,13 @@ async function fetchProposals() {
     if (fallback) {
       modelProposals = [];
       modelState = 'offline';
-      metaSource = { kind: 'offline', model: data._model || '', latency: data._meta && data._meta.latency_s };
+      metaSource = { kind: 'offline', model: data._model || '', latency: data._meta && data._meta.latency_s, originalLatency: data._meta && data._meta.original_latency_s };
     } else {
       modelProposals = proposals;
       modelState = proposals.length ? 'meta' : 'empty';
       metaSource = data._cached
-        ? { kind: 'cached', model: data._model || '', latency: data._meta && data._meta.latency_s }
-        : { kind: 'live', model: data._model || '', latency: data._meta && data._meta.latency_s };
+        ? { kind: 'cached', model: data._model || '', latency: data._meta && data._meta.latency_s, originalLatency: data._meta && data._meta.original_latency_s }
+        : { kind: 'live', model: data._model || '', latency: data._meta && data._meta.latency_s, originalLatency: data._meta && data._meta.original_latency_s };
     }
     // One informed second round: if the checker rejected the model's exact
     // proposals and any did not pass at that size, show Spark the checked
@@ -1781,8 +1784,8 @@ async function fetchProposals() {
             }
             modelState = 'meta';
             metaSource = secondData._cached
-              ? { kind: 'cached', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s }
-              : { kind: 'live', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s };
+              ? { kind: 'cached', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s, originalLatency: secondData._meta && secondData._meta.original_latency_s }
+              : { kind: 'live', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s, originalLatency: secondData._meta && secondData._meta.original_latency_s };
             feedbackRound = true;
           }
         } catch (error) {
@@ -1890,6 +1893,22 @@ function fallbackCopy(text) {
   area.remove();
 }
 
+function ticketText() {
+  // The ticket is the artefact that reaches the shop floor, so where the
+  // delivery numbers came from travels with it.
+  const lines = [lastDecision.copy];
+  const pub = PUBLISHED_BATCHES.find((b) => b.key === batchSource);
+  if (pub) {
+    lines.push(`Range source: ${pub.label} — a published range, not a measurement of your delivery.`);
+    if (pub.thinEvidence) lines.push('The published evidence for this range is thin (graded D in the source library): do not use it for load-bearing claims.');
+  } else if (batchSource === 'numbers') {
+    const note = $('case-note');
+    if (note && !note.hidden && note.textContent) lines.push(note.textContent);
+    else lines.push('Range source: the numbers entered on this page.');
+  }
+  return lines.join('\n');
+}
+
 function onPrimary() {
   if (!lastResult || !lastResult.ready) return;
   const primary = $('primary');
@@ -1898,7 +1917,7 @@ function onPrimary() {
     return;
   }
   if (!lastDecision) return;
-  copyText(lastDecision.copy);
+  copyText(ticketText());
   window.clearTimeout(copyReset);
   primary.textContent = 'Copied';
   copyReset = window.setTimeout(() => { primary.textContent = lastDecision.button; }, 1500);
@@ -2517,7 +2536,7 @@ function resultsJson(result) {
 
 $('dl-txt').addEventListener('click', () => {
   if (!lastResult || !lastDecision) return;
-  downloadFile('anyrb-build.txt', `${lastDecision.copy}\n`, 'text/plain');
+  downloadFile('anyrb-build.txt', `${ticketText()}\n`, 'text/plain');
 });
 $('dl-csv').addEventListener('click', () => {
   if (!lastResult) return;
