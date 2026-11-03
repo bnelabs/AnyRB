@@ -505,6 +505,18 @@ test('settings, progress and downloads are wired without a key in the source', a
   assert.doesNotMatch(js, /META_API_KEY\s*=/);
 });
 
+test('settings keeps Meta in front and labels every model answer', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="set-other-provider"/);
+  assert.match(html, /Use a different provider instead of Meta/);
+  assert.match(html, /id="set-provider-field" hidden/);
+  assert.match(js, /answerSourceLine/);
+  assert.match(js, /saved answer from an earlier call/);
+  assert.match(js, /Voice: /);
+});
+
 test('the still-needed questions are on the page and ask for specific information', async () => {
   const fs = await import('node:fs/promises');
   const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');

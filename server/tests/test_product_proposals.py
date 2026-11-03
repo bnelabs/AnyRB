@@ -676,3 +676,47 @@ def test_custom_endpoint_must_be_https_or_localhost(client, monkeypatch):
     }).json()
     # an http (non-localhost) endpoint is refused: no live call, no invented moves
     assert data["proposals"] == [] and data["_meta"]["fallback"] is True
+
+
+def test_cache_identity_includes_prompt_and_presenting_key(monkeypatch, tmp_path):
+    """A prompt change or a different key must not serve a warm cached answer."""
+    import json as _json
+    from server import meta_client
+    calls = {"n": 0}
+
+    class FakeResponse:
+        status_code = 200
+        def raise_for_status(self): return None
+        def json(self):
+            return {"choices": [{"message": {"content": _json.dumps({"proposals": []})}}], "usage": {}}
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, url, headers=None, json=None):
+            calls["n"] += 1
+            return FakeResponse()
+
+    monkeypatch.setattr(meta_client.httpx, "Client", FakeClient)
+    monkeypatch.setattr(meta_client, "MOCK", False)
+    monkeypatch.setattr(meta_client, "KEY", "server-key")
+    monkeypatch.setattr(meta_client, "CACHE_DIR", tmp_path)
+    payload = {"probe": "cache-identity-1"}
+    fallback = lambda: {"proposals": []}  # noqa: E731
+
+    with meta_client.request_scope(key="user-a"):
+        first = meta_client.spark_json("probe_kind", "system-a", payload, fallback)
+        second = meta_client.spark_json("probe_kind", "system-a", payload, fallback)
+    assert first["_meta"]["cached"] is False and second["_meta"]["cached"] is True
+    assert calls["n"] == 1
+
+    with meta_client.request_scope(key="user-b"):
+        other_key = meta_client.spark_json("probe_kind", "system-a", payload, fallback)
+    assert other_key["_meta"]["cached"] is False
+    assert calls["n"] == 2
+
+    with meta_client.request_scope(key="user-a"):
+        other_prompt = meta_client.spark_json("probe_kind", "system-b", payload, fallback)
+    assert other_prompt["_meta"]["cached"] is False
+    assert calls["n"] == 3

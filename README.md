@@ -55,21 +55,13 @@ the file).
 **Units** switch between metric and imperial from the top of the page. Fields, requirements,
 ranges, margins and the build ticket all convert; the checker itself always calculates in metric.
 
-**Settings** (top right) is where inference is chosen: Meta Model API (Muse Spark 1.3 Contributor
-or Muse Spark 1.3), OpenRouter, OpenAI, Anthropic, Google, NVIDIA, DeepSeek, a custom
-OpenAI-compatible endpoint, or no model at all — the local checker only. Each provider takes its
-endpoint (filled in, editable), its model name, and your own key for it. A key stays in the
-browser tab, is sent only to the server on this machine when the model is called, and is gone
-when the tab closes; it is never written into the page or these files. The server's own key only
-works for Meta, and voice is only available with Meta.
-
 ## Sixty seconds, with the numbers the app gives
 
 - Open the page, choose **Crate**. The build carries **95.4–111.0 kg** and weighs **338.4 g** —
   inside the 95–115 kg and 320–360 g requirements. The strength bar shows why this is a close
   call: **closest margin 0.4 kg at the low end**. A slightly weaker delivery would fail it.
 - Tighten the requirement to **130–150 kg**. Now no build passes, and the app says so in the
-  part's own terms first: as it stands it carries 95.4–111.0 kg. Then the batch terms: this build
+  part's own terms first: as it stands it carries 95.4–111.0 kg. Then in supplier numbers: this build
   needs a plastic strength of 56.7–65.4 MPa; this delivery gives 41.6–48.4 MPa — and thickening
   the part can't fix a swing that wide, so the levers are mixing in another plastic, sorting, a different
   section, or a different part for this delivery.
@@ -85,13 +77,24 @@ Four jobs, all through the local server — the browser never holds an API key:
 | Read the typed or spoken brief into fields | Muse Spark 1.3 Contributor, Muse Voice Transcribe | Editable fields; anything you didn't say stays empty |
 | Propose sizes and delivery moves | Muse Spark 1.3 Contributor | Each proposal checked at the exact size proposed; what doesn't pass is shown, then sent back to Muse Spark once with the checked ranges |
 | Answer "what should I add or change?" | Muse Spark 1.3 Contributor | Actions using only your numbers, or nothing when it has nothing grounded to say |
-| — | — | Proposal and brief answers say whether they are a live call or a saved one, and which model answered |
+| — | — | Every model answer — brief, proposals, advice and voice — names the model that answered, whether it is live or a saved answer, and how long it took |
 
 The model proposes; a deterministic checker disposes. No strength, stiffness or weight on the
 page is written by a model — every one is calculated from the part size and the delivery range,
 and the page labels each build "proposed by the model," "direction from the model, size
 calculated here," or "calculated here." Without the server, the checker still runs on your
 numbers; with no model available the page shows the calculated build and the material gap, and no suggested moves.
+
+### Using another provider
+
+Meta is the built-in provider and the one this app is built around. **Settings** (top right) can
+instead use a different provider — OpenRouter, OpenAI, Anthropic, Google, NVIDIA, DeepSeek, a
+custom endpoint that works like OpenAI, or no model at all — behind an explicit "use a different
+provider" step. Each takes its endpoint, model name and your own key; only Meta can use the
+server's key, and a request naming another provider without your key sends no key anywhere.
+Other providers are exercised with simulated transports in the tests, not with live keys. A key
+stays in the browser tab, is sent only to the server on this machine when the model is called,
+and is gone when the tab closes. Voice is only available with Meta.
 
 ## Where the numbers come from, and the edges of the checker
 
@@ -124,7 +127,7 @@ deployment; the API key stays in the server environment, never in the page.
 python3 app/build.py                                    # rebuild index.html from app/
 node app/tests/model.test.mjs                           # 53 app tests
 node app/tests/combinations.test.mjs                    # 13,200-case combination matrix
-AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 135 server tests (1 live smoke skipped)
+AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 136 server tests (1 live smoke skipped)
 ```
 
 ## What's in this repository
@@ -133,7 +136,7 @@ AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 135 server tests (1 li
 |---|---|
 | `app/` | The page: `product.js` (checker), `main.js` (page), `index.html`, `styles.css`, tests |
 | `server/` | FastAPI server: Meta calls, sanitising, grounding (`product_ai.py`, `meta_client.py`) |
-| `data/` | The worked cases and the published feedstock ranges the Batch picker uses |
+| `data/` | The worked cases, their sources, and the published feedstock ranges the delivery picker uses |
 | `demo/` | Product screenshots, architecture slide, reference video |
 | `LICENSE` | MIT |
 

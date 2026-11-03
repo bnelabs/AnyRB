@@ -472,11 +472,24 @@ function fmtVal(value, unit) {
   return `${formatNumber(convertForDisplay(value, unit))} ${displayUnit(unit)}`;
 }
 
+function answerSourceLine(data) {
+  const meta = (data && data._meta) || {};
+  const model = (data && data._model) || meta.model || '';
+  const who = model && model !== 'fallback' ? `${model} · ` : '';
+  const when = (data && data._cached) || meta.cached ? 'saved answer from an earlier call' : 'live answer';
+  const latency = Number(meta.latency_s);
+  const timing = Number.isFinite(latency) && latency > 0 ? ` · ${latency < 10 ? latency.toFixed(1) : Math.round(latency)}s` : '';
+  return `${who}${when}${timing}`;
+}
+
 function metaSourceText() {
   if (!metaSource) return '';
+  const who = metaSource.model ? `${metaSource.model} · ` : '';
+  const latency = Number(metaSource.latency);
+  const timing = Number.isFinite(latency) && latency > 0 ? ` · ${latency < 10 ? latency.toFixed(1) : Math.round(latency)}s` : '';
   const round = feedbackRound ? ' Shown the checked result, the model proposed again.' : '';
-  if (metaSource.kind === 'live') return ` Live answer, just now.${round}`;
-  if (metaSource.kind === 'cached') return ` Saved answer from an earlier call.${round}`;
+  if (metaSource.kind === 'live') return ` ${who}live answer, just now${timing}.${round}`;
+  if (metaSource.kind === 'cached') return ` ${who}saved answer from an earlier call.${round}`;
   if (metaSource.kind === 'offline') return ' The model is not reachable from here; the calculated build stands on its own.';
   return '';
 }
@@ -1645,13 +1658,13 @@ async function fetchProposals() {
     if (fallback) {
       modelProposals = [];
       modelState = 'offline';
-      metaSource = { kind: 'offline', model: data._model || '' };
+      metaSource = { kind: 'offline', model: data._model || '', latency: data._meta && data._meta.latency_s };
     } else {
       modelProposals = proposals;
       modelState = proposals.length ? 'meta' : 'empty';
       metaSource = data._cached
-        ? { kind: 'cached', model: data._model || '' }
-        : { kind: 'live', model: data._model || '' };
+        ? { kind: 'cached', model: data._model || '', latency: data._meta && data._meta.latency_s }
+        : { kind: 'live', model: data._model || '', latency: data._meta && data._meta.latency_s };
     }
     // One informed second round: if the checker rejected the model's exact
     // proposals and any did not pass at that size, show Spark the checked
@@ -1688,8 +1701,8 @@ async function fetchProposals() {
             }
             modelState = 'meta';
             metaSource = secondData._cached
-              ? { kind: 'cached', model: secondData._model || '' }
-              : { kind: 'live', model: secondData._model || '' };
+              ? { kind: 'cached', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s }
+              : { kind: 'live', model: secondData._model || '', latency: secondData._meta && secondData._meta.latency_s };
             feedbackRound = true;
           }
         } catch (error) {
@@ -1749,14 +1762,12 @@ async function askMeta() {
       const reason = data._meta && data._meta.reason_code;
       if (reason === 'grounding_failed') {
         $('ask-status').textContent = 'The answer did not stay with the numbers here. The calculated plan still applies.';
-      } else if (reason === 'test_instruction') {
-        $('ask-status').textContent = 'The answer was not a make-or-change action. The calculated plan still applies.';
       } else {
         $('ask-status').textContent = 'The model is unavailable right now. The calculated plan still applies.';
       }
       return;
     }
-    $('ask-status').textContent = '';
+    $('ask-status').textContent = answerSourceLine(data);
     const answer = document.createElement('p');
     answer.textContent = data.answer;
     $('ask-answer').append(answer);
@@ -1923,6 +1934,7 @@ let voiceRecorder = null;
 let voiceStream = null;
 let voiceChunks = [];
 let voiceBusy = false;
+let voiceSource = '';
 
 async function blobToWav(blob) {
   const arrayBuffer = await blob.arrayBuffer();
@@ -2006,6 +2018,7 @@ async function sendVoice(blob) {
     field.focus();
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
+    voiceSource = answerSourceLine(result);
     $('brief-status').textContent = 'Heard it. Filling in the form…';
     await readBrief();
   } catch (error) {
@@ -2171,9 +2184,7 @@ async function readBrief() {
     field.scrollTop = 0;
     const filledTargets = [state.target, ...state.extraTargets]
       .filter((t) => t.property && t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)));
-    const sourcePlain = data._cached
-      ? 'That was a saved answer from an earlier call.'
-      : 'That answer just came in.';
+    const sourcePlain = `Answer source: ${answerSourceLine(data)}.`;
     let status = 'Done — the part is in the form.';
     if (!filledTargets.length) {
       status += ' No result yet: your description did not say what it has to do. The question is right below — answer it and the result appears.';
@@ -2184,6 +2195,7 @@ async function readBrief() {
       status += ` For this delivery, the published range “${briefPublished.label}” was used — that is a published range, not a measurement of this delivery. Change it under “This delivery” if your supplier’s numbers differ.`;
     }
     status += ` ${sourcePlain}`;
+    if (voiceSource) { status += ` Voice: ${voiceSource}.`; voiceSource = ''; }
     $('brief-status').textContent = status;
   } catch (error) {
     $('brief-status').textContent = 'The model is unavailable. Fill the fields below; the checker on this page still works.';
@@ -2457,6 +2469,16 @@ $('unit-metric').addEventListener('click', () => applyUnits('metric'));
 $('unit-imperial').addEventListener('click', () => applyUnits('imperial'));
 
 function syncProviderFields() {
+  const other = $('set-other-provider').checked;
+  $('set-provider-field').hidden = !other;
+  if (!other) {
+    // Meta is the built-in provider: its fields, and no rival list in view.
+    $('set-endpoint-field').hidden = false;
+    $('set-model-field').hidden = false;
+    $('set-model-text-field').hidden = true;
+    $('set-key-field').hidden = false;
+    return;
+  }
   const provider = $('set-provider').value;
   const isMeta = provider === 'meta';
   const isLocal = provider === 'local';
@@ -2471,8 +2493,10 @@ function syncProviderFields() {
   }
 }
 $('set-provider').addEventListener('change', syncProviderFields);
+$('set-other-provider').addEventListener('change', syncProviderFields);
 $('settings-open').addEventListener('click', () => {
-  $('set-provider').value = settings.provider;
+  $('set-other-provider').checked = settings.provider !== 'meta';
+  $('set-provider').value = settings.provider === 'meta' ? 'meta' : settings.provider;
   $('set-model').value = settings.model;
   $('set-model-text').value = settings.modelText;
   $('set-key').value = '';
@@ -2491,7 +2515,7 @@ $('set-clear-key').addEventListener('click', () => {
 });
 $('settings-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  settings.provider = $('set-provider').value;
+  settings.provider = $('set-other-provider').checked ? $('set-provider').value : 'meta';
   settings.model = $('set-model').value;
   settings.modelText = $('set-model-text').value.trim();
   settings.endpoint = $('set-endpoint').value.trim();

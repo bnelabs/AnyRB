@@ -517,7 +517,12 @@ def spark_json(kind: str, system: str, payload: dict,
     deterministic fallback. `_meta` describes what actually happened.
     """
     mock_flag = _effective_mock(mock)
-    cache_key = f"spark_{cache_name or kind}_{_hash('spark', _effective_provider(), _effective_base(), _effective_model(), kind, payload)}.json"
+    # Cache identity includes the system prompt (a prompt change must not
+    # serve a warm answer) and a fingerprint of the presenting key (one
+    # account's cached answers are never served to another, or to no key).
+    _key = _effective_key()
+    key_fingerprint = hashlib.sha256(_key.encode()).hexdigest()[:12] if _key else "nokey"
+    cache_key = f"spark_{cache_name or kind}_{_hash('spark', _effective_provider(), _effective_base(), _effective_model(), kind, system, key_fingerprint, payload)}.json"
     if mock_flag:
         return _fallback_result(kind, fallback, 0.0, True, "forced mock mode", "mock")
     cached = _cache_get(cache_key)

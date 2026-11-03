@@ -299,7 +299,11 @@
 <dialog class="settings" id="settings-dialog" aria-labelledby="settings-title">
   <form id="settings-form" method="dialog">
     <h2 id="settings-title">Settings</h2>
-    <div class="field">
+    <p class="settings-note">Meta Model API is the built-in provider for this app. Nothing below needs changing to use it.</p>
+    <div class="field check-field">
+      <label class="check" for="set-other-provider"><input id="set-other-provider" type="checkbox"> Use a different provider instead of Meta</label>
+    </div>
+    <div class="field" id="set-provider-field" hidden>
       <label for="set-provider">Inference provider</label>
       <select id="set-provider">
         <option value="meta">Meta Model API</option>
