@@ -619,6 +619,54 @@ def test_anthropic_provider_uses_messages_api(client, monkeypatch):
     assert "messages" in seen["json"] and "system" in seen["json"]
 
 
+def test_server_key_never_goes_to_a_non_meta_provider(client, monkeypatch):
+    import json as _json
+    from server import meta_client
+    seen = _capture_transport(monkeypatch, {"choices": [{"message": {"content": "{}"}}], "usage": {}})
+    monkeypatch.setattr(meta_client, "KEY", "server-secret-key")
+    body = _unique_body("provider-key-leak")
+    data = client.post(ENDPOINT, json=body, headers={
+        "X-User-Provider": "openrouter", "X-User-Base-Url": "https://attacker.example/v1",
+        "X-User-Meta-Model": "some/model-1",
+    }).json()
+    # no user key for a non-Meta provider: no live call at all, and the
+    # server's own key must not appear in any outbound header
+    assert data["proposals"] == [] and data["_meta"]["fallback"] is True
+    assert "url" not in seen
+    assert "server-secret-key" not in _json.dumps(seen)
+    assert "server-secret-key" not in _json.dumps(data)
+
+
+def test_server_key_never_goes_to_a_custom_base_under_meta(client, monkeypatch):
+    import json as _json
+    from server import meta_client
+    seen = _capture_transport(monkeypatch, {"choices": [{"message": {"content": "{}"}}], "usage": {}})
+    monkeypatch.setattr(meta_client, "KEY", "server-secret-key")
+    body = _unique_body("provider-key-leak-custom-base")
+    data = client.post(ENDPOINT, json=body, headers={
+        "X-User-Provider": "meta", "X-User-Base-Url": "https://attacker.example/v1",
+        "X-User-Meta-Model": "muse-spark-1.3",
+    }).json()
+    assert data["proposals"] == [] and data["_meta"]["fallback"] is True
+    assert "url" not in seen
+    assert "server-secret-key" not in _json.dumps(seen)
+
+
+def test_server_key_never_goes_to_anthropic_without_user_key(client, monkeypatch):
+    import json as _json
+    from server import meta_client
+    seen = _capture_transport(monkeypatch, {"content": [{"type": "text", "text": "{}"}], "usage": {}})
+    monkeypatch.setattr(meta_client, "KEY", "server-secret-key")
+    body = _unique_body("provider-key-leak-anthropic")
+    data = client.post(ENDPOINT, json=body, headers={
+        "X-User-Provider": "anthropic", "X-User-Base-Url": "https://api.anthropic.com/v1",
+        "X-User-Meta-Model": "claude-test-1",
+    }).json()
+    assert data["proposals"] == [] and data["_meta"]["fallback"] is True
+    assert "url" not in seen
+    assert "server-secret-key" not in _json.dumps(seen)
+
+
 def test_custom_endpoint_must_be_https_or_localhost(client, monkeypatch):
     _capture_transport(monkeypatch, {"choices": [{"message": {"content": "{}"}}], "usage": {}})
     body = _unique_body("provider-bad-url")

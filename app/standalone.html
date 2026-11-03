@@ -2349,7 +2349,11 @@ function blendCandidate(stateInput) {
 
 function passesAllTargets(state, part, plastic) {
   const targets = [state.target, ...state.extraTargets];
-  return targets.every((target) => target.property === 'none' || inRange(propertyRange(part, plastic, target.property), target));
+  const numeric = targets.filter((target) => target.property !== 'none');
+  // With no numeric target there is nothing for a searched build to pass:
+  // the entered build is the answer, not the thinnest build the loop finds.
+  if (!numeric.length) return false;
+  return numeric.every((target) => inRange(propertyRange(part, plastic, target.property), target));
 }
 
 function addFound(state, found, seen, candidate) {
@@ -2489,21 +2493,13 @@ function addCandidate(state, list, seen, candidate) {
 function traceModelProposals(state, proposals) {
   const normalized = normalizeModelProposals(state, proposals);
   const targets = [state.target, ...state.extraTargets];
-  const current = currentPart(state);
-  const currentMass = massG(current, state.plastic.density);
-  const supportFor = (candidate) => candidate.move === 'span' ? currentMass * 0.2 : 0;
   const trace = [];
   for (const candidate of normalized) {
     if (!validCandidate(state, candidate)) continue;
     const part = candidatePart(state, candidate);
     const plastic = plasticFor(state, candidate);
-    const support = supportFor(candidate);
-    const ranges = targets.map((target) => {
-      let range = propertyRange(part, plastic, target.property);
-      if (target.property === 'weight') range = { ...range, min: range.min + support, max: range.max + support };
-      return range;
-    });
-    const pass = ranges.every((range, i) => inRange(range, targets[i]));
+    const ranges = targets.map((target) => propertyRange(part, plastic, target.property));
+    const pass = ranges.every((range, i) => targets[i].property === 'none' || inRange(range, targets[i]));
     trace.push({ ...candidate, part, ranges, pass, source: 'meta' });
   }
   return trace;
@@ -2547,12 +2543,11 @@ function evaluateBuilds(stateInput, modelProposals = []) {
     part: current.part,
   };
 
-  const supportG = (candidate, mass) => candidate.move === 'span' ? mass * 0.2 : 0;
   const modelTrace = targetValid ? traceModelProposals(state, modelProposals) : [];
   const candidates = [];
   const seen = new Set();
   const searched = targetValid ? searchModelMoves(state, modelProposals) : [];
-  if (targetValid) {
+  if (targetValid && targets.some((target) => target.property !== 'none')) {
     for (const exact of modelTrace) if (exact.pass) addCandidate(state, candidates, seen, exact);
     const minimum = minimumThicknessCandidate(state);
     if (minimum) addCandidate(state, candidates, seen, minimum);
@@ -2569,14 +2564,9 @@ function evaluateBuilds(stateInput, modelProposals = []) {
   const evaluated = candidates.map((candidate) => {
     const part = candidatePart(state, candidate);
     const plastic = plasticFor(state, candidate);
-    const support = supportG(candidate, currentMass);
-    const ranges = targets.map((target) => {
-      let range = propertyRange(part, plastic, target.property);
-      if (target.property === 'weight') range = { ...range, min: range.min + support, max: range.max + support };
-      return range;
-    });
-    const mass = massG(part, plastic.density) + support;
-    // A blend is not free: it uses the steadier stream in every part.
+    const ranges = targets.map((target) => propertyRange(part, plastic, target.property));
+    const mass = massG(part, plastic.density);
+    // A blend is not free: it uses the mix-in plastic in every part.
     // Charge it that stream, in grams a part, so it is ranked on the same
     // axis as added section material.
     const addedG = candidate.move === 'blend'
@@ -2595,7 +2585,7 @@ function evaluateBuilds(stateInput, modelProposals = []) {
       massG: mass,
       addedG,
       origin,
-      pass: targetValid && ranges.every((range, i) => inRange(range, targets[i])),
+      pass: targetValid && ranges.every((range, i) => targets[i].property === 'none' || inRange(range, targets[i])),
     };
   });
 
@@ -2655,8 +2645,8 @@ function moveLabel(state, candidate) {
     return 'Changed section';
   }
   if (candidate.move === 'span') {
-    if (candidate.part.mode !== state.mode) return 'Changed load path + support';
-    return `${candidate.part.spanMm < state.spanMm ? 'Shorter span' : 'Longer span'} + support`;
+    if (candidate.part.mode !== state.mode) return 'Changed how it is held';
+    return candidate.part.spanMm < state.spanMm ? 'Shorter span' : 'Longer span';
   }
   return 'Build';
 }

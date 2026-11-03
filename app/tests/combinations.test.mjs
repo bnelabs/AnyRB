@@ -595,6 +595,25 @@ test("a primary 'none' beside numeric extra targets: no invented gap, no placeho
   assert.ok(winners > 0 && failures > 0, `winners=${winners} failures=${failures}`);
 });
 
+test("a primary 'none' beside weight can return a searched non-current winner", () => {
+  const state = buildState({
+    mode: 'simple',
+    geometryName: 'bracket',
+    targets: [
+      { property: 'none', min: '', max: '' },
+      { property: 'weight', min: 90, max: 110 },
+    ],
+    delivery: DELIVERIES['narrow custom, no steadier'],
+  });
+  const result = evaluateBuilds(state, []);
+  assert.equal(result.ready, true);
+  assert.equal(result.current.pass, false);
+  assert.ok(result.winner, 'a thicker build inside the weight window must be found');
+  assert.notEqual(result.winner.move, 'current');
+  const weight = result.winner.ranges[1];
+  assert.ok(weight.min >= 90 - 1e-9 && weight.max <= 110 + 1e-9);
+});
+
 test('impossible-tight failure: finite gaps and a clean headline at every geometry/mode', () => {
   for (const mode of ['cantilever', 'simple', 'compression']) {
     for (const geometryName of Object.keys(GEOMETRIES)) {
