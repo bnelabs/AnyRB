@@ -314,6 +314,7 @@ export function isReady(stateInput) {
     if (!PROPERTY_KEYS.has(target.property)) return false;
     if (!Number.isFinite(target.min) || !Number.isFinite(target.max)) return false;
     if (target.min > target.max) return false;
+    if (!(target.max > 0)) return false;
   }
   if (!(state.plastic.eMin > 0 && state.plastic.eMax >= state.plastic.eMin)) return false;
   if (!(state.plastic.sMin > 0 && state.plastic.sMax >= state.plastic.sMin)) return false;
@@ -1042,9 +1043,19 @@ export function decisionFor(stateInput, result) {
     let headline;
     if (primary.buckling && primary.buckling.governs) headline = 'Thicken or shorten this part.';
     else if (primary.rangeTooWide) headline = `This delivery varies too much in ${meta.noun}.`;
-    else if (primary.shortLow > 0) headline = `The weak end of the ${meta.noun} must rise by ${formatNumber(primary.shortLow)} ${unit}.`;
-    else if (primary.overHigh > 0) headline = `The strong end of the ${meta.noun} must come down by ${formatNumber(primary.overHigh)} ${unit}.`;
-    else headline = 'This build needs a different section.';
+    else if (primary.shortLow > 0) {
+      headline = primary.property === 'strength'
+        ? 'Not strong enough with this delivery.'
+        : primary.property === 'stiffness'
+          ? 'Not stiff enough with this delivery.'
+          : 'The plastic is not dense enough for that weight.';
+    } else if (primary.overHigh > 0) {
+      headline = primary.property === 'strength'
+        ? 'It would carry more than you asked for.'
+        : primary.property === 'stiffness'
+          ? 'It would be stiffer than you asked for.'
+          : 'It would weigh more than you asked for.';
+    } else headline = 'This part needs a different size.';
     const statements = gaps.map((gap) => {
       const gapMeta = propertyMeta(gap.property);
       return `${gapMeta.noun} needs ${formatRange(gap.required, gap.unit)}; the delivery gives ${formatRange(gap.batch, gap.unit)}.`;
@@ -1052,7 +1063,7 @@ export function decisionFor(stateInput, result) {
     const asStands = result.current
       ? `as it stands, this build ${rangeText(result.current)} — you need ${targetText}. `
       : '';
-    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}${statements.join(' ')} ${primary.action}`;
+    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}In supplier numbers: ${statements.join(' ')} ${primary.action}`;
     const copy = [
       'AnyRB plan',
       headline,

@@ -1120,6 +1120,10 @@ def _sanitize_brief_targets(raw_targets: Any, stated: list[float],
                         f"targets[{index}].max", dropped)
         if lo is None and hi is None:
             continue
+        if hi is not None and hi <= 0:
+            # A requirement topping out at 0 is not a requirement.
+            dropped.append(f"targets[{index}].max")
+            continue
         if lo is not None and hi is not None and lo > hi:
             lo, hi = hi, lo
         seen.add(prop)

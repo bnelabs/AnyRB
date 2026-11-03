@@ -593,10 +593,11 @@ function renderVerdict(result, decision) {
 // ---------------------------------------------------------------------------
 let needStep = null;
 let needBatchNumbers = false;
+let renderedNeedStep = null;
 
 function validTargets() {
   return [state.target, ...state.extraTargets]
-    .filter((t) => t && t.property && t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)));
+    .filter((t) => t && t.property && t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)) && Number(t.max) > 0);
 }
 function missingSteps() {
   const steps = [];
@@ -630,17 +631,28 @@ function renderNeed(result) {
   if (result.ready || !started) {
     panel.hidden = true;
     needStep = null;
+    renderedNeedStep = null;
     return;
   }
   const steps = missingSteps();
   if (!steps.length) {
     panel.hidden = true;
     needStep = null;
+    renderedNeedStep = null;
     return;
   }
   panel.hidden = false;
-  needStep = steps[0];
   $('need-progress').textContent = steps.length > 1 ? `${steps.length} things still needed` : 'Last thing needed';
+  // Do not rebuild a question the user is in the middle of answering:
+  // an async model response re-rendering the page would wipe typed
+  // answers and any error message. needStep must stay with the question
+  // on screen, not with the step the state has since moved to.
+  if (renderedNeedStep === steps[0] && $('need-control').childElementCount) {
+    needStep = renderedNeedStep;
+    return;
+  }
+  needStep = steps[0];
+  renderedNeedStep = needStep;
   const control = $('need-control');
   control.replaceChildren();
   const question = $('need-question');
@@ -792,9 +804,13 @@ function applyNeed() {
   } else if (needStep === 'target') {
     const property = $('need-property').value;
     const meta = propertyMeta(property);
-    const low = Number($('need-n-low').value);
-    const high = Number($('need-n-high').value);
-    if (!Number.isFinite(low) || !Number.isFinite(high) || low > high) return fail('Give both numbers, the lowest first.');
+    const lowRaw = $('need-n-low').value.trim();
+    const highRaw = $('need-n-high').value.trim();
+    const low = Number(lowRaw);
+    const high = Number(highRaw);
+    if (lowRaw === '' || highRaw === '' || !Number.isFinite(low) || !Number.isFinite(high) || low > high || !(high > 0)) {
+      return fail('Give two numbers: the lowest and the highest that are acceptable. The highest must be more than 0 — leave neither box empty.');
+    }
     state.target = { property, min: convertFromDisplay(low, meta.unit), max: convertFromDisplay(high, meta.unit) };
   } else if (needStep === 'batch-numbers') {
     $('measured-fields').open = true;

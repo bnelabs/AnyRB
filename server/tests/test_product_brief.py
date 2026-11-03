@@ -432,3 +432,12 @@ def test_stated_600mm_width_is_not_silently_cut(client, monkeypatch):
             "supported at both ends.")
     brief = client.post(ENDPOINT, json={"text": text}).json()["brief"]
     assert (brief["span_mm"], brief["width_mm"], brief["thickness_mm"]) == (1200.0, 600.0, 15.0)
+
+
+def test_zero_top_target_is_dropped_not_filled(client, monkeypatch):
+    _use_fake_live(monkeypatch, {
+        "product": "crate side", "mode": "simple",
+        "targets": [{"property": "strength", "min": 0, "max": 0}],
+    })
+    data = client.post(ENDPOINT, json={"text": "crate side, carry 0 to 0 kg"}).json()
+    assert data["brief"]["targets"] == []

@@ -318,7 +318,7 @@ test('an impossible target does not say "do not use the delivery"', () => {
   assert.ok(result.gaps.length);
   const decision = decisionFor(s, result);
   assert.doesNotMatch(decision.headline, /do not use|don't use/i);
-  assert.match(decision.headline, /^(The weak end of the strength must rise|This delivery varies too much)/);
+  assert.match(decision.headline, /^(Not strong enough with this delivery|This delivery varies too much)/);
   assert.equal(decision.button, 'Ask about this delivery');
 });
 
@@ -501,4 +501,12 @@ test('a section move may widen a part but may not shrink its width', () => {
   }
   const traced = evaluateBuilds(s, [{ move: 'section', widthMm: 10, thicknessMm: 40 }]);
   assert.equal(traced.modelTrace.filter((item) => item.move === 'section').length, 0);
+});
+
+test('a 0-0 requirement is no requirement (no result is calculated against it)', () => {
+  const s = bracket({ target: { property: 'strength', min: 0, max: 0 }, extraTargets: [] });
+  assert.equal(isReady(s), false);
+  const result = evaluateBuilds(s, []);
+  assert.equal(result.ready, false);
+  assert.equal(result.winner, null);
 });
