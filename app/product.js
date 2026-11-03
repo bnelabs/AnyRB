@@ -1099,6 +1099,7 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
     triedCount: evaluated.length,
     triedMoves: [...triedMoves],
     failedMoves,
+    evaluated,
     targetValid,
     targets,
     modelTrace,
@@ -1134,6 +1135,14 @@ export function addedMaterialText(addedG) {
   if (Math.abs(addedG) < 0.5) return 'no added material';
   const sign = addedG > 0 ? '+' : '−';
   return `${sign}${formatNumber(convertForDisplay(Math.abs(addedG), 'g'))} ${displayUnit('g')}`;
+}
+
+const THIN_EVIDENCE_TYPE = /recycled ldpe|mixed plastics|mixed polyolefins/i;
+function thinEvidenceDelivery(state) {
+  return state.rangeSource !== 'numbers' && THIN_EVIDENCE_TYPE.test(state.plastic.type || '');
+}
+function largeLoadDecision(state, targets) {
+  return targets.some((target) => target.property === 'strength' && Number(target.min) >= 1000);
 }
 
 export function decisionFor(stateInput, result) {
@@ -1205,7 +1214,20 @@ export function decisionFor(stateInput, result) {
     const supplierSentence = state.rangeSource === 'published'
       ? ''
       : `In supplier numbers: ${statements.join(' ')} `;
-    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}${supplierSentence}${primary.action} Ranges are checked as entered — no safety margin is added to any of these numbers.`;
+    const secondary = gaps
+      .filter((gap) => gap.property !== primary.property && (gap.shortLow > 0 || gap.overHigh > 0))
+      .map((gap) => `Also holding it back: ${propertyMeta(gap.property).noun} — ${gap.action.charAt(0).toLowerCase()}${gap.action.slice(1)}`)
+      .join(' ');
+    let nearMiss = '';
+    const treatedMiss = (result.evaluated || []).find((item) => item.move === 'treated' && !item.pass);
+    if (treatedMiss) {
+      const idx = targets.findIndex((target) => target.property === primary.property);
+      if (idx >= 0 && treatedMiss.ranges && treatedMiss.ranges[idx]) {
+        const meta = propertyMeta(primary.property);
+        nearMiss = ` After sorting or washing to the ranges you entered, this build gives ${formatRange(treatedMiss.ranges[idx], meta.unit)} — still outside your ${meta.label} ${formatTarget(targets[idx])}.`;
+      }
+    }
+    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}${supplierSentence}${primary.action}${secondary ? ` ${secondary}` : ''}${nearMiss} Ranges are checked as entered — no safety margin is added to any of these numbers.`;
     const copy = [
       'AnyRB plan',
       headline,
@@ -1263,6 +1285,9 @@ export function decisionFor(stateInput, result) {
   } else {
     support = `As entered, this part misses. This build ${rangeText(winner)} — inside your ${targetText}.`;
   }
+  const isLargeLoad = largeLoadDecision(state, targets);
+  const isThinEvidence = thinEvidenceDelivery(state)
+    && numericTargets.some(({ target }) => target.property === 'strength' || target.property === 'stiffness');
   const spares = numericTargets.map(({ target, i }) => {
     const range = winner.ranges ? winner.ranges[i] : winner.range;
     const scale = Math.max(Math.abs(target.min), Math.abs(target.max), 1e-9);
@@ -1270,11 +1295,13 @@ export function decisionFor(stateInput, result) {
   });
   const thinMargin = spares.length && Math.min(...spares) < 0.05;
   support += ' Ranges are checked as entered — no safety margin added.';
-  if (thinMargin) support += ' The closest margin is thin — make one and check it before a run.';
+  if (isLargeLoad) support += ' At this load this is a calculated estimate only — do not build on it without proper load testing by someone equipped for loads like this.';
+  else if (thinMargin) support += ' The closest margin is thin — make one and check it before a run.';
+  if (isThinEvidence) support += ' This delivery range rests on thin published evidence, so treat this answer as a rough guide, not a build instruction.';
   const copy = [
     'AnyRB build',
     headline,
-    'Checked as entered — no safety margin added.' + (thinMargin ? ' The closest margin is thin: make one and check it before a run.' : ''),
+    'Checked as entered — no safety margin added.' + (isLargeLoad ? ' At this load this is a calculated estimate only, not a build instruction.' : (thinMargin ? ' The closest margin is thin: make one and check it before a run.' : '')) + (isThinEvidence ? ' This delivery range rests on thin published evidence: treat it as a rough guide.' : ''),
     `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
     `Mix: ${state.plastic.mix || 'none stated'}; dirt: ${state.plastic.dirt || 'none stated'}`,
     winner.move === 'treated' ? 'First: sort or wash this delivery, to the ranges entered under This delivery' : isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',

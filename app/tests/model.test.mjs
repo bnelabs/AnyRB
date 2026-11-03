@@ -508,6 +508,31 @@ test('failure wording: far below is not called a swing problem, and published ra
   assert.match(pubDecision.support, /varies too much/);
 });
 
+test('decisions scale their caution: large loads, thin evidence, every veto named', () => {
+  const pallet = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.pallet });
+  const palletDecision = decisionFor(pallet, evaluateBuilds(pallet, []));
+  assert.match(palletDecision.support, /calculated estimate only/);
+  assert.doesNotMatch(palletDecision.support, /make one and check it before a run/);
+  assert.match(palletDecision.copy, /calculated estimate only/);
+
+  const shelf = normalizeState({
+    blank: true, product: 'light shelf', mode: 'simple', spanMm: 400, widthMm: 60, thicknessMm: 6,
+    target: { property: 'strength', min: 5, max: 15 },
+    plastic: { type: 'recycled LDPE', eMin: 188, eMax: 312, sMin: 8, sMax: 12, density: 0.92 },
+  });
+  const shelfDecision = decisionFor(shelf, evaluateBuilds(shelf, []));
+  assert.match(shelfDecision.support, /thin published evidence/);
+  assert.match(shelfDecision.copy, /thin published evidence/);
+
+  const bracketState = normalizeState({
+    ...DEFAULT_STATE, ...CASE_PRESETS.bracket,
+    plastic: { type: 'weak custom', eMin: 500, eMax: 600, sMin: 10, sMax: 12, density: 0.95 },
+    steady: { available: true, type: 'cleaner stream', eMpa: 2000, sMpa: 40 },
+  });
+  const bracketDecision = decisionFor(bracketState, evaluateBuilds(bracketState, []));
+  assert.match(bracketDecision.support, /Also holding it back: weight/);
+});
+
 test('a passing decision names a thin margin and the missing safety margin', () => {
   const s = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate });
   const decision = decisionFor(s, evaluateBuilds(s, []));

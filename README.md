@@ -126,7 +126,7 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 60 app tests
+node app/tests/model.test.mjs                           # 61 app tests
 node app/tests/combinations.test.mjs                    # 13,200-case combination matrix
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 137 server tests (1 live smoke skipped)
 ```
