@@ -313,11 +313,6 @@ class ProofResponse(AIResponse):
     qc: Optional[dict[str, Any]] = None
 
 
-class VoiceResponse(AIResponse):
-    transcript: str = ""
-    duration_s: Optional[float] = None
-
-
 class ImageResponse(AIResponse):
     image_data_url: Optional[str] = None
     illustrative: bool = True
@@ -391,7 +386,7 @@ class ErrorResponse(BaseModel):
 # endpoint list used by /api/health and docs
 AI_ENDPOINTS = [
     "/api/brief/parse", "/api/lot/parse", "/api/design/plan", "/api/design/review",
-    "/api/proof/memo", "/api/voice/transcribe", "/api/image/render", "/api/photo/segment",
+    "/api/image/render", "/api/photo/segment",
     "/api/product/brief", "/api/product/proposals", "/api/product/advice",
     "/api/health", "/api/provenance",
 ]

@@ -11,10 +11,12 @@ import {
   allocatePriority,
   buildCostPerPart,
   effectiveMassG,
+  familyOfBatchKey,
   loadPathComparison,
   productionTotals,
   sheetYield,
   steadyValues,
+  treatedOutcomeKeysFor,
   stiffnessRangeFromLoadBend,
   allTargets,
   blendCandidate,
@@ -455,13 +457,13 @@ test('app source starts with a product question, cases and multiple requirements
   assert.match(html, /id="add-target"/);
   assert.match(html, /id="brief"/);
   assert.match(html, /id="brief-submit"/);
-  assert.match(html, /id="brief-voice"/);
+  assert.doesNotMatch(html, /id="brief-voice"/);
   assert.match(html, /id="meta-trace"/);
   assert.doesNotMatch(html, /Make the 180 mm shelf bracket, 40 × 15 mm\./);
   assert.doesNotMatch(html, /don't use|do not use/i);
   assert.match(js, /\/api\/product\/brief/);
-  assert.match(js, /\/api\/voice\/transcribe/);
-  assert.match(js, /MediaRecorder/);
+  assert.doesNotMatch(js, /\/api\/voice\/transcribe/);
+  assert.doesNotMatch(js, /MediaRecorder|getUserMedia/);
   assert.match(js, /\/api\/product\/proposals/);
   assert.match(js, /\/api\/product\/advice/);
   assert.match(js, /SAMPLE_BRIEF/);
@@ -622,7 +624,7 @@ test('settings keeps Meta in front and labels every model answer', async () => {
   assert.match(html, /id="set-provider-field" hidden/);
   assert.match(js, /answerSourceLine/);
   assert.match(js, /saved answer from an earlier call/);
-  assert.match(js, /Voice: /);
+  assert.doesNotMatch(js, /Voice: /);
 });
 
 test('production panel counts waste and sorting loss, and cost can disagree with the headline', async () => {
@@ -781,7 +783,7 @@ test('inference provider menu offers endpoints beyond Meta, with details', async
   assert.match(html, /id="set-model-text"/);
   assert.match(js, /X-User-Provider/);
   assert.match(js, /X-User-Base-Url/);
-  assert.match(js, /Voice is only available with Meta/);
+  assert.doesNotMatch(js, /brief-voice|Use your voice|Voice is only available/);
 });
 
 test('sorting or washing, with the effect entered, becomes a compared build', () => {
@@ -859,8 +861,8 @@ test('mix-in by kind: a published range blends at its weak end and can close a g
 
   // Decision and ticket copy say the published range was used at its weak end.
   const decision = decisionFor(s, result);
-  assert.match(decision.support, /the published range for .* was used at its weak end/);
-  assert.match(decision.copy, /the published range for .* was used at its weak end/);
+  assert.match(decision.support, /using the published “.*” range at its weak end/);
+  assert.match(decision.copy, /using the published “.*” range at its weak end/);
   assert.match(decision.copy, /Blend: 61%/);
 
   // Entered-numbers route is unchanged, and invalid routes fall back safely.
@@ -1067,4 +1069,52 @@ test('supplier sheet intake and delivery comparison are wired', async () => {
   assert.match(html, /id="treated-available"/);
   assert.match(js, /Fill this delivery from the text|sheet-fill/);
   assert.match(js, /renderCompare/);
+});
+
+test('published outcomes stay in the delivery’s own polymer family', () => {
+  assert.equal(familyOfBatchKey('rhdpe-measured-lot'), 'hdpe');
+  assert.equal(familyOfBatchKey('rpetg'), 'pet');
+  assert.equal(familyOfBatchKey('mixed-polyolefins'), 'mixed');
+  assert.equal(familyOfBatchKey('no-such-batch'), null);
+  assert.deepEqual(treatedOutcomeKeysFor('recycled HDPE', 'rhdpe'),
+    ['rhdpe-measured-lot', 'rhdpe', 'mixed-polyolefins']);
+  assert.deepEqual(treatedOutcomeKeysFor('', 'numbers'),
+    PUBLISHED_BATCHES.map((b) => b.key));
+  assert.deepEqual(treatedOutcomeKeysFor('mixed plastics', 'mixed-polyolefins'),
+    PUBLISHED_BATCHES.map((b) => b.key));
+});
+
+test('blend and treated winners name the model behind the numbers', () => {
+  const blended = normalizeState({
+    blank: true, product: 'shelf bracket', mode: 'cantilever',
+    spanMm: 180, widthMm: 40, thicknessMm: 10,
+    target: { property: 'strength', min: 11.5, max: 16.5 },
+    plastic: { type: 'weak', eMin: 500, eMax: 600, sMin: 10, sMax: 12, density: 0.95 },
+    steady: { available: true, type: 'cleaner stream', source: 'published', publishedKey: 'rhdpe-measured-lot' },
+  });
+  const blendResult = evaluateBuilds(blended, []);
+  assert.equal(blendResult.winner.move, 'blend');
+  const blendDecision = decisionFor(blended, blendResult);
+  assert.match(blendDecision.support, /mixture-rule estimate/);
+  assert.match(blendDecision.copy, /optimistic end, not physically tested/);
+  const treated = normalizeState({
+    blank: true, product: 'crate side', mode: 'simple',
+    spanMm: 400, widthMm: 60, thicknessMm: 15,
+    target: { property: 'strength', min: 95, max: 115 },
+    extraTargets: [{ property: 'weight', min: 320, max: 360 }],
+    plastic: { type: 'weak wide', eMin: 400, eMax: 1600, sMin: 18, sMax: 45, density: 0.94 },
+    treated: { available: true, source: 'published', publishedKey: 'rhdpe-measured-lot' },
+  });
+  const treatedResult = evaluateBuilds(treated, []);
+  assert.equal(treatedResult.winner.move, 'treated');
+  const treatedDecision = decisionFor(treated, treatedResult);
+  assert.match(treatedDecision.support, /assumed outcome, not a measurement/);
+});
+
+test('a passing headline on a published range says so', () => {
+  const published = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate, rangeSource: 'published' });
+  const decision = decisionFor(published, evaluateBuilds(published, []));
+  assert.match(decision.headline, /on a published range/);
+  const entered = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate, rangeSource: 'numbers' });
+  assert.doesNotMatch(decisionFor(entered, evaluateBuilds(entered, [])).headline, /on a published range/);
 });

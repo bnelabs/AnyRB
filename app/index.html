@@ -37,13 +37,12 @@
         <button class="brief-sample" id="brief-sample" type="button">Try an example</button>
       </div>
       <div class="brief-row">
-        <textarea id="brief" rows="2" placeholder="The part, what it has to do, and what this delivery is like. Type it, or say it out loud."></textarea>
+        <textarea id="brief" rows="2" placeholder="The part, what it has to do, and what this delivery is like. Type it."></textarea>
         <button class="brief-submit" id="brief-submit" type="button">Fill in the form</button>
-        <button class="brief-voice" id="brief-voice" type="button">Use your voice</button>
       </div>
       <p class="brief-help">These words go to Muse Spark on the server, which fills the fields below from what you said. You can correct every field afterwards.</p>
       <p class="brief-status" id="brief-status"></p>
-      <button class="recall" id="brief-recall" type="button" hidden>Call again for a live answer</button>
+      <button class="recall" id="brief-recall" type="button" hidden>Get a fresh answer</button>
     </div>
     <div class="cases" id="cases" aria-label="Start with a part">
       <span class="cases-label">Examples</span>
@@ -99,8 +98,9 @@
         <div class="section-head">
           <h3>Builds that work</h3>
           <p class="model-status" id="model-status">Scoring this delivery…</p>
-          <button class="recall" id="model-recall" type="button" hidden>Call again for a live answer</button>
+          <button class="recall" id="model-recall" type="button" hidden>Get a fresh answer</button>
         </div>
+        <ol class="build-list" id="build-list"></ol>
         <div class="production" id="production">
           <h3 class="production-title">Production</h3>
           <div class="run-row">
@@ -122,7 +122,13 @@
           <div class="run-note" id="run-note"></div>
           <div class="use-note" id="use-note"></div>
         </div>
-        <ol class="build-list" id="build-list"></ol>
+        <p class="empty-build" id="empty-build" hidden>No build passes yet. What this delivery would need is just below.</p>
+        <div class="meta-trace" id="meta-trace" hidden></div>
+      </div>
+
+      <h3 class="results-subhead" id="gap-title" hidden>What this delivery would need</h3>
+      <div class="gap" id="gap" aria-live="polite" hidden></div>
+
         <div class="downloads" id="downloads" hidden>
           <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
           <div class="downloads-row">
@@ -132,12 +138,6 @@
           </div>
           <p class="downloads-formats">The build sheet is a text file to print or paste. The spreadsheet opens in Excel or Google Sheets. JSON is the same results as data for another system, in metric with the units named in the file.</p>
         </div>
-        <p class="empty-build" id="empty-build" hidden>No build passes yet. What this delivery would need is just below.</p>
-        <div class="meta-trace" id="meta-trace" hidden></div>
-      </div>
-
-      <h3 class="results-subhead" id="gap-title" hidden>What this delivery would need</h3>
-      <div class="gap" id="gap" aria-live="polite" hidden></div>
 
       <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
         <h3 id="ask-title">Ask about this delivery</h3>
@@ -146,7 +146,7 @@
           <button class="ask-button" id="ask-button" type="button">Ask</button>
         </div>
         <p class="ask-status" id="ask-status"></p>
-        <button class="recall" id="ask-recall" type="button" hidden>Call again for a live answer</button>
+        <button class="recall" id="ask-recall" type="button" hidden>Get a fresh answer</button>
         <div class="ask-answer" id="ask-answer" aria-live="polite"></div>
       </div>
     </aside>
@@ -224,6 +224,7 @@
           <div class="field"><label for="sheet-text">Supplier sheet text</label><textarea id="sheet-text" rows="4" placeholder="Paste the supplier's text here"></textarea></div>
           <button class="dl-button" id="sheet-fill" type="button">Fill this delivery from the text</button>
           <p class="brief-status" id="sheet-status"></p>
+          <button class="recall" id="sheet-recall" type="button" hidden>Get a fresh answer</button>
         </details>
         <div class="field"><label for="plastic-type">Plastic type</label><input id="plastic-type" type="text" spellcheck="false" placeholder="recycled polypropylene"></div>
         <div class="grid2">

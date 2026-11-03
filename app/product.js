@@ -108,6 +108,35 @@ export function publishedBatchByKey(key) {
   return PUBLISHED_BATCHES.find((batch) => batch.key === key) || null;
 }
 
+/** Polymer families behind the published ranges. Sorting a delivery can
+ * plausibly move it within its own family (or leave it mixed); it does not
+ * turn one polymer into another, so a published outcome from another family
+ * is not offered for a delivery whose family is known. */
+const POLYMER_FAMILIES = {
+  hdpe: ['rhdpe-measured-lot', 'rhdpe'],
+  pp: ['rpp'],
+  pet: ['rpet', 'rpetg'],
+  pe: ['rldpe'],
+  mixed: ['mixed-polyolefins'],
+};
+export function familyOfBatchKey(key) {
+  for (const [family, keys] of Object.entries(POLYMER_FAMILIES)) {
+    if (keys.includes(key)) return family;
+  }
+  return null;
+}
+export function treatedOutcomeKeysFor(deliveryType, deliveryBatchKey) {
+  const direct = familyOfBatchKey(deliveryBatchKey);
+  const inferred = !direct && deliveryType
+    ? familyOfBatchKey((publishedBatchFor(String(deliveryType)) || {}).key)
+    : null;
+  const family = direct || inferred;
+  if (!family || family === 'mixed') return PUBLISHED_BATCHES.map((batch) => batch.key);
+  return PUBLISHED_BATCHES
+    .filter((batch) => familyOfBatchKey(batch.key) === family || familyOfBatchKey(batch.key) === 'mixed')
+    .map((batch) => batch.key);
+}
+
 export function publishedBatchFor(text) {
   const t = String(text || '').toLowerCase();
   if (!t) return null;
@@ -177,7 +206,7 @@ function isTreatedAvailable(state) {
 function treatedRoutePhrase(state) {
   if (state.treated && state.treated.source === 'published') {
     const batch = publishedBatchByKey(state.treated.publishedKey);
-    if (batch) return `the published range for ${batch.plastic.type} you picked`;
+    if (batch) return `the published range for ${batch.plastic.type} you picked — an assumed outcome, not a measurement of the sorted delivery`;
   }
   return 'the ranges you entered';
 }
@@ -1416,17 +1445,20 @@ export function decisionFor(stateInput, result) {
   const extremeThicknessText = extremeThickness
     ? `at a very different thickness (${formatNumber(convertForDisplay(winner.part.thicknessMm, 'mm'))} ${displayUnit('mm')}, not ${formatNumber(convertForDisplay(state.thicknessMm, 'mm'))} ${displayUnit('mm')})`
     : '';
-  const headline = winner.move === 'treated'
+  // A passing build checked against a published band says so in the
+  // headline itself: the green instruction must not read as unqualified.
+  const onPublished = state.rangeSource === 'published' ? ' — on a published range' : '';
+  const headline = (winner.move === 'treated'
     ? `Sort or wash this delivery, then make the ${buildSizeText(winner.part)}.`
     : isBlend
     ? `Blend ${blendPct}% of ${steadyName}, then make the ${buildSizeText(winner.part)}.`
-    : `Make the ${buildSizeText(winner.part)}.`;
+    : `Make the ${buildSizeText(winner.part)}.`) + onPublished;
   let support;
   if (winner.move === 'treated') {
     support = `As entered, it misses. After sorting or washing — to ${treatedRoutePhrase(state)} — this build ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (isBlend) {
     support = steadyBatch
-      ? `The delivery alone misses. With ${blendPct}% of ${steadyName} — the published range for ${steadyBatch.label} was used at its weak end — this build ${rangeText(winner)} — inside your ${targetText}.`
+      ? `The delivery alone misses. With ${blendPct}% of ${steadyName} — using the published “${steadyBatch.label}” range at its weak end — this build ${rangeText(winner)} — inside your ${targetText}. The blend is a mixture-rule estimate: the optimistic end, not a physically tested recipe.`
       : `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (winner.move === 'other') {
     // An 'other' winner is ranked by added material, so it can win while
@@ -1469,7 +1501,7 @@ export function decisionFor(stateInput, result) {
         : 'First: sort or wash this delivery, to the ranges entered under This delivery')
       : isBlend
         ? (steadyBatch
-          ? `Blend: ${blendPct}% ${steadyName} — the published range for ${steadyBatch.label} was used at its weak end`
+          ? `Blend: ${blendPct}% ${steadyName} — using the published “${steadyBatch.label}” range at its weak end. Mixture-rule estimate, optimistic end, not physically tested.`
           : `Blend: ${blendPct}% ${steadyName}`)
         : '',
     ...numericTargets.map(({ target, i }) => {

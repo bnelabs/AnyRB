@@ -16,13 +16,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
 import os
-import subprocess
 import sys
 import time
-import wave
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parent.parent
@@ -66,59 +63,6 @@ VALIDATION = {"counts": {"PASS": 24, "WARN": 2, "FAIL": 0}, "total": 26}
 
 def _hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
-
-
-def _wav_from_say(text: str) -> bytes:
-    out = "/tmp/anyrb_brief.wav"
-    subprocess.run(["say", "-o", out, "--data-format=LEI16@16000", text], check=False,
-                   capture_output=True)
-    if Path(out).exists():
-        return Path(out).read_bytes()
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as w:
-        w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000)
-        w.writeframes(b"\x00\x00" * 16000)
-    return buf.getvalue()
-
-
-def _png_bytes() -> bytes:
-    from PIL import Image, ImageDraw
-    import random
-    im = Image.new("RGB", (640, 480), (247, 245, 240))
-    d = ImageDraw.Draw(im)
-    for i in range(0, 640, 40):
-        d.line((i, 80, i + 20, 400), fill=(21, 23, 26), width=3)
-    for j in range(0, 480, 40):
-        d.line((0, j, 640, j), fill=(255, 90, 54), width=2)
-    buf = io.BytesIO()
-    im.save(buf, format="PNG")
-    return buf.getvalue()
-
-
-def _summary(body: dict) -> dict:
-    """Small, key-free summary of a response for the evidence file."""
-    if not isinstance(body, dict):
-        return {"type": type(body).__name__}
-    keep = ("part_label", "load_N", "deflection_limit_mm", "target_pf", "material_key",
-            "mass_cap_g", "process", "constraints", "confidence", "E_mean", "E_cv", "sy_mean",
-            "sy_cv", "rho", "source_label", "fields_found", "assumptions",
-            "memo", "key_risk", "claim_level", "verdict", "transcript", "count", "mocked",
-            "illustrative", "label", "area_share")
-    out = {k: body[k] for k in keep if k in body and not isinstance(body[k], (list, dict))}
-    if isinstance(body.get("candidates"), list):
-        out["candidates"] = [{"id": c.get("id"), "name": c.get("name"),
-                              "widths_mm": c.get("width_priors_mm")} for c in body["candidates"]]
-    if body.get("image_data_url"):
-        out["image_data_url_len"] = len(body["image_data_url"])
-        out["image_mime"] = body.get("mime")
-        out["image_size"] = [body.get("width"), body.get("height")]
-    for k in ("memo", "key_risk", "claim_level", "part_label"):
-        if isinstance(out.get(k), str):
-            out[k] = out[k][:180]
-    body_hash = hashlib.sha256(
-        json.dumps({k: v for k, v in body.items() if k != "_meta"}, sort_keys=True,
-                   default=str).encode()).hexdigest()[:16]
-    return {"summary": out, "response_hash": body_hash}
 
 
 def _call(name: str, fn, *, required: bool = True) -> dict:
@@ -175,8 +119,6 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: server reports non-live mode; aborting (would not be live evidence).")
         return 2
 
-    wav = _wav_from_say("Design a wall mounted shelf bracket for recycled PETG that carries "
-                        "fifteen kilograms with one percent failure risk and stays under sixty grams.")
     calls = [
         _call("GET /api/health", lambda: client.get("/api/health")),
         _call("POST /api/brief/parse", lambda: client.post("/api/brief/parse",
@@ -194,8 +136,6 @@ def main(argv: list[str] | None = None) -> int:
             "/api/proof/memo",
             json={"brief": BRIEF, "design": SELECTED, "batch_passport": PASSPORT,
                   "comparison": COMPARISON, "validation": VALIDATION})),
-        _call("POST /api/voice/transcribe", lambda: client.post(
-            "/api/voice/transcribe", files={"audio": ("brief.wav", wav, "audio/wav")})),
         _call("POST /api/image/render", lambda: client.post(
             "/api/image/render", json={"design": {"mass_g": 50.73}})),
     ]
@@ -215,8 +155,6 @@ def main(argv: list[str] | None = None) -> int:
                                                   "material": MATERIAL})),
         ("image/render", lambda: client.post("/api/image/render",
                                              json={"design": {"mass_g": 50.73}})),
-        ("voice/transcribe", lambda: client.post(
-            "/api/voice/transcribe", files={"audio": ("brief.wav", wav, "audio/wav")})),
     ]:
         entry = _call(f"cached {name}", fn, required=False)
         cache_check.append(entry)

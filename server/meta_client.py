@@ -3,7 +3,6 @@
 Verified live against https://api.meta.ai/v1 (2026-10-29):
   Muse Spark 1.3 Contributor  POST /chat/completions  (reasoning model: max_tokens>=3000, reasoning_effort=low)
   Muse Image 1.0              POST /images/generations  -> b64 WebP 1600x1600
-  Muse Voice Transcribe 1.0   POST /asr/transcribe      multipart request JSON + mono 16k s16le WAV
   SAM 3.1                     POST /responses           input_text + input_image (optional)
 
 Design rules:
@@ -72,7 +71,6 @@ KEY = os.environ.get("META_API_KEY", "")
 MODEL_SPARK = os.environ.get("META_MODEL_SPARK", "muse-spark-1.3-contributor")
 MODEL_SPARK_STANDARD = os.environ.get("META_MODEL_SPARK_STANDARD", "muse-spark-1.3")
 MODEL_IMAGE = os.environ.get("META_MODEL_IMAGE", "muse-image-1.0")
-MODEL_ASR = os.environ.get("META_MODEL_ASR", "muse-voice-transcribe-1.0")
 MODEL_SAM = os.environ.get("META_MODEL_SAM", "sam-3.1")
 REASONING_EFFORT = os.environ.get("META_REASONING_EFFORT", "low")
 MAX_TOKENS = int(os.environ.get("META_MAX_TOKENS", "4000"))
@@ -93,7 +91,7 @@ def configured() -> dict:
         "base_url": BASE,
         "key_present": bool(KEY),
         "models": {"spark": MODEL_SPARK, "spark_standard": MODEL_SPARK_STANDARD,
-                   "image": MODEL_IMAGE, "asr": MODEL_ASR, "sam": MODEL_SAM},
+                   "image": MODEL_IMAGE, "sam": MODEL_SAM},
         "reasoning_effort": REASONING_EFFORT,
         "max_tokens": MAX_TOKENS,
         "contributor_note": CONTRIBUTOR_NOTE,
@@ -651,82 +649,6 @@ def generate_image(prompt: str, mock: bool | None = None) -> dict:
                   "error": redact(err), "response_hash": ""})
         return {"image_data_url": None, "illustrative": True, "prompt": prompt,
                 "_meta": _meta(kind, MODEL_IMAGE, time.time() - t0, False, True, error=err)}
-
-
-# ---------------------------------------------------------------------------
-# Muse Voice Transcribe
-# ---------------------------------------------------------------------------
-def _to_asr_wav(audio: bytes) -> bytes:
-    """Normalise WAV input to mono s16le 16 kHz (the API requires this)."""
-    with wave.open(io.BytesIO(audio), "rb") as w:
-        fs, ch, sw = w.getframerate(), w.getnchannels(), w.getsampwidth()
-        frames = w.readframes(w.getnframes())
-    if sw != 2:
-        raise ValueError(f"expected 16-bit PCM, got sample width {sw}")
-    import numpy as np
-    x = np.frombuffer(frames, dtype="<i2").astype(np.float64)
-    if ch > 1:
-        x = x.reshape(-1, ch).mean(axis=1)
-    target = 16000
-    if fs != target:
-        from math import gcd
-        g = gcd(fs, target)
-        try:
-            from scipy.signal import resample_poly
-            x = resample_poly(x, target // g, fs // g)
-        except Exception:  # numpy-only linear fallback
-            n_out = int(round(len(x) * target / fs))
-            x = np.interp(np.linspace(0, len(x) - 1, n_out), np.arange(len(x)), x)
-    pcm = np.clip(x, -32768, 32767).astype("<i2").tobytes()
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as w:
-        w.setnchannels(1); w.setsampwidth(2); w.setframerate(target)
-        w.writeframes(pcm)
-    return buf.getvalue()
-
-
-def transcribe(audio: bytes, filename: str = "brief.wav", mock: bool | None = None) -> dict:
-    kind = "asr"
-    mock_flag = _effective_mock(mock)
-    cache_key = f"asr_{_hash('asr', MODEL_ASR, audio)}.json"
-    if mock_flag:
-        return _mock_payload(kind, {"transcript": "", "duration_s": None}, "forced mock mode")
-    cached = _cache_get(cache_key)
-    if cached:
-        return _cached_result(kind, cached)
-    if _effective_provider() != "meta" or (_BASE_OVERRIDE.get() and _BASE_OVERRIDE.get() != BASE):
-        return _mock_payload(kind, {"transcript": "", "duration_s": None}, "voice transcription is only available with Meta")
-    if not _effective_key():
-        return _mock_payload(kind, {"transcript": "", "duration_s": None}, "META_API_KEY not set")
-    t0 = time.time()
-    try:
-        wav = _to_asr_wav(audio)
-        req = json.dumps({"model": MODEL_ASR, "audioEncoding": "WAV", "mode": "PUSH_TO_TALK"})
-        files = {"request": (None, req, "application/json"),
-                 "audio": (filename, wav, "audio/wav")}
-        with httpx.Client(timeout=TIMEOUT) as c:
-            r = c.post(f"{BASE}/asr/transcribe",
-                       headers={"Authorization": f"Bearer {_effective_key()}", "Accept": "application/json"},
-                       files=files)
-            r.raise_for_status()
-            j = r.json()
-        payload = {"transcript": j.get("transcript", ""),
-                   "duration_s": (j.get("audioDurationMs") or 0) / 1000.0}
-        meta = _meta(kind, MODEL_ASR, time.time() - t0, False, False,
-                     {"audio_s": payload["duration_s"]})
-        if payload["transcript"]:
-            _cache_put(cache_key, payload, meta)
-        log_call({"kind": kind, "model": MODEL_ASR, "latency_s": meta["latency_s"],
-                  "cached": False, "fallback": False, "mock": False,
-                  "response_hash": _response_hash(payload)})
-        payload["_meta"] = meta
-        return payload
-    except Exception as e:  # noqa: BLE001
-        err = f"{type(e).__name__}: {e}"
-        log_call({"kind": kind, "model": MODEL_ASR, "cached": False, "fallback": True,
-                  "error": redact(err)})
-        return {"transcript": "", "duration_s": None,
-                "_meta": _meta(kind, MODEL_ASR, time.time() - t0, False, True, error=err)}
 
 
 # ---------------------------------------------------------------------------

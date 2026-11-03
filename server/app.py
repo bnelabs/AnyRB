@@ -598,21 +598,6 @@ def product_brief(body: product_ai.ProductBriefRequest, request: Request) -> dic
         return product_ai.parse_product_brief(body, mock=_want_mock(request))
 
 
-@app.post("/api/voice/transcribe")
-async def voice_transcribe(request: Request, audio: UploadFile = File(...)) -> dict:
-    _rate_limit(request)
-    data = await audio.read()
-    if not data or len(data) > MAX_UPLOAD:
-        raise HTTPException(413, "audio missing or too large")
-    with _user_meta_scope(request):
-        out = meta_client.transcribe(data, filename=audio.filename or "brief.wav",
-                                     mock=_want_mock(request))
-    return _respond(schemas.VoiceResponse, {
-        "transcript": out.get("transcript", ""),
-        "duration_s": out.get("duration_s"),
-        "_meta": out.get("_meta")})
-
-
 @app.post("/api/image/render")
 def image_render(body: schemas.ImageIn, request: Request) -> dict:
     _rate_limit(request)

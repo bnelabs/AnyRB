@@ -10,13 +10,11 @@ demo cache. A single live smoke test is skipped unless ANYRB_LIVE_TEST=1.
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
 import tempfile
 import time
-import wave
 from pathlib import Path
 
 # --- isolation must happen before server modules are imported -----------------
@@ -45,14 +43,6 @@ LOT_TEXT = ("Supplier: Recyclex. rHDPE lot 2026-31. Young's modulus 950 MPa, "
             "yield strength 28 MPa, density 0.95 g/cm3, CV 15%.")
 
 
-def _tiny_wav(seconds: float = 0.3, rate: int = 16000) -> bytes:
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as w:
-        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
-        w.writeframes(b"\x00\x00" * int(seconds * rate))
-    return buf.getvalue()
-
-
 def _json_text(resp) -> str:
     return json.dumps(resp.json(), ensure_ascii=False)
 
@@ -70,7 +60,8 @@ def test_health_contract_and_schema():
     ai = body["ai"]
     for k in ("live", "mock", "key_present", "models", "base_url", "session_id"):
         assert k in ai, k
-    assert set(ai["models"]) >= {"spark", "spark_standard", "image", "asr", "sam"}
+    assert set(ai["models"]) >= {"spark", "spark_standard", "image", "sam"}
+    assert "asr" not in set(ai["models"])
     # richer health fields required by the demo UI
     assert isinstance(body["cache"]["entries"], int)
     assert body["session"]["id"]
@@ -291,17 +282,11 @@ def test_grounded_or_fallback_rejects_invented_output():
 
 
 # ---------------------------------------------------------------------------
-# voice / image / segment
+# image / segment
 # ---------------------------------------------------------------------------
-def test_voice_transcribe_mock():
-    files = {"audio": ("brief.wav", _tiny_wav(), "audio/wav")}
-    r = client.post("/api/voice/transcribe", files=files)
-    assert r.status_code == 200
-    body = r.json()
-    schemas.VoiceResponse.model_validate(body)
-    assert body["transcript"] == ""
-    assert body["_meta"]["fallback"] is True
-    assert body["_meta"]["kind"] == "asr"
+def test_voice_endpoint_is_gone():
+    r = client.post("/api/voice/transcribe", files={"audio": ("brief.wav", b"data", "audio/wav")})
+    assert r.status_code in (404, 405)
 
 
 def test_image_render_mock_is_illustrative_and_labelled():

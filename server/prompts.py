@@ -45,7 +45,7 @@ def lot_user_payload(text: str) -> dict:
     return {"untrusted_datasheet_text": wrap_untrusted(text, "USER_DATASHEET")}
 
 BRIEF_SYSTEM = """You are the intake engineer for AnyRB, a reliability studio for parts made from
-recycled plastics. You receive a user's plain-language design brief (possibly a voice transcript).
+recycled plastics. You receive a user's plain-language typed design brief.
 Extract a structured brief. Return ONLY a JSON object with exactly these keys:
 part_label (string), load_N (number|null), deflection_limit_mm (number|null), target_pf (number|null,
 0-1 fraction), mass_cap_g (number|null), material_key ("rpetg"|"rpet"|"rhdpe"|"rpp"|null), process

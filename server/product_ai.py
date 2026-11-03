@@ -1008,8 +1008,26 @@ _BRIEF_LIMITS = {
     "target": (0.0, 1e6), "plastic": (0.1, 1e6), "density_g_cm3": (0.5, 3.0),
     "steady": (0.1, 1e6),
 }
-# explicit unit conversions allowed when checking "was this number stated?"
-_BRIEF_NUMBER_FACTORS = (1.0, 1000.0, 0.001, 100.0, 0.01, 10.0, 0.1)
+# Per-field unit conversions allowed when checking "was this number stated?"
+# A number only grounds a field when it appears with a unit that converts to
+# that field's unit: a stated kg load can never ground a gram weight target,
+# a stated mm bend can never ground an N/mm stiffness target, and a lot code
+# or a percent can never ground anything. Unit-less numbers match any field
+# at face value, as before.
+_BRIEF_UNIT_FACTORS = {
+    "geometry": {"mm": 1.0, "cm": 10.0, "m": 1000.0},
+    "strength": {"kg": 1.0, "g": 0.001, "t": 1000.0, "tonne": 1000.0,
+                 "tonnes": 1000.0, "n": 1.0 / 9.80665, "kn": 1000.0 / 9.80665},
+    "stiffness": {"n/mm": 1.0},
+    "weight": {"g": 1.0, "kg": 1000.0, "t": 1e6, "tonne": 1e6, "tonnes": 1e6},
+    "plastic": {"mpa": 1.0, "kpa": 0.001, "gpa": 1000.0},
+    "density": {"g/cm3": 1.0, "g/cm³": 1.0, "kg/m3": 0.001},
+    "steady": {"mpa": 1.0, "kpa": 0.001, "gpa": 1000.0},
+}
+_BRIEF_NUMBER_RE = re.compile(
+    # longer units first: "g" must not win inside "g/cm3", "kg" inside "kg/m3"
+    r"(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>kg/m3|g/cm3|g/cm³|N/mm|tonnes|tonne|kilograms|kilogram|grams|gram|MPa|kPa|GPa|mm|cm|kg|g|%|\bt\b|\bm\b|\bkN\b|\bN\b)?",
+    re.I)
 
 # "1,250" / "12,500" / "1,234,567" are thousands separators, not list delimiters.
 # Only a comma followed by exactly three digits (then a non-digit/end) is removed, so
@@ -1022,22 +1040,56 @@ def normalize_comma_thousands(text: Any) -> str:
     return _COMMA_THOUSANDS_RE.sub("", str(text or ""))
 
 
-def _stated_numbers(text: str) -> list[float]:
+def _stated_numbers(text: str) -> list[tuple[float, str | None]]:
+    """(number, unit) pairs in reading order — the unit is whatever word
+    follows the number, so "95 kg" grounds a kg field but never a gram one."""
     # range dashes ("38-50 MPa", "900–1200 mm") are separators, not minus signs;
     # comma thousands ("1,250 MPa") are part of one number, not two.
-    normalized = normalize_comma_thousands(normalize_range_separators(text))
-    base = prompts.extract_numbers(normalized)
-    out: list[float] = []
-    for n in base:
-        for factor in _BRIEF_NUMBER_FACTORS:
-            out.append(n * factor)
+    normalized = normalize_comma_thousands(normalize_range_separators(text or ""))
+    matches = list(_BRIEF_NUMBER_RE.finditer(normalized))
+    out: list[tuple[float, str | None]] = []
+    for index, match in enumerate(matches):
+        try:
+            number = float(match.group("num"))
+        except (TypeError, ValueError):
+            continue
+        unit = (match.group("unit") or "").lower() or None
+        if unit in ("gram", "grams"):
+            unit = "g"
+        elif unit == "tonne":
+            unit = "tonnes"
+        elif unit in ("kilogram", "kilograms"):
+            unit = "kg"
+        if unit is None and index + 1 < len(matches):
+            # "95 to 115 kg", "38-50 MPa": a unitless number joined to the
+            # next number by a short range word belongs to that unit too.
+            following = matches[index + 1]
+            if following.start() - match.end() <= 4 and following.group("unit"):
+                unit = following.group("unit").lower() or None
+                if unit in ("gram", "grams"):
+                    unit = "g"
+                elif unit == "tonne":
+                    unit = "tonnes"
+                elif unit in ("kilogram", "kilograms"):
+                    unit = "kg"
+        out.append((number, unit))
     return out
 
 
-def _number_was_stated(value: float, stated: list[float]) -> bool:
-    for s in stated:
-        if abs(value - s) <= max(0.01, 0.03 * max(abs(value), abs(s))):
-            return True
+def _number_was_stated(value: float, stated: list[tuple[float, str | None]],
+                       field: str) -> bool:
+    factors = _BRIEF_UNIT_FACTORS.get(field, {})
+    for number, unit in stated:
+        if unit is None:
+            candidates = (number,)
+        else:
+            factor = factors.get(unit)
+            if factor is None:
+                continue
+            candidates = (number * factor,)
+        for candidate in candidates:
+            if abs(value - candidate) <= max(0.01, 0.03 * max(abs(value), abs(candidate))):
+                return True
     return False
 
 
@@ -1052,13 +1104,15 @@ def _brief_number_value(value: Any) -> Optional[float]:
     return _num(value)
 
 
-def _brief_num(value: Any, limits: tuple[float, float], stated: list[float],
-               field: str, dropped: list[str]) -> Optional[float]:
-    """Finite + clamped number, but only if it was actually present in the user text."""
+def _brief_num(value: Any, limits: tuple[float, float],
+               stated: list[tuple[float, str | None]], field: str,
+               dropped: list[str], kind: str) -> Optional[float]:
+    """Finite + clamped number, but only if it was actually present in the user
+    text with a unit that converts to this field (`kind`)."""
     v = _brief_number_value(value)
     if v is None:
         return None
-    if not _number_was_stated(v, stated):
+    if not _number_was_stated(v, stated, kind):
         dropped.append(field)
         return None
     return round(_clamp(v, *limits), 3)
@@ -1069,7 +1123,8 @@ def _brief_text(value: Any, limit: int = 80) -> Optional[str]:
     return s or None
 
 
-def _sanitize_brief_targets(raw_targets: Any, stated: list[float],
+def _sanitize_brief_targets(raw_targets: Any,
+                            stated: list[tuple[float, str | None]],
                             dropped: list[str]) -> list[dict]:
     items = raw_targets if isinstance(raw_targets, list) else []
     out: list[dict] = []
@@ -1085,9 +1140,9 @@ def _sanitize_brief_targets(raw_targets: Any, stated: list[float],
                 dropped.append(f"targets[{index}].property={prop}")
             continue
         lo = _brief_num(item.get("min"), _BRIEF_LIMITS["target"], stated,
-                        f"targets[{index}].min", dropped)
+                        f"targets[{index}].min", dropped, prop)
         hi = _brief_num(item.get("max"), _BRIEF_LIMITS["target"], stated,
-                        f"targets[{index}].max", dropped)
+                        f"targets[{index}].max", dropped, prop)
         if lo is None and hi is None:
             continue
         if hi is not None and hi <= 0:
@@ -1126,19 +1181,19 @@ def sanitize_brief_extract(raw: Any, text: str) -> tuple[dict, list[str]]:
         "dirt_level": _brief_text(plastic_raw.get("dirt_level"), 40),
         "stiffness_min_mpa": _brief_num(plastic_raw.get("stiffness_min_mpa"),
                                         _BRIEF_LIMITS["plastic"], stated,
-                                        "plastic.stiffness_min_mpa", dropped),
+                                        "plastic.stiffness_min_mpa", dropped, "plastic"),
         "stiffness_max_mpa": _brief_num(plastic_raw.get("stiffness_max_mpa"),
                                         _BRIEF_LIMITS["plastic"], stated,
-                                        "plastic.stiffness_max_mpa", dropped),
+                                        "plastic.stiffness_max_mpa", dropped, "plastic"),
         "strength_min_mpa": _brief_num(plastic_raw.get("strength_min_mpa"),
                                        _BRIEF_LIMITS["plastic"], stated,
-                                       "plastic.strength_min_mpa", dropped),
+                                       "plastic.strength_min_mpa", dropped, "plastic"),
         "strength_max_mpa": _brief_num(plastic_raw.get("strength_max_mpa"),
                                        _BRIEF_LIMITS["plastic"], stated,
-                                       "plastic.strength_max_mpa", dropped),
+                                       "plastic.strength_max_mpa", dropped, "plastic"),
         "density_g_cm3": _brief_num(plastic_raw.get("density_g_cm3"),
                                     _BRIEF_LIMITS["density_g_cm3"], stated,
-                                    "plastic.density_g_cm3", dropped),
+                                    "plastic.density_g_cm3", dropped, "density"),
     }
     for lo_key, hi_key, label in (("stiffness_min_mpa", "stiffness_max_mpa", "stiffness"),
                                   ("strength_min_mpa", "strength_max_mpa", "strength")):
@@ -1156,21 +1211,21 @@ def sanitize_brief_extract(raw: Any, text: str) -> tuple[dict, list[str]]:
         "type": _brief_text(steady_raw.get("type"), 80),
         "stiffness_mpa": _brief_num(steady_raw.get("stiffness_mpa"),
                                     _BRIEF_LIMITS["steady"], stated,
-                                    "steady.stiffness_mpa", dropped),
+                                    "steady.stiffness_mpa", dropped, "steady"),
         "strength_mpa": _brief_num(steady_raw.get("strength_mpa"),
                                    _BRIEF_LIMITS["steady"], stated,
-                                   "steady.strength_mpa", dropped),
+                                   "steady.strength_mpa", dropped, "steady"),
     }
 
     brief = {
         "product": product,
         "mode": mode,
         "span_mm": _brief_num(data.get("span_mm"), _BRIEF_LIMITS["span_mm"], stated,
-                              "span_mm", dropped),
+                              "span_mm", dropped, "geometry"),
         "width_mm": _brief_num(data.get("width_mm"), _BRIEF_LIMITS["width_mm"], stated,
-                               "width_mm", dropped),
+                               "width_mm", dropped, "geometry"),
         "thickness_mm": _brief_num(data.get("thickness_mm"), _BRIEF_LIMITS["thickness_mm"],
-                                   stated, "thickness_mm", dropped),
+                                   stated, "thickness_mm", dropped, "geometry"),
         "targets": targets,
         "plastic": plastic,
         "steady": steady,

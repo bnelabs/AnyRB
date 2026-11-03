@@ -305,8 +305,7 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .brief-row textarea::placeholder { color: #85837a; }
 .brief-row textarea:focus { border-color: var(--accent); outline: none; }
 
-.brief-submit,
-.brief-voice {
+.brief-submit {
   width: 100%;
   min-height: 52px;
   border-radius: 999px;
@@ -315,14 +314,6 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 }
 .brief-submit { border: 0; background: var(--accent); color: var(--ink); }
 .brief-submit:disabled { opacity: 0.4; }
-.brief-voice {
-  border: 1.5px solid #55534a;
-  background: transparent;
-  color: #f5f2e9;
-  font-weight: 600;
-}
-.brief-voice.is-recording { border-color: #ff7a33; color: #ff7a33; }
-.brief-voice:disabled { opacity: 0.45; }
 
 .brief-help {
   margin: 12px 0 0;
@@ -1058,7 +1049,7 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 
   .brief-row { flex-direction: row; flex-wrap: wrap; align-items: stretch; }
   .brief-row textarea { flex: 1 1 100%; }
-  .brief-submit, .brief-voice { flex: 1 1 0; width: auto; }
+  .brief-submit { flex: 1 1 0; width: auto; }
 
   .progress-list {
     display: grid;
@@ -1169,7 +1160,7 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
   .decision-panel h1 { font-size: clamp(48px, 5vw, 64px); }
   .brief-row { flex-wrap: nowrap; align-items: flex-end; }
   .brief-row textarea { flex: 1 1 auto; min-height: 84px; }
-  .brief-submit, .brief-voice { flex: none; width: 180px; }
+  .brief-submit { flex: none; width: 180px; }
   .progress-list { grid-template-columns: repeat(3, 1fr); }
   .cases-label { width: auto; margin-right: 6px; }
 

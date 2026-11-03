@@ -29,6 +29,7 @@ import {
   proposalRow,
   publishedBatchByKey,
   sheetYield,
+  treatedOutcomeKeysFor,
   toApiPayload,
 } from './product.js';
 
@@ -47,7 +48,9 @@ let lastDecision = null;
 let copyReset = 0;
 let metaSource = null;
 let feedbackRound = false;
-let feedbackAdded = 0;
+let round1Exact = 0;
+let round2Exact = 0;
+let round2Total = 0;
 let batchSource = '';
 let briefPublished = null;
 let briefBatchChoiceNeeded = false;
@@ -140,6 +143,7 @@ let costCurrency = localStorage.getItem('anyrb.currency') || '₺';
 let shareOtherName = '';
 let shareQtyMain = 0;
 let shareQtyOther = 0;
+let paintRefreshNeeded = false;
 
 const SAMPLE_BRIEF = 'I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE from one supplier, fairly clean, with paper labels on some of it.';
 
@@ -217,6 +221,29 @@ function syncSteadySourceUI() {
   }
 }
 function syncTreatedSourceUI() {
+  // A sorted delivery stays in its own polymer family: the picker only
+  // offers same-family published ranges (plus mixed), never a jump from
+  // one polymer to another.
+  const allowed = treatedOutcomeKeysFor(state.plastic.type, batchSource && batchSource !== 'numbers' ? batchSource : '');
+  const select = $('treated-source');
+  select.replaceChildren();
+  const numbers = document.createElement('option');
+  numbers.value = 'numbers';
+  numbers.textContent = 'Its numbers after — I will enter them';
+  select.append(numbers);
+  for (const key of allowed) {
+    const batch = publishedBatchByKey(key);
+    if (!batch) continue;
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = `Published range: ${batch.plastic.type}`;
+    select.append(option);
+  }
+  if (state.treated && state.treated.source === 'published' && !allowed.includes(state.treated.publishedKey)) {
+    state.treated = { ...state.treated, source: 'numbers', publishedKey: '' };
+    paintRefreshNeeded = true;
+  }
+  select.value = state.treated && state.treated.source === 'published' ? state.treated.publishedKey : 'numbers';
   const batch = state.treated && state.treated.source === 'published' ? publishedBatchByKey(state.treated.publishedKey) : null;
   $('treated-numbers').hidden = Boolean(state.treated && state.treated.source === 'published');
   const note = $('treated-published-note');
@@ -356,6 +383,10 @@ function paint() {
   updateSteadyVisibility();
   renderExtraTargets();
   syncBatchSourceUI();
+  if (paintRefreshNeeded) {
+    paintRefreshNeeded = false;
+    refresh({ model: false });
+  }
 }
 
 function syncBatchSourceUI() {
@@ -757,7 +788,8 @@ function renderVerdict(result, decision) {
     const baseThick = result.winner ? result.winner.part.thicknessMm : state.thicknessMm;
     const baseText = `${formatNumber(convertForDisplay(baseThick, 'mm'))} ${displayUnit('mm')}`;
     const altText = `${formatNumber(convertForDisplay(alt.thicknessMm, 'mm'))} ${displayUnit('mm')}`;
-    $('verdict-next').textContent += ` ${alt.modeLabel} instead, this part needs ${altText}, not ${baseText} — about ${Math.round(alt.savingPct)}% less material.`;
+    const altPart = result.winner && result.winner.move === 'other' ? result.winner.part.product : state.product || 'this part';
+    $('verdict-next').textContent += ` ${alt.modeLabel} instead, ${altPart} needs ${altText}, not ${baseText} — about ${Math.round(alt.savingPct)}% less material.`;
   }
 }
 
@@ -1324,8 +1356,8 @@ function renderShare(result) {
   const effOtherKg = otherUsage * (1 + wastePct / 100);
   const needMainKg = (effMainKg * shareQtyMain) / 1000;
   const needOtherKg = (effOtherKg * shareQtyOther) / 1000;
-  const steadyKg = ((steadyOf(mainItem) * shareQtyMain) + (steadyOf(otherItem) * shareQtyOther)) / 1000;
-  if (steadyKg > 0) line(`Together they also use ${fmtStock(steadyKg)} of the mix-in plastic, counted separately.`);
+  const steadyKg = ((steadyOf(mainItem) * shareQtyMain) + (steadyOf(otherItem) * shareQtyOther)) / 1000 * (1 + wastePct / 100);
+  if (steadyKg > 0) line(`Together they also use ${fmtStock(steadyKg)} of the mix-in plastic, counted separately${wastePct > 0 ? ', waste included' : ''}.`);
   if (!(materialHaveKg > 0)) {
     line(`Together, the two orders need ${fmtStock(needMainKg + needOtherKg)} of this delivery. Say how much you have — under Production in Results — and whether it covers both appears here.`);
     return;
@@ -1333,7 +1365,7 @@ function renderShare(result) {
   const stock = materialHaveKg;
   if (needMainKg + needOtherKg <= stock) {
     const left = stock - needMainKg - needOtherKg;
-    line(`Both orders fit in this delivery. Together they use ${fmtStock(needMainKg + needOtherKg)} of the ${fmtStock(stock)} you have, leaving ${fmtStock(left)} — about ${Math.floor((left * 1000) / mainUsage).toLocaleString('en-US')} more ${mainName}, or ${Math.floor((left * 1000) / otherUsage).toLocaleString('en-US')} more ${profile.name}.`);
+    line(`Both orders fit in this delivery. Together they use ${fmtStock(needMainKg + needOtherKg)} of the ${fmtStock(stock)} you have, leaving ${fmtStock(left)} — about ${Math.floor((left * 1000) / effMainKg).toLocaleString('en-US')} more ${mainName}, or ${Math.floor((left * 1000) / effOtherKg).toLocaleString('en-US')} more ${profile.name}.`);
     return;
   }
   const allocA = allocatePriority(stock, { qty: shareQtyMain, usageG: effMainKg }, { qty: shareQtyOther, usageG: effOtherKg });
@@ -1372,7 +1404,9 @@ $('share-qty-other').addEventListener('input', (event) => {
 // ---------------------------------------------------------------------------
 // Supplier sheet: paste the text, fill only the delivery from it.
 // ---------------------------------------------------------------------------
-$('sheet-fill').addEventListener('click', async () => {
+$('sheet-fill').addEventListener('click', () => fillSheet(false));
+$('sheet-recall').addEventListener('click', () => fillSheet(true));
+async function fillSheet(bust) {
   const text = $('sheet-text').value.trim();
   if (!text) {
     $('sheet-status').textContent = 'Paste the supplier’s text first.';
@@ -1385,10 +1419,11 @@ $('sheet-fill').addEventListener('click', async () => {
   }
   const button = $('sheet-fill');
   button.disabled = true;
+  $('sheet-recall').hidden = true;
   $('sheet-status').textContent = 'Filling in this delivery from your text…';
   try {
     const response = await fetch(`${API_BASE}/api/product/brief`, {
-      method: 'POST', headers: metaHeaders(), body: JSON.stringify({ text }),
+      method: 'POST', headers: metaHeaders(true, bust), body: JSON.stringify({ text }),
     });
     const data = await response.json();
     if (!response.ok || !data.available || !data.brief) {
@@ -1405,20 +1440,24 @@ $('sheet-fill').addEventListener('click', async () => {
       sMin: plastic.strength_min_mpa ?? 0, sMax: plastic.strength_max_mpa ?? 0,
       density: plastic.density_g_cm3 ?? 0,
     };
+    const sheetSource = ` Answer source: ${answerSourceLine(data)}.`;
     const complete = ranges.eMin > 0 && ranges.eMax > 0 && ranges.sMin > 0 && ranges.sMax > 0 && ranges.density > 0;
     if (complete) {
       state.plastic = { ...state.plastic, ...named, ...ranges };
       batchSource = 'numbers';
-      $('sheet-status').textContent = 'Filled from your text, using only the numbers in it. Check them below — they are exactly what the sheet stated.';
+      $('sheet-status').textContent = `Filled from your text, using only the numbers in it. Check them below — they are exactly what the sheet stated.${sheetSource}`;
+      $('sheet-recall').hidden = !data._cached;
     } else {
       const pub = publishedBatchFor(`${named.type} ${text}`);
       if (pub) {
         state.plastic = { ...state.plastic, ...named, type: named.type || pub.plastic.type, eMin: pub.plastic.eMin, eMax: pub.plastic.eMax, sMin: pub.plastic.sMin, sMax: pub.plastic.sMax, density: pub.plastic.density };
         batchSource = pub.key;
-        $('sheet-status').textContent = `The sheet did not give measured ranges, so the published range “${pub.label}” was used for the plastic it names. Change it below if your supplier's numbers differ.`;
+        $('sheet-status').textContent = `The sheet did not give measured ranges, so the published range “${pub.label}” was used for the plastic it names. Change it below if your supplier's numbers differ.${sheetSource}`;
+        $('sheet-recall').hidden = !data._cached;
       } else {
         state.plastic = { ...state.plastic, ...named };
-        $('sheet-status').textContent = 'That text named the plastic but gave no measured ranges I could use. Pick a published range above, or enter your supplier’s numbers.';
+        $('sheet-status').textContent = `That text named the plastic but gave no measured ranges I could use. Pick a published range above, or enter your supplier’s numbers.${sheetSource}`;
+        $('sheet-recall').hidden = !data._cached;
       }
     }
     paint();
@@ -1428,7 +1467,7 @@ $('sheet-fill').addEventListener('click', async () => {
   } finally {
     button.disabled = false;
   }
-});
+}
 
 // ---------------------------------------------------------------------------
 // Compare a saved delivery against this one, for the same part.
@@ -1497,7 +1536,8 @@ function renderCompare(result) {
     ? `It works: ${parts.join('; ')}. One part weighs ${fmtVal(otherItem.massG, 'g')} (here: ${fmtVal(thisItem.massG, 'g')}).`
     : `It does not work: ${parts.join('; ')}. One part would weigh ${fmtVal(otherItem.massG, 'g')} (here: ${fmtVal(thisItem.massG, 'g')}).`);
   if (runSize > 0) {
-    line(`This order of ${runSize.toLocaleString('en-US')} would need ${fmtStock((otherItem.massG * runSize) / 1000)} of it, against ${fmtStock((thisItem.massG * runSize) / 1000)} of this delivery.`);
+    const wasteFactor = 1 + wastePct / 100;
+    line(`This order of ${runSize.toLocaleString('en-US')} would need ${fmtStock((otherItem.massG * runSize * wasteFactor) / 1000)} of it, against ${fmtStock((thisItem.massG * runSize * wasteFactor) / 1000)} of this delivery${wastePct > 0 ? ` (your ${wastePct}% waste included)` : ''}.`);
   }
 }
 $('compare-delivery').addEventListener('change', (event) => {
@@ -1561,8 +1601,9 @@ function renderRunNote(result) {
     const cut = sheetYield({ sheetSpanMm, sheetWidthMm, partSpanMm: item.part.spanMm, partWidthMm: item.part.widthMm });
     if (cut.perSheet > 0) {
       const name = state.product ? `${state.product}s` : 'parts';
-      let sheetText = `One ${fmtVal(sheetSpanMm, 'mm')} × ${fmtVal(sheetWidthMm, 'mm')} sheet gives ${cut.perSheet} ${name}.`;
-      if (runSize > 0) sheetText += ` This order needs ${Math.ceil(runSize / cut.perSheet)} sheets.`;
+      const sheets = Math.ceil((runSize > 0 ? runSize * (1 + wastePct / 100) : cut.perSheet) / cut.perSheet);
+      let sheetText = `One ${fmtVal(sheetSpanMm, 'mm')} × ${fmtVal(sheetWidthMm, 'mm')} sheet gives ${cut.perSheet} ${name} — a plain grid, no kerf or offcut loss counted.`;
+      if (runSize > 0) sheetText += ` This order needs ${sheets} sheets${wastePct > 0 ? ' with your rejects counted' : ''}.`;
       line(sheetText);
     }
   }
@@ -1668,10 +1709,10 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'meta') {
-    const exact = (result.modelTrace || []).filter((item) => item.pass).length;
     const total = modelProposals.length;
+    const exact = round1Exact + round2Exact;
     let tally = `${total} size${total === 1 ? '' : 's'} proposed — ${exact} passed exactly as proposed`;
-    if (feedbackAdded > 0) tally += `, ${feedbackAdded} more after the model saw the checked ranges`;
+    if (round2Total > 0) tally += ` (${round2Exact} of ${round2Total} in the second round, after the model saw the checked ranges)`;
     tally += `. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
     status.textContent = tally;
     $('model-recall').hidden = !metaSource || metaSource.kind !== 'cached';
@@ -1701,8 +1742,8 @@ function render(result) {
   $('builds-panel').hidden = !result.ready;
   const buildsHead = $('builds-panel').querySelector('.section-head h3');
   if (buildsHead) {
-    const blendAlso = result.winner && (result.passingBest || []).some((b) => b !== result.winner && b.move === 'blend');
-    buildsHead.textContent = !result.winner ? 'No build works yet' : (blendAlso ? 'Builds that work — including a blend' : 'Builds that work');
+    const blendInList = (result.passingBest || []).some((b) => b.move === 'blend');
+    buildsHead.textContent = !result.winner ? 'No build works yet' : (blendInList ? 'Builds that work — including a mix-in blend' : 'Builds that work');
   }
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready || (state.target.property === 'none' && !state.extraTargets.length);
@@ -1808,7 +1849,7 @@ async function fetchProposals(bust = false) {
   }
   const seq = ++modelSeq;
   const payload = toApiPayload(state);
-  feedbackAdded = 0;
+  round1Exact = 0; round2Exact = 0; round2Total = 0;
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
@@ -1840,6 +1881,7 @@ async function fetchProposals(bust = false) {
     feedbackRound = false;
     if (!fallback && modelProposals.length) {
       const checked = evaluateBuilds(state, modelProposals);
+      round1Exact = (checked.modelTrace || []).filter((item) => item.pass).length;
       const failed = (checked.modelTrace || []).filter((item) => !item.pass);
       if (failed.length) {
         try {
@@ -1864,8 +1906,10 @@ async function fetchProposals(bust = false) {
           const secondFallback = Boolean(secondData._meta && secondData._meta.fallback);
           if (second.ok && !secondFallback && secondProposals.length) {
             const seen = new Set(modelProposals.map((p) => JSON.stringify(p)));
+            round2Total = secondProposals.length;
+            round2Exact = evaluateBuilds(state, secondProposals).modelTrace.filter((item) => item.pass).length;
             for (const proposal of secondProposals) {
-              if (!seen.has(JSON.stringify(proposal))) { modelProposals.push(proposal); feedbackAdded += 1; }
+              if (!seen.has(JSON.stringify(proposal))) modelProposals.push(proposal);
             }
             modelState = 'meta';
             metaSource = secondData._cached
@@ -2168,159 +2212,6 @@ for (const [id, key] of [['other-target-min', 'targetMin'], ['other-target-max',
 bindSelect('mode', 'mode');
 bindSelect('other-mode', 'other.mode');
 bindSelect('dirt-level', 'plastic.dirtLevel');
-let voiceRecorder = null;
-let voiceStream = null;
-let voiceChunks = [];
-let voiceBusy = false;
-let voiceSource = '';
-
-async function blobToWav(blob) {
-  const arrayBuffer = await blob.arrayBuffer();
-  const audioContext = new AudioContext();
-  const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-  await audioContext.close();
-  return encodeWav(decoded);
-}
-
-function encodeWav(buffer) {
-  const channels = Math.min(2, buffer.numberOfChannels);
-  const frames = buffer.length;
-  const rate = 16000;
-  const offline = new OfflineAudioContext(1, Math.ceil(frames * rate / buffer.sampleRate), rate);
-  const source = offline.createBufferSource();
-  source.buffer = buffer;
-  source.connect(offline.destination);
-  source.start();
-  return offline.startRendering().then((rendered) => {
-    const samples = rendered.getChannelData(0);
-    const out = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(out);
-    const write = (offset, text) => {
-      for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
-    };
-    write(0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    write(8, 'WAVE');
-    write(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, rate, true);
-    view.setUint32(28, rate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    write(36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-    for (let i = 0; i < samples.length; i++) {
-      const s = Math.max(-1, Math.min(1, samples[i]));
-      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    }
-    return new Blob([out], { type: 'audio/wav' });
-  });
-}
-
-function resetVoiceButton() {
-  const button = $('brief-voice');
-  button.textContent = 'Use your voice';
-  button.classList.remove('is-recording');
-  button.setAttribute('aria-pressed', 'false');
-  button.disabled = false;
-  voiceBusy = false;
-  if (voiceStream) {
-    for (const track of voiceStream.getTracks()) track.stop();
-    voiceStream = null;
-  }
-}
-
-async function sendVoice(blob) {
-  $('brief-status').textContent = 'Writing down what you said…';
-  const data = new FormData();
-  data.append('audio', blob, 'brief.wav');
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 60000);
-  try {
-    const response = await fetch(`${API_BASE}/api/voice/transcribe`, {
-      method: 'POST',
-      headers: metaHeaders(false),
-      body: data,
-      signal: controller.signal,
-    });
-    const result = await response.json();
-    const transcript = (result.transcript || '').trim();
-    if (!response.ok || !transcript) {
-      $('brief-status').textContent = 'The voice could not be heard clearly. Try again, or type it.';
-      return;
-    }
-    const field = $('brief');
-    field.value = transcript;
-    field.focus();
-    field.setSelectionRange(0, 0);
-    field.scrollTop = 0;
-    voiceSource = answerSourceLine(result);
-    // The transcript is shown for review, not parsed: the user checks what
-    // was heard, then presses Fill in the form. A mis-heard word dies here
-    // instead of entering the fields.
-    const heard = transcript.length > 140 ? `${transcript.slice(0, 140)}…` : transcript;
-    $('brief-status').textContent = `Heard: “${heard}” — check it above, then press Fill in the form.`;
-  } catch (error) {
-    $('brief-status').textContent = 'Voice is unavailable. Type the description instead.';
-  } finally {
-    window.clearTimeout(timer);
-    resetVoiceButton();
-  }
-}
-
-async function toggleVoice() {
-  const button = $('brief-voice');
-  if (modelOff() && !(voiceRecorder && voiceRecorder.state === 'recording')) {
-    $('brief-status').textContent = 'The model is off in Settings, so voice is off too. Type the description, or turn the model on in Settings.';
-    return;
-  }
-  if (settings.provider !== 'meta' && !(voiceRecorder && voiceRecorder.state === 'recording')) {
-    $('brief-status').textContent = 'Voice is only available with Meta. Type the description instead, or switch the provider in Settings.';
-    return;
-  }
-  if (voiceRecorder && voiceRecorder.state === 'recording') {
-    button.disabled = true;
-    button.textContent = 'Reading voice…';
-    voiceRecorder.stop();
-    return;
-  }
-  if (voiceBusy) return;
-  if (!navigator.mediaDevices || !window.MediaRecorder) {
-    $('brief-status').textContent = 'This browser cannot record audio. Type the description instead.';
-    return;
-  }
-  voiceBusy = true;
-  try {
-    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    voiceChunks = [];
-    voiceRecorder = new MediaRecorder(voiceStream);
-    voiceRecorder.addEventListener('dataavailable', (event) => {
-      if (event.data && event.data.size) voiceChunks.push(event.data);
-    });
-    voiceRecorder.addEventListener('stop', async () => {
-      const blob = new Blob(voiceChunks, { type: voiceRecorder.mimeType || 'audio/webm' });
-      voiceRecorder = null;
-      try {
-        const wav = await blobToWav(blob);
-        await sendVoice(wav);
-      } catch (error) {
-        $('brief-status').textContent = 'Could not use that recording. Type the description instead.';
-        resetVoiceButton();
-      }
-    });
-    voiceRecorder.start();
-    button.textContent = 'Stop';
-    button.classList.add('is-recording');
-    button.setAttribute('aria-pressed', 'true');
-    $('brief-status').textContent = 'Listening — describe the part out loud, then press Stop.';
-  } catch (error) {
-    $('brief-status').textContent = 'Microphone permission was not given. Type the description instead.';
-    resetVoiceButton();
-  }
-}
-
 function mapBriefToState(brief, originalText = '') {
   const source = brief && typeof brief === 'object' ? brief : {};
   const targets = Array.isArray(source.targets)
@@ -2392,6 +2283,22 @@ function applyPublishedIfMissing(normalized, originalText = '') {
  */
 function clearAiFilled() {
   for (const el of $$('.ai-filled')) el.classList.remove('ai-filled');
+}
+
+/* A weight target whose number matches a stated kg load is suspicious: the
+ * load is what the part has to carry, not what the part itself weighs.
+ * The value stays (it is grounded), but the user is asked to confirm it. */
+function weightLooksLikeStatedKgLoad(text, targets) {
+  for (const target of targets || []) {
+    if (!target || target.property !== 'weight') continue;
+    for (const value of [target.min, target.max]) {
+      if (!(Number(value) > 0)) continue;
+      const kg = Number(value) / 1000;
+      const shown = String(Math.round(kg * 1000) / 1000).replace('.', '\\.');
+      if (new RegExp(`\\b${shown}\\s*(?:kg|kilograms?)\\b`, 'i').test(String(text || ''))) return true;
+    }
+  }
+  return false;
 }
 function briefFilledGroups(brief) {
   const source = brief && typeof brief === 'object' ? brief : {};
@@ -2494,8 +2401,10 @@ async function readBrief(bust = false) {
       status += ` For this delivery, the published range “${briefPublished.label}” was used — that is a published range, not a measurement of this delivery. Change it under “This delivery” if your supplier’s numbers differ.`;
     }
     if (filled.length) status += ` Filled from your words: ${filled.join(', ')} — marked fields clear when you edit them.`;
+    if (weightLooksLikeStatedKgLoad(text, [state.target, ...state.extraTargets])) {
+      status += ' Check: that weight looks like the load you stated in kg — confirm it is really the part\u2019s weight, not what it has to carry.';
+    }
     status += ` ${sourcePlain}`;
-    if (voiceSource) { status += ` Voice: ${voiceSource}.`; voiceSource = ''; }
     $('brief-status').textContent = status;
     $('brief-recall').hidden = !data._cached;
   } catch (error) {
@@ -2561,7 +2470,6 @@ function addTarget() {
 
 $('brief-submit').addEventListener('click', () => readBrief());
 $('brief-recall').addEventListener('click', () => readBrief(true));
-$('brief-voice').addEventListener('click', toggleVoice);
 $('brief-sample').addEventListener('click', () => {
   const field = $('brief');
   field.value = SAMPLE_BRIEF;
@@ -2576,8 +2484,6 @@ $('brief').addEventListener('keydown', (event) => {
     readBrief();
   }
 });
-// An edited transcript is the user's own words, not the voice answer.
-$('brief').addEventListener('input', () => { voiceSource = ''; });
 for (const id of ['e-min', 'e-max', 's-min', 's-max', 'density', 'treated-e-min', 'treated-e-max', 'treated-s-min', 'treated-s-max']) {
   $(id).addEventListener('input', () => {
     if (batchSource !== 'numbers') {

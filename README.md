@@ -8,6 +8,10 @@ the exact change — thicker section, a mix-in plastic, different part — that 
 usable. If a delivery cannot hold the part as entered, the result is the material range the part
 needs and the changes that could close the gap.
 
+AnyRB is built for Konverta's own planned use in its recycled-plastic work — the builder's
+company is the intended first user. It has not been run on a production order yet, and no
+customer, saving or market figure is claimed here.
+
 ## Why this exists
 
 Recycled plastic's swing is measured, not guessed. One supplier's recycled-HDPE plates measured
@@ -23,9 +27,9 @@ AnyRB is the third answer: design to the delivery you actually have.
 
 The page asks one question — **What do you want to make?** — and needs three things, in any order:
 
-1. **The part.** Type it or say it: *"I make crate sides, 400 mm long, 60 mm wide and 15 mm thick,
+1. **The part.** Type it: *"I make crate sides, 400 mm long, 60 mm wide and 15 mm thick,
    supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to
-   360 g."* Muse Spark (or Muse Voice Transcribe first, if you speak) turns that into editable
+   360 g."* Muse Spark turns that into editable
    fields. It only writes down what you said.
 2. **This delivery.** Pick the kind of plastic and start from its **published range** — recycled
    HDPE, polypropylene, mixed plastics, PET, PETG, LDPE — or, if your supplier gave you numbers,
@@ -78,10 +82,10 @@ Four jobs, all through the local server — the browser never holds an API key:
 
 | Job | Model | What you see |
 |---|---|---|
-| Read the typed or spoken brief into fields | Muse Spark 1.3 Contributor, Muse Voice Transcribe | Editable fields; anything you didn't say stays empty |
+| Read the typed brief into fields | Muse Spark 1.3 Contributor | Editable fields; anything you didn't say stays empty |
 | Propose sizes and delivery moves | Muse Spark 1.3 Contributor | Each proposal checked at the exact size proposed; what doesn't pass is shown, then sent back to Muse Spark once with the checked ranges |
 | Answer "what should I add or change?" | Muse Spark 1.3 Contributor | Actions using only your numbers, or nothing when it has nothing grounded to say |
-| — | — | Every model answer — brief, proposals, advice and voice — names the model that answered, whether it is live or a saved answer, and how long it took |
+| — | — | Every model answer — brief, proposals and advice — names the model that answered, whether it is live or a saved answer, and how long it took |
 
 The model proposes; a deterministic checker disposes. No strength, stiffness or weight on the
 page is written by a model — every one is calculated from the part size and the delivery range,
@@ -98,7 +102,7 @@ provider" step. Each takes its endpoint, model name and your own key; only Meta 
 server's key, and a request naming another provider without your key sends no key anywhere.
 Other providers are exercised with simulated transports in the tests, not with live keys. A key
 stays in the browser tab, is sent only to the server on this machine when the model is called,
-and is gone when the tab closes. Voice is only available with Meta.
+and is gone when the tab closes.
 
 ## Where the numbers come from, and the edges of the checker
 
@@ -129,13 +133,13 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 75 app tests (66 checker + 9 page wiring)
+node app/tests/model.test.mjs                           # 80 app tests (69 checker + 11 page wiring)
 node app/tests/combinations.test.mjs                    # 13,200-case combination matrix (9 tests)
-AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 144 server tests (1 live smoke skipped)
+AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 150 server tests (1 live smoke skipped)
 ```
 
 Live evidence (real key, never recorded) is regenerated, not hand-written:
-`server/verify_product_live.py` (brief, proposals, feedback round, advice, voice —
+`server/verify_product_live.py` (brief, proposals, feedback round, advice —
 all live in the last run) and `server/verify_brief_benchmark.py` (18 shop-language
 briefs scored per field group — 18/18 all-pass, 90/90 groups, Muse Spark, in the
 last run). Outputs: `server/evidence/product_live_calls.json`,

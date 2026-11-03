@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// Page wiring: voice confirm, extracted-field marking, live re-call,
+// Page wiring: extracted-field marking, live re-call,
 // proposal tally, mix-in/treated published routes, load-path line, sheet yield.
 // Source-string guards: the behaviour lives in main.js/index.html/styles.css,
 // so these tests pin the wiring the checker tests cannot see.
@@ -22,18 +22,29 @@ test('page sends a cache-bust header when the user asks for a live answer', asyn
 test('every saved answer gets a call-again control', async () => {
   const js = await load('../main.js');
   const html = await load('../index.html');
-  for (const id of ['brief-recall', 'model-recall', 'ask-recall']) {
+  for (const id of ['brief-recall', 'model-recall', 'ask-recall', 'sheet-recall']) {
     assert.match(html, new RegExp(`id="${id}"`));
     assert.match(js, new RegExp(`\\$\\('${id}'\\)`));
   }
-  assert.match(html, /Call again for a live answer/);
+  assert.match(html, /Get a fresh answer/);
+  assert.doesNotMatch(html, /Call again for a live answer/);
   assert.match(js, /model-recall'\)\.hidden = !metaSource \|\| metaSource\.kind !== 'cached'/);
+  assert.match(js, /sheet-recall'\)\.hidden = !data\._cached/);
 });
 
-test('voice is reviewed, not auto-parsed, and edits clear the voice source', async () => {
+test('there is no voice path left anywhere', async () => {
   const js = await load('../main.js');
-  assert.match(js, /check it above, then press Fill in the form/);
-  assert.match(js, /\$\('brief'\)\.addEventListener\('input', \(\) => \{ voiceSource = '';/);
+  const html = await load('../index.html');
+  const css = await load('../styles.css');
+  assert.doesNotMatch(html, /brief-voice|Use your voice|say it out loud/);
+  assert.doesNotMatch(js, /voiceRecorder|sendVoice|toggleVoice|voiceSource|MediaRecorder|\/api\/voice\/transcribe/);
+  assert.doesNotMatch(css, /brief-voice/);
+});
+
+test('a weight that echoes a stated kg load is flagged for review', async () => {
+  const js = await load('../main.js');
+  assert.match(js, /function weightLooksLikeStatedKgLoad/);
+  assert.match(js, /confirm it is really the part/);
 });
 
 test('fields filled from the user’s words are marked until edited', async () => {
@@ -50,8 +61,10 @@ test('fields filled from the user’s words are marked until edited', async () =
 test('the builds status counts exact passes and the feedback round', async () => {
   const js = await load('../main.js');
   assert.match(js, /passed exactly as proposed/);
-  assert.match(js, /more after the model saw the checked ranges/);
-  assert.match(js, /feedbackAdded/);
+  assert.match(js, /in the second round, after the model saw the checked ranges/);
+  assert.match(js, /round1Exact/);
+  assert.match(js, /round2Exact/);
+  assert.doesNotMatch(js, /feedbackAdded/);
 });
 
 test('mix-in and treated ranges can come from a published pick', async () => {
@@ -74,6 +87,14 @@ test('the verdict names the cheaper way to hold the part', async () => {
   assert.match(js, /less material\./);
 });
 
+test('published sort outcomes stay in the delivery’s family and name the assumption', async () => {
+  const js = await load('../main.js');
+  const checker = await load('../product.js');
+  assert.match(js, /treatedOutcomeKeysFor\(state\.plastic\.type/);
+  assert.match(checker, /assumed outcome, not a measurement/);
+  assert.match(checker, /mixture-rule estimate/);
+});
+
 test('sheet cutting is counted in the production note', async () => {
   const js = await load('../main.js');
   const html = await load('../index.html');
@@ -81,10 +102,10 @@ test('sheet cutting is counted in the production note', async () => {
   assert.match(html, /id="sheet-width"/);
   assert.match(js, /sheetYield\(\{ sheetSpanMm, sheetWidthMm/);
   assert.match(js, /sheet gives/);
-  assert.match(js, /sheets\./);
+  assert.match(js, /This order needs \${sheets} sheets/);
 });
 
 test('a blend that also works is named in the builds heading', async () => {
   const js = await load('../main.js');
-  assert.match(js, /including a blend/);
+  assert.match(js, /including a mix-in blend/);
 });

@@ -45,13 +45,13 @@ STEADY_KEYS = {"available", "type", "stiffness_mpa", "strength_mpa"}
 
 TEXT = ("Make a compression pallet block, 800 mm span, 120 mm wide and 90 mm thick, from "
         "rPETG batch LOT-2026-014 with density 1.24 g/cm3 and virgin PETG at 2300 MPa; "
-        "it needs strength 38-50 MPa and a weight under 35 kg.")
+        "it needs strength 38-50 kg and a weight under 35000 g.")
 LIVE_PAYLOAD = {
     "product": "pallet block", "mode": "compression",
     "span_mm": 800, "width_mm": 120, "thickness_mm": 90,
     "targets": [
         {"property": "strength", "min": 38, "max": 50},
-        {"property": "weight", "min": None, "max": 35},
+        {"property": "weight", "min": None, "max": 35000},
     ],
     "plastic": {"type": "rPETG", "batch": "LOT-2026-014", "density_g_cm3": 1.24},
     "steady": {"available": True, "type": "virgin PETG", "stiffness_mpa": 2300},
@@ -174,7 +174,7 @@ def test_live_parse_with_two_targets_and_batch(client, monkeypatch):
     assert brief["mode"] == "compression"
     assert (brief["span_mm"], brief["width_mm"], brief["thickness_mm"]) == (800.0, 120.0, 90.0)
     assert [(t["property"], t["min"], t["max"]) for t in brief["targets"]] == [
-        ("strength", 38.0, 50.0), ("weight", None, 35.0)]
+        ("strength", 38.0, 50.0), ("weight", None, 35000.0)]
     assert brief["plastic"]["type"] == "rPETG"
     assert brief["plastic"]["batch"] == "LOT-2026-014"
     assert brief["plastic"]["density_g_cm3"] == 1.24
@@ -207,12 +207,12 @@ def test_invented_and_unknown_target_properties_are_dropped(client, monkeypatch)
             {"property": "impact", "min": 1, "max": 2},          # unknown -> dropped
             {"property": "cost", "min": 3, "max": 4},            # unknown -> dropped
             {"property": "strength", "min": 10, "max": 20},      # duplicate -> dropped
-            {"property": "weight", "min": None, "max": 35},
-            {"property": "stiffness", "min": 1800, "max": 2400},
+            {"property": "weight", "min": None, "max": 35000},
+            {"property": "stiffness", "min": 2, "max": 4},
             {"property": "weight", "min": 20, "max": 30},        # 6th/dup -> dropped
         ],
     })
-    text = "slat with strength 38-50 MPa, weight under 35 kg, stiffness 1800-2400 MPa"
+    text = "slat with strength 38-50 kg, weight under 35000 g, stiffness 2-4 N/mm"
     data = client.post(ENDPOINT, json={"text": text}).json()
     targets = data["brief"]["targets"]
     assert [t["property"] for t in targets] == ["strength", "weight", "stiffness"]
@@ -357,8 +357,8 @@ def test_comma_thousands_in_plastic_ranges_are_grounded(client, monkeypatch):
 
 
 def test_comma_thousands_ground_targets_and_dimensions(client, monkeypatch):
-    text = ("Make a bench 1,500 mm span, 20 mm thick, strength 1,200-2,000 MPa and a "
-            "weight under 1,000 kg.")
+    text = ("Make a bench 1,500 mm span, 20 mm thick, strength 1,200-2,000 kg and a "
+            "weight under 1,000 g.")
     _use_fake_live(monkeypatch, {
         "product": "bench", "span_mm": 1500, "thickness_mm": 20,
         "targets": [{"property": "strength", "min": 1200, "max": 2000},
@@ -407,11 +407,19 @@ def test_comma_normalizer_and_dash_ranges(product_ai):
     assert norm("12,34") == "12,34"            # not a thousands group
     assert norm("1, 2 and 3") == "1, 2 and 3"  # ordinary prose commas untouched
     assert norm("LOT-2026-014") == "LOT-2026-014"
-    nums = product_ai._stated_numbers(
-        "stiffness 800-1,250 MPa; strength 38–50 MPa; span 1,500 mm")
-    for value in (800.0, 1250.0, 38.0, 50.0, 1500.0):
-        assert product_ai._number_was_stated(value, nums), value
-    assert not product_ai._number_was_stated(1350.0, nums)
+    pairs = product_ai._stated_numbers(
+        "stiffness 800-1,250 MPa; strength 38–50 kg; span 1,500 mm; holds 20 N")
+    for value, field in ((800.0, "plastic"), (1250.0, "plastic"),
+                         (38.0, "strength"), (50.0, "strength"),
+                         (1500.0, "geometry"),
+                         (20.0 / 9.80665, "strength")):
+        assert product_ai._number_was_stated(value, pairs, field), (value, field)
+    assert not product_ai._number_was_stated(1350.0, pairs, "plastic")
+    # units discriminate: MPa never grounds grams or kg targets,
+    # mm never grounds N/mm, % never grounds anything
+    assert not product_ai._number_was_stated(800.0, pairs, "weight")
+    assert not product_ai._number_was_stated(38.0, pairs, "plastic")
+    assert not product_ai._number_was_stated(1500.0, pairs, "stiffness")
 
 
 def test_brief_prompt_maps_load_to_strength_and_mass_to_weight():
@@ -549,6 +557,97 @@ def test_adversarial_not_hdpe_its_pp_selects_no_hdpe_range(client, monkeypatch):
     dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
     assert "plastic.stiffness_min_mpa" in dropped
     assert "plastic.density_g_cm3" in dropped
+
+
+def test_misfiled_kg_load_filed_as_grams_is_dropped(client, monkeypatch):
+    # A model that files a stated kg load (95-115) under a gram weight target
+    # is misfiling, not extracting: 95 g is not 95 kg. The strength twin stays.
+    _use_fake_live(monkeypatch, {
+        "product": "crate side",
+        "targets": [
+            {"property": "strength", "min": 95, "max": 115},
+            {"property": "weight", "min": 95, "max": 115},
+        ],
+    })
+    text = "Each crate side has to carry 95 to 115 kg."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    targets = data["brief"]["targets"]
+    assert [(t["property"], t["min"], t["max"]) for t in targets] == [
+        ("strength", 95.0, 115.0)]
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "targets[1].min" in dropped and "targets[1].max" in dropped
+
+
+def test_metre_geometry_grounds_mm_but_invented_factor_does_not(client, monkeypatch):
+    # "2 m" grounds a 2000 mm span; a 200 mm width from the same words is a
+    # x100 invention, not a conversion, and is dropped.
+    _use_fake_live(monkeypatch, {
+        "product": "rail", "span_mm": 2000, "width_mm": 200,
+    })
+    text = "Make a rail 2 m long."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["span_mm"] == 2000.0
+    assert data["brief"]["width_mm"] is None
+    assert "width_mm" in data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+
+
+def test_stated_kg_load_does_not_ground_plastic_or_density(client, monkeypatch):
+    # Target numbers transplanted into the plastic block, and density read
+    # out of a kg load sentence, are misfiles: kg converts to nothing there.
+    _use_fake_live(monkeypatch, {
+        "product": "side",
+        "targets": [{"property": "strength", "min": 1111, "max": 1589}],
+        "plastic": {"stiffness_min_mpa": 1111, "stiffness_max_mpa": 1589,
+                    "density_g_cm3": 1.5},
+    })
+    text = "Each side has to carry 1111 to 1589 kg."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    brief = data["brief"]
+    assert [(t["property"], t["min"], t["max"]) for t in brief["targets"]] == [
+        ("strength", 1111.0, 1589.0)]
+    assert brief["plastic"]["stiffness_min_mpa"] is None
+    assert brief["plastic"]["density_g_cm3"] is None
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "plastic.stiffness_min_mpa" in dropped
+    assert "plastic.density_g_cm3" in dropped
+
+
+def test_percent_risk_grounds_nothing(client, monkeypatch):
+    # "1% failure risk" states no 1 of anything: a model that files 1 as a
+    # strength floor is inventing, and the real 15 kg load still grounds.
+    _use_fake_live(monkeypatch, {
+        "product": "shelf",
+        "targets": [{"property": "strength", "min": 1, "max": 15}],
+    })
+    text = "Shelf for 15 kg, 1% failure risk."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["targets"] == [{"property": "strength", "min": None, "max": 15.0}]
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "targets[0].min" in dropped
+
+
+def test_kilogram_word_grounds_kg_strength_target(client, monkeypatch):
+    _use_fake_live(monkeypatch, {
+        "product": "shelf",
+        "targets": [{"property": "strength", "min": 2, "max": 2}],
+    })
+    text = "A shelf must carry 2 kilograms."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert [(t["property"], t["min"], t["max"]) for t in data["brief"]["targets"]] == [
+        ("strength", 2.0, 2.0)]
+
+
+def test_kg_weight_window_grounds_gram_weight_target(client, monkeypatch):
+    # The legitimate conversion: a part weight stated as "0.32 to 0.36 kg"
+    # grounds a 320-360 g weight target.
+    _use_fake_live(monkeypatch, {
+        "product": "tray",
+        "targets": [{"property": "weight", "min": 320, "max": 360}],
+    })
+    text = "Each tray must weigh 0.32 to 0.36 kg."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert [(t["property"], t["min"], t["max"]) for t in data["brief"]["targets"]] == [
+        ("weight", 320.0, 360.0)]
 
 
 def test_adversarial_three_plastics_keep_all_names_for_mixed_range(client, monkeypatch):

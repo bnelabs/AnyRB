@@ -1,10 +1,9 @@
 """Live verification of the AnyRB product endpoints (the judged surface).
 
 Calls the product endpoints in-process (TestClient) with the real key from
-`server/.env`: a novel spoken-style brief, move proposals, the
-verifier-feedback second round, grounded advice, and — when a speech file
-can be generated — voice transcription. Records model / latency / cached /
-token usage in `server/evidence/product_live_calls.json`.
+`server/.env`: a novel typed brief, move proposals, the verifier-feedback
+second round, and grounded advice. Records model / latency / cached / token
+usage in `server/evidence/product_live_calls.json`.
 
 The brief wording carries a unique marker so the first pass cannot be a
 warm cache hit. The key is never written to the evidence file (asserted).
@@ -16,7 +15,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 import time
 import uuid
@@ -109,23 +107,6 @@ def main() -> int:
                  "builds": []},
     }).json()
     out["calls"]["advice"] = {"available": advice.get("available"), **meta_of(advice)}
-
-    # Voice: synthesise the brief with the OS speech voice when available and
-    # transcribe it back through Muse Voice. Recorded honestly either way.
-    wav = Path(f"/tmp/anyrb_voice_{MARKER}.wav")
-    try:
-        subprocess.run(["say", "-o", str(wav), "--file-format=WAVE", "--data-format=LEI16@16000",
-                        f"I make crate sides, 400 millimetres long, supported at both ends. Run {MARKER}."],
-                       check=True, timeout=60, capture_output=True)
-        with wav.open("rb") as fh:
-            voice = client.post("/api/voice/transcribe", headers=BROWSER_HEADERS,
-                                files={"audio": ("brief.wav", fh, "audio/wav")}).json()
-        out["calls"]["voice"] = {"transcript_chars": len((voice.get("transcript") or "").strip()),
-                                 **meta_of(voice)}
-    except Exception as exc:  # noqa: BLE001
-        out["calls"]["voice"] = {"available": False, "error": f"{type(exc).__name__}: {exc}"[:200]}
-    finally:
-        wav.unlink(missing_ok=True)
 
     text = json.dumps(out)
     assert meta_client.KEY not in text, "key leaked into evidence"
