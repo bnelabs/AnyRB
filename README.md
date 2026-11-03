@@ -61,10 +61,11 @@ ranges, margins and the build ticket all convert; the checker itself always calc
   inside the 95–115 kg and 320–360 g requirements. The strength bar shows why this is a close
   call: **closest margin 0.4 kg at the low end**. A slightly weaker delivery would fail it.
 - Tighten the requirement to **130–150 kg**. Now no build passes, and the app says so in the
-  part's own terms first: as it stands it carries 95.4–111.0 kg. Then in supplier numbers: this build
-  needs a plastic strength of 56.7–65.4 MPa; this delivery gives 41.6–48.4 MPa — and thickening
-  the part can't fix a swing that wide, so the levers are mixing in another plastic, sorting, a different
-  section, or a different part for this delivery.
+  part's own terms first: as it stands it carries 95.4–111.0 kg, and thickening the part can't
+  fix a delivery that varies this much — so the levers are mixing in another plastic, sorting
+  the weakest pieces out, a different size, or a different part for this delivery. (The worked
+  case in [data/CASE_STUDY.md](data/CASE_STUDY.md) also gives the supplier-sheet numbers behind
+  that verdict, for anyone who has them.)
 
 Both cases are written out in [data/CASE_STUDY.md](data/CASE_STUDY.md).
 
@@ -125,7 +126,7 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 59 app tests
+node app/tests/model.test.mjs                           # 60 app tests
 node app/tests/combinations.test.mjs                    # 13,200-case combination matrix
 AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 137 server tests (1 live smoke skipped)
 ```

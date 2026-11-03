@@ -428,7 +428,9 @@ function renderGap(result) {
   if (result.winner) {
     const intro = document.createElement('p');
     intro.className = 'gap-note';
-    intro.textContent = '“Needs” is what the part asks of the plastic. “Gives” is this delivery, in the units a supplier sheet uses (MPa).';
+    intro.textContent = batchSource === 'numbers'
+      ? '“Needs” is what the part asks of the plastic. “Gives” is this delivery, in the units a supplier sheet uses (MPa).'
+      : '“Needs” is what the part asks of the plastic. “Gives” is this delivery’s published range.';
     gap.append(intro);
     for (const target of result.targets) {
       const meta = propertyMeta(target.property);
@@ -436,7 +438,11 @@ function renderGap(result) {
       const p = document.createElement('p');
       const needText = formatRange(needed.required, needed.unit);
       const batchText = formatRange(needed.batch, needed.unit);
-      if (result.winner.move === 'blend') {
+      if (batchSource !== 'numbers') {
+        p.textContent = result.winner.move === 'blend'
+          ? `${meta.label}: ${Math.round(result.winner.fraction * 100)}% of ${result.state.steady.type || 'the mix-in plastic'} brings this delivery into the range this build needs. It fits.`
+          : `${meta.label}: this build sits inside what this delivery's published range gives. It fits.`;
+      } else if (result.winner.move === 'blend') {
         p.textContent = `${meta.label}: the base delivery gives ${batchText}; this build needs ${needText}. ${Math.round(result.winner.fraction * 100)}% of ${result.state.steady.type || 'the mix-in plastic'} brings it into the window.`;
       } else {
         p.textContent = `${meta.label}: this build needs ${needText}; your delivery gives ${batchText}. It fits.`;
@@ -460,12 +466,16 @@ function renderGap(result) {
   gap.append(head);
   const intro = document.createElement('p');
   intro.className = 'gap-note';
-  intro.textContent = '“Needs” is what the part asks of the plastic. “Gives” is this delivery, in the units a supplier sheet uses (MPa).';
+  intro.textContent = batchSource === 'numbers'
+    ? '“Needs” is what the part asks of the plastic. “Gives” is this delivery, in the units a supplier sheet uses (MPa).'
+    : '“Needs” is what the part asks of the plastic. “Gives” is this delivery’s published range.';
   gap.append(intro);
   for (const item of result.gaps.filter((g) => g.shortLow > 0 || g.overHigh > 0)) {
     const meta = propertyMeta(item.property);
     const p = document.createElement('p');
-    p.textContent = `${meta.label}: needs ${formatRange(item.required, item.unit)}; delivery gives ${formatRange(item.batch, item.unit)}. ${item.action}`;
+    p.textContent = batchSource === 'numbers'
+      ? `${meta.label}: needs ${formatRange(item.required, item.unit)}; delivery gives ${formatRange(item.batch, item.unit)}. ${item.action}`
+      : `${meta.label}: ${item.action}`;
     gap.append(p);
   }
 }
@@ -1615,6 +1625,7 @@ function renderStatus(result) {
 }
 
 function render(result) {
+  result.state.rangeSource = batchSource && batchSource !== 'numbers' ? 'published' : (batchSource === 'numbers' ? 'numbers' : result.state.rangeSource || '');
   lastResult = result;
   const decision = decisionFor(result.state, result);
   lastDecision = decision;

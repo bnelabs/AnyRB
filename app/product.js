@@ -256,6 +256,7 @@ export function normalizeState(raw = {}) {
   const plastic = source.plastic && typeof source.plastic === 'object' ? source.plastic : {};
   const other = source.other && typeof source.other === 'object' ? source.other : {};
   const blank = source.blank === true;
+  const rangeSource = source.rangeSource === 'numbers' ? 'numbers' : (source.rangeSource === 'published' ? 'published' : '');
   const targetFallback = blank ? { property: '', min: '', max: '' } : DEFAULT_STATE.target;
   const primaryTarget = normalizeTarget(target, targetFallback);
   const extraTargets = rawExtraTargets
@@ -284,6 +285,7 @@ export function normalizeState(raw = {}) {
     // moment a product exists, and the app calculates against a delivery
     // nobody entered.
     blank,
+    rangeSource,
     product,
     mode: MODE_KEYS.has(source.mode) ? source.mode : (blank ? '' : (product ? inferMode(product) : DEFAULT_STATE.mode)),
     spanMm: span > 0 ? clamp(span, 20, 6000) : 0,
@@ -764,6 +766,8 @@ export function materialGap(stateInput, part, targetInput = null) {
   let action;
   if (buckling && buckling.governs) {
     action = `This part buckles before it crushes: at the delivery's low stiffness it carries about ${formatNumber(buckling.capacityKgAtLowStiffness)} kg. Make it thicker or shorter, or bring in a stiffer stream — a stronger plastic alone does not lift this.`;
+  } else if (shortLow > required.min * 0.5 && target.property !== 'weight') {
+    action = 'This delivery is far below what this part needs — mixing or sorting this delivery will not close a gap that wide. Put this delivery on a part that asks less of it, or bring in a stronger delivery for this one.';
   } else if (rangeTooWide) {
     action = 'This delivery varies too much for the range you need. A thicker or wider part raises both ends together, so it cannot fix this. Mix in another plastic that measures nearly the same every time, or sort the weakest pieces out first.';
     if (steadyShort > 0) action += ` The other plastic you named gives ${formatNumber(steadyValue)} ${required.unit}; this build needs at least ${formatNumber(required.min)} ${required.unit}.`;
@@ -1175,7 +1179,7 @@ export function decisionFor(stateInput, result) {
     const unit = primary.unit;
     let headline;
     if (primary.buckling && primary.buckling.governs) headline = 'Thicken or shorten this part.';
-    else if (primary.rangeTooWide) headline = `This delivery varies too much in ${meta.noun}.`;
+    else if (primary.rangeTooWide && !(primary.shortLow > primary.required.min * 0.5)) headline = `This delivery varies too much in ${meta.noun}.`;
     else if (primary.shortLow > 0) {
       headline = primary.property === 'strength'
         ? 'Not strong enough with this delivery.'
@@ -1198,16 +1202,19 @@ export function decisionFor(stateInput, result) {
     const asStands = result.current
       ? `as it stands, this build ${rangeText(result.current)} — you need ${targetText}. `
       : '';
-    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}In supplier numbers: ${statements.join(' ')} ${primary.action} Ranges are checked as entered — no safety margin is added to any of these numbers.`;
+    const supplierSentence = state.rangeSource === 'published'
+      ? ''
+      : `In supplier numbers: ${statements.join(' ')} `;
+    const support = `At ${buildSizeText(currentPart(state))}, ${asStands}${supplierSentence}${primary.action} Ranges are checked as entered — no safety margin is added to any of these numbers.`;
     const copy = [
       'AnyRB plan',
       headline,
       `Current build: ${buildSizeText(currentPart(state))}`,
       asStands ? `As it stands: ${rangeText(result.current)}; you need ${targetText}` : '',
-      ...gaps.filter((gap) => gap.shortLow > 0 || gap.overHigh > 0).map((gap) => {
+      ...(state.rangeSource === 'published' ? [] : gaps.filter((gap) => gap.shortLow > 0 || gap.overHigh > 0).map((gap) => {
         const gapMeta = propertyMeta(gap.property);
         return `${gapMeta.label}: needs ${formatRange(gap.required, gap.unit)}, delivery ${formatRange(gap.batch, gap.unit)}`;
-      }),
+      })),
       `Action: ${primary.action}`,
       'Checked as entered — no safety margin is added to any of these numbers.',
     ].filter(Boolean).join('\n');

@@ -496,6 +496,18 @@ test('thin-evidence ranges and example numbers are labelled as what they are', a
   assert.match(html, /no safety margin is added, and it certifies nothing/);
 });
 
+test('failure wording: far below is not called a swing problem, and published ranges stay out of supplier numbers', () => {
+  const far = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate, target: { property: 'strength', min: 900, max: 1000 } });
+  const farDecision = decisionFor(far, evaluateBuilds(far, []));
+  assert.equal(farDecision.headline, 'Not strong enough with this delivery.');
+  assert.match(farDecision.support, /far below what this part needs/);
+  const published = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate, rangeSource: 'published', target: { property: 'strength', min: 130, max: 150 } });
+  const pubDecision = decisionFor(published, evaluateBuilds(published, []));
+  assert.doesNotMatch(pubDecision.support, /MPa/);
+  assert.doesNotMatch(pubDecision.copy, /MPa/);
+  assert.match(pubDecision.support, /varies too much/);
+});
+
 test('a passing decision names a thin margin and the missing safety margin', () => {
   const s = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate });
   const decision = decisionFor(s, evaluateBuilds(s, []));
