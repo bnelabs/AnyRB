@@ -125,6 +125,7 @@ export const PROPERTIES = [
   { key: 'strength', label: 'Strength', unit: 'kg', verb: 'carries', noun: 'strength' },
   { key: 'stiffness', label: 'Stiffness', unit: 'N/mm', verb: 'holds', noun: 'stiffness' },
   { key: 'weight', label: 'Weight', unit: 'g', verb: 'weighs', noun: 'weight' },
+  { key: 'none', label: 'No load to check', unit: 'g', verb: 'weighs', noun: 'weight' },
 ];
 export const MOVES = ['current', 'thickness', 'section', 'span', 'other', 'blend'];
 export const PROPERTY_DEFAULTS = {
@@ -222,6 +223,7 @@ function normalizeTarget(raw, fallback) {
   const source = raw && typeof raw === 'object' ? raw : {};
   const fallbackProperty = fallback && PROPERTY_KEYS.has(fallback.property) ? fallback.property : '';
   const property = PROPERTY_KEYS.has(source.property) ? source.property : fallbackProperty;
+  if (property === 'none') return { property: 'none', min: '', max: '' };
   const rawMin = num(source.min, null);
   const rawMax = num(source.max, null);
   const min = rawMin == null ? '' : rawMin;
@@ -243,7 +245,7 @@ export function normalizeState(raw = {}) {
   const targetFallback = blank ? { property: '', min: '', max: '' } : DEFAULT_STATE.target;
   const primaryTarget = normalizeTarget(target, targetFallback);
   const extraTargets = rawExtraTargets
-    .filter((item) => item && typeof item === 'object' && PROPERTY_KEYS.has(item.property))
+    .filter((item) => item && typeof item === 'object' && PROPERTY_KEYS.has(item.property) && item.property !== 'none')
     .slice(0, 5)
     .map((item) => normalizeTarget(item, targetFallback));
   const eMin = blank
@@ -311,10 +313,14 @@ export function isReady(stateInput) {
   const targets = [state.target, ...state.extraTargets];
   if (!targets.length) return false;
   for (const target of targets) {
+    if (target.property === 'none') continue;
     if (!PROPERTY_KEYS.has(target.property)) return false;
     if (!Number.isFinite(target.min) || !Number.isFinite(target.max)) return false;
     if (target.min > target.max) return false;
     if (!(target.max > 0)) return false;
+  }
+  if (targets.length === 1 && targets[0].property === 'none') {
+    return state.plastic.density > 0;
   }
   if (!(state.plastic.eMin > 0 && state.plastic.eMax >= state.plastic.eMin)) return false;
   if (!(state.plastic.sMin > 0 && state.plastic.sMax >= state.plastic.sMin)) return false;
@@ -406,7 +412,7 @@ function blendPlastic(plastic, fraction, steady) {
 }
 
 export function propertyRange(part, plastic, property) {
-  if (property === 'weight') {
+  if (property === 'weight' || property === 'none') {
     const m = massG(part, plastic.density);
     return { min: m, max: m, unit: 'g' };
   }
@@ -693,7 +699,7 @@ export function blendCandidate(stateInput) {
 
 function passesAllTargets(state, part, plastic) {
   const targets = [state.target, ...state.extraTargets];
-  return targets.every((target) => inRange(propertyRange(part, plastic, target.property), target));
+  return targets.every((target) => target.property === 'none' || inRange(propertyRange(part, plastic, target.property), target));
 }
 
 function addFound(state, found, seen, candidate) {
@@ -875,12 +881,12 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
     };
   }
   const targets = [state.target, ...state.extraTargets];
-  const targetValid = targets.every((target) => target.min <= target.max);
+  const targetValid = targets.every((target) => target.property === 'none' || target.min <= target.max);
   const current = { move: 'current', part: currentPart(state) };
   const currentPlastic = state.plastic;
   const currentMass = massG(current.part, currentPlastic.density);
   const currentRanges = targets.map((target) => propertyRange(current.part, currentPlastic, target.property));
-  const currentPass = targetValid && currentRanges.every((range, i) => inRange(range, targets[i]));
+  const currentPass = targetValid && currentRanges.every((range, i) => targets[i].property === 'none' || inRange(range, targets[i]));
   const currentEval = {
     ...current,
     massG: currentMass,
@@ -1078,6 +1084,21 @@ export function decisionFor(stateInput, result) {
     return { headline, support, button: 'Ask about this delivery', copy };
   }
   const winner = result.winner;
+  if (targets[0] && targets[0].property === 'none') {
+    const weight = winner.ranges ? winner.ranges[0] : winner.range;
+    return {
+      headline: 'No load to check on this one.',
+      support: `It carries no load in use, so there is no strength or stiffness answer to give. One ${state.product} at this size weighs ${formatRange(weight, 'g')} from this delivery's density.`,
+      button: 'Copy build',
+      copy: [
+        'AnyRB build',
+        `Make the ${buildSizeText(winner.part)}.`,
+        `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
+        `No load requirement. One part weighs ${formatRange(weight, 'g')}.`,
+        `Move: ${moveLabel(state, winner)}`,
+      ].filter(Boolean).join('\n'),
+    };
+  }
   const isBlend = winner.move === 'blend';
   const steadyName = state.steady.type || 'a steadier plastic';
   const blendPct = isBlend ? Math.round(winner.fraction * 100) : 0;

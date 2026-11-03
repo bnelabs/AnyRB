@@ -343,7 +343,7 @@ test('minimum thickness candidate is a real build and passes all targets', () =>
 });
 
 test('property switch defaults are valid for a sample build', () => {
-  for (const property of PROPERTIES) {
+  for (const property of PROPERTIES.filter((item) => item.key !== 'none')) {
     const defaults = PROPERTY_DEFAULTS[property.key];
     assert.ok(defaults && defaults.min < defaults.max);
   }
@@ -509,4 +509,22 @@ test('a 0-0 requirement is no requirement (no result is calculated against it)',
   const result = evaluateBuilds(s, []);
   assert.equal(result.ready, false);
   assert.equal(result.winner, null);
+});
+
+test('a part that carries no load gets its weight, not an invented load answer', () => {
+  const s = normalizeState({
+    blank: true,
+    product: 'sound insulation panel', mode: 'simple', spanMm: 1200, widthMm: 800, thicknessMm: 35,
+    target: { property: 'none', min: '', max: '' },
+    plastic: { type: 'mixed plastics', density: 0.93 },
+  });
+  assert.equal(isReady(s), true);
+  const result = evaluateBuilds(s, []);
+  assert.equal(result.ready, true);
+  assert.ok(result.winner);
+  // 0.93 g/cm3 x 1200x800x35 mm = 31,248 g
+  close(result.winner.ranges[0].min, 31248, 1);
+  const decision = decisionFor(s, result);
+  assert.match(decision.headline, /No load to check/);
+  assert.match(decision.support, /31,248|31248/);
 });

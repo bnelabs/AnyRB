@@ -1211,6 +1211,13 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .need-alt { margin: 12px 0 0; color: #83817a; font-size: 12.5px; }
 @media (max-width: 760px) { .need-row { grid-template-columns: 1fr; } .need { padding: 18px 16px; } }
 
+/* --- what-it-has-to-do choices --- */
+.need-choices { display: grid; gap: 8px; margin-bottom: 12px; }
+.need-choice { text-align: left; background: #171713; border: 1px solid #43423a; color: #f0ede2; border-radius: 10px; min-height: 52px; padding: 10px 14px; font-size: 15.5px; cursor: pointer; }
+.need-choice:hover { border-color: var(--accent); }
+.need-choice.is-selected { border-color: var(--accent); background: #2a2a24; color: #fff; font-weight: 600; }
+.verdict-chip.info { background: var(--accent); color: #171713; }
+
 </style>
 </head>
 <body>
@@ -1597,6 +1604,7 @@ const PROPERTIES = [
   { key: 'strength', label: 'Strength', unit: 'kg', verb: 'carries', noun: 'strength' },
   { key: 'stiffness', label: 'Stiffness', unit: 'N/mm', verb: 'holds', noun: 'stiffness' },
   { key: 'weight', label: 'Weight', unit: 'g', verb: 'weighs', noun: 'weight' },
+  { key: 'none', label: 'No load to check', unit: 'g', verb: 'weighs', noun: 'weight' },
 ];
 const MOVES = ['current', 'thickness', 'section', 'span', 'other', 'blend'];
 const PROPERTY_DEFAULTS = {
@@ -1694,6 +1702,7 @@ function normalizeTarget(raw, fallback) {
   const source = raw && typeof raw === 'object' ? raw : {};
   const fallbackProperty = fallback && PROPERTY_KEYS.has(fallback.property) ? fallback.property : '';
   const property = PROPERTY_KEYS.has(source.property) ? source.property : fallbackProperty;
+  if (property === 'none') return { property: 'none', min: '', max: '' };
   const rawMin = num(source.min, null);
   const rawMax = num(source.max, null);
   const min = rawMin == null ? '' : rawMin;
@@ -1715,7 +1724,7 @@ function normalizeState(raw = {}) {
   const targetFallback = blank ? { property: '', min: '', max: '' } : DEFAULT_STATE.target;
   const primaryTarget = normalizeTarget(target, targetFallback);
   const extraTargets = rawExtraTargets
-    .filter((item) => item && typeof item === 'object' && PROPERTY_KEYS.has(item.property))
+    .filter((item) => item && typeof item === 'object' && PROPERTY_KEYS.has(item.property) && item.property !== 'none')
     .slice(0, 5)
     .map((item) => normalizeTarget(item, targetFallback));
   const eMin = blank
@@ -1783,10 +1792,14 @@ function isReady(stateInput) {
   const targets = [state.target, ...state.extraTargets];
   if (!targets.length) return false;
   for (const target of targets) {
+    if (target.property === 'none') continue;
     if (!PROPERTY_KEYS.has(target.property)) return false;
     if (!Number.isFinite(target.min) || !Number.isFinite(target.max)) return false;
     if (target.min > target.max) return false;
     if (!(target.max > 0)) return false;
+  }
+  if (targets.length === 1 && targets[0].property === 'none') {
+    return state.plastic.density > 0;
   }
   if (!(state.plastic.eMin > 0 && state.plastic.eMax >= state.plastic.eMin)) return false;
   if (!(state.plastic.sMin > 0 && state.plastic.sMax >= state.plastic.sMin)) return false;
@@ -1878,7 +1891,7 @@ function blendPlastic(plastic, fraction, steady) {
 }
 
 function propertyRange(part, plastic, property) {
-  if (property === 'weight') {
+  if (property === 'weight' || property === 'none') {
     const m = massG(part, plastic.density);
     return { min: m, max: m, unit: 'g' };
   }
@@ -2165,7 +2178,7 @@ function blendCandidate(stateInput) {
 
 function passesAllTargets(state, part, plastic) {
   const targets = [state.target, ...state.extraTargets];
-  return targets.every((target) => inRange(propertyRange(part, plastic, target.property), target));
+  return targets.every((target) => target.property === 'none' || inRange(propertyRange(part, plastic, target.property), target));
 }
 
 function addFound(state, found, seen, candidate) {
@@ -2347,12 +2360,12 @@ function evaluateBuilds(stateInput, modelProposals = []) {
     };
   }
   const targets = [state.target, ...state.extraTargets];
-  const targetValid = targets.every((target) => target.min <= target.max);
+  const targetValid = targets.every((target) => target.property === 'none' || target.min <= target.max);
   const current = { move: 'current', part: currentPart(state) };
   const currentPlastic = state.plastic;
   const currentMass = massG(current.part, currentPlastic.density);
   const currentRanges = targets.map((target) => propertyRange(current.part, currentPlastic, target.property));
-  const currentPass = targetValid && currentRanges.every((range, i) => inRange(range, targets[i]));
+  const currentPass = targetValid && currentRanges.every((range, i) => targets[i].property === 'none' || inRange(range, targets[i]));
   const currentEval = {
     ...current,
     massG: currentMass,
@@ -2550,6 +2563,21 @@ function decisionFor(stateInput, result) {
     return { headline, support, button: 'Ask about this delivery', copy };
   }
   const winner = result.winner;
+  if (targets[0] && targets[0].property === 'none') {
+    const weight = winner.ranges ? winner.ranges[0] : winner.range;
+    return {
+      headline: 'No load to check on this one.',
+      support: `It carries no load in use, so there is no strength or stiffness answer to give. One ${state.product} at this size weighs ${formatRange(weight, 'g')} from this delivery's density.`,
+      button: 'Copy build',
+      copy: [
+        'AnyRB build',
+        `Make the ${buildSizeText(winner.part)}.`,
+        `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
+        `No load requirement. One part weighs ${formatRange(weight, 'g')}.`,
+        `Move: ${moveLabel(state, winner)}`,
+      ].filter(Boolean).join('\n'),
+    };
+  }
   const isBlend = winner.move === 'blend';
   const steadyName = state.steady.type || 'a steadier plastic';
   const blendPct = isBlend ? Math.round(winner.fraction * 100) : 0;
@@ -3108,6 +3136,12 @@ function renderGap(result) {
     gap.append(p);
     return;
   }
+  if (state.target.property === 'none') {
+    const p = document.createElement('p');
+    p.textContent = 'No load requirement was set for this part, so there is no strength or stiffness gap to close. The weight above comes from its size and this delivery’s density.';
+    gap.append(p);
+    return;
+  }
   if (result.winner) {
     const intro = document.createElement('p');
     intro.className = 'gap-note';
@@ -3192,6 +3226,7 @@ function renderTrace(result) {
 function formatRange(range, unit) {
   const a = convertForDisplay(Number(range.min), unit).toLocaleString('en-US', { maximumFractionDigits: 1 });
   const b = convertForDisplay(Number(range.max), unit).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  if (Math.abs(Number(range.max) - Number(range.min)) < 1e-9) return `${a} ${displayUnit(unit)}`;
   return `${a}–${b} ${displayUnit(unit)}`;
 }
 function fmtVal(value, unit) {
@@ -3213,7 +3248,7 @@ function renderProgress(result) {
   wrap.replaceChildren();
   const partDone = Boolean(state.product && state.mode && state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0);
   const targets = [state.target, ...state.extraTargets].filter((t) => t && t.property);
-  const targetDone = Boolean(targets.length && targets.every((t) => t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max))));
+  const targetDone = Boolean(state.target.property === 'none' || (targets.length && targets.every((t) => t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)))));
   const batchDone = Boolean(state.plastic.eMin > 0 && state.plastic.eMax > 0 && state.plastic.sMin > 0 && state.plastic.sMax > 0 && state.plastic.density > 0);
   const metaDetail = modelOff()
     ? 'off in Settings — the local checker is running'
@@ -3275,6 +3310,24 @@ function renderVerdict(result, decision) {
   $('gap-title').hidden = false;
   const item = result.winner || result.current;
   const chip = $('verdict-chip');
+  if (result.targets[0] && result.targets[0].property === 'none') {
+    chip.textContent = 'No load to check';
+    chip.className = 'verdict-chip info';
+    $('verdict-title').textContent = decision.headline;
+    $('verdict-build').textContent = `As entered: ${buildSizeText(item.part)}`;
+    const tbody = $('verdict-rows');
+    tbody.replaceChildren();
+    const tr = document.createElement('tr');
+    for (const [text, cls] of [['Weight of one part', ''], ['No load requirement', 'num'], [formatRange(item.ranges[0], 'g'), 'num'], ['From its size and the delivery’s density', 'v-status pass']]) {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (cls) td.className = cls;
+      tr.append(td);
+    }
+    tbody.append(tr);
+    $('verdict-next').textContent = 'Next: copy the build, or download it below.';
+    return;
+  }
   chip.textContent = result.winner ? 'Works' : 'Doesn’t work yet';
   chip.className = `verdict-chip ${result.winner ? 'pass' : 'fail'}`;
   $('verdict-title').textContent = decision.headline;
@@ -3368,6 +3421,7 @@ let needBatchNumbers = false;
 let renderedNeedStep = null;
 
 function validTargets() {
+  if (state.target && state.target.property === 'none') return [state.target];
   return [state.target, ...state.extraTargets]
     .filter((t) => t && t.property && t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)) && Number(t.max) > 0);
 }
@@ -3472,47 +3526,45 @@ function renderNeed(result) {
   } else if (needStep === 'target') {
     question.textContent = 'What does it have to do?';
     why.textContent = /panel|insulation|board|sheet|tile|cover/.test(String(state.product).toLowerCase())
-      ? 'Panels like this usually do not carry a load — how much it may weigh, or how much it may bend, is usually what matters. Pick “carry a load” only if something will sit or press on it.'
+      ? 'Panels like this usually do not carry a load, and this checker cannot measure insulation or sound. If nothing sits or presses on it, choose “None of these” — you will get its weight and batch notes instead of a load answer it cannot give.'
       : state.product
-        ? `Your description named the ${state.product}, but did not say what it has to do. Pick one and give the lowest and highest that are acceptable.`
-        : 'Pick what matters and give the lowest and highest that are acceptable.';
-    const wrap = document.createElement('div');
-    wrap.className = 'need-field';
-    const lab = document.createElement('label');
-    lab.htmlFor = 'need-property';
-    lab.textContent = 'It has to';
-    const select = document.createElement('select');
-    select.id = 'need-property';
-    for (const item of PROPERTIES) {
-      const option = document.createElement('option');
-      option.value = item.key;
-      option.textContent = item.key === 'strength' ? 'Carry a load' : item.key === 'stiffness' ? 'Not bend too much' : 'Stay under a weight';
-      select.append(option);
-    }
-    wrap.append(lab, select);
-    const lowUnit = document.createElement('span');
+        ? `Your description named the ${state.product}, but did not say what it has to do. Choose the one that fits — or “None of these” if it carries no load.`
+        : 'Choose the one that fits — or “None of these” if it carries no load.';
+    control.dataset.prop = 'strength';
+    const choices = document.createElement('div');
+    choices.className = 'need-choices';
+    const options = [
+      ['strength', 'It has to carry something'],
+      ['stiffness', 'It must not bend too much'],
+      ['weight', 'It has a weight limit'],
+      ['none', 'None of these — it carries no load'],
+    ];
     const a = needInput('need-n-low', 'Lowest acceptable', '');
     const b = needInput('need-n-high', 'Highest acceptable', '');
+    const row = document.createElement('div');
+    row.className = 'need-row';
+    row.id = 'need-range-row';
+    row.append(a.wrap, b.wrap);
     const setUnits = () => {
-      const meta = propertyMeta(select.value);
+      const meta = propertyMeta(control.dataset.prop);
       a.wrap.querySelector('label').textContent = `Lowest acceptable (${displayUnit(meta.unit)})`;
       b.wrap.querySelector('label').textContent = `Highest acceptable (${displayUnit(meta.unit)})`;
     };
-    select.addEventListener('change', setUnits);
+    for (const [key, label] of options) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `need-choice${key === 'strength' ? ' is-selected' : ''}`;
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        control.dataset.prop = key;
+        for (const el of choices.querySelectorAll('.need-choice')) el.classList.toggle('is-selected', el === button);
+        row.hidden = key === 'none';
+        if (key !== 'none') setUnits();
+      });
+      choices.append(button);
+    }
     setUnits();
-    const noLoad = document.createElement('button');
-    noLoad.type = 'button';
-    noLoad.className = 'need-chip';
-    noLoad.textContent = 'It doesn’t carry a load';
-    noLoad.addEventListener('click', () => {
-      select.value = 'weight';
-      setUnits();
-      $('need-n-low').focus();
-    });
-    const row = document.createElement('div');
-    row.className = 'need-row';
-    row.append(a.wrap, b.wrap);
-    control.append(wrap, noLoad, row);
+    control.append(choices, row);
   } else if (needStep === 'batch') {
     question.textContent = 'What is this delivery closest to?';
     why.textContent = state.plastic.type
@@ -3574,7 +3626,14 @@ function applyNeed() {
   } else if (needStep === 'held') {
     state.mode = $('need-mode').value;
   } else if (needStep === 'target') {
-    const property = $('need-property').value;
+    const property = $('need-control').dataset.prop || 'strength';
+    if (property === 'none') {
+      state.target = { property: 'none', min: '', max: '' };
+      state.extraTargets = [];
+      paint();
+      refresh({ model: false });
+      return;
+    }
     const meta = propertyMeta(property);
     const lowRaw = $('need-n-low').value.trim();
     const highRaw = $('need-n-high').value.trim();
@@ -3736,7 +3795,7 @@ function render(result) {
   primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
   $('builds-panel').hidden = !result.ready;
   $('gap').hidden = !result.ready;
-  $('ask-panel').hidden = !result.ready;
+  $('ask-panel').hidden = !result.ready || state.target.property === 'none';
   renderProgress(result);
   renderNeed(result);
   renderDecisionBar(result, decision);
@@ -3822,6 +3881,12 @@ function bindSelect(id, path, after = null) {
 // ---------------------------------------------------------------------------
 async function fetchProposals() {
   if (!isReady(state)) return;
+  if (state.target.property === 'none') {
+    modelProposals = [];
+    modelState = 'local';
+    render(evaluateBuilds(state, []));
+    return;
+  }
   if (modelOff()) {
     modelProposals = [];
     modelState = 'local';

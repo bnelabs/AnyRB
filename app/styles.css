@@ -1201,3 +1201,10 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .need-progress { margin: 0; color: #9a978a; font-size: 13px; }
 .need-alt { margin: 12px 0 0; color: #83817a; font-size: 12.5px; }
 @media (max-width: 760px) { .need-row { grid-template-columns: 1fr; } .need { padding: 18px 16px; } }
+
+/* --- what-it-has-to-do choices --- */
+.need-choices { display: grid; gap: 8px; margin-bottom: 12px; }
+.need-choice { text-align: left; background: #171713; border: 1px solid #43423a; color: #f0ede2; border-radius: 10px; min-height: 52px; padding: 10px 14px; font-size: 15.5px; cursor: pointer; }
+.need-choice:hover { border-color: var(--accent); }
+.need-choice.is-selected { border-color: var(--accent); background: #2a2a24; color: #fff; font-weight: 600; }
+.verdict-chip.info { background: var(--accent); color: #171713; }

@@ -336,6 +336,12 @@ function renderGap(result) {
     gap.append(p);
     return;
   }
+  if (state.target.property === 'none') {
+    const p = document.createElement('p');
+    p.textContent = 'No load requirement was set for this part, so there is no strength or stiffness gap to close. The weight above comes from its size and this delivery’s density.';
+    gap.append(p);
+    return;
+  }
   if (result.winner) {
     const intro = document.createElement('p');
     intro.className = 'gap-note';
@@ -420,6 +426,7 @@ function renderTrace(result) {
 function formatRange(range, unit) {
   const a = convertForDisplay(Number(range.min), unit).toLocaleString('en-US', { maximumFractionDigits: 1 });
   const b = convertForDisplay(Number(range.max), unit).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  if (Math.abs(Number(range.max) - Number(range.min)) < 1e-9) return `${a} ${displayUnit(unit)}`;
   return `${a}–${b} ${displayUnit(unit)}`;
 }
 function fmtVal(value, unit) {
@@ -441,7 +448,7 @@ function renderProgress(result) {
   wrap.replaceChildren();
   const partDone = Boolean(state.product && state.mode && state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0);
   const targets = [state.target, ...state.extraTargets].filter((t) => t && t.property);
-  const targetDone = Boolean(targets.length && targets.every((t) => t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max))));
+  const targetDone = Boolean(state.target.property === 'none' || (targets.length && targets.every((t) => t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)))));
   const batchDone = Boolean(state.plastic.eMin > 0 && state.plastic.eMax > 0 && state.plastic.sMin > 0 && state.plastic.sMax > 0 && state.plastic.density > 0);
   const metaDetail = modelOff()
     ? 'off in Settings — the local checker is running'
@@ -503,6 +510,24 @@ function renderVerdict(result, decision) {
   $('gap-title').hidden = false;
   const item = result.winner || result.current;
   const chip = $('verdict-chip');
+  if (result.targets[0] && result.targets[0].property === 'none') {
+    chip.textContent = 'No load to check';
+    chip.className = 'verdict-chip info';
+    $('verdict-title').textContent = decision.headline;
+    $('verdict-build').textContent = `As entered: ${buildSizeText(item.part)}`;
+    const tbody = $('verdict-rows');
+    tbody.replaceChildren();
+    const tr = document.createElement('tr');
+    for (const [text, cls] of [['Weight of one part', ''], ['No load requirement', 'num'], [formatRange(item.ranges[0], 'g'), 'num'], ['From its size and the delivery’s density', 'v-status pass']]) {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (cls) td.className = cls;
+      tr.append(td);
+    }
+    tbody.append(tr);
+    $('verdict-next').textContent = 'Next: copy the build, or download it below.';
+    return;
+  }
   chip.textContent = result.winner ? 'Works' : 'Doesn’t work yet';
   chip.className = `verdict-chip ${result.winner ? 'pass' : 'fail'}`;
   $('verdict-title').textContent = decision.headline;
@@ -596,6 +621,7 @@ let needBatchNumbers = false;
 let renderedNeedStep = null;
 
 function validTargets() {
+  if (state.target && state.target.property === 'none') return [state.target];
   return [state.target, ...state.extraTargets]
     .filter((t) => t && t.property && t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)) && Number(t.max) > 0);
 }
@@ -700,47 +726,45 @@ function renderNeed(result) {
   } else if (needStep === 'target') {
     question.textContent = 'What does it have to do?';
     why.textContent = /panel|insulation|board|sheet|tile|cover/.test(String(state.product).toLowerCase())
-      ? 'Panels like this usually do not carry a load — how much it may weigh, or how much it may bend, is usually what matters. Pick “carry a load” only if something will sit or press on it.'
+      ? 'Panels like this usually do not carry a load, and this checker cannot measure insulation or sound. If nothing sits or presses on it, choose “None of these” — you will get its weight and batch notes instead of a load answer it cannot give.'
       : state.product
-        ? `Your description named the ${state.product}, but did not say what it has to do. Pick one and give the lowest and highest that are acceptable.`
-        : 'Pick what matters and give the lowest and highest that are acceptable.';
-    const wrap = document.createElement('div');
-    wrap.className = 'need-field';
-    const lab = document.createElement('label');
-    lab.htmlFor = 'need-property';
-    lab.textContent = 'It has to';
-    const select = document.createElement('select');
-    select.id = 'need-property';
-    for (const item of PROPERTIES) {
-      const option = document.createElement('option');
-      option.value = item.key;
-      option.textContent = item.key === 'strength' ? 'Carry a load' : item.key === 'stiffness' ? 'Not bend too much' : 'Stay under a weight';
-      select.append(option);
-    }
-    wrap.append(lab, select);
-    const lowUnit = document.createElement('span');
+        ? `Your description named the ${state.product}, but did not say what it has to do. Choose the one that fits — or “None of these” if it carries no load.`
+        : 'Choose the one that fits — or “None of these” if it carries no load.';
+    control.dataset.prop = 'strength';
+    const choices = document.createElement('div');
+    choices.className = 'need-choices';
+    const options = [
+      ['strength', 'It has to carry something'],
+      ['stiffness', 'It must not bend too much'],
+      ['weight', 'It has a weight limit'],
+      ['none', 'None of these — it carries no load'],
+    ];
     const a = needInput('need-n-low', 'Lowest acceptable', '');
     const b = needInput('need-n-high', 'Highest acceptable', '');
+    const row = document.createElement('div');
+    row.className = 'need-row';
+    row.id = 'need-range-row';
+    row.append(a.wrap, b.wrap);
     const setUnits = () => {
-      const meta = propertyMeta(select.value);
+      const meta = propertyMeta(control.dataset.prop);
       a.wrap.querySelector('label').textContent = `Lowest acceptable (${displayUnit(meta.unit)})`;
       b.wrap.querySelector('label').textContent = `Highest acceptable (${displayUnit(meta.unit)})`;
     };
-    select.addEventListener('change', setUnits);
+    for (const [key, label] of options) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `need-choice${key === 'strength' ? ' is-selected' : ''}`;
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        control.dataset.prop = key;
+        for (const el of choices.querySelectorAll('.need-choice')) el.classList.toggle('is-selected', el === button);
+        row.hidden = key === 'none';
+        if (key !== 'none') setUnits();
+      });
+      choices.append(button);
+    }
     setUnits();
-    const noLoad = document.createElement('button');
-    noLoad.type = 'button';
-    noLoad.className = 'need-chip';
-    noLoad.textContent = 'It doesn’t carry a load';
-    noLoad.addEventListener('click', () => {
-      select.value = 'weight';
-      setUnits();
-      $('need-n-low').focus();
-    });
-    const row = document.createElement('div');
-    row.className = 'need-row';
-    row.append(a.wrap, b.wrap);
-    control.append(wrap, noLoad, row);
+    control.append(choices, row);
   } else if (needStep === 'batch') {
     question.textContent = 'What is this delivery closest to?';
     why.textContent = state.plastic.type
@@ -802,7 +826,14 @@ function applyNeed() {
   } else if (needStep === 'held') {
     state.mode = $('need-mode').value;
   } else if (needStep === 'target') {
-    const property = $('need-property').value;
+    const property = $('need-control').dataset.prop || 'strength';
+    if (property === 'none') {
+      state.target = { property: 'none', min: '', max: '' };
+      state.extraTargets = [];
+      paint();
+      refresh({ model: false });
+      return;
+    }
     const meta = propertyMeta(property);
     const lowRaw = $('need-n-low').value.trim();
     const highRaw = $('need-n-high').value.trim();
@@ -964,7 +995,7 @@ function render(result) {
   primary.dataset.mode = decision.button === 'Copy build' ? 'copy' : 'ask';
   $('builds-panel').hidden = !result.ready;
   $('gap').hidden = !result.ready;
-  $('ask-panel').hidden = !result.ready;
+  $('ask-panel').hidden = !result.ready || state.target.property === 'none';
   renderProgress(result);
   renderNeed(result);
   renderDecisionBar(result, decision);
@@ -1050,6 +1081,12 @@ function bindSelect(id, path, after = null) {
 // ---------------------------------------------------------------------------
 async function fetchProposals() {
   if (!isReady(state)) return;
+  if (state.target.property === 'none') {
+    modelProposals = [];
+    modelState = 'local';
+    render(evaluateBuilds(state, []));
+    return;
+  }
   if (modelOff()) {
     modelProposals = [];
     modelState = 'local';
