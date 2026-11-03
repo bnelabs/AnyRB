@@ -723,6 +723,122 @@ h3 {
 .downloads-formats { margin: 10px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
 @media (max-width: 760px) { .top-note { display: none; } .progress-list { gap: 6px 16px; } }
 
+/* ==========================================================================
+   AnyRB design — decision ticket + bench + results rail
+   Warm paper, ink black, one rust for failure, one green for pass.
+   ========================================================================== */
+:root {
+  --paper: #f3f0e8;
+  --card: #fdfcf9;
+  --ink-2: #1a1a17;
+  --line-2: #e1ddcd;
+  --fail: #b4491d;
+  --pass: #1f7a4d;
+}
+html { background: var(--paper); }
+body { background: var(--paper); }
+.page { width: min(100%, 1340px); padding: 0 32px 90px; }
+
+.top { width: min(100%, 1340px); padding: 22px 32px 0; }
+.brand { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+.brand::before { content: ""; display: inline-block; width: 10px; height: 10px; background: var(--ink); border-radius: 2px; margin-right: 9px; }
+
+/* --- decision ticket --- */
+.decision-panel {
+  max-width: none;
+  margin-top: 22px;
+  background: var(--ink-2);
+  color: #f4f1e7;
+  border-radius: 20px;
+  padding: 38px 42px 34px;
+}
+.panel-kicker { margin: 0 0 20px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #98958a; font-weight: 600; }
+.panel-kicker span { margin: 0 6px; }
+.decision-panel h1 { color: #f7f4ec; font-size: clamp(40px, 5.2vw, 62px); }
+.decision-panel .support { color: #cac7bb; }
+.decision-panel .brief label { color: #e9e6db; }
+.decision-panel .brief-help { color: #98958a; font-size: 13px; margin: 10px 0 0; max-width: 720px; line-height: 1.5; }
+.decision-panel textarea { background: #232320; border-color: #3f3f39; color: #f5f2e9; }
+.decision-panel textarea::placeholder { color: #83817a; }
+.decision-panel textarea:focus { border-color: #f4f1e7; box-shadow: 0 0 0 1px #f4f1e7; }
+.decision-panel .brief-submit { background: #f4f1e7; color: #141412; }
+.decision-panel .brief-submit:disabled { color: #141412; }
+.decision-panel .brief-voice { border-color: #4c4c46; color: #f4f1e7; }
+.decision-panel .brief-sample { border-color: #4c4c46; color: #e9e6db; }
+.decision-panel .brief-status { color: #b7b4a8; }
+.decision-panel .brief-status.is-working { color: #f4f1e7; }
+.decision-panel .cases-label { color: #98958a; }
+.decision-panel .case { border-color: #3f3f39; color: #e9e6db; background: transparent; }
+.decision-panel .case:hover { border-color: #f4f1e7; }
+.decision-panel .pill { background: #f4f1e7; color: #141412; }
+.decision-panel .see-details { color: #f4f1e7; border-bottom-color: #4c4c46; }
+.decision-panel .progress { border-top-color: #33332f; }
+.decision-panel .progress-title { color: #83817a; }
+.decision-panel .progress-next { color: #f4f1e7; }
+.decision-panel .progress-item { color: #a5a299; }
+.decision-panel .progress-item strong { color: #e9e6db; }
+.decision-panel .progress-item .p-mark { border-color: #4c4c46; }
+.decision-panel .progress-item.is-done { color: #e9e6db; }
+.decision-panel .progress-item.is-done .p-mark { background: #f4f1e7; border-color: #f4f1e7; color: #141412; }
+
+/* --- pinned decision bar follows the ticket --- */
+.decision-bar { background: var(--ink-2); border-bottom: 0; width: 100%; padding-left: max(32px, calc((100% - 1340px) / 2 + 32px)); padding-right: max(32px, calc((100% - 1340px) / 2 + 32px)); }
+.decision-bar-text { color: #f4f1e7; }
+.decision-dot { background: #f4f1e7; }
+.decision-dot.pass { background: #4cc07a; }
+.decision-dot.fail { background: #e07b40; }
+.decision-bar-action { background: #f4f1e7; color: #141412; }
+
+/* --- bench + results rail --- */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) minmax(390px, 450px); gap: 26px; margin-top: 26px; align-items: start; }
+.bench { display: grid; gap: 26px; min-width: 0; }
+.engineering, .batch {
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  padding: 26px 28px 30px;
+}
+.sec-num { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 6px; padding: 2px 6px; margin-right: 10px; vertical-align: 2px; }
+.engineering h2, .batch h2 { font-size: 17px; }
+.field label { text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; font-weight: 600; }
+.field input, .field select { background: #fbfaf5; border-color: #d8d4c4; border-radius: 10px; height: 46px; }
+.results {
+  position: sticky; top: 70px;
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  padding: 24px 26px 28px;
+  max-height: calc(100vh - 88px);
+  overflow: auto;
+}
+.results-kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.results .builds { margin-top: 8px; border-top: 0; padding-top: 6px; }
+.results .gap { margin-top: 20px; border-top: 1px solid var(--line-2); padding-top: 16px; font-size: 13.5px; line-height: 1.55; }
+.results .ask { margin-top: 20px; border-top: 1px solid var(--line-2); padding-top: 16px; }
+
+/* --- builds as a readout --- */
+.build-row { font-size: 13.5px; }
+.build-row .size, .build-row .prop, .build-row .added { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.build-row.winner { background: var(--ink-2); color: #f4f1e7; border-radius: 10px; padding-left: 10px; padding-right: 10px; margin-left: -10px; margin-right: -10px; }
+.build-row.winner .least { color: #b7b4a8; }
+.rv-track { height: 16px; border-radius: 8px; background: #eeebe0; }
+.rv-target { background: #ddd6bf; border-radius: 8px; }
+.rv-bar { top: 3px; bottom: 3px; border-radius: 5px; }
+.rv-bar.fail { background: var(--fail); }
+.rv-margin.pass { color: var(--pass); font-weight: 500; }
+.progress-item.is-done .p-mark { background: var(--pass); border-color: var(--pass); }
+.decision-panel .progress-item.is-done .p-mark { background: #f4f1e7; border-color: #f4f1e7; color: #141412; }
+
+@media (max-width: 1020px) {
+  .work { grid-template-columns: 1fr; }
+  .results { position: static; max-height: none; }
+}
+@media (max-width: 760px) {
+  .page { padding: 0 18px 70px; }
+  .top { padding: 18px 18px 0; }
+  .decision-panel { padding: 28px 22px 26px; border-radius: 16px; }
+}
+
 </style>
 </head>
 <body>
@@ -744,19 +860,21 @@ h3 {
 </div>
 
 <main class="page" id="main">
-  <section class="decision" aria-labelledby="decision">
+  <section class="decision decision-panel" aria-labelledby="decision">
+    <p class="panel-kicker">AnyRB <span>·</span> the decision</p>
     <h1 id="decision">What do you want to make?</h1>
     <p class="support" id="support">Name the part, set one or more properties that have to hold, and describe this delivery. Every product and every range is yours to set.</p>
     <div class="brief">
       <div class="brief-head">
         <label for="brief">Describe the part and this delivery</label>
-        <button class="brief-sample" id="brief-sample" type="button">Use a sample brief</button>
+        <button class="brief-sample" id="brief-sample" type="button">Try an example brief</button>
       </div>
       <div class="brief-row">
         <textarea id="brief" rows="2" placeholder="The part, what it must hold, and what this delivery measures. Type it, speak it, or use the sample brief."></textarea>
-        <button class="brief-submit" id="brief-submit" type="button">Read with Meta</button>
+        <button class="brief-submit" id="brief-submit" type="button">Read it with Muse Spark</button>
         <button class="brief-voice" id="brief-voice" type="button">Speak</button>
       </div>
+      <p class="brief-help">These words go to Muse Spark on the server, which fills the fields below from what you said. You can correct every field afterwards.</p>
       <p class="brief-status" id="brief-status"></p>
     </div>
     <div class="progress" id="progress">
@@ -780,8 +898,9 @@ h3 {
   </section>
 
   <div class="work">
+    <div class="bench">
     <section class="engineering" aria-labelledby="engineering-title">
-      <h2 id="engineering-title">Engineering</h2>
+      <h2 id="engineering-title"><span class="sec-num">01</span>Engineering</h2>
       <p class="section-note">Change the build, not the plastic. Works for a solid rectangular section on the three load paths below. The ranges you enter are checked as entered — no extra safety factor is added.</p>
       <div class="fields">
         <div class="field">
@@ -809,30 +928,6 @@ h3 {
         <button class="add-target" id="add-target" type="button">Add another property</button>
       </div>
 
-      <div class="builds" id="builds-panel" hidden>
-        <div class="section-head">
-          <h3>Builds that pass</h3>
-          <p class="model-status" id="model-status">Scoring this delivery…</p>
-        </div>
-        <div class="range-view" id="range-view"></div>
-        <div class="run-row">
-          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
-          <p class="run-note" id="run-note"></p>
-        </div>
-        <ol class="build-list" id="build-list"></ol>
-        <div class="downloads" id="downloads" hidden>
-          <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
-          <div class="downloads-row">
-            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
-            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
-            <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
-          </div>
-          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
-        </div>
-        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
-        <div class="meta-trace" id="meta-trace" hidden></div>
-      </div>
-
       <details class="other-group">
         <summary>Other product you sell</summary>
         <div class="fields">
@@ -848,7 +943,7 @@ h3 {
     </section>
 
     <section class="batch" aria-labelledby="batch-title">
-      <h2 id="batch-title">Batch</h2>
+      <h2 id="batch-title"><span class="sec-num">02</span>Batch</h2>
       <p class="section-note">Every delivery of recycled plastic bends and breaks a little differently. Start from a published range for the kind of plastic — or use your supplier's numbers if you have them. Nobody is expected to know these by heart.</p>
       <div class="fields">
         <div class="field">
@@ -892,6 +987,36 @@ h3 {
         </div>
       </div>
 
+      </div>
+    </section>
+    </div>
+
+    <aside class="results" aria-label="Results">
+      <p class="results-kicker">Results</p>
+      <div class="builds" id="builds-panel" hidden>
+        <div class="section-head">
+          <h3>Builds that pass</h3>
+          <p class="model-status" id="model-status">Scoring this delivery…</p>
+        </div>
+        <div class="range-view" id="range-view"></div>
+        <div class="run-row">
+          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
+          <p class="run-note" id="run-note"></p>
+        </div>
+        <ol class="build-list" id="build-list"></ol>
+        <div class="downloads" id="downloads" hidden>
+          <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
+          <div class="downloads-row">
+            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
+            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
+            <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
+          </div>
+          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
+        </div>
+        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
+        <div class="meta-trace" id="meta-trace" hidden></div>
+      </div>
+
       <div class="gap" id="gap" aria-live="polite" hidden></div>
 
       <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
@@ -903,7 +1028,7 @@ h3 {
         <p class="ask-status" id="ask-status"></p>
         <div class="ask-answer" id="ask-answer" aria-live="polite"></div>
       </div>
-    </section>
+    </aside>
   </div>
 </main>
 
