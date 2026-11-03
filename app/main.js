@@ -102,6 +102,9 @@ let nextDensityG = 0;
 let batchPricePerKg = 0;
 let steadyPricePerKg = 0;
 let costCurrency = localStorage.getItem('anyrb.currency') || '₺';
+let shareOtherName = '';
+let shareQtyMain = 0;
+let shareQtyOther = 0;
 
 const SAMPLE_BRIEF = 'I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE from one supplier, fairly clean, with paper labels on some of it.';
 
@@ -1019,6 +1022,162 @@ function renderCost(result) {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// Share this delivery: two products, one stock, both priorities worked out.
+// Deterministic: each product is checked against this delivery first; only
+// a build that works gets to consume stock.
+// ---------------------------------------------------------------------------
+function otherShareOptions() {
+  const options = [];
+  for (const item of loadLibrary(SAVED_PRODUCTS_KEY)) {
+    if (item.name.toLowerCase() !== String(state.product || '').toLowerCase()) options.push({ value: item.name, label: item.name });
+  }
+  const other = state.other;
+  if (other && other.product && other.spanMm > 0 && other.widthMm > 0 && other.thicknessMm > 0) {
+    options.push({ value: '__other', label: `The other product below (${other.product})` });
+  }
+  return options;
+}
+function renderShareOptions() {
+  const select = $('share-other');
+  if (!select) return;
+  const options = otherShareOptions();
+  select.replaceChildren();
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = options.length ? 'Pick a saved part…' : 'No other part saved yet';
+  select.append(first);
+  for (const option of options) {
+    const el = document.createElement('option');
+    el.value = option.value;
+    el.textContent = option.label;
+    select.append(el);
+  }
+  if (options.some((o) => o.value === shareOtherName)) select.value = shareOtherName;
+  else shareOtherName = '';
+}
+function shareProfileState() {
+  if (!shareOtherName) return null;
+  if (shareOtherName === '__other') {
+    const other = state.other;
+    return {
+      name: other.product,
+      note: 'checked against the same requirements as this part',
+      state: normalizeState({ ...state, product: other.product, mode: other.mode, spanMm: other.spanMm, widthMm: other.widthMm, thicknessMm: other.thicknessMm }),
+    };
+  }
+  const item = loadLibrary(SAVED_PRODUCTS_KEY).find((entry) => entry.name === shareOtherName);
+  if (!item) return null;
+  return {
+    name: item.name,
+    note: '',
+    state: normalizeState({
+      ...state,
+      product: item.product, mode: item.mode,
+      spanMm: item.spanMm, widthMm: item.widthMm, thicknessMm: item.thicknessMm,
+      target: item.target, extraTargets: item.extraTargets || [],
+      plastic: state.plastic, steady: state.steady,
+    }),
+  };
+}
+function renderShare(result) {
+  const wrap = $('share-result');
+  if (!wrap) return;
+  wrap.replaceChildren();
+  const line = (text) => {
+    const el = document.createElement('p');
+    el.textContent = text;
+    wrap.append(el);
+    return el;
+  };
+  renderShareOptions();
+  if (!result || !result.ready) {
+    line('The sharing appears once this part and this delivery are set.');
+    return;
+  }
+  const profile = shareProfileState();
+  if (!profile) {
+    line('Save another part first — “Save this part” at the top — then it can share this delivery. Or enter one under “Another product you make”.');
+    return;
+  }
+  const mainName = state.product || 'this part';
+  $('share-qty-main-label').textContent = `Order for ${mainName}`;
+  $('share-qty-other-label').textContent = `Order for ${profile.name}`;
+  const otherResult = evaluateBuilds(profile.state, []);
+  if (!otherResult.ready) {
+    line(`${profile.name} is not fully set yet, so it cannot be checked against this delivery.`);
+    return;
+  }
+  const usageOf = (build) => (build.move === 'blend' && build.fraction ? (1 - build.fraction) * build.massG : build.massG);
+  const steadyOf = (build) => (build.move === 'blend' && build.fraction ? build.fraction * build.massG : 0);
+  const mainItem = result.winner;
+  const otherItem = otherResult.winner;
+  if (!mainItem) {
+    line(`${mainName} cannot be made from this delivery at all, so there is nothing to share yet.`);
+    if (otherItem) line(`${profile.name} can: one uses ${fmtVal(usageOf(otherItem), 'g')} of this delivery.`);
+    return;
+  }
+  if (!otherItem) {
+    line(`${profile.name} cannot be made from this delivery at all — no size of it stays inside what it has to do. This delivery is all for ${mainName}.`);
+    return;
+  }
+  const mainUsage = usageOf(mainItem);
+  const otherUsage = usageOf(otherItem);
+  line(`One ${mainName} uses ${fmtVal(mainUsage, 'g')} of this delivery; one ${profile.name} uses ${fmtVal(otherUsage, 'g')}.${profile.note ? ` (${profile.name} is ${profile.note}.)` : ''}`);
+  if (!(shareQtyMain > 0) || !(shareQtyOther > 0)) {
+    line('Say how many of each are ordered, and whether this delivery covers both appears here.');
+    return;
+  }
+  const needMainKg = (mainUsage * shareQtyMain) / 1000;
+  const needOtherKg = (otherUsage * shareQtyOther) / 1000;
+  const steadyKg = ((steadyOf(mainItem) * shareQtyMain) + (steadyOf(otherItem) * shareQtyOther)) / 1000;
+  if (steadyKg > 0) line(`Together they also use ${fmtVal(steadyKg, 'kg')} of the steadier plastic, counted separately.`);
+  if (!(materialHaveKg > 0)) {
+    line(`Together, the two orders need ${fmtVal(needMainKg + needOtherKg, 'kg')} of this delivery. Say how much you have — under Production in Results — and whether it covers both appears here.`);
+    return;
+  }
+  const stock = materialHaveKg;
+  if (needMainKg + needOtherKg <= stock) {
+    const left = stock - needMainKg - needOtherKg;
+    line(`Both orders fit in this delivery. Together they use ${fmtVal(needMainKg + needOtherKg, 'kg')} of the ${fmtVal(stock, 'kg')} you have, leaving ${fmtVal(left, 'kg')} — about ${Math.floor((left * 1000) / mainUsage).toLocaleString('en-US')} more ${mainName}, or ${Math.floor((left * 1000) / otherUsage).toLocaleString('en-US')} more ${profile.name}.`);
+    return;
+  }
+  const allocate = (firstQty, firstUsage, secondQty, secondUsage) => {
+    const firstMade = Math.min(firstQty, Math.floor((stock * 1000) / firstUsage));
+    const remaining = stock - (firstMade * firstUsage) / 1000;
+    const secondMade = Math.min(secondQty, Math.floor((remaining * 1000) / secondUsage));
+    return [firstMade, secondMade];
+  };
+  const [aFirst, bAfterA] = allocate(shareQtyMain, mainUsage, shareQtyOther, otherUsage);
+  const [bFirst, aAfterB] = allocate(shareQtyOther, otherUsage, shareQtyMain, mainUsage);
+  const allocLine = (firstName, firstMade, firstQty, secondName, secondMade, secondQty) => {
+    const shorts = [];
+    if (firstQty - firstMade > 0) shorts.push(`${(firstQty - firstMade).toLocaleString('en-US')} ${firstName}`);
+    if (secondQty - secondMade > 0) shorts.push(`${(secondQty - secondMade).toLocaleString('en-US')} ${secondName}`);
+    return `If ${firstName} goes first: ${firstMade.toLocaleString('en-US')} of the ${firstQty.toLocaleString('en-US')} ${firstName}, then ${secondMade.toLocaleString('en-US')} of the ${secondQty.toLocaleString('en-US')} ${secondName}${shorts.length ? ` — short by ${shorts.join(' and ')}` : ''}.`;
+  };
+  line(`This delivery cannot cover both orders in full. ${allocLine(mainName, aFirst, shareQtyMain, profile.name, bAfterA, shareQtyOther)}`);
+  line(allocLine(profile.name, bFirst, shareQtyOther, mainName, aAfterB, shareQtyMain));
+  if (batchPricePerKg > 0) {
+    line(`At the delivery price you entered, the full two orders would cost ${money((needMainKg + needOtherKg) * batchPricePerKg)} of this delivery's plastic${steadyKg > 0 && steadyPricePerKg > 0 ? `, plus ${money(steadyKg * steadyPricePerKg)} of the steadier plastic` : ''}.`);
+  }
+}
+$('share-other').addEventListener('change', (event) => {
+  shareOtherName = event.target.value;
+  if (lastResult) renderShare(lastResult);
+});
+$('share-qty-main').addEventListener('input', (event) => {
+  const parsed = Number(String(event.target.value).replace(/[^0-9]/g, ''));
+  shareQtyMain = Number.isFinite(parsed) ? parsed : 0;
+  if (lastResult) renderShare(lastResult);
+});
+$('share-qty-other').addEventListener('input', (event) => {
+  const parsed = Number(String(event.target.value).replace(/[^0-9]/g, ''));
+  shareQtyOther = Number.isFinite(parsed) ? parsed : 0;
+  if (lastResult) renderShare(lastResult);
+});
+
 function renderRunNote(result) {
   const note = $('run-note');
   const use = $('use-note');
@@ -1190,6 +1349,7 @@ function render(result) {
   }
   renderVerdict(result, decision);
   renderCost(result);
+  renderShare(result);
   fade([$('build-list'), $('gap')], () => {
     renderRunNote(result);
     renderBuildList(result);
@@ -1898,12 +2058,12 @@ $('run-size').addEventListener('input', (event) => {
 $('material-have').addEventListener('input', (event) => {
   const parsed = Number(event.target.value);
   materialHaveKg = Number.isFinite(parsed) && parsed > 0 ? convertFromDisplay(parsed, 'kg') : 0;
-  if (lastResult) renderRunNote(lastResult);
+  if (lastResult) { renderRunNote(lastResult); renderShare(lastResult); }
 });
 $('cost-batch').addEventListener('input', (event) => {
   const parsed = Number(event.target.value);
   batchPricePerKg = Number.isFinite(parsed) && parsed > 0 ? convertForDisplay(parsed, 'kg') : 0;
-  if (lastResult) renderCost(lastResult);
+  if (lastResult) { renderCost(lastResult); renderShare(lastResult); }
 });
 $('cost-steady').addEventListener('input', (event) => {
   const parsed = Number(event.target.value);
@@ -2116,6 +2276,7 @@ function storeLibrary(key, items) {
   try { localStorage.setItem(key, JSON.stringify(items)); } catch { /* storage unavailable */ }
 }
 function renderSavedOptions() {
+  if (typeof renderShareOptions === 'function' && document.getElementById('share-other')) renderShareOptions();
   const products = loadLibrary(SAVED_PRODUCTS_KEY);
   const deliveries = loadLibrary(SAVED_DELIVERIES_KEY);
   const fill = (select, items, emptyLabel) => {

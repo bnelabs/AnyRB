@@ -248,6 +248,22 @@
 
       </div>
     </section>
+
+    <section class="share" aria-labelledby="share-title">
+      <h2 id="share-title"><span class="sec-num">03</span>Share this delivery</h2>
+      <p class="section-note">One delivery often has to cover more than one product. Pick another saved part, say how many of each are ordered, and the delivery above is shared between them — each checked against this delivery first.</p>
+      <div class="fields">
+        <div class="field">
+          <label for="share-other">Share it with</label>
+          <select id="share-other"></select>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="share-qty-main" id="share-qty-main-label">Order for this part</label><input id="share-qty-main" inputmode="numeric" type="text" placeholder="how many"></div>
+          <div class="field"><label for="share-qty-other" id="share-qty-other-label">Order for the other part</label><input id="share-qty-other" inputmode="numeric" type="text" placeholder="how many"></div>
+        </div>
+      </div>
+      <div class="share-result" id="share-result" aria-live="polite"></div>
+    </section>
     </div>
 
 

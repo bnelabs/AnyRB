@@ -584,3 +584,13 @@ test('saved parts and deliveries are wired to this machine only', async () => {
   assert.match(js, /anyrb\.deliveries\.v1/);
   assert.match(js, /localStorage/);
 });
+
+test('sharing one delivery between two products is wired', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="share-other"/);
+  assert.match(html, /id="share-result"/);
+  assert.match(js, /cannot cover both orders in full/);
+  assert.match(js, /goes first/);
+});

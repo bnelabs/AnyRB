@@ -1242,3 +1242,10 @@ button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
 .saved-button:hover { border-color: var(--accent); }
 .saved-note { grid-column: 1 / -1; margin: 0; color: #98958a; font-size: 12.5px; line-height: 1.5; }
 @media (max-width: 760px) { .saved { grid-template-columns: 1fr; } }
+
+/* --- Share this delivery --- */
+.share { background: var(--card); border: 1px solid var(--line-2); border-radius: 16px; padding: 26px 28px 30px; min-width: 0; }
+.share h2 { font-size: 17px; margin: 0; }
+.share-result { margin-top: 16px; border-top: 1px solid var(--line-2); padding-top: 14px; }
+.share-result p { margin: 0 0 9px; font-size: 14px; line-height: 1.6; color: #2c2c29; }
+.share-result p:last-child { margin-bottom: 0; }
