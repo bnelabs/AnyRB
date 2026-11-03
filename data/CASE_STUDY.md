@@ -1,9 +1,8 @@
-# Demo cases
+# Worked cases and their sources
 
 ## 1. Sourced measured case — rHDPE crate side
 
-This is the primary judge case. The batch range is a **published measured rHDPE range**, not a
-customer-specific part or a certification.
+The batch range is a **published measured rHDPE range**, not a customer-specific part or a certification.
 
 ### Part
 
@@ -51,7 +50,7 @@ material crushes — at the low stiffness above it carries about 7.5 kg as a pos
 uses the weak-axis value, a regression test holds it there, and this case is framed as the panel
 it is.
 
-## Failure case for the video (worked, with the app's own numbers)
+## When the same delivery does not fit (worked, with the app's own numbers)
 
 Keep the crate case above and change only the strength requirement to **130–150 kg** (weight stays
 320–360 g). The app then reports, exactly:
@@ -66,8 +65,8 @@ Keep the crate case above and change only the strength requirement to **130–15
   section or span, route the delivery to another product, or split it. It does not say
   “don’t use this delivery.”
 
-These numbers come from the app's mechanics on the inputs above and are covered by the reading of
-the case in `app/tests/model.test.mjs`.
+These numbers come from the app's mechanics on the inputs above and are exercised in
+`app/tests/model.test.mjs`.
 
 ## Honesty
 

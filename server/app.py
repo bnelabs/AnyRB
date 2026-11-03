@@ -153,7 +153,7 @@ def _validation_summary() -> dict | None:
                 counts[st] += 1
         return {"counts": counts, "total": len(checks),
                 "generated": (data.get("generated_utc") or data.get("generated")) if isinstance(data, dict) else None,
-                "report": "validation/VALIDATION.md"}
+                "report": "server/tests"}
     except Exception:
         return None
 

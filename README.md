@@ -12,7 +12,7 @@ usable. It never answers "don't use this batch."
 Recycled plastic's swing is measured, not guessed. One supplier's recycled-HDPE plates measured
 1,350 ± 239 MPa across 50 samples; across published sources the same material runs from about
 380 to 1,870 MPa, and ten recycled-polypropylene lots that all passed the same specification
-still ranged from 2% to 24% filler ([research/01-recyclate-variability.md](research/01-recyclate-variability.md)).
+still ranged from 2% to 24% filler (sources in [data/CASE_STUDY.md](data/CASE_STUDY.md)).
 A part designed to one datasheet number is over-built for most deliveries and under-built for the
 weak one. The usual answers are to reject the odd delivery or to make everything heavier.
 AnyRB is the third answer: design to the delivery you actually have.
@@ -102,7 +102,8 @@ cp server/.env.example server/.env   # add a Meta Model API key; never commit it
 ```
 
 Open http://127.0.0.1:8787. Opening the built `index.html` directly also works for the checker;
-it calls the same local server for Meta. Deployment is described in [DEPLOY.md](DEPLOY.md).
+it calls the same local server for Meta. `Dockerfile` and `render.yaml` describe a one-process
+deployment; the API key stays in the server environment, never in the page.
 
 ## Test it
 
@@ -119,20 +120,6 @@ AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 138 server tests
 | `app/` | The page: `product.js` (checker), `main.js` (page), `index.html`, `styles.css`, tests |
 | `server/` | FastAPI server: Meta calls, sanitising, grounding (`product_ai.py`, `meta_client.py`) |
 | `data/` | The worked cases and the published feedstock ranges the Batch picker uses |
-| `demo/` | Demo script assets, screenshots, the reference video |
-| `evaluation/` | Four independent Meta-rubric judge reports, the verdict, and the revamp record |
-| `HACKATHON.md` | The hackathon submission document |
-| `DEMO_SCRIPT.md` | The 3-minute demo, beat by beat |
-| `V0_8_SPEC.md` | The current product specification |
-| `docs/archive/`, `engine/`, `history/`, `validation/`, `audit/`, `reports/`, `research/`, `design/` | Pre-product history (v0.3–v0.7 bracket studio and its research). Kept for the record; not part of the current app and not claimed for it |
+| `demo/` | Product screenshots, architecture slide, reference video |
+| `LICENSE` | MIT |
 
-## Checklist before submit
-
-- [ ] Public repo at submission time
-- [ ] MIT license present
-- [ ] Live URL responds and the `/api/health` shows live mode
-- [ ] Three-minute video recorded from a clean state
-- [ ] `README.md`, `HACKATHON.md`, `HACKATHON_WORK.md` current
-- [ ] No `.env`, no key, no cache in the repo
-- [ ] app tests, server tests and browser smoke pass
-- [ ] Submission page lists the public repo, video, live URL
