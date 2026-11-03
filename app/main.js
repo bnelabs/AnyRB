@@ -91,6 +91,7 @@ function metaHeaders(json = true) {
 }
 
 const FIELD_UNITS = {
+  'treated-e-min': 'MPa', 'treated-e-max': 'MPa', 'treated-s-min': 'MPa', 'treated-s-max': 'MPa',
   span: 'mm', width: 'mm', thickness: 'mm',
   'other-span': 'mm', 'other-width': 'mm', 'other-thickness': 'mm',
   'e-min': 'MPa', 'e-max': 'MPa', 's-min': 'MPa', 's-max': 'MPa',
@@ -119,6 +120,7 @@ let materialHaveKg = 0;
 let nextDensityG = 0;
 let batchPricePerKg = 0;
 let steadyPricePerKg = 0;
+let treatPricePerKg = 0;
 let costCurrency = localStorage.getItem('anyrb.currency') || '₺';
 let shareOtherName = '';
 let shareQtyMain = 0;
@@ -155,6 +157,9 @@ function updateTargetLabels() {
 
 function updateSteadyVisibility() {
   $('steady-fields').hidden = !$('steady-available').checked;
+}
+function updateTreatedVisibility() {
+  $('treated-fields').hidden = !$('treated-available').checked;
 }
 
 function targetUnit(property) {
@@ -254,6 +259,12 @@ function paint() {
   setValue('s-max', shownValue('s-max', state.plastic.sMax));
   setValue('density', shownValue('density', state.plastic.density));
   $('steady-available').checked = state.steady.available;
+  $('treated-available').checked = Boolean(state.treated && state.treated.available);
+  setValue('treated-e-min', state.treated?.eMin || '');
+  setValue('treated-e-max', state.treated?.eMax || '');
+  setValue('treated-s-min', state.treated?.sMin || '');
+  setValue('treated-s-max', state.treated?.sMax || '');
+  updateTreatedVisibility();
   setValue('steady-type', state.steady.type);
   setValue('steady-e', shownValue('steady-e', state.steady.eMpa));
   setValue('steady-s', shownValue('steady-s', state.steady.sMpa));
@@ -997,6 +1008,10 @@ function renderCost(result) {
       if (!(steadyPricePerKg > 0)) return null;
       return massKg * ((1 - build.fraction) * batchPricePerKg + build.fraction * steadyPricePerKg);
     }
+    if (build.move === 'treated') {
+      if (!(treatPricePerKg > 0)) return null;
+      return massKg * (batchPricePerKg + treatPricePerKg);
+    }
     return massKg * batchPricePerKg;
   };
   const costs = builds.map(costOf);
@@ -1035,7 +1050,7 @@ function renderCost(result) {
   if (costs.some((c) => c == null)) {
     const ask = document.createElement('p');
     ask.className = 'cost-ask';
-    ask.textContent = 'One build mixes in the steadier plastic. Add what that costs per kg above and its cost can be compared too.';
+    ask.textContent = 'One build above is missing a price — the steadier plastic, or sorting/washing. Add it per kg above and its cost can be compared too.';
     view.append(ask);
   }
 }
@@ -1194,6 +1209,143 @@ $('share-qty-other').addEventListener('input', (event) => {
   const parsed = Number(String(event.target.value).replace(/[^0-9]/g, ''));
   shareQtyOther = Number.isFinite(parsed) ? parsed : 0;
   if (lastResult) renderShare(lastResult);
+});
+
+
+// ---------------------------------------------------------------------------
+// Supplier sheet: paste the text, fill only the delivery from it.
+// ---------------------------------------------------------------------------
+$('sheet-fill').addEventListener('click', async () => {
+  const text = $('sheet-text').value.trim();
+  if (!text) {
+    $('sheet-status').textContent = 'Paste the supplier’s text first.';
+    $('sheet-text').focus();
+    return;
+  }
+  if (modelOff()) {
+    $('sheet-status').textContent = 'The model is off in Settings, so the sheet is not read. Pick a published range or type the numbers instead.';
+    return;
+  }
+  const button = $('sheet-fill');
+  button.disabled = true;
+  $('sheet-status').textContent = 'Filling in this delivery from your text…';
+  try {
+    const response = await fetch(`${API_BASE}/api/product/brief`, {
+      method: 'POST', headers: metaHeaders(), body: JSON.stringify({ text }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.available || !data.brief) {
+      $('sheet-status').textContent = 'That text could not be filled in. Pick a published range or type the numbers instead.';
+      return;
+    }
+    const plastic = (data.brief && data.brief.plastic) || {};
+    const named = {
+      type: plastic.type ?? '', batch: plastic.batch ?? '', mix: plastic.mix ?? '',
+      dirt: plastic.dirt ?? '', dirtLevel: plastic.dirt_level ?? state.plastic.dirtLevel,
+    };
+    const ranges = {
+      eMin: plastic.stiffness_min_mpa ?? 0, eMax: plastic.stiffness_max_mpa ?? 0,
+      sMin: plastic.strength_min_mpa ?? 0, sMax: plastic.strength_max_mpa ?? 0,
+      density: plastic.density_g_cm3 ?? 0,
+    };
+    const complete = ranges.eMin > 0 && ranges.eMax > 0 && ranges.sMin > 0 && ranges.sMax > 0 && ranges.density > 0;
+    if (complete) {
+      state.plastic = { ...state.plastic, ...named, ...ranges };
+      batchSource = 'numbers';
+      $('sheet-status').textContent = 'Filled from your text, using only the numbers in it. Check them below — they are exactly what the sheet stated.';
+    } else {
+      const pub = publishedBatchFor(`${named.type} ${text}`);
+      if (pub) {
+        state.plastic = { ...state.plastic, ...named, type: named.type || pub.plastic.type, eMin: pub.plastic.eMin, eMax: pub.plastic.eMax, sMin: pub.plastic.sMin, sMax: pub.plastic.sMax, density: pub.plastic.density };
+        batchSource = pub.key;
+        $('sheet-status').textContent = `The sheet did not give measured ranges, so the published range “${pub.label}” was used for the plastic it names. Change it below if your supplier's numbers differ.`;
+      } else {
+        state.plastic = { ...state.plastic, ...named };
+        $('sheet-status').textContent = 'That text named the plastic but gave no measured ranges I could use. Pick a published range above, or enter your supplier’s numbers.';
+      }
+    }
+    paint();
+    refresh();
+  } catch {
+    $('sheet-status').textContent = 'The model is unavailable right now. Pick a published range or type the numbers instead.';
+  } finally {
+    button.disabled = false;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Compare a saved delivery against this one, for the same part.
+// ---------------------------------------------------------------------------
+let compareDeliveryName = '';
+function renderCompareOptions() {
+  const select = $('compare-delivery');
+  if (!select) return;
+  const sameRanges = (a, b) => a && b
+    && Number(a.eMin) === Number(b.eMin) && Number(a.eMax) === Number(b.eMax)
+    && Number(a.sMin) === Number(b.sMin) && Number(a.sMax) === Number(b.sMax)
+    && Number(a.density) === Number(b.density);
+  const items = loadLibrary(SAVED_DELIVERIES_KEY).filter((item) => !sameRanges(item.plastic, state.plastic));
+  select.replaceChildren();
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = items.length ? 'Pick a saved delivery…' : 'No other delivery saved yet';
+  select.append(first);
+  for (const item of items) {
+    const option = document.createElement('option');
+    option.value = item.name;
+    option.textContent = item.name;
+    select.append(option);
+  }
+  if (items.some((item) => item.name === compareDeliveryName)) select.value = compareDeliveryName;
+  else compareDeliveryName = '';
+}
+function renderCompare(result) {
+  const view = $('compare-view');
+  if (!view) return;
+  view.replaceChildren();
+  renderCompareOptions();
+  if (!result || !result.ready || !compareDeliveryName) return;
+  const item = loadLibrary(SAVED_DELIVERIES_KEY).find((entry) => entry.name === compareDeliveryName);
+  if (!item) return;
+  const title = document.createElement('h4');
+  title.className = 'cost-title';
+  title.textContent = `With “${item.name}” instead`;
+  view.append(title);
+  const otherState = normalizeState({ ...state, plastic: item.plastic, steady: item.steady || state.steady });
+  const other = evaluateBuilds(otherState, []);
+  const line = (text) => {
+    const el = document.createElement('p');
+    el.className = 'cost-ask';
+    el.textContent = text;
+    view.append(el);
+  };
+  if (!other.ready) {
+    line('That delivery is not fully set, so this part cannot be checked against it yet.');
+    return;
+  }
+  const otherItem = other.winner || other.current;
+  const thisItem = result.winner || result.current;
+  if (other.targets.length && other.targets.every((t) => t.property === 'none')) {
+    line(`No load to check there either. One part would weigh ${fmtVal(otherItem.massG, 'g')} instead of ${fmtVal(thisItem.massG, 'g')} here.`);
+    return;
+  }
+  const parts = other.targets
+    .filter((t) => t.property !== 'none')
+    .map((t, i) => {
+      const meta = propertyMeta(t.property);
+      const idx = other.targets.indexOf(t);
+      return `${meta.label.toLowerCase()} ${formatRange(otherItem.ranges[idx], meta.unit)}`;
+    });
+  line(other.winner
+    ? `It works: ${parts.join('; ')}. One part weighs ${fmtVal(otherItem.massG, 'g')} (here: ${fmtVal(thisItem.massG, 'g')}).`
+    : `It does not work: ${parts.join('; ')}. One part would weigh ${fmtVal(otherItem.massG, 'g')} (here: ${fmtVal(thisItem.massG, 'g')}).`);
+  if (runSize > 0) {
+    line(`This order of ${runSize.toLocaleString('en-US')} would need ${fmtVal((otherItem.massG * runSize) / 1000, 'kg')} of it, against ${fmtVal((thisItem.massG * runSize) / 1000, 'kg')} of this delivery.`);
+  }
+}
+$('compare-delivery').addEventListener('change', (event) => {
+  compareDeliveryName = event.target.value;
+  if (lastResult) renderCompare(lastResult);
 });
 
 function renderRunNote(result) {
@@ -1367,6 +1519,7 @@ function render(result) {
   }
   renderVerdict(result, decision);
   renderCost(result);
+  renderCompare(result);
   renderShare(result);
   fade([$('build-list'), $('gap')], () => {
     renderRunNote(result);
@@ -1703,6 +1856,11 @@ $('steady-available').addEventListener('change', (event) => {
   updateSteadyVisibility();
   onFieldChange();
 });
+$('treated-available').addEventListener('change', (event) => {
+  state.treated = { ...(state.treated || {}), available: event.target.checked };
+  updateTreatedVisibility();
+  onFieldChange();
+});
 bind('product', 'product');
 bind('span', 'spanMm');
 bind('width', 'widthMm');
@@ -1718,6 +1876,10 @@ bind('e-max', 'plastic.eMax');
 bind('s-min', 'plastic.sMin');
 bind('s-max', 'plastic.sMax');
 bind('density', 'plastic.density');
+bind('treated-e-min', 'treated.eMin');
+bind('treated-e-max', 'treated.eMax');
+bind('treated-s-min', 'treated.sMin');
+bind('treated-s-max', 'treated.sMax');
 bind('steady-type', 'steady.type');
 bind('steady-e', 'steady.eMpa');
 bind('steady-s', 'steady.sMpa');
@@ -2059,7 +2221,7 @@ $('brief').addEventListener('keydown', (event) => {
     readBrief();
   }
 });
-for (const id of ['e-min', 'e-max', 's-min', 's-max', 'density']) {
+for (const id of ['e-min', 'e-max', 's-min', 's-max', 'density', 'treated-e-min', 'treated-e-max', 'treated-s-min', 'treated-s-max']) {
   $(id).addEventListener('input', () => {
     if (batchSource !== 'numbers') {
       batchSource = 'numbers';
@@ -2090,6 +2252,11 @@ $('cost-batch').addEventListener('input', (event) => {
 $('cost-steady').addEventListener('input', (event) => {
   const parsed = Number(event.target.value);
   steadyPricePerKg = Number.isFinite(parsed) && parsed > 0 ? convertForDisplay(parsed, 'kg') : 0;
+  if (lastResult) renderCost(lastResult);
+});
+$('cost-treat').addEventListener('input', (event) => {
+  const parsed = Number(event.target.value);
+  treatPricePerKg = Number.isFinite(parsed) && parsed > 0 ? convertForDisplay(parsed, 'kg') : 0;
   if (lastResult) renderCost(lastResult);
 });
 $('cost-currency').addEventListener('change', (event) => {
@@ -2232,6 +2399,7 @@ function syncProductionInputs() {
   $('next-density-label').textContent = `Next delivery's density, if known (${displayUnit('g/cm³')})`;
   $('cost-batch-label').textContent = `This delivery costs, per ${displayUnit('kg')}`;
   $('cost-steady-label').textContent = `Steadier plastic costs, per ${displayUnit('kg')}`;
+  $('cost-treat-label').textContent = `Sorting/washing costs, per ${displayUnit('kg')}`;
   $('cost-currency').value = costCurrency;
   if (materialHaveKg > 0) $('material-have').value = String(Math.round(convertForDisplay(materialHaveKg, 'kg') * 1000) / 1000);
   if (nextDensityG > 0) $('next-density').value = String(Math.round(convertForDisplay(nextDensityG, 'g/cm³') * 1000) / 1000);
@@ -2325,6 +2493,7 @@ function storeLibrary(key, items) {
 }
 function renderSavedOptions() {
   if (typeof renderShareOptions === 'function' && document.getElementById('share-other')) renderShareOptions();
+  if (typeof renderCompareOptions === 'function' && document.getElementById('compare-delivery')) renderCompareOptions();
   const products = loadLibrary(SAVED_PRODUCTS_KEY);
   const deliveries = loadLibrary(SAVED_DELIVERIES_KEY);
   const fill = (select, items, emptyLabel) => {

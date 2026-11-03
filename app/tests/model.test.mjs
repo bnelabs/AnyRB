@@ -608,3 +608,33 @@ test('inference provider menu offers endpoints beyond Meta, with details', async
   assert.match(js, /X-User-Base-Url/);
   assert.match(js, /Voice is only available with Meta/);
 });
+
+test('sorting or washing, with the effect entered, becomes a compared build', () => {
+  const s = bracket({
+    extraTargets: [],
+    steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
+    treated: { available: true, eMin: 700, eMax: 850, sMin: 40, sMax: 44 },
+  });
+  const result = evaluateBuilds(s, []);
+  const treated = result.passingBest.find((item) => item.move === 'treated');
+  assert.ok(treated, 'a treated build passes with the entered stronger ranges');
+  const decision = decisionFor(s, result);
+  if (result.winner.move === 'treated') {
+    assert.match(decision.headline, /Sort or wash this delivery/);
+  }
+  // without the treatment declared, no treated build may appear
+  const plain = evaluateBuilds(bracket({ extraTargets: [], steady: { available: false, type: '', eMpa: 0, sMpa: 0 } }), []);
+  assert.equal(plain.passingBest.filter((item) => item.move === 'treated').length, 0);
+});
+
+test('supplier sheet intake and delivery comparison are wired', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="sheet-text"/);
+  assert.match(html, /id="sheet-fill"/);
+  assert.match(html, /id="compare-delivery"/);
+  assert.match(html, /id="treated-available"/);
+  assert.match(js, /Fill this delivery from the text|sheet-fill/);
+  assert.match(js, /renderCompare/);
+});

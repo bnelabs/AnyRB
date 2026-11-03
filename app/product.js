@@ -133,7 +133,7 @@ export const PROPERTIES = [
   { key: 'weight', label: 'Weight', unit: 'g', verb: 'weighs', noun: 'weight' },
   { key: 'none', label: 'No load to check', unit: 'g', verb: 'weighs', noun: 'weight' },
 ];
-export const MOVES = ['current', 'thickness', 'section', 'span', 'other', 'blend'];
+export const MOVES = ['current', 'thickness', 'section', 'span', 'other', 'blend', 'treated'];
 export const PROPERTY_DEFAULTS = {
   strength: { min: 11.5, max: 16.5 },
   stiffness: { min: 3.5, max: 5.5 },
@@ -296,6 +296,13 @@ export function normalizeState(raw = {}) {
       sMin,
       sMax,
       density: blank ? Math.max(0, num(plastic.density, 0)) : clamp(num(plastic.density, DEFAULT_STATE.plastic.density), 0.05, 5),
+    },
+    treated: {
+      available: source.treated?.available === true,
+      eMin: Math.max(0, num(source.treated?.eMin, 0)),
+      eMax: Math.max(0, num(source.treated?.eMax, 0)),
+      sMin: Math.max(0, num(source.treated?.sMin, 0)),
+      sMax: Math.max(0, num(source.treated?.sMax, 0)),
     },
     steady: {
       available: source.steady?.available === true,
@@ -501,6 +508,7 @@ export function formatTarget(target) {
 function candidatePart(state, candidate) {
   if (candidate.move === 'other') return otherPart(state);
   const base = currentPart(state);
+  if (candidate.move === 'treated' && candidate.thicknessMm) return { ...base, thicknessMm: candidate.thicknessMm };
   if (candidate.move === 'thickness') return { ...base, thicknessMm: candidate.thicknessMm };
   if (candidate.move === 'section') return {
     ...base,
@@ -516,9 +524,17 @@ function candidatePart(state, candidate) {
 }
 
 function plasticFor(state, candidate) {
-  return candidate.move === 'blend'
-    ? blendPlastic(state.plastic, candidate.fraction, state.steady)
-    : state.plastic;
+  if (candidate.move === 'blend') return blendPlastic(state.plastic, candidate.fraction, state.steady);
+  if (candidate.move === 'treated' && state.treated && state.treated.available) {
+    return {
+      ...state.plastic,
+      eMin: state.treated.eMin || state.plastic.eMin,
+      eMax: state.treated.eMax || state.plastic.eMax,
+      sMin: state.treated.sMin || state.plastic.sMin,
+      sMax: state.treated.sMax || state.plastic.sMax,
+    };
+  }
+  return state.plastic;
 }
 
 function samePart(a, b) {
@@ -539,6 +555,9 @@ function validCandidate(state, candidate) {
   }
   if (candidate.move === 'blend') {
     return state.steady.available && state.steady.eMpa > 0 && state.steady.sMpa > 0 && Number.isFinite(candidate.fraction) && candidate.fraction > 0;
+  }
+  if (candidate.move === 'treated') {
+    return Boolean(state.treated && state.treated.available);
   }
   if (candidate.move === 'section') {
     // Width is the part's own size (a 600 mm panel is a 600 mm panel).
@@ -930,6 +949,12 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
     if (minimum) addCandidate(state, candidates, seen, minimum);
     const blend = blendCandidate(state);
     if (blend) addCandidate(state, candidates, seen, blend);
+    if (state.treated && state.treated.available) {
+      addCandidate(state, candidates, seen, { move: 'treated' });
+      const treatedState = { ...state, plastic: plasticFor(state, { move: 'treated' }) };
+      const treatedMin = minimumThicknessCandidate(treatedState);
+      if (treatedMin) addCandidate(state, candidates, seen, { ...treatedMin, move: 'treated' });
+    }
     for (const candidate of searched) addCandidate(state, candidates, seen, candidate);
   }
   const evaluated = candidates.map((candidate) => {
@@ -1011,6 +1036,7 @@ function moveLabel(state, candidate) {
   if (candidate.move === 'current') return 'Current build';
   if (candidate.move === 'other') return 'Other product';
   if (candidate.move === 'blend') return 'Blended plastic';
+  if (candidate.move === 'treated') return 'Sorted or washed first';
   if (candidate.move === 'thickness') {
     return candidate.part.thicknessMm >= state.thicknessMm ? 'Thicker section' : 'Slimmer section';
   }
@@ -1134,11 +1160,15 @@ export function decisionFor(stateInput, result) {
   const isBlend = winner.move === 'blend';
   const steadyName = state.steady.type || 'a steadier plastic';
   const blendPct = isBlend ? Math.round(winner.fraction * 100) : 0;
-  const headline = isBlend
+  const headline = winner.move === 'treated'
+    ? `Sort or wash this delivery, then make the ${buildSizeText(winner.part)}.`
+    : isBlend
     ? `Blend ${blendPct}% of ${steadyName}, then make the ${buildSizeText(winner.part)}.`
     : `Make the ${buildSizeText(winner.part)}.`;
   let support;
-  if (isBlend) {
+  if (winner.move === 'treated') {
+    support = `As entered, it misses. After sorting or washing — to the ranges you entered — this build ${rangeText(winner)} — inside your ${targetText}.`;
+  } else if (isBlend) {
     support = `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (winner.move === 'other') {
     // An 'other' winner is ranked by added material, so it can win while
@@ -1159,7 +1189,7 @@ export function decisionFor(stateInput, result) {
     headline,
     `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
     `Mix: ${state.plastic.mix || 'none stated'}; dirt: ${state.plastic.dirt || 'none stated'}`,
-    isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',
+    winner.move === 'treated' ? 'First: sort or wash this delivery, to the ranges entered under This delivery' : isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',
     ...numericTargets.map(({ target, i }) => {
       const meta = propertyMeta(target.property);
       return `Requirement: ${meta.label} ${formatRange(winner.ranges ? winner.ranges[i] : winner.range, meta.unit)} — inside ${formatTarget(target)}`;

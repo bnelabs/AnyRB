@@ -123,9 +123,12 @@
             <div class="field run-field"><label for="next-density" id="next-density-label">Next delivery's density, if known (g/cm³)</label><input id="next-density" inputmode="decimal" type="text" placeholder="optional"></div>
             <div class="field run-field"><label for="cost-batch" id="cost-batch-label">This delivery costs, per kg</label><input id="cost-batch" inputmode="decimal" type="text" placeholder="optional"></div>
             <div class="field run-field"><label for="cost-steady" id="cost-steady-label">Steadier plastic costs, per kg</label><input id="cost-steady" inputmode="decimal" type="text" placeholder="optional"></div>
+            <div class="field run-field"><label for="cost-treat" id="cost-treat-label">Sorting/washing costs, per kg</label><input id="cost-treat" inputmode="decimal" type="text" placeholder="optional"></div>
             <div class="field run-field"><label for="cost-currency">Currency</label><select id="cost-currency"><option value="₺">₺ (lira)</option><option value="$">$ (dollar)</option><option value="€">€ (euro)</option><option value="£">£ (pound)</option></select></div>
           </div>
           <div class="cost-view" id="cost-view"></div>
+          <div class="field compare-field"><label for="compare-delivery">Compare a saved delivery</label><select id="compare-delivery"></select></div>
+          <div class="compare-view" id="compare-view"></div>
           <div class="run-note" id="run-note"></div>
           <div class="use-note" id="use-note"></div>
         </div>
@@ -210,6 +213,13 @@
           <select id="batch-source"></select>
         </div>
         <p class="batch-note" id="batch-note" hidden></p>
+        <details class="measured-group" id="sheet-group">
+          <summary>Paste a supplier sheet and fill this delivery from it</summary>
+          <p class="measured-note">Paste the text your supplier sent. Only the plastic part is used, and only numbers actually in the text — anything missing stays empty for you to pick or type.</p>
+          <div class="field"><label for="sheet-text">Supplier sheet text</label><textarea id="sheet-text" rows="4" placeholder="Paste the supplier's text here"></textarea></div>
+          <button class="dl-button" id="sheet-fill" type="button">Fill this delivery from the text</button>
+          <p class="brief-status" id="sheet-status"></p>
+        </details>
         <div class="field"><label for="plastic-type">Plastic type</label><input id="plastic-type" type="text" spellcheck="false" placeholder="recycled polypropylene"></div>
         <div class="grid2">
           <div class="field"><label for="plastic-batch">Batch</label><input id="plastic-batch" type="text" spellcheck="false" placeholder="April delivery"></div>
@@ -236,6 +246,20 @@
         </details>
         <div class="field check-field">
           <label class="check" for="steady-available"><input id="steady-available" type="checkbox"> A steadier plastic is available to mix in</label>
+        </div>
+        <div class="field check-field">
+          <label class="check" for="treated-available"><input id="treated-available" type="checkbox"> Sorting or washing would change this delivery</label>
+        </div>
+        <div id="treated-fields" class="steady-fields" hidden>
+          <p class="measured-note">Enter what the delivery measures <em>after</em> sorting or washing — from whoever does it, or your own test. The app does not guess this effect.</p>
+          <div class="grid2">
+            <div class="field"><label for="treated-e-min">Stiffness low after (MPa)</label><input id="treated-e-min" inputmode="decimal" type="text"></div>
+            <div class="field"><label for="treated-e-max">Stiffness high after (MPa)</label><input id="treated-e-max" inputmode="decimal" type="text"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="treated-s-min">Strength low after (MPa)</label><input id="treated-s-min" inputmode="decimal" type="text"></div>
+            <div class="field"><label for="treated-s-max">Strength high after (MPa)</label><input id="treated-s-max" inputmode="decimal" type="text"></div>
+          </div>
         </div>
         <div id="steady-fields" class="steady-fields" hidden>
           <div class="field"><label for="steady-type">Steadier plastic</label><input id="steady-type" type="text" spellcheck="false" placeholder="the stiffer plastic you can get"></div>
