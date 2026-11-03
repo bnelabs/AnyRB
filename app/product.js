@@ -89,6 +89,12 @@ export const PUBLISHED_BATCHES = [
     note: 'Typical published band for recycled PET. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
   },
   {
+    key: 'rpetg',
+    label: 'Recycled PETG — typical published range',
+    plastic: { type: 'recycled PETG', eMin: 1890, eMax: 2310, sMin: 41, sMax: 51, density: 1.24 },
+    note: 'Typical published band for recycled PETG. Not a measurement of your delivery — replace it with your supplier’s numbers when you have them.',
+  },
+  {
     key: 'rldpe',
     label: 'Recycled LDPE — typical published range',
     plastic: { type: 'recycled LDPE', eMin: 188, eMax: 312, sMin: 8, sMax: 12, density: 0.92 },
@@ -99,7 +105,7 @@ export const PUBLISHED_BATCHES = [
 export function publishedBatchFor(text) {
   const t = String(text || '').toLowerCase();
   if (!t) return null;
-  if (/mixed polyolefin/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
+  if (/mixed polyolefin|mixed plastics?/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
   // A delivery naming two or more kinds of plastic is a mixed delivery:
   // it uses the wide published mixed range, labelled as exactly that,
   // rather than asking the user to repeat what they already said.
@@ -110,7 +116,7 @@ export function publishedBatchFor(text) {
   ].filter(Boolean).length;
   if (kinds >= 2) return PUBLISHED_BATCHES.find((b) => b.key === 'mixed-polyolefins');
   if (/ldpe/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rldpe');
-  if (/petg/.test(t)) return null;
+  if (/petg/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpetg');
   if (/\bpet\b|polyethylene terephthalate/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpet');
   if (/hdpe/.test(t)) {
     return /single|one supplier|measured lot/.test(t)
@@ -624,6 +630,18 @@ function materialRange(plastic, property) {
 export function materialGap(stateInput, part, targetInput = null) {
   const state = normalizeState(stateInput);
   const target = normalizeTarget(targetInput, state.target);
+  if (target.property === 'none') {
+    // 'No load' is not a numeric window: there is no density window to miss.
+    // Treating its empty min/max as 0–0 invented an over-high gap of the
+    // whole density (combinations matrix, none + an extra numeric target).
+    const batch = materialRange(state.plastic, target.property);
+    return {
+      required: { ...batch }, batch, shortLow: 0, overHigh: 0, steadyValue: 0, steadyShort: null,
+      rangeTooWide: false, buckling: null,
+      action: 'No load requirement was set for this build, so there is no material gap to close.',
+      unit: batch.unit, property: target.property,
+    };
+  }
   const required = requiredMaterial(part, target.property, target);
   const batch = materialRange(state.plastic, target.property);
   const shortLow = Math.max(0, required.min - batch.min);
@@ -965,7 +983,9 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
   const failedMoves = [...new Set(evaluated.filter((e) => !e.pass).map((e) => e.move))];
 
   const gaps = targetValid && !winner
-    ? targets.map((target) => materialGap(state, current.part, target))
+    ? targets
+      .filter((target) => target.property !== 'none')
+      .map((target) => materialGap(state, current.part, target))
     : [];
   const gap = gaps[0] || null;
   return {
@@ -1036,17 +1056,25 @@ export function decisionFor(stateInput, result) {
     };
   }
   const targets = [state.target, ...state.extraTargets];
-  const rangeText = (item) => targets
-    .map((target, i) => {
+  // A primary 'none' target has no numeric window. If numeric extra targets
+  // sit beside it, only those are ranged/gapped/stated; formatting the
+  // 'none' target produced "No load to check —–— g" and a duplicate weight.
+  const numericTargets = targets
+    .map((target, i) => ({ target, i }))
+    .filter(({ target }) => target.property !== 'none');
+  const rangeText = (item) => numericTargets
+    .map(({ target, i }) => {
       const meta = propertyMeta(target.property);
       return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
     })
     .join(' and ');
-  const targetText = targets
-    .map((target) => `${propertyMeta(target.property).label} ${formatTarget(target)}`)
+  const targetText = numericTargets
+    .map(({ target }) => `${propertyMeta(target.property).label} ${formatTarget(target)}`)
     .join('; ');
   if (!result.winner) {
-    const gaps = result.gaps && result.gaps.length ? result.gaps : [materialGap(state, currentPart(state))];
+    const suppliedGaps = result.gaps && result.gaps.length ? result.gaps : [materialGap(state, currentPart(state))];
+    const filteredGaps = suppliedGaps.filter((gap) => gap.property !== 'none');
+    const gaps = filteredGaps.length ? filteredGaps : suppliedGaps;
     const primary = gaps.find((gap) => gap.rangeTooWide || gap.shortLow > 0 || gap.overHigh > 0) || gaps[0];
     const meta = propertyMeta(primary.property);
     const unit = primary.unit;
@@ -1088,7 +1116,7 @@ export function decisionFor(stateInput, result) {
     return { headline, support, button: 'Ask about this delivery', copy };
   }
   const winner = result.winner;
-  if (targets[0] && targets[0].property === 'none') {
+  if (targets.length && targets.every((target) => target.property === 'none')) {
     const weight = winner.ranges ? winner.ranges[0] : winner.range;
     return {
       headline: 'No load to check on this one.',
@@ -1113,7 +1141,12 @@ export function decisionFor(stateInput, result) {
   if (isBlend) {
     support = `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (winner.move === 'other') {
-    support = `The ${state.product} has no passing build. This delivery makes the ${state.other.product}: ${rangeText(winner)} — inside your ${targetText}.`;
+    // An 'other' winner is ranked by added material, so it can win while
+    // the entered build also passes (it then uses less material). Only
+    // claim the entered part has no passing build when that is true.
+    support = result.current && result.current.pass
+      ? `As entered, the ${state.product} also works. This delivery also makes the ${state.other.product} with less material: ${rangeText(winner)} — inside your ${targetText}.`
+      : `The ${state.product} has no passing build. This delivery makes the ${state.other.product}: ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (result.current.pass) {
     support = `This build ${rangeText(winner)} from this delivery — inside your ${targetText}.`;
   } else if (Math.abs(winner.part.thicknessMm - state.thicknessMm) > 1e-9) {
@@ -1127,7 +1160,7 @@ export function decisionFor(stateInput, result) {
     `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
     `Mix: ${state.plastic.mix || 'none stated'}; dirt: ${state.plastic.dirt || 'none stated'}`,
     isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',
-    ...targets.map((target, i) => {
+    ...numericTargets.map(({ target, i }) => {
       const meta = propertyMeta(target.property);
       return `Requirement: ${meta.label} ${formatRange(winner.ranges ? winner.ranges[i] : winner.range, meta.unit)} — inside ${formatTarget(target)}`;
     }),
@@ -1155,10 +1188,13 @@ export function proposalRow(stateInput, item) {
     move: moveLabel(state, item),
     originLabel,
     size,
-    property: targets.map((target, i) => {
-      const meta = propertyMeta(target.property);
-      return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
-    }).join(' · '),
+    property: targets
+      .map((target, i) => ({ target, i }))
+      .filter(({ target }) => target.property !== 'none')
+      .map(({ target, i }) => {
+        const meta = propertyMeta(target.property);
+        return `${meta.verb} ${formatRange(item.ranges ? item.ranges[i] : item.range, meta.unit)}`;
+      }).join(' · '),
     added: blendPercent
       ? `${blendPercent}% steadier plastic · ${formatNumber(convertForDisplay((blendPercent / 100) * massG(item.part, state.plastic.density), 'g'))} ${displayUnit('g')} a part`
       : addedMaterialText(item.addedG),
