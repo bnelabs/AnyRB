@@ -61,11 +61,63 @@
       <button class="case" type="button" data-case="custom">Something else</button>
     </div>
     <button class="pill" id="primary" type="button" hidden>Copy build</button>
-    <a class="see-details" id="see-details" href="#builds-panel" hidden>See the results ↓</a>
+    <a class="see-details" id="see-details" href="#verdict" hidden>See the result ↓</a>
   </section>
 
   <div class="work">
-    <div class="bench">
+    <aside class="results" aria-label="Results">
+      <p class="results-kicker">Results</p>
+      <div class="verdict" id="verdict" hidden>
+        <div class="verdict-head">
+          <span class="verdict-chip" id="verdict-chip"></span>
+          <span class="verdict-title" id="verdict-title"></span>
+        </div>
+        <p class="verdict-build" id="verdict-build"></p>
+        <table class="verdict-table">
+          <thead><tr><th>Requirement</th><th>You need</th><th>This build gives</th><th>Result</th></tr></thead>
+          <tbody id="verdict-rows"></tbody>
+        </table>
+        <p class="verdict-next" id="verdict-next"></p>
+      </div>
+      <div class="builds" id="builds-panel" hidden>
+        <div class="section-head">
+          <h3>Builds that pass</h3>
+          <p class="model-status" id="model-status">Scoring this delivery…</p>
+        </div>
+        <div class="range-view" id="range-view"></div>
+        <div class="run-row">
+          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
+          <p class="run-note" id="run-note"></p>
+        </div>
+        <ol class="build-list" id="build-list"></ol>
+        <div class="downloads" id="downloads" hidden>
+          <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
+          <div class="downloads-row">
+            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
+            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
+            <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
+          </div>
+          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
+        </div>
+        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
+        <div class="meta-trace" id="meta-trace" hidden></div>
+      </div>
+
+      <h3 class="results-subhead" id="gap-title" hidden>In batch terms — what the plastic needs to be</h3>
+      <div class="gap" id="gap" aria-live="polite" hidden></div>
+
+      <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
+        <h3 id="ask-title">Ask about this delivery</h3>
+        <div class="ask-row">
+          <input id="ask-question" type="text" placeholder="What should I add or change to make this batch work?" autocomplete="off">
+          <button class="ask-button" id="ask-button" type="button">Ask</button>
+        </div>
+        <p class="ask-status" id="ask-status"></p>
+        <div class="ask-answer" id="ask-answer" aria-live="polite"></div>
+      </div>
+    </aside>
+
+        <div class="bench">
     <section class="engineering" aria-labelledby="engineering-title">
       <h2 id="engineering-title"><span class="sec-num">01</span>Engineering</h2>
       <p class="section-note">Change the build, not the plastic. Works for a solid rectangular section on the three load paths below. The ranges you enter are checked as entered — no extra safety factor is added.</p>
@@ -158,44 +210,7 @@
     </section>
     </div>
 
-    <aside class="results" aria-label="Results">
-      <p class="results-kicker">Results</p>
-      <div class="builds" id="builds-panel" hidden>
-        <div class="section-head">
-          <h3>Builds that pass</h3>
-          <p class="model-status" id="model-status">Scoring this delivery…</p>
-        </div>
-        <div class="range-view" id="range-view"></div>
-        <div class="run-row">
-          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
-          <p class="run-note" id="run-note"></p>
-        </div>
-        <ol class="build-list" id="build-list"></ol>
-        <div class="downloads" id="downloads" hidden>
-          <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
-          <div class="downloads-row">
-            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
-            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
-            <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
-          </div>
-          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
-        </div>
-        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
-        <div class="meta-trace" id="meta-trace" hidden></div>
-      </div>
 
-      <div class="gap" id="gap" aria-live="polite" hidden></div>
-
-      <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
-        <h3 id="ask-title">Ask about this delivery</h3>
-        <div class="ask-row">
-          <input id="ask-question" type="text" placeholder="What should I add or change to make this batch work?" autocomplete="off">
-          <button class="ask-button" id="ask-button" type="button">Ask</button>
-        </div>
-        <p class="ask-status" id="ask-status"></p>
-        <div class="ask-answer" id="ask-answer" aria-live="polite"></div>
-      </div>
-    </aside>
   </div>
 </main>
 

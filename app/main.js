@@ -500,6 +500,93 @@ function renderProgress(result) {
   $('progress-next').textContent = next;
 }
 
+
+function renderVerdict(result, decision) {
+  const card = $('verdict');
+  if (!result.ready || !result.current) {
+    card.hidden = true;
+    $('gap-title').hidden = true;
+    return;
+  }
+  card.hidden = false;
+  $('gap-title').hidden = false;
+  const item = result.winner || result.current;
+  const chip = $('verdict-chip');
+  chip.textContent = result.winner ? 'Works' : 'Does not pass';
+  chip.className = `verdict-chip ${result.winner ? 'pass' : 'fail'}`;
+  $('verdict-title').textContent = decision.headline;
+  $('verdict-build').textContent = result.winner
+    ? `${proposalRow(result.state, item).originLabel} · material: ${proposalRow(result.state, item).added}`
+    : `As entered: ${buildSizeText(item.part)}`;
+  const tbody = $('verdict-rows');
+  tbody.replaceChildren();
+  result.targets.forEach((target, i) => {
+    const meta = propertyMeta(target.property);
+    const range = item.ranges[i];
+    const passes = range.min >= target.min - 1e-9 && range.max <= target.max + 1e-9;
+    const tr = document.createElement('tr');
+    const cells = [
+      meta.label,
+      formatTarget(target),
+      formatRange(range, meta.unit),
+    ];
+    cells.forEach((text, idx) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (idx > 0) td.className = 'num';
+      tr.append(td);
+    });
+    const status = document.createElement('td');
+    status.className = `v-status ${passes ? 'pass' : 'fail'}`;
+    if (passes) {
+      const lowMargin = range.min - target.min;
+      const highMargin = target.max - range.max;
+      status.textContent = `Inside · margin ${fmtVal(Math.min(lowMargin, highMargin), meta.unit)}`;
+    } else if (range.min < target.min && range.max > target.max) {
+      status.textContent = `Short ${fmtVal(target.min - range.min, meta.unit)} low, over ${fmtVal(range.max - target.max, meta.unit)} high`;
+    } else if (range.min < target.min) {
+      status.textContent = `Short by ${fmtVal(target.min - range.min, meta.unit)} at the low end`;
+    } else {
+      status.textContent = `Over by ${fmtVal(range.max - target.max, meta.unit)} at the high end`;
+    }
+    tr.append(status);
+    tbody.append(tr);
+    // slim range picture under each row: pale = needed, solid = given
+    const lo = Math.min(target.min, range.min);
+    const hi = Math.max(target.max, range.max);
+    const pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
+    const d0 = lo - pad; const d1 = hi + pad;
+    const pct = (v) => `${Math.max(0, Math.min(100, ((v - d0) / (d1 - d0)) * 100))}%`;
+    const width = (a, b) => `${Math.max(1.5, ((b - a) / (d1 - d0)) * 100)}%`;
+    const barRow = document.createElement('tr');
+    barRow.className = 'v-bar-row';
+    const barCell = document.createElement('td');
+    barCell.colSpan = 4;
+    const track = document.createElement('div');
+    track.className = 'rv-track';
+    const band = document.createElement('div');
+    band.className = 'rv-target';
+    band.style.left = pct(target.min); band.style.width = width(target.min, target.max);
+    const bar = document.createElement('div');
+    bar.className = `rv-bar ${passes ? 'pass' : 'fail'}`;
+    bar.style.left = pct(range.min); bar.style.width = width(range.min, range.max);
+    track.append(band, bar);
+    barCell.append(track);
+    barRow.append(barCell);
+    tbody.append(barRow);
+  });
+  const legend = document.createElement('tr');
+  legend.className = 'v-legend';
+  const lc = document.createElement('td');
+  lc.colSpan = 4;
+  lc.textContent = 'Pale band: what you need. Solid bar: what this build gives across the full delivery swing.';
+  legend.append(lc);
+  tbody.append(legend);
+  $('verdict-next').textContent = result.winner
+    ? 'Next: copy the build, or download it below.'
+    : 'Next: follow the change in the headline — or ask about this delivery below.';
+}
+
 function renderRangeView(result) {
   const wrap = $('range-view');
   wrap.replaceChildren();
@@ -652,6 +739,8 @@ function render(result) {
     $('support').textContent = decision.support;
   });
   if (!result.ready) {
+    $('verdict').hidden = true;
+    $('gap-title').hidden = true;
     $('build-list').replaceChildren();
     $('range-view').replaceChildren();
     $('run-note').textContent = '';
@@ -661,8 +750,8 @@ function render(result) {
     $('live').textContent = decision.headline;
     return;
   }
+  renderVerdict(result, decision);
   fade([$('build-list'), $('gap')], () => {
-    renderRangeView(result);
     renderRunNote(result);
     renderBuildList(result);
     renderGap(result);

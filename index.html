@@ -906,6 +906,40 @@ body { background: var(--paper); }
   .brief-submit, .brief-voice { min-width: 168px; }
 }
 
+/* --- Results placement: answer first on mobile, rail on desktop --- */
+@media (min-width: 1021px) {
+  .work > .bench { grid-column: 1; grid-row: 1; }
+  .work > .results { grid-column: 2; grid-row: 1; }
+}
+
+/* --- Verdict card --- */
+.verdict { background: #f1eee1; border: 1px solid var(--line-2); border-radius: 14px; padding: 18px 18px 14px; margin-bottom: 20px; }
+.verdict[hidden] { display: none; }
+.verdict-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.verdict-chip { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; border-radius: 999px; padding: 5px 11px; }
+.verdict-chip.pass { background: var(--pass); }
+.verdict-chip.fail { background: var(--fail); }
+.verdict-title { font-size: 16.5px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
+.verdict-build { margin: 10px 0 12px; font-size: 14px; color: #2c2c29; }
+.verdict-table { width: 100%; border-collapse: collapse; }
+.verdict-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; padding: 0 8px 7px 0; }
+.verdict-table td { font-size: 13.5px; padding: 9px 8px 4px 0; border-top: 1px solid #ddd8c6; vertical-align: top; }
+.verdict-table td.num, .verdict-table .v-status { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.v-status.pass { color: var(--pass); font-weight: 600; }
+.v-status.fail { color: var(--fail); font-weight: 600; }
+.v-bar-row td { border-top: 0; padding: 2px 0 10px; }
+.v-bar-row .rv-track { height: 10px; }
+.v-legend td { border-top: 0; color: var(--muted); font-size: 11.5px; padding-top: 2px; }
+.verdict-next { margin: 10px 0 4px; font-size: 13.5px; font-weight: 600; }
+.results-subhead { margin: 22px 0 4px; font-size: 14px; font-weight: 650; }
+.results-subhead[hidden] { display: none; }
+@media (max-width: 1020px) {
+  .verdict { padding: 16px 14px 12px; }
+  .verdict-table th, .verdict-table td { font-size: 12px; padding-right: 5px; }
+  .verdict-table td.num, .verdict-table .v-status { font-size: 11px; }
+  .verdict-title { font-size: 16px; }
+}
+
 </style>
 </head>
 <body>
@@ -961,11 +995,63 @@ body { background: var(--paper); }
       <button class="case" type="button" data-case="custom">Something else</button>
     </div>
     <button class="pill" id="primary" type="button" hidden>Copy build</button>
-    <a class="see-details" id="see-details" href="#builds-panel" hidden>See the results ↓</a>
+    <a class="see-details" id="see-details" href="#verdict" hidden>See the result ↓</a>
   </section>
 
   <div class="work">
-    <div class="bench">
+    <aside class="results" aria-label="Results">
+      <p class="results-kicker">Results</p>
+      <div class="verdict" id="verdict" hidden>
+        <div class="verdict-head">
+          <span class="verdict-chip" id="verdict-chip"></span>
+          <span class="verdict-title" id="verdict-title"></span>
+        </div>
+        <p class="verdict-build" id="verdict-build"></p>
+        <table class="verdict-table">
+          <thead><tr><th>Requirement</th><th>You need</th><th>This build gives</th><th>Result</th></tr></thead>
+          <tbody id="verdict-rows"></tbody>
+        </table>
+        <p class="verdict-next" id="verdict-next"></p>
+      </div>
+      <div class="builds" id="builds-panel" hidden>
+        <div class="section-head">
+          <h3>Builds that pass</h3>
+          <p class="model-status" id="model-status">Scoring this delivery…</p>
+        </div>
+        <div class="range-view" id="range-view"></div>
+        <div class="run-row">
+          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
+          <p class="run-note" id="run-note"></p>
+        </div>
+        <ol class="build-list" id="build-list"></ol>
+        <div class="downloads" id="downloads" hidden>
+          <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
+          <div class="downloads-row">
+            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
+            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
+            <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
+          </div>
+          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
+        </div>
+        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
+        <div class="meta-trace" id="meta-trace" hidden></div>
+      </div>
+
+      <h3 class="results-subhead" id="gap-title" hidden>In batch terms — what the plastic needs to be</h3>
+      <div class="gap" id="gap" aria-live="polite" hidden></div>
+
+      <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
+        <h3 id="ask-title">Ask about this delivery</h3>
+        <div class="ask-row">
+          <input id="ask-question" type="text" placeholder="What should I add or change to make this batch work?" autocomplete="off">
+          <button class="ask-button" id="ask-button" type="button">Ask</button>
+        </div>
+        <p class="ask-status" id="ask-status"></p>
+        <div class="ask-answer" id="ask-answer" aria-live="polite"></div>
+      </div>
+    </aside>
+
+        <div class="bench">
     <section class="engineering" aria-labelledby="engineering-title">
       <h2 id="engineering-title"><span class="sec-num">01</span>Engineering</h2>
       <p class="section-note">Change the build, not the plastic. Works for a solid rectangular section on the three load paths below. The ranges you enter are checked as entered — no extra safety factor is added.</p>
@@ -1058,44 +1144,7 @@ body { background: var(--paper); }
     </section>
     </div>
 
-    <aside class="results" aria-label="Results">
-      <p class="results-kicker">Results</p>
-      <div class="builds" id="builds-panel" hidden>
-        <div class="section-head">
-          <h3>Builds that pass</h3>
-          <p class="model-status" id="model-status">Scoring this delivery…</p>
-        </div>
-        <div class="range-view" id="range-view"></div>
-        <div class="run-row">
-          <div class="field run-field"><label for="run-size">Parts in this run (optional)</label><input id="run-size" inputmode="numeric" type="text" placeholder="e.g. 500"></div>
-          <p class="run-note" id="run-note"></p>
-        </div>
-        <ol class="build-list" id="build-list"></ol>
-        <div class="downloads" id="downloads" hidden>
-          <p class="downloads-note"><strong>Results live on this page</strong> — the decision at the top, the builds and range view here. Take them with you:</p>
-          <div class="downloads-row">
-            <button class="dl-button" id="dl-txt" type="button">Build ticket (.txt)</button>
-            <button class="dl-button" id="dl-csv" type="button">Table (.csv)</button>
-            <button class="dl-button" id="dl-json" type="button">Data (.json)</button>
-          </div>
-          <p class="downloads-formats">Text is for the shop floor, to print or paste. CSV opens in a spreadsheet. JSON is the same results as data for another system, in metric with the units named in the file.</p>
-        </div>
-        <p class="empty-build" id="empty-build" hidden>No build passes yet. The batch gap is below.</p>
-        <div class="meta-trace" id="meta-trace" hidden></div>
-      </div>
 
-      <div class="gap" id="gap" aria-live="polite" hidden></div>
-
-      <div class="ask" id="ask-panel" aria-labelledby="ask-title" hidden>
-        <h3 id="ask-title">Ask about this delivery</h3>
-        <div class="ask-row">
-          <input id="ask-question" type="text" placeholder="What should I add or change to make this batch work?" autocomplete="off">
-          <button class="ask-button" id="ask-button" type="button">Ask</button>
-        </div>
-        <p class="ask-status" id="ask-status"></p>
-        <div class="ask-answer" id="ask-answer" aria-live="polite"></div>
-      </div>
-    </aside>
   </div>
 </main>
 
@@ -2898,6 +2947,93 @@ function renderProgress(result) {
   $('progress-next').textContent = next;
 }
 
+
+function renderVerdict(result, decision) {
+  const card = $('verdict');
+  if (!result.ready || !result.current) {
+    card.hidden = true;
+    $('gap-title').hidden = true;
+    return;
+  }
+  card.hidden = false;
+  $('gap-title').hidden = false;
+  const item = result.winner || result.current;
+  const chip = $('verdict-chip');
+  chip.textContent = result.winner ? 'Works' : 'Does not pass';
+  chip.className = `verdict-chip ${result.winner ? 'pass' : 'fail'}`;
+  $('verdict-title').textContent = decision.headline;
+  $('verdict-build').textContent = result.winner
+    ? `${proposalRow(result.state, item).originLabel} · material: ${proposalRow(result.state, item).added}`
+    : `As entered: ${buildSizeText(item.part)}`;
+  const tbody = $('verdict-rows');
+  tbody.replaceChildren();
+  result.targets.forEach((target, i) => {
+    const meta = propertyMeta(target.property);
+    const range = item.ranges[i];
+    const passes = range.min >= target.min - 1e-9 && range.max <= target.max + 1e-9;
+    const tr = document.createElement('tr');
+    const cells = [
+      meta.label,
+      formatTarget(target),
+      formatRange(range, meta.unit),
+    ];
+    cells.forEach((text, idx) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (idx > 0) td.className = 'num';
+      tr.append(td);
+    });
+    const status = document.createElement('td');
+    status.className = `v-status ${passes ? 'pass' : 'fail'}`;
+    if (passes) {
+      const lowMargin = range.min - target.min;
+      const highMargin = target.max - range.max;
+      status.textContent = `Inside · margin ${fmtVal(Math.min(lowMargin, highMargin), meta.unit)}`;
+    } else if (range.min < target.min && range.max > target.max) {
+      status.textContent = `Short ${fmtVal(target.min - range.min, meta.unit)} low, over ${fmtVal(range.max - target.max, meta.unit)} high`;
+    } else if (range.min < target.min) {
+      status.textContent = `Short by ${fmtVal(target.min - range.min, meta.unit)} at the low end`;
+    } else {
+      status.textContent = `Over by ${fmtVal(range.max - target.max, meta.unit)} at the high end`;
+    }
+    tr.append(status);
+    tbody.append(tr);
+    // slim range picture under each row: pale = needed, solid = given
+    const lo = Math.min(target.min, range.min);
+    const hi = Math.max(target.max, range.max);
+    const pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
+    const d0 = lo - pad; const d1 = hi + pad;
+    const pct = (v) => `${Math.max(0, Math.min(100, ((v - d0) / (d1 - d0)) * 100))}%`;
+    const width = (a, b) => `${Math.max(1.5, ((b - a) / (d1 - d0)) * 100)}%`;
+    const barRow = document.createElement('tr');
+    barRow.className = 'v-bar-row';
+    const barCell = document.createElement('td');
+    barCell.colSpan = 4;
+    const track = document.createElement('div');
+    track.className = 'rv-track';
+    const band = document.createElement('div');
+    band.className = 'rv-target';
+    band.style.left = pct(target.min); band.style.width = width(target.min, target.max);
+    const bar = document.createElement('div');
+    bar.className = `rv-bar ${passes ? 'pass' : 'fail'}`;
+    bar.style.left = pct(range.min); bar.style.width = width(range.min, range.max);
+    track.append(band, bar);
+    barCell.append(track);
+    barRow.append(barCell);
+    tbody.append(barRow);
+  });
+  const legend = document.createElement('tr');
+  legend.className = 'v-legend';
+  const lc = document.createElement('td');
+  lc.colSpan = 4;
+  lc.textContent = 'Pale band: what you need. Solid bar: what this build gives across the full delivery swing.';
+  legend.append(lc);
+  tbody.append(legend);
+  $('verdict-next').textContent = result.winner
+    ? 'Next: copy the build, or download it below.'
+    : 'Next: follow the change in the headline — or ask about this delivery below.';
+}
+
 function renderRangeView(result) {
   const wrap = $('range-view');
   wrap.replaceChildren();
@@ -3050,6 +3186,8 @@ function render(result) {
     $('support').textContent = decision.support;
   });
   if (!result.ready) {
+    $('verdict').hidden = true;
+    $('gap-title').hidden = true;
     $('build-list').replaceChildren();
     $('range-view').replaceChildren();
     $('run-note').textContent = '';
@@ -3059,8 +3197,8 @@ function render(result) {
     $('live').textContent = decision.headline;
     return;
   }
+  renderVerdict(result, decision);
   fade([$('build-list'), $('gap')], () => {
-    renderRangeView(result);
     renderRunNote(result);
     renderBuildList(result);
     renderGap(result);

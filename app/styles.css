@@ -896,3 +896,37 @@ body { background: var(--paper); }
 @media (min-width: 1021px) {
   .brief-submit, .brief-voice { min-width: 168px; }
 }
+
+/* --- Results placement: answer first on mobile, rail on desktop --- */
+@media (min-width: 1021px) {
+  .work > .bench { grid-column: 1; grid-row: 1; }
+  .work > .results { grid-column: 2; grid-row: 1; }
+}
+
+/* --- Verdict card --- */
+.verdict { background: #f1eee1; border: 1px solid var(--line-2); border-radius: 14px; padding: 18px 18px 14px; margin-bottom: 20px; }
+.verdict[hidden] { display: none; }
+.verdict-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.verdict-chip { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; border-radius: 999px; padding: 5px 11px; }
+.verdict-chip.pass { background: var(--pass); }
+.verdict-chip.fail { background: var(--fail); }
+.verdict-title { font-size: 16.5px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
+.verdict-build { margin: 10px 0 12px; font-size: 14px; color: #2c2c29; }
+.verdict-table { width: 100%; border-collapse: collapse; }
+.verdict-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; padding: 0 8px 7px 0; }
+.verdict-table td { font-size: 13.5px; padding: 9px 8px 4px 0; border-top: 1px solid #ddd8c6; vertical-align: top; }
+.verdict-table td.num, .verdict-table .v-status { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.v-status.pass { color: var(--pass); font-weight: 600; }
+.v-status.fail { color: var(--fail); font-weight: 600; }
+.v-bar-row td { border-top: 0; padding: 2px 0 10px; }
+.v-bar-row .rv-track { height: 10px; }
+.v-legend td { border-top: 0; color: var(--muted); font-size: 11.5px; padding-top: 2px; }
+.verdict-next { margin: 10px 0 4px; font-size: 13.5px; font-weight: 600; }
+.results-subhead { margin: 22px 0 4px; font-size: 14px; font-weight: 650; }
+.results-subhead[hidden] { display: none; }
+@media (max-width: 1020px) {
+  .verdict { padding: 16px 14px 12px; }
+  .verdict-table th, .verdict-table td { font-size: 12px; padding-right: 5px; }
+  .verdict-table td.num, .verdict-table .v-status { font-size: 11px; }
+  .verdict-title { font-size: 16px; }
+}
