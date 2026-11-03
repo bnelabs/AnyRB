@@ -6,6 +6,11 @@ import {
   PROPERTIES,
   PROPERTY_DEFAULTS,
   advicePayload,
+  allocatePriority,
+  buildCostPerPart,
+  effectiveMassG,
+  productionTotals,
+  stiffnessRangeFromLoadBend,
   allTargets,
   blendCandidate,
   buildSizeText,
@@ -35,6 +40,35 @@ const bracket = (overrides = {}) => normalizeState({
 const close = (actual, expected, tolerance = 1e-6) => {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} != ${expected}`);
 };
+
+test('production maths: waste, stock cover, allocation and build cost', () => {
+  const range = stiffnessRangeFromLoadBend(10, 5, 0);
+  close(range.min, (10 * 9.80665) / 5, 1e-9);
+  close(range.max, range.min * 10, 1e-9);
+  assert.equal(stiffnessRangeFromLoadBend(0, 5), null);
+  assert.equal(stiffnessRangeFromLoadBend(10, 5, 9), null);
+
+  close(effectiveMassG(100, 10), 110, 1e-9);
+  const totals = productionTotals({ massG: 100, runSize: 500, haveKg: 60, wastePct: 10 });
+  close(totals.needKg, 55, 1e-9);            // 500 x 110 g
+  close(totals.baseNeedKg, 50, 1e-9);        // before waste
+  assert.equal(totals.canMake, 545);         // floor(60000 / 110)
+  assert.equal(totals.covers, true);
+  close(totals.leftKg, 5, 1e-9);
+  assert.equal(totals.moreParts, 45);
+  const short = productionTotals({ massG: 100, runSize: 500, haveKg: 40, wastePct: 0 });
+  assert.equal(short.covers, false);
+  close(short.shortKg, 10, 1e-9);
+
+  const alloc = allocatePriority(100, { qty: 500, usageG: 100 }, { qty: 500, usageG: 200 });
+  assert.deepEqual(alloc, { firstMade: 500, secondMade: 250, leftG: 0 });
+
+  close(buildCostPerPart({ move: 'current', massG: 200 }, { batchPricePerKg: 10 }), 2, 1e-9);
+  close(buildCostPerPart({ move: 'blend', fraction: 0.25, massG: 200 }, { batchPricePerKg: 10, steadyPricePerKg: 20 }), 2.5, 1e-9);
+  assert.equal(buildCostPerPart({ move: 'blend', fraction: 0.25, massG: 200 }, { batchPricePerKg: 10 }), null);
+  // treated: 200 g in the part took 250 g of raw delivery at 20% loss
+  close(buildCostPerPart({ move: 'treated', massG: 200 }, { batchPricePerKg: 10, treatPricePerKg: 5, treatLossPct: 20 }), 3.5, 1e-9);
+});
 
 test('mechanics: cantilever capacity, stiffness and mass', () => {
   const part = { product: 'bracket', mode: 'cantilever', spanMm: 180, widthMm: 40, thicknessMm: 10 };
@@ -515,6 +549,22 @@ test('settings keeps Meta in front and labels every model answer', async () => {
   assert.match(js, /answerSourceLine/);
   assert.match(js, /saved answer from an earlier call/);
   assert.match(js, /Voice: /);
+});
+
+test('production panel counts waste and sorting loss, and cost can disagree with the headline', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="waste-pct"/);
+  assert.match(html, /id="treat-loss"/);
+  assert.match(html, /id="stiffness-translator"/);
+  assert.match(js, /productionTotals/);
+  assert.match(js, /buildCostPerPart/);
+  assert.match(js, /allocatePriority/);
+  assert.match(js, /The headline does not change on price alone/);
+  assert.match(js, /strength is not rechecked here/);
+  assert.match(js, /checked against its own requirement/);
+  assert.match(js, /It can still make/);
 });
 
 test('the still-needed questions are on the page and ask for specific information', async () => {

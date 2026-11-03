@@ -171,6 +171,9 @@ export const DEFAULT_STATE = {
     spanMm: 260,
     widthMm: 50,
     thicknessMm: 16.5,
+    targetProperty: '',
+    targetMin: '',
+    targetMax: '',
   },
 };
 
@@ -220,6 +223,9 @@ function normalizePart(raw, fallback, blank = false) {
     spanMm: span > 0 ? clamp(span, 20, 6000) : 0,
     widthMm: width > 0 ? clamp(width, 2, 800) : 0,
     thicknessMm: thickness > 0 ? clamp(thickness, 1, 400) : 0,
+    targetProperty: PROPERTY_KEYS.has(source.targetProperty) ? source.targetProperty : '',
+    targetMin: source.targetMin === '' || source.targetMin == null ? '' : num(source.targetMin, 0),
+    targetMax: source.targetMax === '' || source.targetMax == null ? '' : num(source.targetMax, 0),
   };
 }
 
@@ -415,6 +421,67 @@ export function stiffness(part, eMpa) {
 /** Mass in grams at a density in g/cm3. */
 export function massG(part, density) {
   return (density * part.widthMm * part.thicknessMm * part.spanMm) / 1000;
+}
+
+/** Stiffness asked in shop terms: a weight pressing on the part and how far
+ * it may bend under it. Returns the stiffness window in N/mm, or null. */
+export function stiffnessRangeFromLoadBend(loadKg, bendMm, bendMinMm = 0) {
+  if (!(loadKg > 0) || !(bendMm > 0) || bendMinMm < 0 || (bendMinMm > 0 && bendMinMm > bendMm)) return null;
+  const low = (loadKg * 9.80665) / bendMm;
+  const high = bendMinMm > 0 ? (loadKg * 9.80665) / bendMinMm : low * 10;
+  return { min: low, max: Math.max(high, low) };
+}
+
+/** Material for one part after the shop's own waste/reject allowance. */
+export function effectiveMassG(massGValue, wastePct = 0) {
+  const waste = Math.min(Math.max(Number(wastePct) || 0, 0), 95);
+  return massGValue * (1 + waste / 100);
+}
+
+/** Order and stock totals for a build, with waste counted per part. */
+export function productionTotals({ massG: partMassG, runSize = 0, haveKg = 0, wastePct = 0 }) {
+  const perPartG = effectiveMassG(partMassG, wastePct);
+  const needKg = runSize > 0 ? (perPartG * runSize) / 1000 : 0;
+  const canMake = haveKg > 0 && perPartG > 0 ? Math.floor((haveKg * 1000) / perPartG) : 0;
+  const covers = runSize > 0 && haveKg > 0 ? haveKg >= needKg : null;
+  return {
+    perPartG,
+    needKg,
+    baseNeedKg: runSize > 0 ? (partMassG * runSize) / 1000 : 0,
+    canMake,
+    covers,
+    shortKg: covers === false ? needKg - haveKg : 0,
+    leftKg: covers ? haveKg - needKg : 0,
+    moreParts: covers && perPartG > 0 ? Math.floor(((haveKg - needKg) * 1000) / perPartG) : 0,
+  };
+}
+
+/** Plastic cost of one part of a build, or null when a needed price is missing.
+ * `treatLossPct` is the share of the delivery lost in sorting/washing: the
+ * treated plastic in one part took more raw delivery than the part weighs. */
+export function buildCostPerPart(build, { batchPricePerKg = 0, steadyPricePerKg = 0, treatPricePerKg = 0, treatLossPct = 0 } = {}) {
+  if (!(build && build.massG > 0) || !(batchPricePerKg > 0)) return null;
+  const massKg = build.massG / 1000;
+  if (build.move === 'blend' && build.fraction) {
+    if (!(steadyPricePerKg > 0)) return null;
+    return massKg * ((1 - build.fraction) * batchPricePerKg + build.fraction * steadyPricePerKg);
+  }
+  if (build.move === 'treated') {
+    if (!(treatPricePerKg > 0)) return null;
+    const loss = Math.min(Math.max(Number(treatLossPct) || 0, 0), 95);
+    const rawKg = massKg / (1 - loss / 100);
+    return rawKg * batchPricePerKg + massKg * treatPricePerKg;
+  }
+  return massKg * batchPricePerKg;
+}
+
+/** Stock allocation when the first order goes first. Returns parts made. */
+export function allocatePriority(stockKg, first, second) {
+  const stockG = Math.max(0, stockKg) * 1000;
+  const firstMade = first.usageG > 0 ? Math.min(first.qty, Math.floor(stockG / first.usageG)) : 0;
+  const remainingG = stockG - firstMade * (first.usageG || 0);
+  const secondMade = second.usageG > 0 ? Math.min(second.qty, Math.floor(remainingG / second.usageG)) : 0;
+  return { firstMade, secondMade, leftG: remainingG - secondMade * (second.usageG || 0) };
 }
 
 function blendPlastic(plastic, fraction, steady) {

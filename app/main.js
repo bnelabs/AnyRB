@@ -6,6 +6,10 @@ import {
   CASE_PRESETS,
   PUBLISHED_BATCHES,
   advicePayload,
+  allocatePriority,
+  buildCostPerPart,
+  productionTotals,
+  stiffnessRangeFromLoadBend,
   convertForDisplay,
   convertFromDisplay,
   displayUnit,
@@ -121,6 +125,8 @@ let nextDensityG = 0;
 let batchPricePerKg = 0;
 let steadyPricePerKg = 0;
 let treatPricePerKg = 0;
+let wastePct = 0;
+let treatLossPct = 0;
 let costCurrency = localStorage.getItem('anyrb.currency') || '₺';
 let shareOtherName = '';
 let shareQtyMain = 0;
@@ -153,6 +159,32 @@ function updateTargetLabels() {
   $('target-max-label').textContent = isNone ? 'Not needed' : meta ? `High (${displayUnit(meta.unit)})` : 'High';
   $('target-min').disabled = isNone;
   $('target-max').disabled = isNone;
+  const translator = $('stiffness-translator');
+  if (translator) {
+    translator.hidden = state.target.property !== 'stiffness';
+    if (state.target.property === 'stiffness') {
+      $('stiff-load-label').textContent = `Weight pressing on it (${displayUnit('kg')})`;
+      $('stiff-bend-label').textContent = `How far may it bend down, at most (${displayUnit('mm')})`;
+      $('stiff-bend-min-label').textContent = `Smallest bend, if any (${displayUnit('mm')})`;
+    }
+  }
+}
+
+function applyStiffnessTranslator() {
+  const loadRaw = $('stiff-load').value.trim();
+  const bendRaw = $('stiff-bend').value.trim();
+  const bendMinRaw = $('stiff-bend-min').value.trim();
+  if (loadRaw === '' || bendRaw === '') return;
+  const range = stiffnessRangeFromLoadBend(
+    convertFromDisplay(Number(loadRaw), 'kg'),
+    convertFromDisplay(Number(bendRaw), 'mm'),
+    bendMinRaw === '' ? 0 : convertFromDisplay(Number(bendMinRaw), 'mm'),
+  );
+  if (!range) return;
+  state.target = { property: 'stiffness', min: range.min, max: range.max };
+  setValue('target-min', shownTarget(state.target.min, 'stiffness'));
+  setValue('target-max', shownTarget(state.target.max, 'stiffness'));
+  onFieldChange();
 }
 
 function updateSteadyVisibility() {
@@ -273,6 +305,12 @@ function paint() {
   setValue('other-span', shownValue('other-span', state.other.spanMm));
   setValue('other-width', shownValue('other-width', state.other.widthMm));
   setValue('other-thickness', shownValue('other-thickness', state.other.thicknessMm));
+  const otherTarget = $('other-target-property');
+  if (otherTarget) {
+    otherTarget.value = state.other.targetProperty || '';
+    setValue('other-target-min', state.other.targetProperty ? shownTarget(state.other.targetMin, state.other.targetProperty) : '');
+    setValue('other-target-max', state.other.targetProperty ? shownTarget(state.other.targetMax, state.other.targetProperty) : '');
+  }
   updateTargetLabels();
   updateSteadyVisibility();
   renderExtraTargets();
@@ -951,9 +989,9 @@ function applyNeed() {
       if (!(loadKg > 0) || !(bendMm > 0) || bendMinMm < 0 || (bendMinMm > 0 && bendMinMm > bendMm)) {
         return fail('Give the weight that presses on it and how far it may bend down under that weight. The smallest bend, if you give one, cannot be more than the largest bend.');
       }
-      const lowStiffness = (loadKg * 9.80665) / bendMm;
-      const highStiffness = bendMinMm > 0 ? (loadKg * 9.80665) / bendMinMm : lowStiffness * 10;
-      state.target = { property: 'stiffness', min: lowStiffness, max: Math.max(highStiffness, lowStiffness) };
+      const stiffnessRange = stiffnessRangeFromLoadBend(loadKg, bendMm, bendMinMm);
+      if (!stiffnessRange) return fail('Give the weight that presses on it and how far it may bend down under that weight.');
+      state.target = { property: 'stiffness', min: stiffnessRange.min, max: stiffnessRange.max };
       paint();
       refresh();
       return;
@@ -1019,18 +1057,9 @@ function renderCost(result) {
   head.append(hr);
   table.append(head);
   const body = document.createElement('tbody');
-  const costOf = (build) => {
-    const massKg = build.massG / 1000;
-    if (build.move === 'blend' && build.fraction) {
-      if (!(steadyPricePerKg > 0)) return null;
-      return massKg * ((1 - build.fraction) * batchPricePerKg + build.fraction * steadyPricePerKg);
-    }
-    if (build.move === 'treated') {
-      if (!(treatPricePerKg > 0)) return null;
-      return massKg * (batchPricePerKg + treatPricePerKg);
-    }
-    return massKg * batchPricePerKg;
-  };
+  const costOf = (build) => buildCostPerPart(build, {
+    batchPricePerKg, steadyPricePerKg, treatPricePerKg, treatLossPct,
+  });
   const costs = builds.map(costOf);
   const computable = costs.filter((c) => c != null && Number.isFinite(c));
   const cheapest = computable.length ? Math.min(...computable) : null;
@@ -1055,6 +1084,19 @@ function renderCost(result) {
   });
   table.append(body);
   view.append(table);
+  if (result.winner && cheapest != null) {
+    const winnerCost = costOf(result.winner);
+    const cheapestIndex = costs.findIndex((c) => c != null && Math.abs(c - cheapest) < 1e-9);
+    if (winnerCost != null && cheapestIndex >= 0 && builds[cheapestIndex] !== result.winner) {
+      const saving = winnerCost - cheapest;
+      const conflict = document.createElement('p');
+      conflict.className = 'cost-ask';
+      conflict.textContent = runSize > 0
+        ? `The headline build above uses the least added material. The cheapest build here would save ${money(saving)} a part — ${money(saving * runSize)} over this order. The headline does not change on price alone; which one matters is your call.`
+        : `The headline build above uses the least added material. The cheapest build here would save ${money(saving)} a part. The headline does not change on price alone; which one matters is your call.`;
+      view.append(conflict);
+    }
+  }
   if (!result.winner && result.current) {
     const note = document.createElement('p');
     note.className = 'cost-ask';
@@ -1136,10 +1178,14 @@ function shareProfileState() {
   if (!shareOtherName) return null;
   if (shareOtherName === '__other') {
     const other = state.other;
+    if (!other.targetProperty || other.targetMin === '' || other.targetMax === '') return null;
     return {
       name: other.product,
-      note: 'checked against the same requirements as this part',
-      state: normalizeState({ ...state, product: other.product, mode: other.mode, spanMm: other.spanMm, widthMm: other.widthMm, thicknessMm: other.thicknessMm }),
+      note: 'checked against its own requirement',
+      state: normalizeState({
+        ...state, product: other.product, mode: other.mode, spanMm: other.spanMm, widthMm: other.widthMm, thicknessMm: other.thicknessMm,
+        target: { property: other.targetProperty, min: other.targetMin, max: other.targetMax }, extraTargets: [],
+      }),
     };
   }
   const item = loadLibrary(SAVED_PRODUCTS_KEY).find((entry) => entry.name === shareOtherName);
@@ -1173,7 +1219,11 @@ function renderShare(result) {
   }
   const profile = shareProfileState();
   if (!profile) {
-    line('Save another part first — “Save this part” at the top — then it can share this delivery. Or enter one under “Another product you make”.');
+    if (shareOtherName === '__other') {
+      line(`${state.other.product} has no requirement of its own yet — add what it has to do under “Another product you make”, and it can be checked against this delivery. It is not checked against this part's requirement.`);
+    } else {
+      line('Save another part first — “Save this part” at the top — then it can share this delivery. Or enter one under “Another product you make”.');
+    }
     return;
   }
   const mainName = state.product || 'this part';
@@ -1218,14 +1268,13 @@ function renderShare(result) {
     line(`Both orders fit in this delivery. Together they use ${fmtVal(needMainKg + needOtherKg, 'kg')} of the ${fmtVal(stock, 'kg')} you have, leaving ${fmtVal(left, 'kg')} — about ${Math.floor((left * 1000) / mainUsage).toLocaleString('en-US')} more ${mainName}, or ${Math.floor((left * 1000) / otherUsage).toLocaleString('en-US')} more ${profile.name}.`);
     return;
   }
-  const allocate = (firstQty, firstUsage, secondQty, secondUsage) => {
-    const firstMade = Math.min(firstQty, Math.floor((stock * 1000) / firstUsage));
-    const remaining = stock - (firstMade * firstUsage) / 1000;
-    const secondMade = Math.min(secondQty, Math.floor((remaining * 1000) / secondUsage));
-    return [firstMade, secondMade];
-  };
-  const [aFirst, bAfterA] = allocate(shareQtyMain, mainUsage, shareQtyOther, otherUsage);
-  const [bFirst, aAfterB] = allocate(shareQtyOther, otherUsage, shareQtyMain, mainUsage);
+  const effMain = mainUsage * (1 + wastePct / 100);
+  const effOther = otherUsage * (1 + wastePct / 100);
+  const allocA = allocatePriority(stock, { qty: shareQtyMain, usageG: effMain }, { qty: shareQtyOther, usageG: effOther });
+  const allocB = allocatePriority(stock, { qty: shareQtyOther, usageG: effOther }, { qty: shareQtyMain, usageG: effMain });
+  const [aFirst, bAfterA] = [allocA.firstMade, allocA.secondMade];
+  const [bFirst, aAfterB] = [allocB.firstMade, allocB.secondMade];
+  if (wastePct > 0) line(`Your ${wastePct}% waste and rejects are counted in those shares.`);
   const allocLine = (firstName, firstMade, firstQty, secondName, secondMade, secondQty) => {
     const shorts = [];
     if (firstQty - firstMade > 0) shorts.push(`${(firstQty - firstMade).toLocaleString('en-US')} ${firstName}`);
@@ -1408,31 +1457,37 @@ function renderRunNote(result) {
   if (!(runSize > 0) && !(materialHaveKg > 0) && !(nextDensityG > 0)) {
     line(`One part uses ${fmtVal(massG / 1000, 'kg')} of plastic. Say how many parts are in the order, or how much of this delivery you have, and the totals appear here.`);
   }
+  const totals = productionTotals({ massG, runSize, haveKg: materialHaveKg, wastePct });
   if (runSize > 0) {
-    const needKg = (massG * runSize) / 1000;
+    const needKg = totals.needKg;
     if (item.move === 'blend' && item.fraction) {
       const pct = Math.round(item.fraction * 100);
       line(`This order of ${runSize.toLocaleString('en-US')} parts needs ${fmtVal(needKg, 'kg')} of plastic in total — ${fmtVal(needKg * item.fraction, 'kg')} of ${state.steady.type || 'the mix-in plastic'} (${pct}%) and ${fmtVal(needKg * (1 - item.fraction), 'kg')} of this delivery.`);
     } else {
       line(`This order of ${runSize.toLocaleString('en-US')} parts needs ${fmtVal(needKg, 'kg')} of plastic.`);
     }
+    if (item.move === 'treated' && treatLossPct > 0) {
+      line(`Sorting or washing loses ${treatLossPct}% of the delivery as entered, so that order takes about ${fmtVal(needKg / (1 - treatLossPct / 100), 'kg')} of the delivery as it arrives.`);
+    }
+    if (wastePct > 0) {
+      line(`That includes your ${wastePct}% waste and rejects — ${fmtVal(totals.baseNeedKg, 'kg')} becomes ${fmtVal(needKg, 'kg')}.`);
+    } else {
+      line('Those totals are before waste and rejects — add yours above if you have them.');
+    }
     if (Math.abs(item.addedG) >= 0.5 && item.move !== 'blend') {
-      const diffKg = (item.addedG * runSize) / 1000;
+      const diffKg = (item.addedG * runSize * (1 + wastePct / 100)) / 1000;
       line(item.addedG > 0
         ? `That is ${fmtVal(diffKg, 'kg')} more than making them exactly as entered.`
         : `That is ${fmtVal(Math.abs(diffKg), 'kg')} less than making them exactly as entered.`);
     }
   }
   if (materialHaveKg > 0 && massG > 0) {
-    const canMake = Math.floor((materialHaveKg * 1000) / massG);
-    line(`The ${fmtVal(materialHaveKg, 'kg')} of this delivery you have makes about ${canMake.toLocaleString('en-US')} parts.`);
+    line(`The ${fmtVal(materialHaveKg, 'kg')} of this delivery you have makes about ${totals.canMake.toLocaleString('en-US')} parts.`);
     if (runSize > 0) {
-      const needKg = (massG * runSize) / 1000;
-      if (materialHaveKg >= needKg) {
-        const leftKg = materialHaveKg - needKg;
-        line(`This delivery covers the order and leaves ${fmtVal(leftKg, 'kg')} — about ${Math.floor((leftKg * 1000) / massG).toLocaleString('en-US')} more parts.`);
+      if (totals.covers) {
+        line(`This delivery covers the order and leaves ${fmtVal(totals.leftKg, 'kg')} — about ${totals.moreParts.toLocaleString('en-US')} more parts.`);
       } else {
-        line(`It does not cover the whole order: you are ${fmtVal(needKg - materialHaveKg, 'kg')} short, so the rest has to come from another delivery or the mix-in plastic.`);
+        line(`It does not cover the whole order: you are ${fmtVal(totals.shortKg, 'kg')} short, so the rest has to come from another delivery or the mix-in plastic.`);
       }
     }
   }
@@ -1443,6 +1498,7 @@ function renderRunNote(result) {
     let text = `If the next delivery's density is ${fmtVal(nextDensityG, 'g/cm³')} instead of ${fmtVal(state.plastic.density, 'g/cm³')}, one part weighs ${fmtVal(nextMassG / 1000, 'kg')} instead of ${fmtVal(massG / 1000, 'kg')} (${Math.abs(changePct)}% ${sign}).`;
     if (runSize > 0) text += ` The same order then needs ${fmtVal((nextMassG * runSize) / 1000, 'kg')}.`;
     if (materialHaveKg > 0) text += ` The same stock makes about ${Math.floor((materialHaveKg * 1000) / nextMassG).toLocaleString('en-US')} parts.`;
+    text += ' That is the weight only — a next delivery with a different density is usually a different material, and its strength is not rechecked here. Compare the saved delivery above to check it.';
     line(text);
   }
 
@@ -1457,11 +1513,33 @@ function renderRunNote(result) {
       use.append(p2);
     }
   }
+  if (!result.winner && state.target.property !== 'none') {
+    const savedNoLoad = loadLibrary(SAVED_PRODUCTS_KEY).find((item) => item && item.target && item.target.property === 'none');
+    if (savedNoLoad) {
+      const rerouteState = normalizeState({
+        ...state,
+        product: savedNoLoad.product, mode: savedNoLoad.mode || '',
+        spanMm: savedNoLoad.spanMm, widthMm: savedNoLoad.widthMm, thicknessMm: savedNoLoad.thicknessMm,
+        target: { property: 'none', min: '', max: '' }, extraTargets: [],
+        plastic: state.plastic, steady: state.steady,
+      });
+      const reroute = evaluateBuilds(rerouteState, []);
+      if (reroute.winner) {
+        const p0 = document.createElement('p');
+        p0.textContent = `This delivery cannot hold ${state.product}. It can still make ${savedNoLoad.product}, which carries no load: one at its size weighs ${fmtVal(reroute.winner.massG, 'g')} from this delivery's density.`;
+        use.append(p0);
+      }
+    } else {
+      const p0 = document.createElement('p');
+      p0.textContent = 'A delivery that cannot hold this part may still suit something that carries no load, like a mat or a panel — save one as a part and it will be costed against this delivery here.';
+      use.append(p0);
+    }
+  }
   const other = state.other;
   if (other && other.product && other.spanMm > 0 && other.widthMm > 0 && other.thicknessMm > 0
       && other.product.toLowerCase() !== String(state.product).toLowerCase()) {
     const p3 = document.createElement('p');
-    p3.textContent = `You also make ${other.product}. Whether this delivery should be saved for it depends on what that part has to do — that check takes one click:`;
+    p3.textContent = `You also make ${other.product}. Whether this delivery should be saved for it depends on what that part has to do. Start that check here, then answer what it has to do at the top:`;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'dl-button';
@@ -1829,6 +1907,7 @@ function onPrimary() {
 // ---------------------------------------------------------------------------
 setSelectOptions('mode', MODES.map((m) => ({ key: m.key, label: m.label })));
 setSelectOptions('other-mode', MODES.map((m) => ({ key: m.key, label: m.label })));
+setSelectOptions('other-target-property', [{ key: '', label: 'Not set yet' }, ...PROPERTIES.map((p) => ({ key: p.key, label: p.key === 'none' ? p.label : `${p.label} (${p.unit})` }))]);
 for (const id of ['mode', 'other-mode']) {
   const choose = document.createElement('option');
   choose.value = '';
@@ -1927,6 +2006,19 @@ bind('other-product', 'other.product');
 bind('other-span', 'other.spanMm');
 bind('other-width', 'other.widthMm');
 bind('other-thickness', 'other.thicknessMm');
+$('other-target-property').addEventListener('change', (event) => {
+  state.other = { ...state.other, targetProperty: event.target.value, targetMin: '', targetMax: '' };
+  paint();
+  onFieldChange();
+});
+for (const [id, key] of [['other-target-min', 'targetMin'], ['other-target-max', 'targetMax']]) {
+  $(id).addEventListener('input', (event) => {
+    const raw = event.target.value.trim();
+    const unit = targetUnit(state.other.targetProperty || 'strength');
+    state.other = { ...state.other, [key]: raw === '' ? '' : convertFromDisplay(Number(raw), unit) };
+    onFieldChange();
+  });
+}
 bindSelect('mode', 'mode');
 bindSelect('other-mode', 'other.mode');
 bindSelect('dirt-level', 'plastic.dirtLevel');
@@ -2282,6 +2374,7 @@ for (const id of ['e-min', 'e-max', 's-min', 's-max', 'density', 'treated-e-min'
 }
 for (const button of $$('.case')) button.addEventListener('click', () => applyCase(button.dataset.case));
 $('add-target').addEventListener('click', addTarget);
+for (const id of ['stiff-load', 'stiff-bend', 'stiff-bend-min']) $(id).addEventListener('input', applyStiffnessTranslator);
 $('primary').addEventListener('click', onPrimary);
 $('decision-bar-action').addEventListener('click', onPrimary);
 $('need-apply').addEventListener('click', applyNeed);
@@ -2319,6 +2412,16 @@ $('next-density').addEventListener('input', (event) => {
   const parsed = Number(event.target.value);
   nextDensityG = Number.isFinite(parsed) && parsed > 0 ? convertFromDisplay(parsed, 'g/cm³') : 0;
   if (lastResult) renderRunNote(lastResult);
+});
+$('waste-pct').addEventListener('input', (event) => {
+  const parsed = Number(event.target.value);
+  wastePct = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 95) : 0;
+  if (lastResult) { renderRunNote(lastResult); renderShare(lastResult); }
+});
+$('treat-loss').addEventListener('input', (event) => {
+  const parsed = Number(event.target.value);
+  treatLossPct = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 95) : 0;
+  if (lastResult) { renderCost(lastResult); renderRunNote(lastResult); }
 });
 $('ask-button').addEventListener('click', askMeta);
 $('ask-question').addEventListener('keydown', (event) => {
