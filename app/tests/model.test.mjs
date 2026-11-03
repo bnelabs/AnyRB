@@ -465,3 +465,30 @@ test('settings, progress and downloads are wired without a key in the source', a
   assert.match(js, /setUnitSystem/);
   assert.doesNotMatch(js, /META_API_KEY\s*=/);
 });
+
+test('the still-needed questions are on the page and ask for specific information', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="need-panel"/);
+  assert.match(html, /id="need-question"/);
+  assert.match(js, /What does it have to do\?/);
+  assert.match(js, /What is this delivery closest to\?/);
+  assert.match(js, /missingSteps/);
+});
+
+test('a blank start stays blank after re-normalising (no silent default delivery)', () => {
+  const s = normalizeState({
+    blank: true, product: 'insulation panels', mode: 'simple',
+    spanMm: 1200, widthMm: 600, thicknessMm: 15,
+    target: { property: 'strength', min: 10, max: 400 },
+    plastic: { type: 'recycled HDPE, ABS, PET and PP' },
+  });
+  const again = normalizeState(s);
+  assert.equal(again.plastic.eMin, 0);
+  assert.equal(again.plastic.sMin, 0);
+  assert.equal(isReady(again), false);
+  const result = evaluateBuilds(again, []);
+  assert.equal(result.winner, null);
+  assert.equal(result.ready, false);
+});

@@ -262,6 +262,11 @@ export function normalizeState(raw = {}) {
   const width = num(source.widthMm, 0);
   const thickness = num(source.thicknessMm, 0);
   return {
+    // The blank marker must survive re-normalisation: without it, a state
+    // that started blank quietly refills the default plastic ranges the
+    // moment a product exists, and the app calculates against a delivery
+    // nobody entered.
+    blank,
     product,
     mode: MODE_KEYS.has(source.mode) ? source.mode : (blank ? '' : (product ? inferMode(product) : DEFAULT_STATE.mode)),
     spanMm: span > 0 ? clamp(span, 20, 6000) : 0,

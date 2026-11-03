@@ -578,6 +578,216 @@ function renderVerdict(result, decision) {
     : 'Next: follow the change in the headline — or ask about this delivery below.';
 }
 
+
+// ---------------------------------------------------------------------------
+// Still needed: ask for the specific missing information, in place.
+// The questions come from what is actually missing — nothing is asked twice,
+// and each answer goes into the same fields the form below uses.
+// ---------------------------------------------------------------------------
+let needStep = null;
+let needBatchNumbers = false;
+
+function validTargets() {
+  return [state.target, ...state.extraTargets]
+    .filter((t) => t && t.property && t.min !== '' && t.max !== '' && Number.isFinite(Number(t.min)) && Number.isFinite(Number(t.max)));
+}
+function missingSteps() {
+  const steps = [];
+  if (!state.product) steps.push('product');
+  if (!(state.spanMm > 0 && state.widthMm > 0 && state.thicknessMm > 0)) steps.push('size');
+  if (!state.mode) steps.push('held');
+  if (!validTargets().length) steps.push('target');
+  const batchSet = state.plastic.eMin > 0 && state.plastic.eMax > 0 && state.plastic.sMin > 0 && state.plastic.sMax > 0 && state.plastic.density > 0;
+  if (!batchSet) steps.push(needBatchNumbers ? 'batch-numbers' : 'batch');
+  return steps;
+}
+
+function needInput(id, label, unit, value = '') {
+  const wrap = document.createElement('div');
+  wrap.className = 'need-field';
+  const lab = document.createElement('label');
+  lab.htmlFor = id;
+  lab.textContent = unit ? `${label} (${unit})` : label;
+  const input = document.createElement('input');
+  input.id = id;
+  input.type = 'text';
+  if (id.startsWith('need-n')) input.inputMode = 'decimal';
+  input.value = value;
+  wrap.append(lab, input);
+  return { wrap, input };
+}
+
+function renderNeed(result) {
+  const panel = $('need-panel');
+  const started = Boolean(state.product || state.spanMm > 0 || state.target.property || state.plastic.type);
+  if (result.ready || !started) {
+    panel.hidden = true;
+    needStep = null;
+    return;
+  }
+  const steps = missingSteps();
+  if (!steps.length) {
+    panel.hidden = true;
+    needStep = null;
+    return;
+  }
+  panel.hidden = false;
+  needStep = steps[0];
+  $('need-progress').textContent = steps.length > 1 ? `${steps.length} things still needed` : 'Last thing needed';
+  const control = $('need-control');
+  control.replaceChildren();
+  const question = $('need-question');
+  const why = $('need-why');
+  const apply = $('need-apply');
+  apply.hidden = false;
+  apply.textContent = 'Continue';
+
+  if (needStep === 'product') {
+    question.textContent = 'What do you want to make?';
+    why.textContent = 'Name the part. Everything else is built around it.';
+    const { wrap } = needInput('need-product', 'The part');
+    control.append(wrap);
+    setTimeout(() => $('need-product').focus(), 0);
+  } else if (needStep === 'size') {
+    question.textContent = 'How big is it?';
+    why.textContent = 'Length, width and thickness — the size you make it at today is a good start.';
+    const unit = displayUnit('mm');
+    const a = needInput('need-n-span', 'Length', unit, state.spanMm ? String(Math.round(convertForDisplay(state.spanMm, 'mm') * 1000) / 1000) : '');
+    const b = needInput('need-n-width', 'Width', unit, state.widthMm ? String(Math.round(convertForDisplay(state.widthMm, 'mm') * 1000) / 1000) : '');
+    const c = needInput('need-n-thick', 'Thickness', unit, state.thicknessMm ? String(Math.round(convertForDisplay(state.thicknessMm, 'mm') * 1000) / 1000) : '');
+    const row = document.createElement('div');
+    row.className = 'need-row';
+    row.append(a.wrap, b.wrap, c.wrap);
+    control.append(row);
+  } else if (needStep === 'held') {
+    question.textContent = 'How is it held?';
+    why.textContent = 'This decides how the load goes through the part.';
+    const wrap = document.createElement('div');
+    wrap.className = 'need-field';
+    const lab = document.createElement('label');
+    lab.htmlFor = 'need-mode';
+    lab.textContent = 'Held';
+    const select = document.createElement('select');
+    select.id = 'need-mode';
+    for (const mode of MODES) {
+      const option = document.createElement('option');
+      option.value = mode.key;
+      option.textContent = mode.label;
+      select.append(option);
+    }
+    select.value = 'simple';
+    wrap.append(lab, select);
+    control.append(wrap);
+  } else if (needStep === 'target') {
+    question.textContent = 'What does it have to do?';
+    why.textContent = state.product
+      ? `Your description named the ${state.product}, but did not say what it has to do. Pick one and give the lowest and highest that are acceptable.`
+      : 'Pick what matters and give the lowest and highest that are acceptable.';
+    const wrap = document.createElement('div');
+    wrap.className = 'need-field';
+    const lab = document.createElement('label');
+    lab.htmlFor = 'need-property';
+    lab.textContent = 'It has to';
+    const select = document.createElement('select');
+    select.id = 'need-property';
+    for (const item of PROPERTIES) {
+      const option = document.createElement('option');
+      option.value = item.key;
+      option.textContent = item.key === 'strength' ? 'Carry a load' : item.key === 'stiffness' ? 'Not bend too much' : 'Stay under a weight';
+      select.append(option);
+    }
+    wrap.append(lab, select);
+    const lowUnit = document.createElement('span');
+    const a = needInput('need-n-low', 'Lowest acceptable', '');
+    const b = needInput('need-n-high', 'Highest acceptable', '');
+    const setUnits = () => {
+      const meta = propertyMeta(select.value);
+      a.wrap.querySelector('label').textContent = `Lowest acceptable (${displayUnit(meta.unit)})`;
+      b.wrap.querySelector('label').textContent = `Highest acceptable (${displayUnit(meta.unit)})`;
+    };
+    select.addEventListener('change', setUnits);
+    setUnits();
+    const row = document.createElement('div');
+    row.className = 'need-row';
+    row.append(a.wrap, b.wrap);
+    control.append(wrap, row);
+  } else if (needStep === 'batch') {
+    question.textContent = 'What is this delivery closest to?';
+    why.textContent = state.plastic.type
+      ? `Your description named ${state.plastic.type}. No single published range covers that, so choose the closest one — or use your supplier’s numbers.`
+      : 'Start from a published range for the kind of plastic. If your supplier gave you numbers, use those instead.';
+    apply.hidden = true;
+    for (const batch of PUBLISHED_BATCHES) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'need-chip';
+      button.textContent = batch.label;
+      button.addEventListener('click', () => {
+        batchSource = batch.key;
+        state.plastic = {
+          ...state.plastic,
+          type: batch.plastic.type,
+          eMin: batch.plastic.eMin, eMax: batch.plastic.eMax,
+          sMin: batch.plastic.sMin, sMax: batch.plastic.sMax,
+          density: batch.plastic.density,
+        };
+        paint();
+        refresh();
+      });
+      control.append(button);
+    }
+    const own = document.createElement('button');
+    own.type = 'button';
+    own.className = 'need-chip need-chip-own';
+    own.textContent = 'I have numbers from a supplier sheet or my own test';
+    own.addEventListener('click', () => {
+      needBatchNumbers = true;
+      batchSource = 'numbers';
+      renderNeed(lastResult || evaluateBuilds(state, modelProposals));
+      $('measured-fields').open = true;
+      document.querySelector('.batch').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    control.append(own);
+  } else if (needStep === 'batch-numbers') {
+    question.textContent = 'Your supplier’s numbers go under “This delivery”.';
+    why.textContent = 'Open “Have numbers…” there and type them in. The result appears as soon as they are in.';
+    apply.textContent = 'Take me there';
+  }
+}
+
+function applyNeed() {
+  if (!needStep) return;
+  const why = $('need-why');
+  const fail = (message) => { why.textContent = message; };
+  if (needStep === 'product') {
+    const value = $('need-product').value.trim();
+    if (!value) return fail('Give the part a name first.');
+    state.product = value;
+  } else if (needStep === 'size') {
+    const span = convertFromDisplay(Number($('need-n-span').value), 'mm');
+    const width = convertFromDisplay(Number($('need-n-width').value), 'mm');
+    const thick = convertFromDisplay(Number($('need-n-thick').value), 'mm');
+    if (!(span > 0 && width > 0 && thick > 0)) return fail('Give all three sizes, as numbers.');
+    state.spanMm = span; state.widthMm = width; state.thicknessMm = thick;
+  } else if (needStep === 'held') {
+    state.mode = $('need-mode').value;
+  } else if (needStep === 'target') {
+    const property = $('need-property').value;
+    const meta = propertyMeta(property);
+    const low = Number($('need-n-low').value);
+    const high = Number($('need-n-high').value);
+    if (!Number.isFinite(low) || !Number.isFinite(high) || low > high) return fail('Give both numbers, the lowest first.');
+    state.target = { property, min: convertFromDisplay(low, meta.unit), max: convertFromDisplay(high, meta.unit) };
+  } else if (needStep === 'batch-numbers') {
+    $('measured-fields').open = true;
+    document.querySelector('.batch').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => $('e-min').focus(), 400);
+    return;
+  }
+  paint();
+  refresh();
+}
+
 function renderRangeView(result) {
   const wrap = $('range-view');
   wrap.replaceChildren();
@@ -722,6 +932,7 @@ function render(result) {
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready;
   renderProgress(result);
+  renderNeed(result);
   renderDecisionBar(result, decision);
   $('see-details').hidden = !result.ready;
   $('downloads').hidden = !result.ready;
@@ -1343,10 +1554,10 @@ async function readBrief() {
       : 'That answer just came in.';
     let status = 'Done — the part is in the form.';
     if (!filledTargets.length) {
-      status += ' No result yet: your description did not say what it has to do. Add that below — how much it has to carry, how stiff it has to be, or how much it may weigh.';
+      status += ' No result yet: your description did not say what it has to do. The question is right below — answer it and the result appears.';
     }
     if (briefBatchChoiceNeeded) {
-      status += ' This delivery names more than one kind of plastic, so no range was chosen for it. Pick the closest one under “This delivery”, or enter your supplier’s numbers.';
+      status += ' This delivery names more than one kind of plastic, so no range was chosen for it. That question is below too.';
     } else if (briefPublished) {
       status += ` For this delivery, the published range “${briefPublished.label}” was used — that is a published range, not a measurement of this delivery. Change it under “This delivery” if your supplier’s numbers differ.`;
     }
@@ -1429,6 +1640,7 @@ for (const button of $$('.case')) button.addEventListener('click', () => applyCa
 $('add-target').addEventListener('click', addTarget);
 $('primary').addEventListener('click', onPrimary);
 $('decision-bar-action').addEventListener('click', onPrimary);
+$('need-apply').addEventListener('click', applyNeed);
 $('run-size').addEventListener('input', (event) => {
   const parsed = Number(String(event.target.value).replace(/[^0-9]/g, ''));
   runSize = Number.isFinite(parsed) ? parsed : 0;
