@@ -88,7 +88,12 @@ def _user_meta_scope(request: Request):
     model = (request.headers.get("x-user-meta-model") or "").strip() or None
     provider = (request.headers.get("x-user-provider") or "").strip().lower() or None
     base_url = (request.headers.get("x-user-base-url") or "").strip() or None
-    return meta_client.request_scope(key=key, model=model, provider=provider, base_url=base_url)
+    # `X-User-Cache-Bust: 1` forces a live re-call instead of a saved (cached)
+    # answer for this request only; the fresh result is still cached.
+    cache_bust = (request.headers.get("x-user-cache-bust") or "").strip().lower() in (
+        "1", "true", "yes", "on")
+    return meta_client.request_scope(key=key, model=model, provider=provider,
+                                     base_url=base_url, cache_bust=cache_bust)
 
 
 def _want_mock(request: Request) -> bool | None:

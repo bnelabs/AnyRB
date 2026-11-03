@@ -244,6 +244,7 @@ _KEY_OVERRIDE = _contextvars.ContextVar("anyrb_key_override", default=None)
 _MODEL_OVERRIDE = _contextvars.ContextVar("anyrb_model_override", default=None)
 _PROVIDER_OVERRIDE = _contextvars.ContextVar("anyrb_provider_override", default=None)
 _BASE_OVERRIDE = _contextvars.ContextVar("anyrb_base_override", default=None)
+_CACHE_BUST = _contextvars.ContextVar("anyrb_cache_bust", default=False)
 ALLOWED_MODEL_OVERRIDES = {"muse-spark-1.3-contributor", "muse-spark-1.3"}
 PROVIDER_BASES = {
     "meta": "https://api.meta.ai/v1",
@@ -286,18 +287,23 @@ def _clean_model(value, provider):
 
 
 class _request_scope:
-    def __init__(self, key=None, model=None, provider=None, base_url=None):
+    def __init__(self, key=None, model=None, provider=None, base_url=None,
+                 cache_bust=False):
         self.provider = provider if provider in PROVIDER_BASES else None
         effective_provider = self.provider or "meta"
         self.key = key or None
         self.model = _clean_model(model, effective_provider)
         self.base_url = _clean_base_url(base_url)
+        # True forces spark_json to skip the disk-cache READ for this request
+        # (a live re-call); the fresh result is still written to the cache.
+        self.cache_bust = bool(cache_bust)
 
     def __enter__(self):
         self._k = _KEY_OVERRIDE.set(self.key)
         self._m = _MODEL_OVERRIDE.set(self.model)
         self._p = _PROVIDER_OVERRIDE.set(self.provider)
         self._b = _BASE_OVERRIDE.set(self.base_url)
+        self._c = _CACHE_BUST.set(self.cache_bust)
         return self
 
     def __exit__(self, *exc):
@@ -305,11 +311,18 @@ class _request_scope:
         _MODEL_OVERRIDE.reset(self._m)
         _PROVIDER_OVERRIDE.reset(self._p)
         _BASE_OVERRIDE.reset(self._b)
+        _CACHE_BUST.reset(self._c)
         return False
 
 
-def request_scope(key=None, model=None, provider=None, base_url=None):
-    return _request_scope(key, model, provider, base_url)
+def request_scope(key=None, model=None, provider=None, base_url=None,
+                  cache_bust=False):
+    return _request_scope(key, model, provider, base_url, cache_bust=cache_bust)
+
+
+def cache_bust_requested() -> bool:
+    """True when the current request scope asked to bypass the cache read."""
+    return bool(_CACHE_BUST.get())
 
 
 def _effective_key() -> str:
@@ -519,6 +532,11 @@ def spark_json(kind: str, system: str, payload: dict,
 
     Resolution order: explicit mock (bypasses cache) -> disk cache -> live network ->
     deterministic fallback. `_meta` describes what actually happened.
+
+    When the request scope sets ``cache_bust`` (header `X-User-Cache-Bust: 1`),
+    the disk-cache READ is skipped so the model is called live again; the
+    fresh result is still written through `_cache_put` below. Without it the
+    default cache-first behaviour is unchanged.
     """
     mock_flag = _effective_mock(mock)
     # Cache identity includes the system prompt (a prompt change must not
@@ -529,9 +547,10 @@ def spark_json(kind: str, system: str, payload: dict,
     cache_key = f"spark_{cache_name or kind}_{_hash('spark', _effective_provider(), _effective_base(), _effective_model(), kind, system, key_fingerprint, payload)}.json"
     if mock_flag:
         return _fallback_result(kind, fallback, 0.0, True, "forced mock mode", "mock")
-    cached = _cache_get(cache_key)
-    if cached:
-        return _cached_result(kind, cached)
+    if not cache_bust_requested():
+        cached = _cache_get(cache_key)
+        if cached:
+            return _cached_result(kind, cached)
     if not _effective_key():
         if _effective_provider() != "meta" or (_BASE_OVERRIDE.get() and _BASE_OVERRIDE.get() != BASE):
             reason = "no key for this provider or endpoint: add your own key in Settings"

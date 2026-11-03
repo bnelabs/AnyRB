@@ -441,3 +441,138 @@ def test_zero_top_target_is_dropped_not_filled(client, monkeypatch):
     })
     data = client.post(ENDPOINT, json={"text": "crate side, carry 0 to 0 kg"}).json()
     assert data["brief"]["targets"] == []
+
+
+# ---------------------------------------------------------------------------
+# adversarial shop briefs (tricky wording)
+#
+# Division of labour under test, exactly as the code is built: the prompt
+# (PRODUCT_BRIEF_SYSTEM) governs the *semantic* mapping (load capacity ->
+# strength, part mass -> weight, N/mm -> stiffness, named plastic -> type),
+# and the sanitiser governs *numeric grounding* (a number the brief never
+# stated is dropped, field by field). Each test therefore feeds the
+# prompt-compliant extraction plus an invented extra with unstated numbers,
+# and asserts the stated mapping is kept while the extra is dropped. No
+# stronger guarantee is claimed: the sanitiser does not re-map a target
+# whose numbers *were* stated, and it never selects a published range —
+# published ranges live in the browser; here plastic numbers must stay
+# null unless the brief itself stated them.
+# ---------------------------------------------------------------------------
+def test_adversarial_load_capacity_kg_is_strength_never_weight(client, monkeypatch):
+    # (a) "load capacity 95 to 115 kg" is a strength target. The prompt maps
+    # it (see test_brief_prompt_maps_load_to_strength_and_mass_to_weight);
+    # a weight target with numbers this brief never stated is dropped.
+    _use_fake_live(monkeypatch, {
+        "product": "crate side", "mode": "simple",
+        "targets": [
+            {"property": "strength", "min": 95, "max": 115},
+            {"property": "weight", "min": 320, "max": 360},      # unstated -> dropped
+        ],
+    })
+    text = ("Make a crate side, supported at both ends. Each side has a "
+            "load capacity 95 to 115 kg.")
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["available"] is True
+    targets = data["brief"]["targets"]
+    assert [(t["property"], t["min"], t["max"]) for t in targets] == [
+        ("strength", 95.0, 115.0)]
+    assert "weight" not in [t["property"] for t in targets]
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "targets[1].min" in dropped and "targets[1].max" in dropped
+
+
+def test_adversarial_tonnes_a_week_invents_no_strength_target(client, monkeypatch):
+    # (b) "1.8 tonnes of crates a week" is production throughput, not a part
+    # load, so the prompt-compliant extraction has no target at all. An
+    # invented strength window whose numbers were never stated is dropped,
+    # leaving no strength target.
+    _use_fake_live(monkeypatch, {
+        "product": "crates",
+        "targets": [{"property": "strength", "min": 95, "max": 115}],  # unstated
+    })
+    text = "We make crates here - we get through 1.8 tonnes of crates a week."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["product"] == "crates"
+    assert data["brief"]["targets"] == []
+    assert "strength" not in json.dumps(data["brief"]["targets"])
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "targets[0].min" in dropped and "targets[0].max" in dropped
+
+
+def test_adversarial_sag_invents_no_stiffness_numbers(client, monkeypatch):
+    # (c) "sags about 10 mm under a person" states no stiffness number: the
+    # prompt's stiffness mapping is stiffness / spring rate / deflection in
+    # N/mm, and the brief gives neither a rate nor a load in numbers. What
+    # the code guarantees - and only this - is that invented stiffness
+    # numbers (target or plastic) are dropped as ungrounded.
+    _use_fake_live(monkeypatch, {
+        "product": "shelf board",
+        "targets": [{"property": "stiffness", "min": 25, "max": 40}],   # unstated
+        "plastic": {"stiffness_min_mpa": 900, "stiffness_max_mpa": 1200},  # unstated
+    })
+    text = "Make a shelf board - it sags about 10 mm under a person in the middle."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    assert data["brief"]["product"] == "shelf board"
+    assert data["brief"]["targets"] == []                     # no stiffness target invented
+    plastic = data["brief"]["plastic"]
+    assert plastic["stiffness_min_mpa"] is None and plastic["stiffness_max_mpa"] is None
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    for field in ("targets[0].min", "targets[0].max",
+                  "plastic.stiffness_min_mpa", "plastic.stiffness_max_mpa"):
+        assert field in dropped, field
+    # the stated mapping rule itself is the N/mm one, nothing broader
+    from server import product_ai
+    assert "deflection in N/mm is a **stiffness** target" in product_ai.PRODUCT_BRIEF_SYSTEM
+
+
+def test_adversarial_not_hdpe_its_pp_selects_no_hdpe_range(client, monkeypatch):
+    # (d) "not HDPE, it's PP": the extracted plastic type is PP, and none of
+    # the HDPE published-range numbers (app/product.js: stiffness 1111-1589 /
+    # 741-1159, strength 41.6-48.4, density 0.94) may appear - the brief
+    # stated no plastic numbers at all, so every one is dropped. The server
+    # brief itself selects no published range; it only keeps the type.
+    _use_fake_live(monkeypatch, {
+        "product": "panel",
+        "plastic": {"type": "PP",
+                    "stiffness_min_mpa": 1111, "stiffness_max_mpa": 1589,
+                    "strength_min_mpa": 41.6, "strength_max_mpa": 48.4,
+                    "density_g_cm3": 0.94},                     # all unstated
+    })
+    text = "Make a panel from this delivery - not HDPE, it's PP."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    plastic = data["brief"]["plastic"]
+    assert plastic["type"] == "PP"
+    assert "hdpe" not in json.dumps(data["brief"]).lower()
+    for key in ("stiffness_min_mpa", "stiffness_max_mpa", "strength_min_mpa",
+                "strength_max_mpa", "density_g_cm3"):
+        assert plastic[key] is None, key
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "plastic.stiffness_min_mpa" in dropped
+    assert "plastic.density_g_cm3" in dropped
+
+
+def test_adversarial_three_plastics_keep_all_names_for_mixed_range(client, monkeypatch):
+    # (e) "HDPE, ABS and PP" names three plastics. Downstream (browser) maps
+    # two-or-more named kinds to the mixed published range, so the server
+    # must keep all three names in plastic.type, and must not attach any
+    # single-plastic or mixed published numbers (560-1040 / 14-22 / 0.93 in
+    # app/product.js) - the brief stated no numbers.
+    _use_fake_live(monkeypatch, {
+        "product": "board",
+        "plastic": {"type": "HDPE, ABS and PP",
+                    "stiffness_min_mpa": 560, "stiffness_max_mpa": 1040,
+                    "strength_min_mpa": 14, "strength_max_mpa": 22,
+                    "density_g_cm3": 0.93},                     # all unstated
+    })
+    text = "Make a board from this mixed delivery: HDPE, ABS and PP all in together."
+    data = client.post(ENDPOINT, json={"text": text}).json()
+    plastic = data["brief"]["plastic"]
+    assert plastic["type"] == "HDPE, ABS and PP"
+    for name in ("HDPE", "ABS", "PP"):
+        assert name in plastic["type"], name
+    for key in ("stiffness_min_mpa", "stiffness_max_mpa", "strength_min_mpa",
+                "strength_max_mpa", "density_g_cm3"):
+        assert plastic[key] is None, key
+    dropped = data["_meta"]["extraction"]["dropped_ungrounded_fields"]
+    assert "plastic.stiffness_max_mpa" in dropped
+    assert "plastic.strength_min_mpa" in dropped

@@ -3,13 +3,18 @@ import assert from 'node:assert/strict';
 import {
   CASE_PRESETS,
   DEFAULT_STATE,
+  G,
+  PUBLISHED_BATCHES,
   PROPERTIES,
   PROPERTY_DEFAULTS,
   advicePayload,
   allocatePriority,
   buildCostPerPart,
   effectiveMassG,
+  loadPathComparison,
   productionTotals,
+  sheetYield,
+  steadyValues,
   stiffnessRangeFromLoadBend,
   allTargets,
   blendCandidate,
@@ -795,6 +800,261 @@ test('sorting or washing, with the effect entered, becomes a compared build', ()
   // without the treatment declared, no treated build may appear
   const plain = evaluateBuilds(bracket({ extraTargets: [], steady: { available: false, type: '', eMpa: 0, sMpa: 0 } }), []);
   assert.equal(plain.passingBest.filter((item) => item.move === 'treated').length, 0);
+});
+
+test('mix-in by kind: a published range blends at its weak end and can close a gap the raw delivery cannot', () => {
+  const batch = PUBLISHED_BATCHES.find((item) => item.key === 'rhdpe-measured-lot');
+  assert.ok(batch);
+  // Wide delivery (strength swing 14-28 MPa, ratio 2) against an 11.5-16.5 kg
+  // window (ratio 1.43): no thickness of the raw delivery can fit, because
+  // thickness scales both ends together. A single-value mix-in narrows it.
+  const s = bracket({
+    extraTargets: [{ property: 'stiffness', min: 1.5, max: 1.9 }],
+    plastic: { type: 'wide delivery', batch: 'June delivery', mix: '', dirt: '', dirtLevel: 'none', eMin: 700, eMax: 850, sMin: 14, sMax: 28, density: 0.94 },
+    steady: { available: true, type: '', source: 'published', publishedKey: 'rhdpe-measured-lot', eMpa: 0, sMpa: 0 },
+  });
+  // normalizeState preserves the route; the entered numbers stay 0.
+  assert.equal(s.steady.source, 'published');
+  assert.equal(s.steady.publishedKey, 'rhdpe-measured-lot');
+  assert.equal(s.steady.eMpa, 0);
+  assert.equal(s.steady.sMpa, 0);
+  // The values used are exactly the published weak end, not the strong end
+  // (1589 / 48.4) and not an average.
+  assert.deepEqual(steadyValues(s), { eMpa: 1111, sMpa: 41.6 });
+  assert.deepEqual(steadyValues(s), { eMpa: batch.plastic.eMin, sMpa: batch.plastic.sMin });
+  // A model-proposed blend also survives on the published route alone.
+  assert.equal(normalizeModelProposals(s, [{ move: 'blend', fraction: 0.5 }]).length, 1);
+
+  const candidate = blendCandidate(s);
+  assert.ok(candidate);
+  // With the weak end (41.6 MPa) the weak end of the blend reaches the
+  // window at f=0.61; the strong end (48.4 MPa) would already reach it at
+  // f=0.49. The exact fraction proves which end was used.
+  assert.equal(candidate.fraction, 0.61);
+
+  const result = evaluateBuilds(s, []);
+  assert.equal(result.current.pass, false);
+  assert.equal(result.winner.move, 'blend');
+  assert.equal(result.winner.fraction, 0.61);
+  // Exact blended ranges: plastic = 0.39 x delivery + 0.61 x weak end.
+  const f = 0.61;
+  const blendedSMin = (1 - f) * 14 + f * 41.6;
+  const blendedSMax = (1 - f) * 28 + f * 41.6;
+  const blendedEMin = (1 - f) * 700 + f * 1111;
+  const blendedEMax = (1 - f) * 850 + f * 1111;
+  close(result.winner.ranges[0].min, capacityN(result.winner.part, blendedEMin, blendedSMin) / G, 1e-9);
+  close(result.winner.ranges[0].max, capacityN(result.winner.part, blendedEMax, blendedSMax) / G, 1e-9);
+  close(result.winner.ranges[0].min, 11.645914497550887, 1e-9);
+  close(result.winner.ranges[1].min, stiffness(result.winner.part, blendedEMin), 1e-9);
+  close(result.winner.ranges[1].max, stiffness(result.winner.part, blendedEMax), 1e-9);
+
+  // The raw delivery, with no mix-in declared, has no passing build at all.
+  const raw = bracket({
+    extraTargets: [{ property: 'stiffness', min: 1.5, max: 1.9 }],
+    plastic: { type: 'wide delivery', batch: 'June delivery', mix: '', dirt: '', dirtLevel: 'none', eMin: 700, eMax: 850, sMin: 14, sMax: 28, density: 0.94 },
+    steady: { available: false, type: '', source: 'numbers', publishedKey: '', eMpa: 0, sMpa: 0 },
+  });
+  assert.equal(blendCandidate(raw), null);
+  assert.equal(evaluateBuilds(raw, []).winner, null);
+
+  // Decision and ticket copy say the published range was used at its weak end.
+  const decision = decisionFor(s, result);
+  assert.match(decision.support, /the published range for .* was used at its weak end/);
+  assert.match(decision.copy, /the published range for .* was used at its weak end/);
+  assert.match(decision.copy, /Blend: 61%/);
+
+  // Entered-numbers route is unchanged, and invalid routes fall back safely.
+  assert.deepEqual(steadyValues(bracket({ extraTargets: [] })), { eMpa: 2000, sMpa: 40 });
+  const bogus = normalizeState({
+    ...s,
+    steady: { available: true, type: 'x', source: 'published', publishedKey: 'no-such-batch', eMpa: 123, sMpa: 45 },
+  });
+  assert.equal(bogus.steady.publishedKey, '');
+  assert.deepEqual(steadyValues(bogus), { eMpa: 123, sMpa: 45 });
+  assert.equal(normalizeState({ ...s, steady: { ...s.steady, source: 'weird' } }).steady.source, 'numbers');
+});
+
+test('sort/wash by outcome: published range replaces entered ranges, and both routes name themselves', () => {
+  const batch = PUBLISHED_BATCHES.find((item) => item.key === 'rhdpe-measured-lot');
+  const basePart = {
+    extraTargets: [{ property: 'stiffness', min: 1.3, max: 2.0 }],
+    plastic: { type: 'delivery', batch: 'June delivery', mix: '', dirt: '', dirtLevel: 'none', eMin: 700, eMax: 850, sMin: 14, sMax: 18, density: 0.94 },
+    steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
+  };
+
+  // Published route: entered treated ranges are deliberately wrong (1-2 MPa);
+  // the build must still use the batch range, exactly.
+  const published = bracket({
+    ...basePart,
+    treated: { available: true, source: 'published', publishedKey: 'rhdpe-measured-lot', eMin: 1, eMax: 2, sMin: 1, sMax: 2 },
+  });
+  assert.equal(published.treated.source, 'published');
+  assert.equal(published.treated.publishedKey, 'rhdpe-measured-lot');
+  const pubResult = evaluateBuilds(published, []);
+  assert.equal(pubResult.winner.move, 'treated');
+  assert.equal(pubResult.winner.part.thicknessMm, 9);
+  close(pubResult.winner.ranges[0].min, capacityN(pubResult.winner.part, batch.plastic.eMin, batch.plastic.sMin) / G, 1e-9);
+  close(pubResult.winner.ranges[0].max, capacityN(pubResult.winner.part, batch.plastic.eMax, batch.plastic.sMax) / G, 1e-9);
+  close(pubResult.winner.ranges[0].min, 12.726058337964545, 1e-9);
+  close(pubResult.winner.ranges[1].min, stiffness(pubResult.winner.part, batch.plastic.eMin), 1e-9);
+  close(pubResult.winner.ranges[1].max, stiffness(pubResult.winner.part, batch.plastic.eMax), 1e-9);
+  const pubDecision = decisionFor(published, pubResult);
+  assert.match(pubDecision.support, /After sorting or washing — to the published range for .* you picked/);
+  assert.doesNotMatch(pubDecision.support, /to the ranges you entered/);
+  assert.match(pubDecision.copy, /to the published range for .* you picked/);
+
+  // Numbers route: the entered ranges are what is used, exactly.
+  const numbers = bracket({
+    ...basePart,
+    // Entered stiffness outcome is 700-850 MPa (not the batch's 1111-1589),
+    // so the stiffness window for this route is the one that range meets.
+    extraTargets: [{ property: 'stiffness', min: 0.8, max: 1.1 }],
+    treated: { available: true, source: 'numbers', publishedKey: '', eMin: 700, eMax: 850, sMin: 40, sMax: 44 },
+  });
+  const numResult = evaluateBuilds(numbers, []);
+  assert.equal(numResult.winner.move, 'treated');
+  assert.equal(numResult.winner.part.thicknessMm, 9);
+  close(numResult.winner.ranges[0].min, capacityN(numResult.winner.part, 700, 40) / G, 1e-9);
+  close(numResult.winner.ranges[0].max, capacityN(numResult.winner.part, 850, 44) / G, 1e-9);
+  close(numResult.winner.ranges[0].min, 12.23659455573514, 1e-9);
+  close(numResult.winner.ranges[1].min, stiffness(numResult.winner.part, 700), 1e-9);
+  close(numResult.winner.ranges[1].max, stiffness(numResult.winner.part, 850), 1e-9);
+  const numDecision = decisionFor(numbers, numResult);
+  assert.match(numDecision.support, /After sorting or washing — to the ranges you entered/);
+  assert.doesNotMatch(numDecision.support, /published range for .* you picked/);
+
+  // Availability: valid entered ranges OR a published key (with the
+  // treatment declared available). Invalid entered ranges, and an
+  // unresolvable published key, produce no treated build at all.
+  const invalidNumbers = bracket({
+    ...basePart,
+    treated: { available: true, source: 'numbers', publishedKey: '', eMin: 0, eMax: 0, sMin: 0, sMax: 0 },
+  });
+  assert.equal(evaluateBuilds(invalidNumbers, []).evaluated.filter((item) => item.move === 'treated').length, 0);
+  const invalidPublished = bracket({
+    ...basePart,
+    treated: { available: true, source: 'published', publishedKey: 'no-such-batch', eMin: 700, eMax: 850, sMin: 40, sMax: 44 },
+  });
+  assert.equal(invalidPublished.treated.publishedKey, '');
+  assert.equal(evaluateBuilds(invalidPublished, []).evaluated.filter((item) => item.move === 'treated').length, 0);
+});
+
+test('extreme geometry: a winner at a very different thickness is named plainly', () => {
+  const rhdpe = PUBLISHED_BATCHES.find((item) => item.key === 'rhdpe');
+  const s = normalizeState({
+    blank: true,
+    product: 'pallet block', mode: 'compression', spanMm: 150, widthMm: 150, thicknessMm: 80,
+    target: { property: 'strength', min: 500, max: 900 }, extraTargets: [],
+    plastic: { ...rhdpe.plastic },
+  });
+  const result = evaluateBuilds(s, []);
+  assert.ok(result.winner);
+  assert.equal(result.winner.part.thicknessMm, 11);
+  assert.ok(result.winner.part.thicknessMm < s.thicknessMm * 0.5);
+  close(result.winner.ranges[0].min, 551.445793430807, 1e-6);
+  close(result.winner.ranges[0].max, 862.5177794686981, 1e-6);
+  const decision = decisionFor(s, result);
+  assert.match(decision.support, /at a very different thickness \(11 mm, not 80 mm\)/);
+  assert.match(decision.copy, /at a very different thickness \(11 mm, not 80 mm\)/);
+  // The other direction too: a 5 mm arm whose winner is 11.5 mm (> 2x).
+  const thin = normalizeState({
+    ...DEFAULT_STATE,
+    product: 'support arm', mode: 'cantilever', spanMm: 300, widthMm: 50, thicknessMm: 5,
+    target: { property: 'strength', min: 14.5, max: 18 }, extraTargets: [],
+    plastic: { type: 'custom delivery', batch: 'June delivery', mix: '', dirt: '', dirtLevel: 'none', eMin: 1000, eMax: 1100, sMin: 40, sMax: 44, density: 0.95 },
+    steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
+  });
+  const thinResult = evaluateBuilds(thin, []);
+  assert.equal(thinResult.winner.part.thicknessMm, 11.5);
+  assert.match(decisionFor(thin, thinResult).support, /at a very different thickness \(11\.5 mm, not 5 mm\)/);
+  // An ordinary winner does not get the warning.
+  const crate = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate });
+  const crateDecision = decisionFor(crate, evaluateBuilds(crate, []));
+  assert.doesNotMatch(crateDecision.support, /very different thickness/);
+  assert.doesNotMatch(crateDecision.copy, /very different thickness/);
+});
+
+test('load-path comparison: a cheaper way of holding the same part is returned, otherwise null', () => {
+  const arm = normalizeState({
+    ...DEFAULT_STATE,
+    product: 'support arm', mode: 'cantilever', spanMm: 300, widthMm: 50, thicknessMm: 8,
+    target: { property: 'strength', min: 14.5, max: 18 }, extraTargets: [],
+    plastic: { type: 'custom delivery', batch: 'June delivery', mix: '', dirt: '', dirtLevel: 'none', eMin: 1000, eMax: 1100, sMin: 40, sMax: 44, density: 0.95 },
+    steady: { available: false, type: '', eMpa: 0, sMpa: 0 },
+  });
+  const armResult = evaluateBuilds(arm, []);
+  assert.equal(armResult.winner.part.thicknessMm, 11.5);
+  close(armResult.winner.massG, 163.875, 1e-9);
+  const comparison = loadPathComparison(arm, armResult);
+  assert.ok(comparison);
+  assert.equal(comparison.mode, 'simple');
+  assert.equal(comparison.modeLabel, 'Held at both ends');
+  assert.equal(comparison.thicknessMm, 6);
+  close(comparison.massG, 85.5, 1e-9);
+  // (163.875 - 85.5) / 163.875 = 47.826...% less material.
+  close(comparison.savingPct, 47.82608695652174, 1e-9);
+  assert.ok(comparison.savingPct > 45);
+
+  // With no winner, the entered build is the comparison baseline:
+  // the same arm plus a weight window no cantilever build can meet.
+  const weighed = normalizeState({ ...arm, extraTargets: [{ property: 'weight', min: 80, max: 100 }] });
+  const weighedResult = evaluateBuilds(weighed, []);
+  assert.equal(weighedResult.winner, null);
+  close(weighedResult.current.massG, 114, 1e-9);
+  const weighedComparison = loadPathComparison(weighed, weighedResult);
+  assert.equal(weighedComparison.mode, 'simple');
+  assert.equal(weighedComparison.thicknessMm, 6);
+  close(weighedComparison.savingPct, 25, 1e-9);
+
+  // The crate already passes as entered under its own load path: no
+  // alternative both passes and saves 10%, so the answer is null.
+  const crate = normalizeState({ ...DEFAULT_STATE, ...CASE_PRESETS.crate });
+  const crateResult = evaluateBuilds(crate, []);
+  assert.equal(crateResult.winner.move, 'current');
+  assert.equal(loadPathComparison(crate, crateResult), null);
+
+  // No load to check: there is no load path to compare.
+  const panel = normalizeState({
+    blank: true,
+    product: 'sound insulation panel', mode: 'simple', spanMm: 1200, widthMm: 800, thicknessMm: 35,
+    target: { property: 'none', min: '', max: '' },
+    plastic: { type: 'mixed plastics', density: 0.93 },
+  });
+  assert.equal(loadPathComparison(panel, evaluateBuilds(panel, [])), null);
+  assert.equal(loadPathComparison(arm, null), null);
+  assert.equal(loadPathComparison(arm, { ready: false }), null);
+});
+
+test('sheet yield: grid layouts in both orientations, exact counts', () => {
+  assert.deepEqual(
+    sheetYield({ sheetSpanMm: 2000, sheetWidthMm: 1000, partSpanMm: 1000, partWidthMm: 500 }),
+    { perSheet: 4, along: 2, across: 2 },
+  );
+  // Straight layout wins: floor(2000/600) x floor(1000/400) = 3 x 2.
+  assert.deepEqual(
+    sheetYield({ sheetSpanMm: 2000, sheetWidthMm: 1000, partSpanMm: 600, partWidthMm: 400 }),
+    { perSheet: 6, along: 3, across: 2 },
+  );
+  // Rotated layout wins: floor(2000/350) x floor(1000/700) = 5 x 1.
+  assert.deepEqual(
+    sheetYield({ sheetSpanMm: 2000, sheetWidthMm: 1000, partSpanMm: 700, partWidthMm: 350 }),
+    { perSheet: 5, along: 5, across: 1 },
+  );
+  // Remainder is waste, never rounded up: 3 x 3 of a 650 mm part, not 4 x 4.
+  assert.deepEqual(
+    sheetYield({ sheetSpanMm: 2000, sheetWidthMm: 1000, partSpanMm: 650, partWidthMm: 300 }),
+    { perSheet: 9, along: 3, across: 3 },
+  );
+  // Does not fit in either orientation, and missing sizes, yield nothing.
+  assert.deepEqual(
+    sheetYield({ sheetSpanMm: 2000, sheetWidthMm: 1000, partSpanMm: 2500, partWidthMm: 500 }),
+    { perSheet: 0, along: 0, across: 0 },
+  );
+  assert.deepEqual(
+    sheetYield({ sheetSpanMm: 2000, sheetWidthMm: 1000, partSpanMm: 0, partWidthMm: 500 }),
+    { perSheet: 0, along: 0, across: 0 },
+  );
+  assert.deepEqual(sheetYield({}), { perSheet: 0, along: 0, across: 0 });
 });
 
 test('supplier sheet intake and delivery comparison are wired', async () => {

@@ -43,7 +43,10 @@ The page asks one question — **What do you want to make?** — and needs three
 
 Change any number and the answer updates in place. Add a second or third requirement — strength
 and weight and stiffness together — and every one of them has to hold at once. State how many
-parts are in the run and grams become kilograms.
+parts are in the run and grams become kilograms; give a sheet size and the page counts cut parts
+per sheet. A mix-in plastic or a sorted delivery can be picked by kind — the published range is
+used at its weak end and the page says so — or by your own numbers. Anything the model wrote into
+the form is marked until you edit it, and any saved answer can be called again live.
 
 A **Progress** list under the question shows where you are at all times: the part, what must
 hold, this delivery, the Meta check, and the decision — each marked done or not, with one line
@@ -126,10 +129,17 @@ deployment; the API key stays in the server environment, never in the page.
 
 ```bash
 python3 app/build.py                                    # rebuild index.html from app/
-node app/tests/model.test.mjs                           # 61 app tests
-node app/tests/combinations.test.mjs                    # 13,200-case combination matrix
-AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 137 server tests (1 live smoke skipped)
+node app/tests/model.test.mjs                           # 75 app tests (66 checker + 9 page wiring)
+node app/tests/combinations.test.mjs                    # 13,200-case combination matrix (9 tests)
+AI_MOCK=1 .venv/bin/python -m pytest server/tests -q    # 144 server tests (1 live smoke skipped)
 ```
+
+Live evidence (real key, never recorded) is regenerated, not hand-written:
+`server/verify_product_live.py` (brief, proposals, feedback round, advice, voice —
+all live in the last run) and `server/verify_brief_benchmark.py` (18 shop-language
+briefs scored per field group — 18/18 all-pass, 90/90 groups, Muse Spark, in the
+last run). Outputs: `server/evidence/product_live_calls.json`,
+`server/evidence/model_benchmark.json`.
 
 ## What's in this repository
 

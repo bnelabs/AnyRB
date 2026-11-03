@@ -104,6 +104,10 @@ export const PUBLISHED_BATCHES = [
   },
 ];
 
+export function publishedBatchByKey(key) {
+  return PUBLISHED_BATCHES.find((batch) => batch.key === key) || null;
+}
+
 export function publishedBatchFor(text) {
   const t = String(text || '').toLowerCase();
   if (!t) return null;
@@ -127,6 +131,55 @@ export function publishedBatchFor(text) {
   }
   if (/polypropylene|\bpp\b/.test(t)) return PUBLISHED_BATCHES.find((b) => b.key === 'rpp');
   return null;
+}
+
+/**
+ * The single mix-in values a blend actually uses. Entered numbers are used
+ * as entered; a published range is used at its weak end (eMin/sMin), never
+ * at its strong end and never as an average — the conservative end is the
+ * one a blend can be checked against.
+ */
+function effectiveSteadyValues(steady) {
+  if (steady && steady.source === 'published') {
+    const batch = publishedBatchByKey(steady.publishedKey);
+    if (batch) return { eMpa: batch.plastic.eMin, sMpa: batch.plastic.sMin };
+  }
+  return {
+    eMpa: steady && Number.isFinite(Number(steady.eMpa)) ? Number(steady.eMpa) : 0,
+    sMpa: steady && Number.isFinite(Number(steady.sMpa)) ? Number(steady.sMpa) : 0,
+  };
+}
+
+export function steadyValues(stateInput) {
+  const state = normalizeState(stateInput);
+  return effectiveSteadyValues(state.steady);
+}
+
+function validTreatedRanges(treated) {
+  return Boolean(treated)
+    && treated.eMin > 0 && treated.eMax >= treated.eMin
+    && treated.sMin > 0 && treated.sMax >= treated.sMin;
+}
+
+/**
+ * Whether sorting/washing builds exist at all: the shop must declare the
+ * treatment available, and its outcome must be specified either by valid
+ * entered ranges ('numbers') or by a resolvable published range
+ * ('published'). A published key alone does not invent entered ranges, and
+ * entered ranges alone are not a published outcome.
+ */
+function isTreatedAvailable(state) {
+  if (!state || !state.treated || state.treated.available !== true) return false;
+  if (state.treated.source === 'published') return Boolean(publishedBatchByKey(state.treated.publishedKey));
+  return validTreatedRanges(state.treated);
+}
+
+function treatedRoutePhrase(state) {
+  if (state.treated && state.treated.source === 'published') {
+    const batch = publishedBatchByKey(state.treated.publishedKey);
+    if (batch) return `the published range for ${batch.plastic.type} you picked`;
+  }
+  return 'the ranges you entered';
 }
 
 export const PROPERTIES = [
@@ -164,7 +217,7 @@ export const DEFAULT_STATE = {
     sMax: 18,
     density: 0.94,
   },
-  steady: { available: true, type: 'stiffer bottle stream', eMpa: 2000, sMpa: 40 },
+  steady: { available: true, type: 'stiffer bottle stream', source: 'numbers', publishedKey: '', eMpa: 2000, sMpa: 40 },
   other: {
     product: 'heavier part',
     mode: 'cantilever',
@@ -309,6 +362,8 @@ export function normalizeState(raw = {}) {
     },
     treated: {
       available: source.treated?.available === true,
+      source: source.treated?.source === 'published' ? 'published' : 'numbers',
+      publishedKey: publishedBatchByKey(source.treated?.publishedKey) ? source.treated.publishedKey : '',
       eMin: Math.max(0, num(source.treated?.eMin, 0)),
       eMax: Math.max(0, num(source.treated?.eMax, 0)),
       sMin: Math.max(0, num(source.treated?.sMin, 0)),
@@ -317,6 +372,8 @@ export function normalizeState(raw = {}) {
     steady: {
       available: source.steady?.available === true,
       type: clean(source.steady?.type, 100),
+      source: source.steady?.source === 'published' ? 'published' : 'numbers',
+      publishedKey: publishedBatchByKey(source.steady?.publishedKey) ? source.steady.publishedKey : '',
       eMpa: clamp(num(source.steady?.eMpa, 0), 0, 200000),
       sMpa: clamp(num(source.steady?.sMpa, 0), 0, 5000),
     },
@@ -490,8 +547,9 @@ export function allocatePriority(stockKg, first, second) {
 
 function blendPlastic(plastic, fraction, steady) {
   const f = clamp(fraction, 0.05, 0.9);
-  const e = num(steady && steady.eMpa, 0);
-  const st = num(steady && steady.sMpa, 0);
+  const values = effectiveSteadyValues(steady);
+  const e = values.eMpa;
+  const st = values.sMpa;
   return {
     ...plastic,
     eMin: (1 - f) * plastic.eMin + f * e,
@@ -598,7 +656,21 @@ function candidatePart(state, candidate) {
 
 function plasticFor(state, candidate) {
   if (candidate.move === 'blend') return blendPlastic(state.plastic, candidate.fraction, state.steady);
-  if (candidate.move === 'treated' && state.treated && state.treated.available) {
+  if (candidate.move === 'treated' && isTreatedAvailable(state)) {
+    if (state.treated.source === 'published') {
+      const batch = publishedBatchByKey(state.treated.publishedKey);
+      if (batch) {
+        // Sorted/washed to a published outcome: that batch's plastic range,
+        // on this delivery's density. No entered range is mixed into it.
+        return {
+          ...state.plastic,
+          eMin: batch.plastic.eMin,
+          eMax: batch.plastic.eMax,
+          sMin: batch.plastic.sMin,
+          sMax: batch.plastic.sMax,
+        };
+      }
+    }
     return {
       ...state.plastic,
       eMin: state.treated.eMin || state.plastic.eMin,
@@ -627,10 +699,11 @@ function validCandidate(state, candidate) {
     return !samePart(other, currentPart(state));
   }
   if (candidate.move === 'blend') {
-    return state.steady.available && state.steady.eMpa > 0 && state.steady.sMpa > 0 && Number.isFinite(candidate.fraction) && candidate.fraction > 0;
+    const values = effectiveSteadyValues(state.steady);
+    return state.steady.available && values.eMpa > 0 && values.sMpa > 0 && Number.isFinite(candidate.fraction) && candidate.fraction > 0;
   }
   if (candidate.move === 'treated') {
-    return Boolean(state.treated && state.treated.available);
+    return isTreatedAvailable(state);
   }
   if (candidate.move === 'section') {
     // Width is the part's own size (a 600 mm panel is a 600 mm panel).
@@ -679,7 +752,8 @@ function normalizeCandidate(state, raw) {
   if (move === 'other') return { move: 'other' };
   if (move === 'blend') {
     const fraction = clamp(num(raw.fraction, NaN), 0.05, 0.9);
-    if (!Number.isFinite(fraction) || !state.steady.available || !state.steady.eMpa || !state.steady.sMpa) return null;
+    const values = effectiveSteadyValues(state.steady);
+    if (!Number.isFinite(fraction) || !state.steady.available || !values.eMpa || !values.sMpa) return null;
     return { move: 'blend', fraction: round(fraction, 3) };
   }
   return null;
@@ -746,10 +820,11 @@ export function materialGap(stateInput, part, targetInput = null) {
   const batch = materialRange(state.plastic, target.property);
   const shortLow = Math.max(0, required.min - batch.min);
   const overHigh = Math.max(0, batch.max - required.max);
+  const mixIn = effectiveSteadyValues(state.steady);
   const steadyValue = target.property === 'strength'
-    ? (state.steady.available ? state.steady.sMpa : 0)
+    ? (state.steady.available ? mixIn.sMpa : 0)
     : target.property === 'stiffness'
-      ? (state.steady.available ? state.steady.eMpa : 0)
+      ? (state.steady.available ? mixIn.eMpa : 0)
       : 0;
   const steadyShort = steadyValue > 0 ? Math.max(0, required.min - steadyValue) : null;
   // In compression a slender part can buckle before the material crushes.
@@ -807,10 +882,79 @@ export function minimumThicknessCandidate(stateInput) {
   return { move: 'thickness', thicknessMm: best.t, calculated: true };
 }
 
+/**
+ * The same part held a different way, if that plainly saves material.
+ * For every other load path, the least-material passing thickness is found
+ * with minimumThicknessCandidate on a mode-switched state — so the entered
+ * part is the comparison build and a same-thickness pass is not a saving.
+ * Returns the best { mode, modeLabel, thicknessMm, massG, savingPct } only
+ * when it passes and uses at least 10% less material than the current
+ * winner (or than the entered build when there is no winner); else null.
+ * A part with no strength/stiffness target has no load path to compare.
+ */
+export function loadPathComparison(stateInput, result) {
+  const state = normalizeState(stateInput);
+  if (!result || !result.ready) return null;
+  const targets = [state.target, ...state.extraTargets];
+  if (!targets.some((target) => target.property === 'strength' || target.property === 'stiffness')) return null;
+  if (!MODES.some((mode) => mode.key === state.mode)) return null;
+  const baselineMass = result.winner && Number.isFinite(result.winner.massG)
+    ? result.winner.massG
+    : result.current && Number.isFinite(result.current.massG)
+      ? result.current.massG
+      : massG(currentPart(state), state.plastic.density);
+  if (!(baselineMass > 0)) return null;
+  let best = null;
+  for (const mode of MODES) {
+    if (mode.key === state.mode) continue;
+    const switched = normalizeState({ ...state, mode: mode.key });
+    const candidate = minimumThicknessCandidate(switched);
+    if (!candidate) continue;
+    const part = { ...currentPart(switched), thicknessMm: candidate.thicknessMm };
+    const mass = massG(part, state.plastic.density);
+    if (!(mass > 0)) continue;
+    const savingPct = ((baselineMass - mass) / baselineMass) * 100;
+    if (savingPct < 10 - 1e-9) continue;
+    const alternative = {
+      mode: mode.key, modeLabel: mode.label, thicknessMm: candidate.thicknessMm, massG: mass, savingPct,
+    };
+    if (!best || alternative.massG < best.massG) best = alternative;
+  }
+  return best;
+}
+
+/**
+ * How many parts cut from one sheet, parts laid in a grid. Both part
+ * orientations are tried and the better one's layout is returned as
+ * { perSheet, along, across } (along the sheet span, across its width).
+ * Pure arithmetic: 0 when the part fits in neither orientation or any
+ * size is missing — no yield, waste, or kerf effect is invented.
+ */
+export function sheetYield({ sheetSpanMm, sheetWidthMm, partSpanMm, partWidthMm } = {}) {
+  const sheetSpan = Number(sheetSpanMm);
+  const sheetWidth = Number(sheetWidthMm);
+  const partSpan = Number(partSpanMm);
+  const partWidth = Number(partWidthMm);
+  if (![sheetSpan, sheetWidth, partSpan, partWidth].every((value) => Number.isFinite(value) && value > 0)) {
+    return { perSheet: 0, along: 0, across: 0 };
+  }
+  const layout = (alongSize, acrossSize) => {
+    const along = Math.floor(sheetSpan / alongSize);
+    const across = Math.floor(sheetWidth / acrossSize);
+    return { perSheet: along * across, along, across };
+  };
+  const straight = layout(partSpan, partWidth);
+  const rotated = layout(partWidth, partSpan);
+  const better = rotated.perSheet > straight.perSheet ? rotated : straight;
+  if (better.perSheet <= 0) return { perSheet: 0, along: 0, across: 0 };
+  return better;
+}
+
 /** A blend with the declared steadier stream, if the current build can pass. */
 export function blendCandidate(stateInput) {
   const state = normalizeState(stateInput);
-  if (!state.steady.available || !state.steady.eMpa || !state.steady.sMpa) return null;
+  const values = effectiveSteadyValues(state.steady);
+  if (!state.steady.available || !values.eMpa || !values.sMpa) return null;
   const part = currentPart(state);
   for (let f = 0.05; f <= 0.9001; f += 0.02) {
     const plastic = blendPlastic(state.plastic, f, state.steady);
@@ -856,7 +1000,8 @@ function searchModelMoves(state, proposals) {
     }
     if (proposal.move === 'blend') {
       let best = null;
-      if (state.steady.eMpa > 0 && state.steady.sMpa > 0) {
+      const values = effectiveSteadyValues(state.steady);
+      if (state.steady.available && values.eMpa > 0 && values.sMpa > 0) {
         for (let f = 0.05; f <= 0.9001; f += 0.02) {
           const candidate = { move: 'blend', fraction: +f.toFixed(2) };
           if (passesAllTargets(state, current, blendPlastic(plastic, candidate.fraction, state.steady))) {
@@ -1027,7 +1172,7 @@ export function evaluateBuilds(stateInput, modelProposals = []) {
     if (minimum) addCandidate(state, candidates, seen, minimum);
     const blend = blendCandidate(state);
     if (blend) addCandidate(state, candidates, seen, blend);
-    if (state.treated && state.treated.available) {
+    if (isTreatedAvailable(state)) {
       addCandidate(state, candidates, seen, { move: 'treated' });
       const treatedState = { ...state, plastic: plasticFor(state, { move: 'treated' }) };
       const treatedMin = minimumThicknessCandidate(treatedState);
@@ -1224,7 +1369,7 @@ export function decisionFor(stateInput, result) {
       const idx = targets.findIndex((target) => target.property === primary.property);
       if (idx >= 0 && treatedMiss.ranges && treatedMiss.ranges[idx]) {
         const meta = propertyMeta(primary.property);
-        nearMiss = ` After sorting or washing to the ranges you entered, this build gives ${formatRange(treatedMiss.ranges[idx], meta.unit)} — still outside your ${meta.label} ${formatTarget(targets[idx])}.`;
+        nearMiss = ` After sorting or washing to ${treatedRoutePhrase(state)}, this build gives ${formatRange(treatedMiss.ranges[idx], meta.unit)} — still outside your ${meta.label} ${formatTarget(targets[idx])}.`;
       }
     }
     const support = `At ${buildSizeText(currentPart(state))}, ${asStands}${supplierSentence}${primary.action}${secondary ? ` ${secondary}` : ''}${nearMiss} Ranges are checked as entered — no safety margin is added to any of these numbers.`;
@@ -1259,8 +1404,18 @@ export function decisionFor(stateInput, result) {
     };
   }
   const isBlend = winner.move === 'blend';
-  const steadyName = state.steady.type || 'the mix-in plastic';
+  const steadyBatch = state.steady.source === 'published' ? publishedBatchByKey(state.steady.publishedKey) : null;
+  const steadyName = state.steady.type || (steadyBatch ? steadyBatch.plastic.type : 'the mix-in plastic');
   const blendPct = isBlend ? Math.round(winner.fraction * 100) : 0;
+  // A winner far from the entered thickness must be named as such, in
+  // plain terms — the headline size alone can read as a small adjustment.
+  // (An 'other' winner is a different product, not this part resized.)
+  const extremeThickness = winner.move !== 'other'
+    && state.thicknessMm > 0 && winner.part.thicknessMm > 0
+    && (winner.part.thicknessMm < state.thicknessMm * 0.5 || winner.part.thicknessMm > state.thicknessMm * 2);
+  const extremeThicknessText = extremeThickness
+    ? `at a very different thickness (${formatNumber(convertForDisplay(winner.part.thicknessMm, 'mm'))} ${displayUnit('mm')}, not ${formatNumber(convertForDisplay(state.thicknessMm, 'mm'))} ${displayUnit('mm')})`
+    : '';
   const headline = winner.move === 'treated'
     ? `Sort or wash this delivery, then make the ${buildSizeText(winner.part)}.`
     : isBlend
@@ -1268,9 +1423,11 @@ export function decisionFor(stateInput, result) {
     : `Make the ${buildSizeText(winner.part)}.`;
   let support;
   if (winner.move === 'treated') {
-    support = `As entered, it misses. After sorting or washing — to the ranges you entered — this build ${rangeText(winner)} — inside your ${targetText}.`;
+    support = `As entered, it misses. After sorting or washing — to ${treatedRoutePhrase(state)} — this build ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (isBlend) {
-    support = `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
+    support = steadyBatch
+      ? `The delivery alone misses. With ${blendPct}% of ${steadyName} — the published range for ${steadyBatch.label} was used at its weak end — this build ${rangeText(winner)} — inside your ${targetText}.`
+      : `The delivery alone misses. With ${blendPct}% of ${steadyName}, this build ${rangeText(winner)} — inside your ${targetText}.`;
   } else if (winner.move === 'other') {
     // An 'other' winner is ranked by added material, so it can win while
     // the entered build also passes (it then uses less material). Only
@@ -1294,6 +1451,7 @@ export function decisionFor(stateInput, result) {
     return Math.min(range.min - target.min, target.max - range.max) / scale;
   });
   const thinMargin = spares.length && Math.min(...spares) < 0.05;
+  if (extremeThicknessText) support += ` That is ${extremeThicknessText}.`;
   support += ' Ranges are checked as entered — no safety margin added.';
   if (isLargeLoad) support += ' At this load this is a calculated estimate only — do not build on it without proper load testing by someone equipped for loads like this.';
   else if (thinMargin) support += ' The closest margin is thin — make one and check it before a run.';
@@ -1304,7 +1462,16 @@ export function decisionFor(stateInput, result) {
     'Checked as entered — no safety margin added.' + (isLargeLoad ? ' At this load this is a calculated estimate only, not a build instruction.' : (thinMargin ? ' The closest margin is thin: make one and check it before a run.' : '')) + (isThinEvidence ? ' This delivery range rests on thin published evidence: treat it as a rough guide.' : ''),
     `Plastic: ${state.plastic.type}${state.plastic.batch ? `, ${state.plastic.batch}` : ''}`,
     `Mix: ${state.plastic.mix || 'none stated'}; dirt: ${state.plastic.dirt || 'none stated'}`,
-    winner.move === 'treated' ? 'First: sort or wash this delivery, to the ranges entered under This delivery' : isBlend ? `Blend: ${blendPct}% ${steadyName}` : '',
+    extremeThicknessText ? `Thickness note: ${extremeThicknessText}` : '',
+    winner.move === 'treated'
+      ? (state.treated && state.treated.source === 'published'
+        ? `First: sort or wash this delivery, to ${treatedRoutePhrase(state)}`
+        : 'First: sort or wash this delivery, to the ranges entered under This delivery')
+      : isBlend
+        ? (steadyBatch
+          ? `Blend: ${blendPct}% ${steadyName} — the published range for ${steadyBatch.label} was used at its weak end`
+          : `Blend: ${blendPct}% ${steadyName}`)
+        : '',
     ...numericTargets.map(({ target, i }) => {
       const meta = propertyMeta(target.property);
       return `Requirement: ${meta.label} ${formatRange(winner.ranges ? winner.ranges[i] : winner.range, meta.unit)} — inside ${formatTarget(target)}`;
@@ -1345,7 +1512,9 @@ export function proposalRow(stateInput, item) {
       : addedMaterialText(item.addedG),
     winner: false,
     blend: blendPercent,
-    steadyType: item.move === 'blend' ? state.steady.type : '',
+    steadyType: item.move === 'blend'
+      ? (state.steady.type || (state.steady.source === 'published' ? (publishedBatchByKey(state.steady.publishedKey) || {}).plastic?.type || '' : ''))
+      : '',
   };
 }
 
@@ -1431,8 +1600,10 @@ export function advicePayload(stateInput, result, question) {
     steady: {
       available: state.steady.available,
       type: state.steady.type,
-      stiffness_mpa: state.steady.eMpa || null,
-      strength_mpa: state.steady.sMpa || null,
+      source: state.steady.source,
+      published_key: state.steady.publishedKey || null,
+      stiffness_mpa: effectiveSteadyValues(state.steady).eMpa || null,
+      strength_mpa: effectiveSteadyValues(state.steady).sMpa || null,
     },
     other_product: {
       name: state.other.product,
@@ -1492,7 +1663,7 @@ export function advicePayload(stateInput, result, question) {
         added_material: item.addedG,
       })),
       blend: {
-        available: Boolean(state.steady.available && state.steady.eMpa && state.steady.sMpa),
+        available: Boolean(state.steady.available && effectiveSteadyValues(state.steady).eMpa && effectiveSteadyValues(state.steady).sMpa),
         type: state.steady.type,
         fraction: result.winner && result.winner.move === 'blend' ? result.winner.fraction : null,
       },

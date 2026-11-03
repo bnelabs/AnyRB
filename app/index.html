@@ -43,6 +43,7 @@
       </div>
       <p class="brief-help">These words go to Muse Spark on the server, which fills the fields below from what you said. You can correct every field afterwards.</p>
       <p class="brief-status" id="brief-status"></p>
+      <button class="recall" id="brief-recall" type="button" hidden>Call again for a live answer</button>
     </div>
     <div class="cases" id="cases" aria-label="Start with a part">
       <span class="cases-label">Examples</span>
@@ -98,6 +99,7 @@
         <div class="section-head">
           <h3>Builds that work</h3>
           <p class="model-status" id="model-status">Scoring this delivery…</p>
+          <button class="recall" id="model-recall" type="button" hidden>Call again for a live answer</button>
         </div>
         <div class="production" id="production">
           <h3 class="production-title">Production</h3>
@@ -110,6 +112,8 @@
             <div class="field run-field"><label for="cost-treat" id="cost-treat-label">Sorting/washing costs, per tonne that comes out</label><input id="cost-treat" inputmode="decimal" type="text" placeholder="optional"></div>
             <div class="field run-field"><label for="waste-pct">Waste and rejects, % of each part (optional)</label><input id="waste-pct" inputmode="decimal" type="text" placeholder="e.g. 5"></div>
             <div class="field run-field"><label for="treat-loss">Lost in sorting/washing, % (optional)</label><input id="treat-loss" inputmode="decimal" type="text" placeholder="e.g. 20"></div>
+            <div class="field run-field"><label for="sheet-span">Cutting sheet length (mm)</label><input id="sheet-span" inputmode="decimal" type="text" placeholder="e.g. 2000"></div>
+            <div class="field run-field"><label for="sheet-width">Cutting sheet width (mm)</label><input id="sheet-width" inputmode="decimal" type="text" placeholder="e.g. 1000"></div>
             <div class="field run-field"><label for="cost-currency">Currency</label><select id="cost-currency"><option value="₺">₺ (lira)</option><option value="$">$ (dollar)</option><option value="€">€ (euro)</option><option value="£">£ (pound)</option></select></div>
           </div>
           <div class="cost-view" id="cost-view"></div>
@@ -142,6 +146,7 @@
           <button class="ask-button" id="ask-button" type="button">Ask</button>
         </div>
         <p class="ask-status" id="ask-status"></p>
+        <button class="recall" id="ask-recall" type="button" hidden>Call again for a live answer</button>
         <div class="ask-answer" id="ask-answer" aria-live="polite"></div>
       </div>
     </aside>
@@ -252,7 +257,10 @@
           <label class="check" for="treated-available"><input id="treated-available" type="checkbox"> Sorting or washing would change this delivery</label>
         </div>
         <div id="treated-fields" class="steady-fields" hidden>
-          <p class="measured-note">Enter what the delivery measures <em>after</em> sorting or washing — from whoever does it, or your own test. The app does not guess this effect.</p>
+          <div class="field"><label for="treated-source">After sorting or washing, this delivery is closest to…</label><select id="treated-source"></select></div>
+          <p class="measured-note" id="treated-published-note" hidden></p>
+          <div id="treated-numbers">
+          <p class="measured-note">Or enter what the delivery measures <em>after</em> sorting or washing — from whoever does it, or your own test. The app does not guess this effect.</p>
           <div class="grid2">
             <div class="field"><label for="treated-e-min">Stiffness low after (MPa)</label><input id="treated-e-min" inputmode="decimal" type="text"></div>
             <div class="field"><label for="treated-e-max">Stiffness high after (MPa)</label><input id="treated-e-max" inputmode="decimal" type="text"></div>
@@ -261,12 +269,17 @@
             <div class="field"><label for="treated-s-min">Strength low after (MPa)</label><input id="treated-s-min" inputmode="decimal" type="text"></div>
             <div class="field"><label for="treated-s-max">Strength high after (MPa)</label><input id="treated-s-max" inputmode="decimal" type="text"></div>
           </div>
+          </div>
         </div>
         <div id="steady-fields" class="steady-fields" hidden>
+          <div class="field"><label for="steady-source">The other plastic comes from…</label><select id="steady-source"></select></div>
+          <p class="measured-note" id="steady-published-note" hidden></p>
+          <div id="steady-numbers">
           <div class="field"><label for="steady-type">The other plastic</label><input id="steady-type" type="text" spellcheck="false" placeholder="e.g. a cleaner batch you can buy"></div>
           <div class="grid2">
             <div class="field"><label for="steady-e">Its stiffness (MPa)</label><input id="steady-e" inputmode="decimal" type="text"></div>
             <div class="field"><label for="steady-s">Its strength (MPa)</label><input id="steady-s" inputmode="decimal" type="text"></div>
+          </div>
           </div>
         </div>
       </div>

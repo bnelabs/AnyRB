@@ -23,9 +23,12 @@ import {
   formatRange,
   formatTarget,
   isReady,
+  loadPathComparison,
   materialGap,
   normalizeState,
   proposalRow,
+  publishedBatchByKey,
+  sheetYield,
   toApiPayload,
 } from './product.js';
 
@@ -44,6 +47,7 @@ let lastDecision = null;
 let copyReset = 0;
 let metaSource = null;
 let feedbackRound = false;
+let feedbackAdded = 0;
 let batchSource = '';
 let briefPublished = null;
 let briefBatchChoiceNeeded = false;
@@ -84,10 +88,12 @@ function syncBriefHelp() {
     ? 'The model is off in Settings. Type the fields below, or pick an example.'
     : 'These words are sent to the model you chose in Settings, which fills the fields below from what you said. You can correct every field afterwards.';
 }
-function metaHeaders(json = true) {
+function metaHeaders(json = true, bust = false) {
   const headers = {};
   if (json) headers['Content-Type'] = 'application/json';
   if (userKey) headers['X-User-Meta-Key'] = userKey;
+  // bust asks the server to skip a saved (cached) answer and call the model live.
+  if (bust) headers['X-User-Cache-Bust'] = '1';
   headers['X-User-Provider'] = settings.provider;
   headers['X-User-Base-Url'] = settings.endpoint || PROVIDER_BASES[settings.provider] || '';
   headers['X-User-Meta-Model'] = settings.provider === 'meta' ? settings.model : settings.modelText;
@@ -96,6 +102,7 @@ function metaHeaders(json = true) {
 
 const FIELD_UNITS = {
   'treated-e-min': 'MPa', 'treated-e-max': 'MPa', 'treated-s-min': 'MPa', 'treated-s-max': 'MPa',
+  'sheet-span': 'mm', 'sheet-width': 'mm',
   span: 'mm', width: 'mm', thickness: 'mm',
   'other-span': 'mm', 'other-width': 'mm', 'other-thickness': 'mm',
   'e-min': 'MPa', 'e-max': 'MPa', 's-min': 'MPa', 's-max': 'MPa',
@@ -127,6 +134,8 @@ let steadyPricePerKg = 0;
 let treatPricePerKg = 0;
 let wastePct = 0;
 let treatLossPct = 0;
+let sheetSpanMm = 0;
+let sheetWidthMm = 0;
 let costCurrency = localStorage.getItem('anyrb.currency') || '₺';
 let shareOtherName = '';
 let shareQtyMain = 0;
@@ -192,6 +201,34 @@ function updateSteadyVisibility() {
 }
 function updateTreatedVisibility() {
   $('treated-fields').hidden = !$('treated-available').checked;
+}
+function syncSteadySourceUI() {
+  const batch = state.steady.source === 'published' ? publishedBatchByKey(state.steady.publishedKey) : null;
+  $('steady-numbers').hidden = state.steady.source === 'published';
+  const note = $('steady-published-note');
+  if (batch) {
+    note.hidden = false;
+    note.textContent = `Uses the published range for ${batch.label} at its weak end — the conservative end a blend can be checked against.`;
+  } else if (state.steady.source === 'published') {
+    note.hidden = false;
+    note.textContent = 'Pick which published range the other plastic is closest to.';
+  } else {
+    note.hidden = true;
+  }
+}
+function syncTreatedSourceUI() {
+  const batch = state.treated && state.treated.source === 'published' ? publishedBatchByKey(state.treated.publishedKey) : null;
+  $('treated-numbers').hidden = Boolean(state.treated && state.treated.source === 'published');
+  const note = $('treated-published-note');
+  if (batch) {
+    note.hidden = false;
+    note.textContent = `After sorting or washing, this delivery is checked as the published range for ${batch.plastic.type} — a range you picked, not a measurement of the sorted delivery.`;
+  } else if (state.treated && state.treated.source === 'published') {
+    note.hidden = false;
+    note.textContent = 'Pick which published range the sorted delivery is closest to.';
+  } else {
+    note.hidden = true;
+  }
 }
 
 function targetUnit(property) {
@@ -297,6 +334,10 @@ function paint() {
   setValue('treated-s-min', state.treated?.sMin || '');
   setValue('treated-s-max', state.treated?.sMax || '');
   updateTreatedVisibility();
+  $('treated-source').value = state.treated && state.treated.source === 'published' ? state.treated.publishedKey : 'numbers';
+  syncTreatedSourceUI();
+  $('steady-source').value = state.steady.source === 'published' ? state.steady.publishedKey : 'numbers';
+  syncSteadySourceUI();
   setValue('steady-type', state.steady.type);
   setValue('steady-e', shownValue('steady-e', state.steady.eMpa));
   setValue('steady-s', shownValue('steady-s', state.steady.sMpa));
@@ -711,6 +752,13 @@ function renderVerdict(result, decision) {
   $('verdict-next').textContent = result.winner
     ? 'Next: copy the build, or download it below.'
     : 'Next: follow the change in the headline — or ask about this delivery below.';
+  const alt = loadPathComparison(result.state, result);
+  if (alt) {
+    const baseThick = result.winner ? result.winner.part.thicknessMm : state.thicknessMm;
+    const baseText = `${formatNumber(convertForDisplay(baseThick, 'mm'))} ${displayUnit('mm')}`;
+    const altText = `${formatNumber(convertForDisplay(alt.thicknessMm, 'mm'))} ${displayUnit('mm')}`;
+    $('verdict-next').textContent += ` ${alt.modeLabel} instead, this part needs ${altText}, not ${baseText} — about ${Math.round(alt.savingPct)}% less material.`;
+  }
 }
 
 
@@ -1509,6 +1557,15 @@ function renderRunNote(result) {
       }
     }
   }
+  if (sheetSpanMm > 0 && sheetWidthMm > 0) {
+    const cut = sheetYield({ sheetSpanMm, sheetWidthMm, partSpanMm: item.part.spanMm, partWidthMm: item.part.widthMm });
+    if (cut.perSheet > 0) {
+      const name = state.product ? `${state.product}s` : 'parts';
+      let sheetText = `One ${fmtVal(sheetSpanMm, 'mm')} × ${fmtVal(sheetWidthMm, 'mm')} sheet gives ${cut.perSheet} ${name}.`;
+      if (runSize > 0) sheetText += ` This order needs ${Math.ceil(runSize / cut.perSheet)} sheets.`;
+      line(sheetText);
+    }
+  }
   if (nextDensityG > 0 && state.plastic.density > 0 && Math.abs(nextDensityG - state.plastic.density) > 1e-9) {
     const nextMassG = massG * (nextDensityG / state.plastic.density);
     const changePct = Math.round(((nextMassG - massG) / massG) * 1000) / 10;
@@ -1601,6 +1658,7 @@ function renderDecisionBar(result, decision) {
 
 function renderStatus(result) {
   const status = $('model-status');
+  $('model-recall').hidden = true;
   if (modelState === 'idle') {
     status.textContent = '';
     return;
@@ -1610,7 +1668,13 @@ function renderStatus(result) {
     return;
   }
   if (modelState === 'meta') {
-    status.textContent = `${modelProposals.length} suggested moves. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
+    const exact = (result.modelTrace || []).filter((item) => item.pass).length;
+    const total = modelProposals.length;
+    let tally = `${total} size${total === 1 ? '' : 's'} proposed — ${exact} passed exactly as proposed`;
+    if (feedbackAdded > 0) tally += `, ${feedbackAdded} more after the model saw the checked ranges`;
+    tally += `. ${result.passingCount} build${result.passingCount === 1 ? '' : 's'} pass.${metaSourceText()}`;
+    status.textContent = tally;
+    $('model-recall').hidden = !metaSource || metaSource.kind !== 'cached';
     return;
   }
   if (modelState === 'local') {
@@ -1636,7 +1700,10 @@ function render(result) {
   $('results-panel').hidden = !result.ready;
   $('builds-panel').hidden = !result.ready;
   const buildsHead = $('builds-panel').querySelector('.section-head h3');
-  if (buildsHead) buildsHead.textContent = result.winner ? 'Builds that work' : 'No build works yet';
+  if (buildsHead) {
+    const blendAlso = result.winner && (result.passingBest || []).some((b) => b !== result.winner && b.move === 'blend');
+    buildsHead.textContent = !result.winner ? 'No build works yet' : (blendAlso ? 'Builds that work — including a blend' : 'Builds that work');
+  }
   $('gap').hidden = !result.ready;
   $('ask-panel').hidden = !result.ready || (state.target.property === 'none' && !state.extraTargets.length);
   renderProgress(result);
@@ -1724,7 +1791,7 @@ function bindSelect(id, path, after = null) {
 // ---------------------------------------------------------------------------
 // Model proposals
 // ---------------------------------------------------------------------------
-async function fetchProposals() {
+async function fetchProposals(bust = false) {
   if (!isReady(state)) return;
   if (state.target.property === 'none') {
     modelProposals = [];
@@ -1741,12 +1808,13 @@ async function fetchProposals() {
   }
   const seq = ++modelSeq;
   const payload = toApiPayload(state);
+  feedbackAdded = 0;
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
     const response = await fetch(`${API_BASE}/api/product/proposals`, {
       method: 'POST',
-      headers: metaHeaders(),
+      headers: metaHeaders(true, bust),
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -1786,7 +1854,7 @@ async function fetchProposals() {
           }));
           const second = await fetch(`${API_BASE}/api/product/proposals`, {
             method: 'POST',
-            headers: metaHeaders(),
+            headers: metaHeaders(true, bust),
             body: JSON.stringify({ ...payload, verifier_feedback: feedback }),
             signal: controller.signal,
           });
@@ -1797,7 +1865,7 @@ async function fetchProposals() {
           if (second.ok && !secondFallback && secondProposals.length) {
             const seen = new Set(modelProposals.map((p) => JSON.stringify(p)));
             for (const proposal of secondProposals) {
-              if (!seen.has(JSON.stringify(proposal))) modelProposals.push(proposal);
+              if (!seen.has(JSON.stringify(proposal))) { modelProposals.push(proposal); feedbackAdded += 1; }
             }
             modelState = 'meta';
             metaSource = secondData._cached
@@ -1833,7 +1901,7 @@ function clearAdvice() {
   $('ask-answer').replaceChildren();
 }
 
-async function askMeta() {
+async function askMeta(bust = false) {
   if (!lastResult || !lastResult.ready) return;
   const input = $('ask-question');
   const question = (input.value.trim() || 'What should I add or change to make this delivery work?').slice(0, 800);
@@ -1846,13 +1914,14 @@ async function askMeta() {
     return;
   }
   $('ask-status').textContent = 'Thinking…';
+  $('ask-recall').hidden = true;
   $('ask-answer').replaceChildren();
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 30000);
   try {
     const response = await fetch(`${API_BASE}/api/product/advice`, {
       method: 'POST',
-      headers: metaHeaders(),
+      headers: metaHeaders(true, bust),
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -1868,6 +1937,7 @@ async function askMeta() {
       return;
     }
     $('ask-status').textContent = answerSourceLine(data);
+    $('ask-recall').hidden = !data._cached;
     const answer = document.createElement('p');
     answer.textContent = data.answer;
     $('ask-answer').append(answer);
@@ -1978,6 +2048,20 @@ setSelectOptions('property', PROPERTIES.map((p) => ({ key: p.key, label: p.key =
   select.append(own);
   select.addEventListener('change', () => applyBatchSource(select.value));
 }
+for (const id of ['steady-source', 'treated-source']) {
+  const select = $(id);
+  select.replaceChildren();
+  const numbers = document.createElement('option');
+  numbers.value = 'numbers';
+  numbers.textContent = id === 'steady-source' ? 'Its own numbers — I will enter them' : 'Its numbers after — I will enter them';
+  select.append(numbers);
+  for (const batch of PUBLISHED_BATCHES) {
+    const option = document.createElement('option');
+    option.value = batch.key;
+    option.textContent = id === 'steady-source' ? `Published range: ${batch.label}` : `Published range: ${batch.plastic.type}`;
+    select.append(option);
+  }
+}
 setSelectOptions('dirt-level', [
   { key: 'none', label: 'None' },
   { key: 'light', label: 'Light' },
@@ -2018,6 +2102,30 @@ $('treated-available').addEventListener('change', (event) => {
   updateTreatedVisibility();
   onFieldChange();
 });
+$('steady-source').addEventListener('change', (event) => {
+  const key = event.target.value;
+  state.steady = key === 'numbers'
+    ? { ...state.steady, source: 'numbers', publishedKey: '' }
+    : { ...state.steady, source: 'published', publishedKey: key };
+  paint();
+  onFieldChange();
+});
+$('treated-source').addEventListener('change', (event) => {
+  const key = event.target.value;
+  state.treated = key === 'numbers'
+    ? { ...(state.treated || {}), source: 'numbers', publishedKey: '' }
+    : { ...(state.treated || {}), source: 'published', publishedKey: key };
+  paint();
+  onFieldChange();
+});
+for (const [id, key] of [['sheet-span', 'sheetSpanMm'], ['sheet-width', 'sheetWidthMm']]) {
+  $(id).addEventListener('input', (event) => {
+    const parsed = Number(event.target.value);
+    const mm = Number.isFinite(parsed) && parsed > 0 ? convertFromDisplay(parsed, 'mm') : 0;
+    if (key === 'sheetSpanMm') sheetSpanMm = mm; else sheetWidthMm = mm;
+    if (lastResult) renderRunNote(lastResult);
+  });
+}
 bind('product', 'product');
 bind('span', 'spanMm');
 bind('width', 'widthMm');
@@ -2149,8 +2257,11 @@ async function sendVoice(blob) {
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
     voiceSource = answerSourceLine(result);
-    $('brief-status').textContent = 'Heard it. Filling in the form…';
-    await readBrief();
+    // The transcript is shown for review, not parsed: the user checks what
+    // was heard, then presses Fill in the form. A mis-heard word dies here
+    // instead of entering the fields.
+    const heard = transcript.length > 140 ? `${transcript.slice(0, 140)}…` : transcript;
+    $('brief-status').textContent = `Heard: “${heard}” — check it above, then press Fill in the form.`;
   } catch (error) {
     $('brief-status').textContent = 'Voice is unavailable. Type the description instead.';
   } finally {
@@ -2274,7 +2385,63 @@ function applyPublishedIfMissing(normalized, originalText = '') {
   return normalized;
 }
 
-async function readBrief() {
+/* Fields filled from the user's words --------------------------------------
+ * After a brief parse, every input the model wrote is marked until the
+ * user edits it. Marking is visual only: the values are the same editable
+ * fields, and editing any of them clears its mark.
+ */
+function clearAiFilled() {
+  for (const el of $$('.ai-filled')) el.classList.remove('ai-filled');
+}
+function briefFilledGroups(brief) {
+  const source = brief && typeof brief === 'object' ? brief : {};
+  const groups = [];
+  if (source.product) groups.push('the part');
+  if (source.mode) groups.push('how it is held');
+  if (source.span_mm || source.width_mm || source.thickness_mm) groups.push('the size');
+  if (Array.isArray(source.targets) && source.targets.length) groups.push('what it has to do');
+  const plastic = source.plastic || {};
+  if (plastic.type || plastic.batch || plastic.mix || plastic.dirt
+      || plastic.stiffness_min_mpa || plastic.strength_min_mpa || plastic.density_g_cm3) groups.push('this delivery');
+  const steady = source.steady || {};
+  if (steady.available || steady.type) groups.push('the other plastic');
+  return groups;
+}
+function markBriefFilled(brief) {
+  clearAiFilled();
+  const source = brief && typeof brief === 'object' ? brief : {};
+  const mark = (id) => { const el = document.getElementById(id); if (el) el.classList.add('ai-filled'); };
+  if (source.product) mark('product');
+  if (source.mode) mark('mode');
+  if (source.span_mm) mark('span');
+  if (source.width_mm) mark('width');
+  if (source.thickness_mm) mark('thickness');
+  const targets = Array.isArray(source.targets) ? source.targets : [];
+  if (targets[0]) { mark('property'); mark('target-min'); mark('target-max'); }
+  const rows = $$('#extra-targets .extra-target');
+  targets.slice(1).forEach((target, i) => {
+    if (target && rows[i]) rows[i].querySelectorAll('input, select').forEach((el) => el.classList.add('ai-filled'));
+  });
+  const plastic = source.plastic || {};
+  if (plastic.type) mark('plastic-type');
+  if (plastic.batch) mark('plastic-batch');
+  if (plastic.mix) mark('plastic-mix');
+  if (plastic.dirt) mark('plastic-dirt');
+  if (plastic.dirt_level) mark('dirt-level');
+  if (plastic.stiffness_min_mpa) mark('e-min');
+  if (plastic.stiffness_max_mpa) mark('e-max');
+  if (plastic.strength_min_mpa) mark('s-min');
+  if (plastic.strength_max_mpa) mark('s-max');
+  if (plastic.density_g_cm3) mark('density');
+  const steady = source.steady || {};
+  if (steady.available) mark('steady-available');
+  if (steady.type) mark('steady-type');
+  if (steady.stiffness_mpa) mark('steady-e');
+  if (steady.strength_mpa) mark('steady-s');
+  return briefFilledGroups(source);
+}
+
+async function readBrief(bust = false) {
   const field = $('brief');
   const text = field.value.trim();
   if (!text) {
@@ -2289,6 +2456,7 @@ async function readBrief() {
   }
   const button = $('brief-submit');
   button.disabled = true;
+  $('brief-recall').hidden = true;
   $('brief-status').textContent = 'Filling in the form…';
   $('brief-status').classList.add('is-working');
   $('support').textContent = 'Filling in the form. This usually takes about ten seconds — you do not need to fill anything in while it works.';
@@ -2297,7 +2465,7 @@ async function readBrief() {
   try {
     const response = await fetch(`${API_BASE}/api/product/brief`, {
       method: 'POST',
-      headers: metaHeaders(),
+      headers: metaHeaders(true, bust),
       body: JSON.stringify({ text }),
       signal: controller.signal,
     });
@@ -2310,6 +2478,7 @@ async function readBrief() {
     state = mapBriefToState(data.brief, text);
     paint();
     refresh();
+    const filled = markBriefFilled(data.brief);
     field.setSelectionRange(0, 0);
     field.scrollTop = 0;
     const filledTargets = [state.target, ...state.extraTargets]
@@ -2324,9 +2493,11 @@ async function readBrief() {
     } else if (briefPublished) {
       status += ` For this delivery, the published range “${briefPublished.label}” was used — that is a published range, not a measurement of this delivery. Change it under “This delivery” if your supplier’s numbers differ.`;
     }
+    if (filled.length) status += ` Filled from your words: ${filled.join(', ')} — marked fields clear when you edit them.`;
     status += ` ${sourcePlain}`;
     if (voiceSource) { status += ` Voice: ${voiceSource}.`; voiceSource = ''; }
     $('brief-status').textContent = status;
+    $('brief-recall').hidden = !data._cached;
   } catch (error) {
     $('brief-status').textContent = 'The model is unavailable. Fill the fields below; the checker on this page still works.';
     render(evaluateBuilds(state, modelProposals));
@@ -2343,6 +2514,7 @@ function applyCase(name) {
     batchSource = '';
     state = normalizeState({ blank: true });
     if (caseNote) { caseNote.hidden = true; caseNote.textContent = ''; }
+    clearAiFilled();
     paint();
     refresh();
     $('product').focus();
@@ -2372,6 +2544,7 @@ function applyCase(name) {
     plastic: preset.plastic ? { ...state.plastic, ...preset.plastic } : { ...DEFAULT_STATE.plastic },
     steady: preset.steady ? { ...state.steady, ...preset.steady } : { ...DEFAULT_STATE.steady },
   });
+  clearAiFilled();
   paint();
   refresh();
   closeDetails();
@@ -2386,7 +2559,8 @@ function addTarget() {
   onFieldChange();
 }
 
-$('brief-submit').addEventListener('click', readBrief);
+$('brief-submit').addEventListener('click', () => readBrief());
+$('brief-recall').addEventListener('click', () => readBrief(true));
 $('brief-voice').addEventListener('click', toggleVoice);
 $('brief-sample').addEventListener('click', () => {
   const field = $('brief');
@@ -2402,6 +2576,8 @@ $('brief').addEventListener('keydown', (event) => {
     readBrief();
   }
 });
+// An edited transcript is the user's own words, not the voice answer.
+$('brief').addEventListener('input', () => { voiceSource = ''; });
 for (const id of ['e-min', 'e-max', 's-min', 's-max', 'density', 'treated-e-min', 'treated-e-max', 'treated-s-min', 'treated-s-max']) {
   $(id).addEventListener('input', () => {
     if (batchSource !== 'numbers') {
@@ -2461,7 +2637,15 @@ $('treat-loss').addEventListener('input', (event) => {
   treatLossPct = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 95) : 0;
   if (lastResult) { renderCost(lastResult); renderRunNote(lastResult); }
 });
-$('ask-button').addEventListener('click', askMeta);
+$('ask-button').addEventListener('click', () => askMeta());
+$('ask-recall').addEventListener('click', () => askMeta(true));
+$('model-recall').addEventListener('click', () => fetchProposals(true));
+// An edited field is the user's own: its "filled from your words" mark goes.
+for (const type of ['input', 'change']) {
+  document.addEventListener(type, (event) => {
+    if (event.target && event.target.classList) event.target.classList.remove('ai-filled');
+  });
+}
 $('ask-question').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -2595,6 +2779,8 @@ function syncProductionInputs() {
   $('cost-currency').value = costCurrency;
   if (materialHaveKg > 0) $('material-have').value = String(Math.round((materialHaveKg / 1000) * 1000) / 1000);
   if (nextDensityG > 0) $('next-density').value = String(Math.round(convertForDisplay(nextDensityG, 'g/cm³') * 1000) / 1000);
+  if (sheetSpanMm > 0) $('sheet-span').value = String(Math.round(convertForDisplay(sheetSpanMm, 'mm') * 1000) / 1000);
+  if (sheetWidthMm > 0) $('sheet-width').value = String(Math.round(convertForDisplay(sheetWidthMm, 'mm') * 1000) / 1000);
 }
 function applyUnits(system) {
   settings.units = system === 'imperial' ? 'imperial' : 'metric';

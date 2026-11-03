@@ -722,6 +722,82 @@ def test_cache_identity_includes_prompt_and_presenting_key(monkeypatch, tmp_path
     assert calls["n"] == 3
 
 
+def test_cache_bust_header_forces_live_recall_and_rewrites_cache(client, monkeypatch):
+    """Warm cache + `X-User-Cache-Bust: 1` -> transport again, cached=false.
+
+    Without the header the saved answer is served (cached=true, no new call);
+    the bust result is still written, so the next plain request is cached.
+    """
+    calls = _use_fake_live(monkeypatch, [{"move": "thickness", "thickness_mm": 16}])
+    body = _unique_body("cache-bust")
+    first = client.post(ENDPOINT, json=body).json()
+    assert first["_cached"] is False and calls["n"] == 1
+
+    second = client.post(ENDPOINT, json=body).json()
+    assert second["_cached"] is True and calls["n"] == 1
+
+    bust = client.post(ENDPOINT, json=body,
+                       headers={"X-User-Cache-Bust": "1"}).json()
+    assert bust["_cached"] is False and bust["_meta"]["cached"] is False
+    assert bust["_meta"]["fallback"] is False
+    assert bust["proposals"] == first["proposals"]
+    assert calls["n"] == 2                       # live re-call, cache read skipped
+
+    # the bust still wrote the fresh result, and the scope did not leak
+    after = client.post(ENDPOINT, json=body).json()
+    assert after["_cached"] is True and calls["n"] == 2
+
+    # a non-truthy header value leaves the default cache behaviour unchanged
+    not_bust = client.post(ENDPOINT, json=body,
+                           headers={"X-User-Cache-Bust": "0"}).json()
+    assert not_bust["_cached"] is True and calls["n"] == 2
+
+
+def test_request_scope_cache_bust_skips_read_but_still_writes(monkeypatch, tmp_path):
+    import json as _json
+    from server import meta_client
+    calls = {"n": 0}
+
+    class FakeResponse:
+        status_code = 200
+        def raise_for_status(self): return None
+        def json(self):
+            return {"choices": [{"message": {"content": _json.dumps({"proposals": []})}}], "usage": {}}
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, url, headers=None, json=None):
+            calls["n"] += 1
+            return FakeResponse()
+
+    monkeypatch.setattr(meta_client.httpx, "Client", FakeClient)
+    monkeypatch.setattr(meta_client, "MOCK", False)
+    monkeypatch.setattr(meta_client, "KEY", "server-key")
+    monkeypatch.setattr(meta_client, "CACHE_DIR", tmp_path)
+    payload = {"probe": "cache-bust-scope-1"}
+    fallback = lambda: {"proposals": []}  # noqa: E731
+
+    with meta_client.request_scope(key="user-a"):
+        first = meta_client.spark_json("probe_kind", "system-a", payload, fallback)
+        second = meta_client.spark_json("probe_kind", "system-a", payload, fallback)
+    assert first["_meta"]["cached"] is False and second["_meta"]["cached"] is True
+    assert calls["n"] == 1
+    assert meta_client.cache_bust_requested() is False   # scope exited cleanly
+
+    with meta_client.request_scope(key="user-a", cache_bust=True):
+        assert meta_client.cache_bust_requested() is True
+        third = meta_client.spark_json("probe_kind", "system-a", payload, fallback)
+    assert third["_meta"]["cached"] is False
+    assert calls["n"] == 2                               # read skipped, live again
+
+    with meta_client.request_scope(key="user-a"):
+        fourth = meta_client.spark_json("probe_kind", "system-a", payload, fallback)
+    assert fourth["_meta"]["cached"] is True            # bust result was written
+    assert calls["n"] == 2
+
+
 def test_browser_shaped_meta_request_uses_server_key(client, monkeypatch):
     """The page always sends X-User-Base-Url with the canonical Meta endpoint.
     That is the server's own endpoint: the server key must still be used."""
