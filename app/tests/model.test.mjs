@@ -559,6 +559,18 @@ test('ticket carries where the range came from, and the builds heading tells the
   assert.match(html, /Delivery name/);
 });
 
+test('feedstock is priced and stocked by the tonne, as it is traded', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /This delivery costs, per tonne/);
+  assert.match(html, /do you have\? \(tonnes\)/);
+  assert.match(js, /parsed \/ 1000/);
+  assert.match(js, /parsed \* 1000/);
+  assert.match(js, /per tonne before blending/);
+  assert.doesNotMatch(html, /costs, per kg/);
+});
+
 test('settings keeps Meta in front and labels every model answer', async () => {
   const fs = await import('node:fs/promises');
   const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
