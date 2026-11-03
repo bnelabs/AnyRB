@@ -99,6 +99,9 @@ function parsedValue(id, raw) {
 let runSize = 0;
 let materialHaveKg = 0;
 let nextDensityG = 0;
+let batchPricePerKg = 0;
+let steadyPricePerKg = 0;
+let costCurrency = localStorage.getItem('anyrb.currency') || '₺';
 
 const SAMPLE_BRIEF = 'I make crate sides, 400 mm long, 60 mm wide and 15 mm thick, supported at both ends. Each side has to carry 95 to 115 kg, and one side should weigh 320 to 360 g. This delivery is recycled HDPE from one supplier, fairly clean, with paper labels on some of it.';
 
@@ -934,6 +937,88 @@ function applyNeed() {
   refresh();
 }
 
+
+function money(value) {
+  return `${costCurrency}${formatNumber(value)}`;
+}
+function renderCost(result) {
+  const view = $('cost-view');
+  view.replaceChildren();
+  if (!result.ready) return;
+  const builds = result.passingBest && result.passingBest.length ? result.passingBest : (result.current ? [result.current] : []);
+  if (!builds.length) return;
+  if (!(batchPricePerKg > 0)) {
+    const ask = document.createElement('p');
+    ask.className = 'cost-ask';
+    ask.textContent = 'Want the cost as well? Add what this delivery costs per kg above — then every build that works gets a cost per part, and per order.';
+    view.append(ask);
+    return;
+  }
+  const title = document.createElement('h4');
+  title.className = 'cost-title';
+  title.textContent = 'What each build costs';
+  view.append(title);
+  const table = document.createElement('table');
+  table.className = 'cost-table';
+  const head = document.createElement('thead');
+  const hr = document.createElement('tr');
+  for (const label of ['Build', 'Plastic a part', 'Cost a part', runSize > 0 ? `Cost for ${runSize.toLocaleString('en-US')}` : 'Cost a part × order']) {
+    const th = document.createElement('th');
+    th.textContent = label;
+    hr.append(th);
+  }
+  head.append(hr);
+  table.append(head);
+  const body = document.createElement('tbody');
+  const costOf = (build) => {
+    const massKg = build.massG / 1000;
+    if (build.move === 'blend' && build.fraction) {
+      if (!(steadyPricePerKg > 0)) return null;
+      return massKg * ((1 - build.fraction) * batchPricePerKg + build.fraction * steadyPricePerKg);
+    }
+    return massKg * batchPricePerKg;
+  };
+  const costs = builds.map(costOf);
+  const computable = costs.filter((c) => c != null && Number.isFinite(c));
+  const cheapest = computable.length ? Math.min(...computable) : null;
+  builds.forEach((build, i) => {
+    const row = proposalRow(result.state, build);
+    const cost = costs[i];
+    const tr = document.createElement('tr');
+    if (cost != null && cheapest != null && Math.abs(cost - cheapest) < 1e-9) tr.className = 'is-cheapest';
+    const cells = [
+      `${row.move}${cost != null && cheapest != null && Math.abs(cost - cheapest) < 1e-9 ? ' · Cheapest' : ''}`,
+      fmtVal(build.massG, 'g'),
+      cost == null ? 'needs steadier price' : money(cost),
+      cost == null ? '—' : runSize > 0 ? money(cost * runSize) : 'add order size',
+    ];
+    cells.forEach((text, idx) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (idx > 0) td.className = 'num';
+      tr.append(td);
+    });
+    body.append(tr);
+  });
+  table.append(body);
+  view.append(table);
+  if (!result.winner && result.current) {
+    const note = document.createElement('p');
+    note.className = 'cost-ask';
+    const entered = costOf(result.current);
+    note.textContent = entered != null
+      ? `As entered, one part uses ${money(entered)} of plastic — but it does not work, so that money buys no good parts yet.`
+      : 'As entered, this part does not work yet, so its cost buys no good parts yet.';
+    view.append(note);
+  }
+  if (costs.some((c) => c == null)) {
+    const ask = document.createElement('p');
+    ask.className = 'cost-ask';
+    ask.textContent = 'One build mixes in the steadier plastic. Add what that costs per kg above and its cost can be compared too.';
+    view.append(ask);
+  }
+}
+
 function renderRunNote(result) {
   const note = $('run-note');
   const use = $('use-note');
@@ -1104,6 +1189,7 @@ function render(result) {
     return;
   }
   renderVerdict(result, decision);
+  renderCost(result);
   fade([$('build-list'), $('gap')], () => {
     renderRunNote(result);
     renderBuildList(result);
@@ -1814,6 +1900,21 @@ $('material-have').addEventListener('input', (event) => {
   materialHaveKg = Number.isFinite(parsed) && parsed > 0 ? convertFromDisplay(parsed, 'kg') : 0;
   if (lastResult) renderRunNote(lastResult);
 });
+$('cost-batch').addEventListener('input', (event) => {
+  const parsed = Number(event.target.value);
+  batchPricePerKg = Number.isFinite(parsed) && parsed > 0 ? convertForDisplay(parsed, 'kg') : 0;
+  if (lastResult) renderCost(lastResult);
+});
+$('cost-steady').addEventListener('input', (event) => {
+  const parsed = Number(event.target.value);
+  steadyPricePerKg = Number.isFinite(parsed) && parsed > 0 ? convertForDisplay(parsed, 'kg') : 0;
+  if (lastResult) renderCost(lastResult);
+});
+$('cost-currency').addEventListener('change', (event) => {
+  costCurrency = event.target.value;
+  localStorage.setItem('anyrb.currency', costCurrency);
+  if (lastResult) renderCost(lastResult);
+});
 $('next-density').addEventListener('input', (event) => {
   const parsed = Number(event.target.value);
   nextDensityG = Number.isFinite(parsed) && parsed > 0 ? convertFromDisplay(parsed, 'g/cm³') : 0;
@@ -1947,6 +2048,9 @@ function syncUnitButtons() {
 function syncProductionInputs() {
   $('material-have-label').textContent = `How much of this delivery do you have? (${displayUnit('kg')})`;
   $('next-density-label').textContent = `Next delivery's density, if known (${displayUnit('g/cm³')})`;
+  $('cost-batch-label').textContent = `This delivery costs, per ${displayUnit('kg')}`;
+  $('cost-steady-label').textContent = `Steadier plastic costs, per ${displayUnit('kg')}`;
+  $('cost-currency').value = costCurrency;
   if (materialHaveKg > 0) $('material-have').value = String(Math.round(convertForDisplay(materialHaveKg, 'kg') * 1000) / 1000);
   if (nextDensityG > 0) $('next-density').value = String(Math.round(convertForDisplay(nextDensityG, 'g/cm³') * 1000) / 1000);
 }

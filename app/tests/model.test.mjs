@@ -562,3 +562,14 @@ test('stiffness is asked as weight and bend, not as a lab number', async () => {
   assert.match(js, /need-s-bend/);
   assert.match(js, /You do not need to know the stiffness number/);
 });
+
+test('cost comparison is wired: prices, currency, cheapest build', async () => {
+  const fs = await import('node:fs/promises');
+  const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const js = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(html, /id="cost-batch"/);
+  assert.match(html, /id="cost-steady"/);
+  assert.match(html, /id="cost-currency"/);
+  assert.match(js, /What each build costs/);
+  assert.match(js, /Cheapest/);
+});
